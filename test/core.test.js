@@ -21,7 +21,7 @@ import { dirname, join } from 'node:path';
 import { toAwj, CMD, screenAuxControl, ROOT } from '../src/core/paths.js';
 import { DeviceStore } from '../src/core/device-store.js';
 import { readMap, diffMaps, detectVariant } from '../src/core/vpu.js';
-import { CueStack, ACTION_KINDS, toTenths } from '../src/core/cuestack.js';
+import { CueStack, ACTION_KINDS, toTenths, SETTLE_MS } from '../src/core/cuestack.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));
@@ -172,7 +172,7 @@ function recordingStack() {
 }
 
 test('a cue writes its transition time before it pulls the trigger', () => {
-  const { stack, sent } = recordingStack();
+  const { stack, sent, advance } = recordingStack();
   stack.add({
     number: '1', fade: 2.5,
     actions: [
@@ -181,11 +181,39 @@ test('a cue writes its transition time before it pulls the trigger', () => {
     ]
   });
   stack.go();
+  advance(SETTLE_MS);
 
   const props = sent.map((c) => c.path[c.path.length - 1]);
   assert.deepEqual(props, ['xRequest', 'takeUpTime', 'takeDownTime', 'xTake']);
   assert.equal(sent[1].value, 25); // tenths of a second
   assert.equal(toTenths(2.5), 25);
+});
+
+test('a TAKE never overtakes the recall in its own cue', () => {
+  const { stack, sent, advance } = recordingStack();
+  stack.add({
+    actions: [
+      { kind: ACTION_KINDS.SCREEN_PRESET, slot: 4, targets: ['S1'], mode: 'PREVIEW' },
+      { kind: ACTION_KINDS.TAKE, targets: ['S1'] }
+    ]
+  });
+  stack.go();
+
+  /* Recall out, trigger held. Sending both at once lets the device transition
+     the PREVIOUS preview contents to air - wrong picture, and silent. */
+  assert.deepEqual(sent.map((c) => c.path[c.path.length - 1]), ['xRequest']);
+  advance(SETTLE_MS - 1);
+  assert.equal(sent.length, 1);
+  advance(1);
+  assert.deepEqual(sent.map((c) => c.path[c.path.length - 1]), ['xRequest', 'xTake']);
+});
+
+test('a cue with nothing in flight triggers immediately', () => {
+  const { stack, sent } = recordingStack();
+  stack.add({ actions: [{ kind: ACTION_KINDS.TAKE, targets: ['S1'] }] });
+  stack.go();
+  assert.deepEqual(sent.map((c) => c.path[c.path.length - 1]), ['xTake']);
+  assert.equal(stack.log[0].settled, false);
 });
 
 test('a cue with no fade leaves the screen transition times alone', () => {

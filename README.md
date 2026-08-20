@@ -111,6 +111,8 @@ reported as unknown, not drawn as an empty chassis.
   device's own model.
 - **The timeline writes only what a cue says.** Preset recalls, transition
   times, TAKE, CUT and STEP BACK — nothing else, and only on GO.
+- **A TAKE waits 150 ms behind a recall in the same cue**, so it cannot
+  overtake its own preset load and put the previous preview on air.
 - **A cue is reported as *sent*, never as *confirmed*.** Recalls and takes
   return nothing on this protocol. The log counts writes that left the browser;
   device status is shown separately, from the device's own status properties.
@@ -123,7 +125,7 @@ reported as unknown, not drawn as an empty chassis.
 npm test
 ```
 
-20 tests over the path table, the store, both VPU models and the cue engine.
+22 tests over the path table, the store, both VPU models and the cue engine.
 Two fixtures are real captures from a running simulator.
 
 To exercise the panels inside a live Web RCS session without packing the
@@ -147,6 +149,11 @@ session the simplest thing is to open one yourself first — see the note in
 is brokered by the isolated-world loader, which is not present.
 
 ## Related
+
+[`webrcs-timeline`](../webrcs-timeline) is a Rust workspace with the same cue
+model, both transports and no UI — the headless path. Its engine and this one
+are independent implementations and will drift; converging them is an open
+decision.
 
 [`aquilon-vpu-map`](../aquilon-vpu-map) is a standalone server-side reader of
 the same VPU mapping over AWJ. It and this extension solve the same problem

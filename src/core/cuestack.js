@@ -31,6 +31,20 @@ const nextId = () => 'c' + (++uid) + '-' + Math.random().toString(36).slice(2, 7
 /** Seconds to the device's tenths-of-a-second transition units. */
 export const toTenths = (seconds) => Math.max(0, Math.round(seconds * 10));
 
+/**
+ * Gap between a preset recall and the TAKE in the same cue, in milliseconds.
+ *
+ * Recalls are silent and take a non-zero time to land. A TAKE issued in the
+ * same breath can overtake its own preset load, in which case the device
+ * transitions the *previous* preview contents to air: wrong picture, on air,
+ * and no error anywhere to explain it. This gap is a floor, not a guarantee -
+ * it makes the common case right and does not pretend to close the race.
+ *
+ * Established independently by the standalone webrcs-timeline engine, which
+ * hit it against the simulator and settled on the same figure.
+ */
+export const SETTLE_MS = 150;
+
 export const ACTION_KINDS = {
   SCREEN_PRESET: 'screenPreset',
   MASTER_PRESET: 'masterPreset',
@@ -221,16 +235,19 @@ export class CueStack extends EventTarget {
   fire(cue) {
     if (!cue || !cue.enabled) return { sent: 0, skipped: true };
     let sent = 0;
+    let recalled = false;
     const takeTargets = new Set();
 
     for (const a of cue.actions) {
       switch (a.kind) {
         case ACTION_KINDS.SCREEN_PRESET:
+          recalled = true;
           for (const target of a.targets || []) {
             if (this._send(CMD.recallScreenPreset(a.slot, target, a.mode || 'PREVIEW'))) sent++;
           }
           break;
         case ACTION_KINDS.MASTER_PRESET:
+          recalled = true;
           if (this._send(CMD.recallMasterPreset(a.slot, a.mode || 'PREVIEW'))) sent++;
           break;
         case ACTION_KINDS.TAKE:
@@ -251,21 +268,35 @@ export class CueStack extends EventTarget {
       }
     }
 
-    for (const entry of takeTargets) {
-      const [target, kind] = entry.split(' ');
-      if (this._send(kind === ACTION_KINDS.CUT ? CMD.cut(target) : CMD.take(target))) sent++;
-    }
+    const trigger = () => {
+      let fired = 0;
+      for (const entry of takeTargets) {
+        const [target, kind] = entry.split(' ');
+        if (this._send(kind === ACTION_KINDS.CUT ? CMD.cut(target) : CMD.take(target))) fired++;
+      }
+      if (fired) {
+        record.sent += fired;
+        this._emit('took', { cueId: cue.id, sent: fired });
+      }
+    };
 
     const record = {
       at: this.clock.now(),
       cueId: cue.id,
       number: cue.number,
       label: cue.label,
-      sent
+      sent,
+      settled: recalled && takeTargets.size > 0
     };
     this._log.push(record);
     if (this._log.length > 500) this._log.shift();
     this._emit('fired', record);
+
+    /* Only wait when this cue recalled something. A cut-only cue has nothing
+       in flight to overtake, and delaying it would just make it feel late. */
+    if (record.settled) this.clock.setTimeout(trigger, SETTLE_MS);
+    else trigger();
+
     return record;
   }
 

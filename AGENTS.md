@@ -57,6 +57,12 @@ and should need only a new `transports/` module. Keep device I/O out of `core/`.
   through `screenList` is accepted and does nothing.
 - **Transition times are in tenths of a second**, and they are a property of the
   screen rather than an argument to the take.
+- **A TAKE in the same cue as a recall waits `SETTLE_MS` (150 ms).** Recalls are
+  silent and take time to land; a TAKE that overtakes its own preset load
+  transitions the *previous* preview contents to air. Wrong picture, on air, no
+  error anywhere. The gap is a floor, not a guarantee, and it is skipped for a
+  cue with nothing in flight. The standalone `webrcs-timeline` engine hit this
+  independently against the simulator and landed on the same figure.
 - **The VPU panel never writes.** Every property it reads is `readOnly` in the
   device's own model. Keep it that way; the tool's value on a show floor
   depends on being provably harmless.
@@ -82,7 +88,7 @@ and should need only a new `transports/` module. Keep device I/O out of `core/`.
 
 ## Testing
 
-`npm test` — 20 tests, no network, no browser. Two fixtures are real captures
+`npm test` — 22 tests, no network, no browser. Two fixtures are real captures
 from a running simulator; `mixer-model.json` is hand-authored to the older
 firmware's shape, which a simulator cannot produce.
 
@@ -98,6 +104,15 @@ headless; this has the whole device store for free but only inside a tab.
 `core/vpu.js :: toMixerRecords()` emits that tool's record shape so captures
 cross over. Deliberately an adapter rather than a shared import — a browser
 extension cannot speak TCP 10606, and a vendored copy would drift.
+
+`~/projects/video/webrcs-timeline` is a Rust workspace covering the same cue
+ground — `awj-proto`, `awj-link` (both transports) and `awj-cue`, 58 tests,
+verified against the simulator. It is the headless, show-critical path; this is
+the in-browser one. **The two cue engines are currently independent
+implementations of the same model and will drift.** Converging them is an open
+decision, not an oversight — see the note in the project memory. Its
+integer-thousandths cue numbering is worth adopting here if cue numbers ever
+become keys rather than labels.
 
 Reverse-engineering notes, the bundle-extraction recipe and the raw device
 captures live in the private `webrcs-unleashed-research` repo, not here.
