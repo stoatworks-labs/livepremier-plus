@@ -1,0 +1,114 @@
+{
+  "_comment": "A small sample in the mixer-model shape: vpuMixerList, two out-pipes, a slice index and an A/B scaler pair. Hand-authored to the shape the older firmware reports, so the second branch of core/vpu.js is covered without shipping a capture from anyone's device.",
+  "device": {
+    "preconfig": {
+      "resources": {
+        "current": {
+          "status": {
+            "mapping": {
+              "deviceList": {
+                "itemKeys": ["1"],
+                "items": {
+                  "1": {
+                    "pipeList": {
+                      "itemKeys": ["1", "2"],
+                      "items": {
+                        "1": { "pp": { "isUsed": true } },
+                        "2": { "pp": { "isUsed": false } }
+                      }
+                    },
+                    "vpuMixerList": {
+                      "itemKeys": [
+                        "PROC_1_MIXER_1", "PROC_1_MIXER_2", "PROC_1_MIXER_3",
+                        "PROC_1_MIXER_4", "PROC_1_MIXER_5", "PROC_2_MIXER_1"
+                      ],
+                      "items": {
+                        "PROC_1_MIXER_1": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S1", "usedInLayer": "NATIVE", "channel": 0, "slice": 0, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "1", "usedOnOutPipe2": "NONE" } },
+                          "scalerList": {
+                            "itemKeys": ["A", "B"],
+                            "items": {
+                              "A": { "pp": { "memoryFill": "SM5", "memoryCut": "SM1" } },
+                              "B": { "pp": { "memoryFill": "SM7", "memoryCut": "SM1" } }
+                            }
+                          }
+                        },
+                        "PROC_1_MIXER_2": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S1", "usedInLayer": "NATIVE", "channel": 0, "slice": 1, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "1", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_1_MIXER_3": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S2", "usedInLayer": "NATIVE", "channel": 0, "slice": 0, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "NONE", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_1_MIXER_4": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S2", "usedInLayer": "1", "channel": 0, "slice": 0, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "2", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_1_MIXER_5": {
+                          "pp": { "isAvailable": true, "isEnabled": false, "usedInScreen": "S1", "usedInLayer": "NATIVE", "channel": 0, "slice": 0, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "NONE", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_2_MIXER_1": {
+                          "pp": { "isAvailable": false, "isEnabled": false, "usedInScreen": "S1", "usedInLayer": "NATIVE", "channel": 0, "slice": 0, "capability": "OFF", "seamlessCapa": false },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "NONE", "usedOnOutPipe2": "NONE" } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "new": {
+          "status": {
+            "mapping": {
+              "deviceList": {
+                "itemKeys": ["1"],
+                "items": {
+                  "1": {
+                    "pipeList": { "itemKeys": ["1", "2"], "items": { "1": { "pp": { "isUsed": true } }, "2": { "pp": { "isUsed": true } } } },
+                    "vpuMixerList": {
+                      "itemKeys": [
+                        "PROC_1_MIXER_1", "PROC_1_MIXER_2", "PROC_1_MIXER_3",
+                        "PROC_1_MIXER_4", "PROC_1_MIXER_5", "PROC_2_MIXER_1"
+                      ],
+                      "items": {
+                        "PROC_1_MIXER_1": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S1", "usedInLayer": "NATIVE", "channel": 0, "slice": 0, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "1", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_1_MIXER_2": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S1", "usedInLayer": "NATIVE", "channel": 0, "slice": 1, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "1", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_1_MIXER_3": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S2", "usedInLayer": "NATIVE", "channel": 0, "slice": 0, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "NONE", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_1_MIXER_4": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S3", "usedInLayer": "1", "channel": 0, "slice": 0, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "2", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_1_MIXER_5": {
+                          "pp": { "isAvailable": true, "isEnabled": true, "usedInScreen": "S3", "usedInLayer": "1", "channel": 0, "slice": 1, "capability": "4K", "seamlessCapa": true },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "2", "usedOnOutPipe2": "NONE" } }
+                        },
+                        "PROC_2_MIXER_1": {
+                          "pp": { "isAvailable": false, "isEnabled": false, "usedInScreen": "S1", "usedInLayer": "NATIVE", "channel": 0, "slice": 0, "capability": "OFF", "seamlessCapa": false },
+                          "mixerAllocation": { "pp": { "usedOnOutPipe1": "NONE", "usedOnOutPipe2": "NONE" } }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "webrcs-unleashed",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension: a VPU resource map and a theatre cue stack inside an Analog Way LivePremier Web RCS session.",
+  "scripts": {
+    "test": "node --test test/core.test.js test/modules.test.js",
+    "serve": "node tools/serve.mjs"
+  }
+}

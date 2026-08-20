@@ -1,0 +1,100 @@
+{
+ "device": {
+  "screenAuxGroupList": {
+   "itemKeys": [
+    "S1",
+    "A1",
+    "A3"
+   ],
+   "items": {
+    "S1": {
+     "control": {
+      "pp": {
+       "copyMode": false,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": false,
+       "xTakeUp": false,
+       "xTakeDown": false,
+       "xTakeAbort": false,
+       "xCut": false,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": true,
+       "transition": "AT_DOWN",
+       "take": "OFF",
+       "tbarPosition": 0,
+       "isTbarPositionValid": true
+      }
+     }
+    },
+    "A1": {
+     "control": {
+      "pp": {
+       "copyMode": false,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": false,
+       "xTakeUp": false,
+       "xTakeDown": false,
+       "xTakeAbort": false,
+       "xCut": false,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": true,
+       "transition": "AT_DOWN",
+       "take": "OFF",
+       "tbarPosition": 0,
+       "isTbarPositionValid": true
+      }
+     }
+    },
+    "A3": {
+     "control": {
+      "pp": {
+       "copyMode": false,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": false,
+       "xTakeUp": false,
+       "xTakeDown": false,
+       "xTakeAbort": false,
+       "xCut": false,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": true,
+       "transition": "AT_DOWN",
+       "take": "OFF",
+       "tbarPosition": 0,
+       "isTbarPositionValid": true
+      }
+     }
+    }
+   }
+  }
+ }
+}
