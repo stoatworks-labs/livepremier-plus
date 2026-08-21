@@ -1,15 +1,20 @@
 /*
- * webRCS unleashed — WebSocket hook.
+ * LivePremier Plus — WebSocket hook.
  *
- * Runs as a MAIN-world content script at document_start, i.e. as a classic
- * script executed synchronously before any page script. That timing is the
- * whole point: the Web RCS bundle opens its socket during its own boot, so a
- * hook installed any later would miss the connection and every frame up to it.
+ * Inlined by the proxy into the document's <head>, ahead of the vendor's
+ * scripts. That placement is the whole point: the Web RCS bundle opens its
+ * socket during its own boot, so a hook installed any later would miss the
+ * connection and every frame up to it.
+ *
+ * As an extension this ran as a MAIN-world content script at document_start,
+ * which usually won that race but was never promised to. Injected into the
+ * markup it is not a race at all — every vendor script tag is `defer`, and an
+ * inline classic script runs when the parser reaches it, which is strictly
+ * earlier. This file is served as-is; the proxy reads these exact bytes.
  *
  * Deliberately dependency-free and tiny. It does not parse or interpret the
  * protocol beyond recognising the envelope — all of that lives in core/, which
- * loads later as a module. This file only has to survive being on every page
- * the user visits, so it stays inert until it sees an Analog Way frame.
+ * loads later as a module.
  */
 (() => {
   'use strict';

@@ -1,0 +1,40 @@
+# LivePremier Plus desktop app config.
+#
+# Simpler than most of the fleet's launchers: LivePremier Plus is a zero-
+# dependency Node program with no build step, so the bundle carries a Node
+# runtime and a straight copy of the repo's server/ and src/ trees. Nothing is
+# compiled, nothing is installed. {resource} = the .app resource dir.
+#
+# Note what is NOT injected here: the switcher. Every other launcher in the
+# fleet only has to choose an interface and a port, and this one keeps that
+# contract — the target device is chosen in the browser, on the app's own setup
+# page, and remembered between runs. That is deliberate: an operator re-points
+# at a backup frame far more often than they restart the launcher.
+
+[app]
+name = "LivePremier Plus"
+command = "{resource}/node"
+args = ["{resource}/livepremier-plus-app/server/index.js"]
+url = "http://{host}:{port}/"
+default_port = 8534
+# cwd omitted -> runs from the writable app-config dir.
+
+[inject]
+mode = "env"
+
+[inject.env]
+LPP_PORT = "{port}"
+LPP_HOST = "{host}"
+
+# Palette mirrored from the app's own setup page.
+[app.theme]
+bg = "#0f1114"
+panel = "#171a1f"
+"panel-2" = "#1d2128"
+border = "#2b3038"
+text = "#e7e8ea"
+muted = "#8a909a"
+dim = "#6b717b"
+accent = "#4c8dff"
+"accent-soft" = "#14203a"
+good = "#5ad18a"

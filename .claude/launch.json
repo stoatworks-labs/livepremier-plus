@@ -2,7 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "wru-modules",
+      "name": "livepremier-plus",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server/index.js", "--port", "8534"],
+      "port": 8534
+    },
+    {
+      "name": "panel-bench",
       "runtimeExecutable": "node",
       "runtimeArgs": ["tools/serve.mjs"],
       "port": 8765

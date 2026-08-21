@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LivePremier Plus</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: #0f1114; color: #e7e8ea;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .card { width: min(420px, calc(100vw - 2rem)); }
+  h1 { margin: 0 0 .25rem; font-size: 1.35rem; font-weight: 600; letter-spacing: -.01em; }
+  p.sub { margin: 0 0 1.75rem; color: #8a909a; font-size: .9rem; }
+  label { display: block; margin-bottom: .4rem; font-size: .78rem; font-weight: 600;
+          letter-spacing: .06em; text-transform: uppercase; color: #8a909a; }
+  input {
+    width: 100%; padding: .65rem .75rem; border-radius: 6px; border: 1px solid #2b3038;
+    background: #171a1f; color: inherit; font: inherit;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  input:focus { outline: none; border-color: #4c8dff; box-shadow: 0 0 0 3px #4c8dff26; }
+  button {
+    width: 100%; margin-top: .9rem; padding: .65rem; border: 0; border-radius: 6px;
+    background: #4c8dff; color: #08090b; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #6ba1ff; }
+  button:disabled { opacity: .55; cursor: default; }
+  .msg { margin-top: .9rem; font-size: .85rem; min-height: 1.2em; }
+  .msg.bad { color: #ff8080; }
+  .msg.ok { color: #5ad18a; }
+  .note { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid #212630;
+          color: #6b717b; font-size: .8rem; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <h1>LivePremier Plus</h1>
+    <p class="sub">Point this at a switcher and its Web RCS opens here, with the VPU map and cue stack built in.</p>
+
+    <form id="f">
+      <label for="d">Switcher address</label>
+      <input id="d" name="device" placeholder="192.168.2.142" autocomplete="off" autofocus spellcheck="false">
+      <button type="submit">Connect</button>
+    </form>
+    <div class="msg" id="m"></div>
+
+    <p class="note">
+      Port 80 is assumed unless you add one — <code>192.168.2.142:3000</code> for a simulator.
+      Nothing is written to the device by connecting.
+    </p>
+  </main>
+
+<script>
+  const form = document.getElementById('f');
+  const input = document.getElementById('d');
+  const msg = document.getElementById('m');
+
+  /* Remember the last box per browser, the way aquilon-vpu-map does. The
+     launcher also persists it server-side; this is just so the field is
+     pre-filled when someone opens the page fresh. */
+  input.value = localStorage.getItem('lpp:device') || '';
+
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const device = input.value.trim();
+    if (!device) return;
+    msg.className = 'msg';
+    msg.textContent = 'Connecting…';
+    form.querySelector('button').disabled = true;
+    try {
+      const res = await fetch('/__lpp/device', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device })
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || 'could not set device');
+      localStorage.setItem('lpp:device', device);
+      msg.className = 'msg ok';
+      msg.textContent = 'Connected to ' + body.device + ' — opening Web RCS…';
+      location.href = '/';
+    } catch (err) {
+      msg.className = 'msg bad';
+      msg.textContent = err.message;
+      form.querySelector('button').disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

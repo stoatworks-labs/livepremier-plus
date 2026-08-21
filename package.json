@@ -1,11 +1,13 @@
 {
-  "name": "webrcs-unleashed",
-  "version": "0.1.0",
+  "name": "livepremier-plus",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Chrome extension: a VPU resource map and a theatre cue stack inside an Analog Way LivePremier Web RCS session.",
+  "description": "A VPU resource map and a theatre cue stack inside an Analog Way LivePremier Web RCS session, served by a local proxy.",
+  "bin": { "livepremier-plus": "server/index.js" },
   "scripts": {
-    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js",
+    "start": "node server/index.js",
+    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js test/proxy.test.js",
     "serve": "node tools/serve.mjs",
     "sync:vpu-model": "node tools/sync-vpu-model.mjs"
   }

@@ -1,19 +1,22 @@
 /*
- * A static file server for testing the panels without packing the extension.
+ * A static file server for the offline panel bench, tools/harness.html.
  *
- * Load the two content scripts into an already-open Web RCS tab from the
- * console and the whole UI runs, minus the MV3 plumbing:
+ * This is NOT how you run the app — `npm start` is (see server/index.js). What
+ * this exists for is judging a panel's appearance against a recorded store,
+ * without a device or a live session: it proxies the vendor's real stylesheet,
+ * fonts and icon sprite from a named device, so the panels are seen in the
+ * genuine design system with no vendor asset committed here.
  *
- *   await import('http://127.0.0.1:8765/src/hook/ws-hook.js');
- *   await import('http://127.0.0.1:8765/src/main.js');
- *
- * Against a real device, start it with HOST=0.0.0.0 and use this machine's LAN
- * address in those imports - see the note on `host` below.
+ *   DEVICE=192.168.2.142 npm run serve
+ *   # then open http://127.0.0.1:8765/tools/harness.html
  *
  * Cross-origin module imports need CORS, which is the only reason this exists
- * rather than python -m http.server. Cue-stack persistence will not work in
- * this mode: chrome.storage is brokered by the isolated-world loader, which
- * is not present, so saves time out after two seconds and are dropped.
+ * rather than python -m http.server.
+ *
+ * It used to double as the way to inject the panels into a live Web RCS from
+ * the console, back when this was an extension. The proxy does that properly
+ * now, and that trick never worked against a real device anyway — see the note
+ * on `host` below.
  */
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';

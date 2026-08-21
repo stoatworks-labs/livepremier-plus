@@ -1,14 +1,15 @@
 /*
- * Entry point, running in the page's own world.
+ * Entry point, loaded as a module by the proxy's injected script tag.
  *
- * By the time this module executes, the document_start hook has already
- * wrapped WebSocket and has been recording frames since before the vendor
- * bundle booted. All that is left is to confirm this really is a Web RCS
- * page, mirror the device store, and put two entries in the sidebar.
+ * By the time this runs, the inline hook the proxy wrote into <head> has
+ * already wrapped WebSocket and has been recording frames since before the
+ * vendor bundle booted — the parser guarantees that ordering, because every
+ * vendor script is `defer` and the hook is not. All that is left is to
+ * confirm this really is a Web RCS page, mirror the device store, and put two
+ * entries in the sidebar.
  *
  * If the page turns out not to be Web RCS, nothing is mounted and nothing is
- * fetched. The hook stays inert, and the only cost to an unrelated site is a
- * wrapped constructor.
+ * fetched. The hook stays inert.
  */
 
 import { Session } from './core/session.js';
@@ -18,7 +19,7 @@ import { Shell } from './ui/shell.js';
 import { createVpuPanel } from './ui/vpu-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
 
-const TAG = '[webRCS unleashed]';
+const TAG = '[LivePremier Plus]';
 
 /* Redraws are cheap but the device store is chatty - timers alone produce a
    frame every second. Coalesce to one repaint per animation frame, and only
@@ -33,32 +34,45 @@ function throttleFrame(fn) {
 }
 
 /**
- * Cue stacks are stored per device, keyed by origin.
+ * Cue stacks are persisted by the launcher, not by the browser.
  *
- * The page cannot see chrome.storage from the MAIN world, so persistence goes
- * through the isolated-world loader over window messages. localStorage would
- * have been simpler but it belongs to the device's own web app, and writing
- * our data into the vendor's storage is not ours to do.
+ * The extension version of this brokered chrome.storage through a content
+ * script over window messages, because the page had no other way to reach it.
+ * The launcher is a process with a disk, so the panels just ask it — and it
+ * keys the stack by the device it is proxying, which is the right key anyway:
+ * a cue list is written against one box's screens and presets.
+ *
+ * Deliberately not localStorage. That belongs to the vendor's own web app and
+ * writing our data into it is not ours to do — a point that survived the move
+ * off the extension unchanged.
  */
 function makeStorage() {
-  const key = 'wru:stack:' + location.host;
-  const pending = new Map();
-  let seq = 0;
-
-  window.addEventListener('message', (ev) => {
-    if (ev.source !== window || !ev.data || ev.data.__wru !== 'storage:result') return;
-    const resolve = pending.get(ev.data.id);
-    if (resolve) { pending.delete(ev.data.id); resolve(ev.data.value); }
-  });
-
-  const call = (op, value) => new Promise((resolve) => {
-    const id = ++seq;
-    pending.set(id, resolve);
-    window.postMessage({ __wru: 'storage', id, op, key, value }, '*');
-    setTimeout(() => { if (pending.delete(id)) resolve(null); }, 2000);
-  });
-
-  return { save: (data) => call('set', data), load: () => call('get') };
+  const url = '/__lpp/stack';
+  return {
+    async load() {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return null;
+        return (await res.json()).data ?? null;
+      } catch (err) {
+        console.warn(TAG, 'could not load cue stack', err);
+        return null;
+      }
+    },
+    async save(data) {
+      try {
+        await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data })
+        });
+      } catch (err) {
+        /* A failed save must not interrupt an operator mid-cue. It is logged
+           and the in-memory stack carries on; the next edit retries. */
+        console.warn(TAG, 'could not save cue stack', err);
+      }
+    }
+  };
 }
 
 async function boot() {
@@ -88,7 +102,7 @@ async function boot() {
   const timeline = createTimelinePanel({ session, stack, storage, onRefresh: refresh });
 
   const shell = new Shell({
-    title: 'UNLEASHED',
+    title: 'PLUS',
     entries: [
       { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', render: () => vpu.render() },
       { id: 'timeline', label: 'Timeline', icon: 'timer-18', render: () => timeline.render() }
