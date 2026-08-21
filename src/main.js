@@ -19,6 +19,9 @@ import { Shell } from './ui/shell.js';
 import { createVpuPanel } from './ui/vpu-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
 import { installMathFields } from './ui/math-fields.js';
+import { TabHost, watchVendorTabs } from './ui/tabs.js';
+import { createConsolePanel } from './ui/console-panel.js';
+import { createMidiPanel } from './ui/midi-panel.js';
 
 const TAG = '[LivePremier Plus]';
 
@@ -105,16 +108,35 @@ async function boot() {
   const saved = await storage.load();
   if (saved) stack.load(saved);
 
-  const refresh = throttleFrame(() => shell.refresh());
+  /* One repaint per frame, covering whichever of our surfaces is on screen. */
+  const refresh = throttleFrame(() => { shell.refresh(); tabs.refresh(); });
 
   const vpu = createVpuPanel({ session, onRefresh: refresh });
   const timeline = createTimelinePanel({ session, stack, storage, onRefresh: refresh });
+  const consolePanel = createConsolePanel({ session, onRefresh: refresh });
+  const midi = createMidiPanel({ session, onRefresh: refresh });
+
+  /*
+   * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
+   * beside Properties and Memories — the two per-screen tools belong where an
+   * operator already looks for per-screen tools, not in a separate corner of
+   * the app. The VPU map does not: it is a whole-device view, so it stays a
+   * sidebar entry of its own.
+   */
+  const tabs = new TabHost({
+    tabs: [
+      { id: 'console', label: 'Console', icon: 'mini-list-14', render: () => consolePanel.render() },
+      { id: 'timeline', label: 'Timeline', icon: 'timer-14', render: () => timeline.render() }
+    ]
+  });
 
   const shell = new Shell({
     title: 'PLUS',
     entries: [
       { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', render: () => vpu.render() },
-      { id: 'timeline', label: 'Timeline', icon: 'timer-18', render: () => timeline.render() }
+      /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
+         remote-panel page, because both are about control surfaces. */
+      { id: 'midi', label: 'MIDI Mapping', icon: 'gpio-18', after: 'Virtual RC400T', render: () => midi.render() }
     ]
   });
 
@@ -137,9 +159,12 @@ async function boot() {
     setTimeout(() => obs.disconnect(), 60000);
   }
 
+  tabs.start();
+  watchVendorTabs(tabs);
+
   await session.start();
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, transport };
+  window.__WRU = { session, stack, shell, tabs, transport };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

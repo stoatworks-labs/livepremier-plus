@@ -1,0 +1,725 @@
+{
+  "id": "osc-default",
+  "name": "OSC (TouchOSC and similar)",
+  "stripCount": 8,
+  "feedback": {
+    "protocol": "generic"
+  },
+  "notes": "Send to the server's --osc-in port; feedback returns to --osc-out on the same addresses. OSC is UDP, so this profile only works in the local-server host.",
+  "verified": false,
+  "controls": [
+    {
+      "id": "osc:/awj/layer/1/opacity",
+      "kind": "fader",
+      "strip": 0,
+      "motorised": true,
+      "label": "Layer 1 opacity"
+    },
+    {
+      "id": "osc:/awj/layer/1/select",
+      "kind": "button",
+      "strip": 0,
+      "label": "Select layer 1"
+    },
+    {
+      "id": "osc:/awj/layer/1/key",
+      "kind": "button",
+      "strip": 0,
+      "label": "Key layer 1"
+    },
+    {
+      "id": "osc:/awj/layer/2/opacity",
+      "kind": "fader",
+      "strip": 1,
+      "motorised": true,
+      "label": "Layer 2 opacity"
+    },
+    {
+      "id": "osc:/awj/layer/2/select",
+      "kind": "button",
+      "strip": 1,
+      "label": "Select layer 2"
+    },
+    {
+      "id": "osc:/awj/layer/2/key",
+      "kind": "button",
+      "strip": 1,
+      "label": "Key layer 2"
+    },
+    {
+      "id": "osc:/awj/layer/3/opacity",
+      "kind": "fader",
+      "strip": 2,
+      "motorised": true,
+      "label": "Layer 3 opacity"
+    },
+    {
+      "id": "osc:/awj/layer/3/select",
+      "kind": "button",
+      "strip": 2,
+      "label": "Select layer 3"
+    },
+    {
+      "id": "osc:/awj/layer/3/key",
+      "kind": "button",
+      "strip": 2,
+      "label": "Key layer 3"
+    },
+    {
+      "id": "osc:/awj/layer/4/opacity",
+      "kind": "fader",
+      "strip": 3,
+      "motorised": true,
+      "label": "Layer 4 opacity"
+    },
+    {
+      "id": "osc:/awj/layer/4/select",
+      "kind": "button",
+      "strip": 3,
+      "label": "Select layer 4"
+    },
+    {
+      "id": "osc:/awj/layer/4/key",
+      "kind": "button",
+      "strip": 3,
+      "label": "Key layer 4"
+    },
+    {
+      "id": "osc:/awj/layer/5/opacity",
+      "kind": "fader",
+      "strip": 4,
+      "motorised": true,
+      "label": "Layer 5 opacity"
+    },
+    {
+      "id": "osc:/awj/layer/5/select",
+      "kind": "button",
+      "strip": 4,
+      "label": "Select layer 5"
+    },
+    {
+      "id": "osc:/awj/layer/5/key",
+      "kind": "button",
+      "strip": 4,
+      "label": "Key layer 5"
+    },
+    {
+      "id": "osc:/awj/layer/6/opacity",
+      "kind": "fader",
+      "strip": 5,
+      "motorised": true,
+      "label": "Layer 6 opacity"
+    },
+    {
+      "id": "osc:/awj/layer/6/select",
+      "kind": "button",
+      "strip": 5,
+      "label": "Select layer 6"
+    },
+    {
+      "id": "osc:/awj/layer/6/key",
+      "kind": "button",
+      "strip": 5,
+      "label": "Key layer 6"
+    },
+    {
+      "id": "osc:/awj/layer/7/opacity",
+      "kind": "fader",
+      "strip": 6,
+      "motorised": true,
+      "label": "Layer 7 opacity"
+    },
+    {
+      "id": "osc:/awj/layer/7/select",
+      "kind": "button",
+      "strip": 6,
+      "label": "Select layer 7"
+    },
+    {
+      "id": "osc:/awj/layer/7/key",
+      "kind": "button",
+      "strip": 6,
+      "label": "Key layer 7"
+    },
+    {
+      "id": "osc:/awj/layer/8/opacity",
+      "kind": "fader",
+      "strip": 7,
+      "motorised": true,
+      "label": "Layer 8 opacity"
+    },
+    {
+      "id": "osc:/awj/layer/8/select",
+      "kind": "button",
+      "strip": 7,
+      "label": "Select layer 8"
+    },
+    {
+      "id": "osc:/awj/layer/8/key",
+      "kind": "button",
+      "strip": 7,
+      "label": "Key layer 8"
+    },
+    {
+      "id": "osc:/awj/selected/posH",
+      "kind": "fader",
+      "label": "position.posH"
+    },
+    {
+      "id": "osc:/awj/selected/posV",
+      "kind": "fader",
+      "label": "position.posV"
+    },
+    {
+      "id": "osc:/awj/selected/sizeH",
+      "kind": "fader",
+      "label": "position.sizeH"
+    },
+    {
+      "id": "osc:/awj/selected/sizeV",
+      "kind": "fader",
+      "label": "position.sizeV"
+    },
+    {
+      "id": "osc:/awj/selected/left",
+      "kind": "fader",
+      "label": "cropping.classic.left"
+    },
+    {
+      "id": "osc:/awj/selected/right",
+      "kind": "fader",
+      "label": "cropping.classic.right"
+    },
+    {
+      "id": "osc:/awj/selected/top",
+      "kind": "fader",
+      "label": "cropping.classic.top"
+    },
+    {
+      "id": "osc:/awj/selected/bottom",
+      "kind": "fader",
+      "label": "cropping.classic.bottom"
+    },
+    {
+      "id": "osc:/awj/take",
+      "kind": "button",
+      "label": "TAKE"
+    },
+    {
+      "id": "osc:/awj/cut",
+      "kind": "button",
+      "label": "Cut"
+    },
+    {
+      "id": "osc:/awj/abort",
+      "kind": "button",
+      "label": "Abort"
+    },
+    {
+      "id": "osc:/awj/preset",
+      "kind": "button",
+      "label": "Preset flip"
+    },
+    {
+      "id": "osc:/awj/bank/up",
+      "kind": "button",
+      "label": "Bank up"
+    },
+    {
+      "id": "osc:/awj/bank/down",
+      "kind": "button",
+      "label": "Bank down"
+    },
+    {
+      "id": "osc:/awj/tbar",
+      "kind": "fader",
+      "motorised": true,
+      "label": "T-bar"
+    }
+  ],
+  "bindings": [
+    {
+      "control": "osc:/awj/layer/1/opacity",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/1/select",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/1/key",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/2/opacity",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/2/select",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/2/key",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/3/opacity",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/3/select",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/3/key",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/4/opacity",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/4/select",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/4/key",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/5/opacity",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/5/select",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/5/key",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/6/opacity",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/6/select",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/6/key",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/7/opacity",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/7/select",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/7/key",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/8/opacity",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/8/select",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "osc:/awj/layer/8/key",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/selected/posH",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posH"
+      },
+      "options": {
+        "min": -1920,
+        "max": 3840,
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/selected/posV",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posV"
+      },
+      "options": {
+        "min": -1080,
+        "max": 2160,
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/selected/sizeH",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeH"
+      },
+      "options": {
+        "min": 0,
+        "max": 3840,
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/selected/sizeV",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeV"
+      },
+      "options": {
+        "min": 0,
+        "max": 2160,
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/selected/left",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.left"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/selected/right",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.right"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/selected/top",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.top"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/selected/bottom",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.bottom"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "osc:/awj/take",
+      "label": "TAKE",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.xTake"
+      },
+      "options": {
+        "action": "trigger"
+      }
+    },
+    {
+      "control": "osc:/awj/cut",
+      "label": "Cut",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.xCut"
+      },
+      "options": {
+        "action": "trigger"
+      }
+    },
+    {
+      "control": "osc:/awj/abort",
+      "label": "Abort",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.xTakeAbort"
+      },
+      "options": {
+        "action": "trigger"
+      }
+    },
+    {
+      "control": "osc:/awj/preset",
+      "label": "Preset flip",
+      "target": {
+        "kind": "action",
+        "action": "selectPreset",
+        "value": "toggle"
+      }
+    },
+    {
+      "control": "osc:/awj/bank/up",
+      "label": "Bank up",
+      "target": {
+        "kind": "action",
+        "action": "bank",
+        "delta": 1
+      }
+    },
+    {
+      "control": "osc:/awj/bank/down",
+      "label": "Bank down",
+      "target": {
+        "kind": "action",
+        "action": "bank",
+        "delta": -1
+      }
+    },
+    {
+      "control": "osc:/awj/tbar",
+      "label": "T-bar",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.tbarPosition"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    }
+  ]
+}

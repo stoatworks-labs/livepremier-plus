@@ -48,6 +48,10 @@
  */
 
 import { evaluate, fitToField, looksLikeExpression } from '../core/expr.js';
+import { isEnter } from './dom.js';
+
+/* Re-exported: it is part of this module's contract even though it is shared. */
+export { isEnter };
 
 const FLASH_MS = 900;
 
@@ -136,11 +140,6 @@ function writeValue(el, text) {
   } catch {
     return false;
   }
-}
-
-/** Enter, however the event happens to spell it. */
-export function isEnter(ev) {
-  return ev.key === 'Enter' || ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.keyCode === 13;
 }
 
 function flash(el) {

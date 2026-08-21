@@ -7,9 +7,13 @@ product rather than as a bolt-on:
 - **VPU Map** — the device's mixing-resource allocation, drawn as a budget.
   Which units are fitted, who holds them, what is spare, and what a staged
   preconfig would change.
+- **Console** — Mynah's command line, a lighting-desk grammar for a video
+  switcher. `Recall Screen 1 Memory 5`, `R Sc 1 Th 4 Me 5 Pre`, `Take Screen 1`.
 - **Timeline** — a theatre-style cue stack. A numbered list that advances on
   one GO, with per-cue fade, delay and follow times, driving the switcher's
   preset recalls and TAKE.
+- **MIDI Mapping** — a control surface driving the switcher, from the page
+  itself. Faders to opacity, encoders to size and position, buttons to select.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
   layer width and get 1000, the way you can in every other tool on the desk.
 
@@ -58,6 +62,71 @@ in the fleet's usual shape. See [launcher/](launcher/).
 > **On binding wide.** The default is loopback for a reason: this proxy is an
 > unauthenticated route to a switcher's entire control surface. `--host 0.0.0.0`
 > hands that to everyone on the network. Do it deliberately, not by habit.
+
+## Console
+
+Mynah's command language, inside Web RCS. Verb first, then objects, innermost
+scope last; every keyword abbreviates to any unambiguous prefix; Enter executes
+and nothing is sent before it.
+
+```
+Recall Screen 1 Memory 5
+R Sc 1 Th 4 Me 5 Pre          the same command
+Store Master 12
+Take Screen 1
+```
+
+The line parses as you type and shows what it will do — `Recall 3 → Screen 1
+Preview` — before anything reaches the device. Tab completes, ↑ recalls
+history.
+
+**This panel owns no grammar.** Every token, rule and device path comes from
+`src/vendor/mynah-lang.mjs`, which is [mynah](https://github.com/stoatworks-labs/mynah)'s
+own `npm run build:lang` output — the same artefact its Companion module
+vendors. If a command means the wrong thing, the fix is in mynah.
+
+That is worth more than tidiness. Mynah's compiler and this repo's `CMD`
+builder were derived independently — one from the Web RCS bundle, one from live
+captures — and they emit **byte-identical** store paths for the commands both
+know. Two independent derivations agreeing is the strongest evidence either is
+right, and it stays true only while nobody re-types the grammar here. A test
+pins it.
+
+## MIDI Mapping
+
+Under Virtual RC400T. Pick an input, an output for feedback, and a controller
+profile; Start. Faders, encoders and buttons then drive the selected layer.
+
+**The engine is [awj-surface](https://github.com/stoatworks-labs/awj-surface)'s,
+vendored whole** into `src/vendor/surface/` along with its stock profiles
+(X-Touch/Mackie, APC40, MIDIcon 2 and Pro, plus a generic learn profile).
+Decoding, soft pickup, encoder acceleration, MCU feedback and the parameter
+catalogue are all upstream's. This repo contributes a front-end and nothing
+else.
+
+Soft pickup is the behaviour worth knowing: a non-motorised fader will not move
+a live value until it has swept through that value, so picking up a fader
+mid-show cannot jump a layer's opacity. The panel shows the hold-off rather
+than looking broken.
+
+### Why this needs no offscreen document
+
+`navigator.requestMIDIAccess()` is a **secure-context** API. When this project
+was a Chrome extension the page was a Web RCS on a plain-HTTP LAN address —
+not a secure context — and a content script inherits the page's context, so
+neither world could use it. The answer then was an offscreen document on the
+`chrome-extension://` origin relaying MIDI through a service worker.
+
+None of that is needed here. The proxy serves the vendor UI from
+`http://127.0.0.1:<port>`, loopback **is** a potentially-trustworthy origin, so
+the page is a secure context and Web MIDI is simply available. It also fixes
+the SysEx problem: an invisible offscreen document cannot show a permission
+prompt, so Mackie scribble strips needed granting from a separate page. A
+normal page just asks.
+
+The corollary: **open the switcher's own address directly and MIDI will not
+work**, because that origin is not secure. The panel says so rather than
+failing silently.
 
 ## The demo environment
 
@@ -150,10 +219,29 @@ are cloned from real ones at runtime, so they inherit whatever per-build class
 hashes the firmware happens to use. The result is not a skin that approximates
 Web RCS; it is Web RCS's own CSS.
 
+Console and Timeline are **tabs in the vendor's own strip** on Screens / Aux.,
+beside Properties and Memories, because two per-screen tools belong where an
+operator already looks for per-screen tools:
+
 ```
-PLUS               <- our section, styled like LIVE and SETUP
+Properties | Memories | Console | Timeline
+```
+
+MIDI Mapping sits **under Virtual RC400T** in the vendor's own LIVE section —
+both are about control surfaces, and filing it in a section of ours would file
+it by who wrote it rather than by what it does. Only the VPU map, a
+whole-device view, gets a section of its own:
+
+```
+LIVE
+  Screens / Aux.
+  Multiviewers
+  Virtual RC400T
+  MIDI Mapping       <- ours
+SETUP
+  …
+PLUS                 <- ours
   VPU Map
-  Timeline
 ```
 
 ## How it works
@@ -236,6 +324,21 @@ under plain Node, which is what the test suite does. The browser panels are one
 front-end over it; a standalone client talking AWJ over TCP 10606 is meant to
 be another, and only needs a second `transports/` module.
 
+## Three things are vendored, not reimplemented
+
+| in `src/vendor/` | from | what it is |
+| --- | --- | --- |
+| `vpu-model.js` | aquilon-vpu-map | the VPU mixer model |
+| `mynah-lang.mjs` | mynah | the command language |
+| `surface/` | awj-surface | the control-surface engine and profiles |
+
+Each is copied rather than re-derived for the same reason, and it is not
+convenience: two implementations of one grammar, one device model or one decode
+table will eventually disagree, and both will look right. `npm run sync:*`
+re-copies each and rewrites its provenance; `test/vendor.test.js` fails on
+drift and skips when there is no upstream checkout to compare against. Edits
+belong upstream.
+
 ## The VPU model is shared, not reimplemented
 
 `src/vendor/vpu-model.js` is a **copy** of `public/vpu.js` from
@@ -288,7 +391,7 @@ or claiming the firmware is unsupported.
 npm test
 ```
 
-77 tests, no network and no browser.
+88 tests, no network and no browser.
 
 Twenty cover the expression evaluator, weighted towards what it must **refuse**
 — `1/0`, `2+`, `1920x1080`, `00:01.000`, and anything resembling code — because

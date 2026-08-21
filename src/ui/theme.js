@@ -20,6 +20,34 @@
  */
 
 const CSS = `
+/* Console — a command line, so a monospace field and a compact result log.
+   Colours are the vendor's own tokens rather than new ones. */
+.wru-console-line {
+  background: #08141B; border: 0.1rem solid #49535B; border-radius: 0.25rem;
+  padding: 0.5rem 0.75rem;
+}
+.wru-console-caret { font-family: ui-monospace, Menlo, monospace; font-size: 1.1rem; }
+.wru-console-input {
+  flex: 1; background: transparent; border: 0; outline: none; color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.1rem;
+}
+.wru-console-input::placeholder { color: #616D75; }
+.wru-console-feedback { min-height: 1.6rem; }
+.wru-console-log { gap: 0.25rem; }
+.wru-console-row {
+  display: flex; gap: 0.75rem; align-items: baseline;
+  padding: 0.25rem 0.5rem; border-left: 0.2rem solid transparent; border-radius: 0.15rem;
+}
+.wru-console-cmd { font-family: ui-monospace, Menlo, monospace; white-space: pre; }
+.wru-console-detail { font-size: 0.9rem; }
+.wru-console-ok   { border-left-color: #00FF7F; background: rgba(0,255,127,0.05); }
+.wru-console-warn { border-left-color: #F39910; background: rgba(243,153,16,0.05); }
+.wru-console-err  { border-left-color: #F64747; background: rgba(246,71,71,0.06); }
+
+/* A tab of ours sits in the vendor's strip and must fill it the same way. */
+[data-lpp-tab-pane] { display: flex; flex-direction: column; min-height: 0; }
+[data-lpp-tab-pane] > .wru-overlay-inner { flex: 1 1 auto; min-height: 0; }
+
 .wru-overlay {
   position: absolute; inset: 0; z-index: 40;
   display: flex; flex-direction: column;

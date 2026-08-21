@@ -115,6 +115,39 @@ rather than guesses — division by zero is rejected specifically because
 `Infinity` would survive the clamp and land as the field's max, which is a
 plausible-looking wrong answer.
 
+## Where our surfaces live, and why
+
+- **Console and Timeline are tabs in the vendor's strip** on Screens / Aux.
+  (`ui/tabs.js`), cloned from a real tab exactly as `Shell` clones a sidebar
+  entry. The strip's container carries a CSS-modules hash, so it is found by
+  **structure** — the parent of `.ui.tabular.menu` — never by name. React
+  re-renders that subtree on every selection change; a MutationObserver puts
+  the tabs back, and `_mount()` is idempotent because it runs constantly.
+- **MIDI Mapping is anchored under Virtual RC400T**, not in the PLUS section.
+  `Shell` entries take an optional `after: '<vendor label>'` for this. The
+  anchor is matched on the visible **label**, because that is the only part of
+  the sidebar markup the vendor has not hashed.
+- **Only the VPU map stays in PLUS** — it is a whole-device view, and the other
+  three belong to parts of the app that already exist.
+
+## MIDI: the constraint that used to decide the architecture, and does not now
+
+`navigator.requestMIDIAccess()` is secure-context-only. As an extension on an
+http:// LAN address that forced an offscreen document on the
+`chrome-extension://` origin relaying through a service worker — awj-surface
+still carries a `hosts/extension/` implementing exactly that, and it is now
+**dead**: it patches a `manifest.json` this repo no longer has.
+
+Serving from loopback makes the page a secure context, so Web MIDI is directly
+available. **Verified, not assumed**: `window.isSecureContext === true` and
+`navigator.requestMIDIAccess` present on the served origin. It also means an
+operator who opens the switcher's own address gets no MIDI — the panel says so
+explicitly, because that failure is not guessable.
+
+OSC is still not possible in the page (no UDP anywhere in a browser). If it is
+ever wanted, this process is already the local host awj-surface's node host
+assumes — that is the place for it, not the panel.
+
 ## The demo environment, and one thing it revealed
 
 `npm run demo` (`tools/demo.mjs`) runs the app against a simulator and splices
@@ -232,7 +265,7 @@ no benefit. Read `wru` as "the panels".
 
 ## Testing
 
-`npm test` — 77 tests, no network, no browser. Seven run against a real Aquilon
+`npm test` — 88 tests, no network, no browser. Seven run against a real Aquilon
 C capture (`aquilon-c-live-resources.json`, read 2026-08-21) and are the only
 coverage of fitted mixers, output links and Optimized mode, none of which a
 simulator produces.

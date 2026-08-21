@@ -34,7 +34,14 @@ const TITLE_SEL = '[class*="sidebar-module__c__menu__title___"]';
 
 export class Shell {
   /**
-   * @param {{title:string, entries:Array<{id:string,label:string,icon:string,render:Function}>}} opts
+   * @param {{title:string, entries:Array<{id:string,label:string,icon:string,render:Function,after?:string}>}} opts
+   *
+   * An entry carrying `after` is placed directly beneath the vendor item with
+   * that label, in the vendor's own section, rather than in ours. That is for
+   * a tool that belongs to an existing part of the app — MIDI Mapping sits
+   * under Virtual RC400T because both are about control surfaces, and putting
+   * it in a PLUS section at the bottom would file it by who wrote it rather
+   * than by what it does.
    */
   constructor({ title = 'Unleashed', entries = [] } = {}) {
     this.title = title;
@@ -48,9 +55,15 @@ export class Shell {
   start() {
     installStyles();
     this._mount();
-    /* React re-renders the sidebar on navigation; put it back when it does. */
+    /* React re-renders the sidebar on navigation; put it back when it does.
+       Both placements are checked — an anchored entry can be lost on its own
+       when the vendor section it sits in re-renders. */
     this._observer = new MutationObserver(() => {
-      if (!document.getElementById('wru-nav-section')) this._mount();
+      const sectioned = this.entries.some((e) => !e.after);
+      if (sectioned && !document.getElementById('wru-nav-section')) return this._mount();
+      for (const entry of this.entries) {
+        if (entry.after && !document.getElementById('wru-nav-' + entry.id)) return this._mount();
+      }
     });
     const row = document.querySelector('.aw-app');
     if (row) this._observer.observe(row, { childList: true, subtree: true });
@@ -74,16 +87,49 @@ export class Shell {
 
     this._captureActiveClasses(sidebar);
 
-    const section = h('div', { id: 'wru-nav-section' });
-    section.append(this._cloneSeparator(anySeparator, this.title));
-    for (const entry of this.entries) {
+    const anchored = this.entries.filter((e) => e.after);
+    const sectioned = this.entries.filter((e) => !e.after);
+
+    for (const entry of anchored) {
+      if (document.getElementById('wru-nav-' + entry.id)) continue;
+      const host = this._itemByLabel(sidebar, entry.after);
+      if (!host) continue;   /* that page may not exist on this device */
       const node = this._cloneMenu(anyMenu, entry);
-      section.append(node);
+      node.id = 'wru-nav-' + entry.id;
+      host.after(node);
       this.nav.set(entry.id, node);
     }
-    list.append(section);
+
+    if (sectioned.length && !document.getElementById('wru-nav-section')) {
+      const section = h('div', { id: 'wru-nav-section' });
+      section.append(this._cloneSeparator(anySeparator, this.title));
+      for (const entry of sectioned) {
+        const node = this._cloneMenu(anyMenu, entry);
+        section.append(node);
+        this.nav.set(entry.id, node);
+      }
+      list.append(section);
+    }
+
     this._syncNav();
     return true;
+  }
+
+  /**
+   * Find a vendor menu item by its visible label.
+   *
+   * Matched on text rather than on any class or href, because the label is the
+   * only part of that markup the vendor has not hashed — and it is what the
+   * caller named it by.
+   */
+  _itemByLabel(sidebar, label) {
+    const wanted = String(label).trim().toLowerCase();
+    for (const item of sidebar.querySelectorAll(MENU_SEL)) {
+      const el = item.querySelector(LABEL_SEL);
+      const text = (el ? el.textContent : item.textContent).trim().toLowerCase();
+      if (text === wanted) return item;
+    }
+    return null;
   }
 
   /**

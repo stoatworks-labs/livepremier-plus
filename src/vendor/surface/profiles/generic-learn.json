@@ -1,0 +1,12 @@
+{
+  "id": "generic-learn",
+  "name": "Generic (learn everything)",
+  "stripCount": 8,
+  "feedback": {
+    "protocol": "generic"
+  },
+  "notes": "Start here for any surface without a shipped profile. Move a control and it appears; assign it and it is saved.",
+  "verified": false,
+  "controls": [],
+  "bindings": []
+}

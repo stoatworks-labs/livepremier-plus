@@ -1,0 +1,2056 @@
+{
+  "id": "apc40",
+  "name": "Akai APC40",
+  "stripCount": 8,
+  "match": {
+    "namePattern": "APC40"
+  },
+  "feedback": {
+    "protocol": "generic"
+  },
+  "init": [
+    [
+      240,
+      71,
+      0,
+      115,
+      96,
+      0,
+      4,
+      66,
+      8,
+      2,
+      5,
+      247
+    ]
+  ],
+  "notes": "Faders are not motorised, so bindings use pickup: move a fader to where the parameter already is before it takes control.",
+  "verified": false,
+  "controls": [
+    {
+      "id": "cc:0:7",
+      "kind": "fader",
+      "strip": 0,
+      "label": "Track fader 1"
+    },
+    {
+      "id": "cc:0:48",
+      "kind": "knob",
+      "strip": 0,
+      "ring": 48,
+      "label": "Track knob 1"
+    },
+    {
+      "id": "cc:0:16",
+      "kind": "knob",
+      "strip": 0,
+      "ring": 16,
+      "label": "Device knob 1"
+    },
+    {
+      "id": "note:0:51",
+      "kind": "button",
+      "strip": 0,
+      "on": 1,
+      "label": "Track select 1"
+    },
+    {
+      "id": "note:0:50",
+      "kind": "button",
+      "strip": 0,
+      "on": 1,
+      "label": "Activator 1"
+    },
+    {
+      "id": "note:0:53",
+      "kind": "button",
+      "strip": 0,
+      "on": 1,
+      "off": 0,
+      "label": "Clip 1/1"
+    },
+    {
+      "id": "note:0:54",
+      "kind": "button",
+      "strip": 0,
+      "on": 5,
+      "off": 0,
+      "label": "Clip 1/2"
+    },
+    {
+      "id": "note:0:55",
+      "kind": "button",
+      "strip": 0,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 1/3"
+    },
+    {
+      "id": "note:0:56",
+      "kind": "button",
+      "strip": 0,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 1/4"
+    },
+    {
+      "id": "note:0:57",
+      "kind": "button",
+      "strip": 0,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 1/5"
+    },
+    {
+      "id": "cc:1:7",
+      "kind": "fader",
+      "strip": 1,
+      "label": "Track fader 2"
+    },
+    {
+      "id": "cc:0:49",
+      "kind": "knob",
+      "strip": 1,
+      "ring": 49,
+      "label": "Track knob 2"
+    },
+    {
+      "id": "cc:0:17",
+      "kind": "knob",
+      "strip": 1,
+      "ring": 17,
+      "label": "Device knob 2"
+    },
+    {
+      "id": "note:1:51",
+      "kind": "button",
+      "strip": 1,
+      "on": 1,
+      "label": "Track select 2"
+    },
+    {
+      "id": "note:1:50",
+      "kind": "button",
+      "strip": 1,
+      "on": 1,
+      "label": "Activator 2"
+    },
+    {
+      "id": "note:1:53",
+      "kind": "button",
+      "strip": 1,
+      "on": 1,
+      "off": 0,
+      "label": "Clip 2/1"
+    },
+    {
+      "id": "note:1:54",
+      "kind": "button",
+      "strip": 1,
+      "on": 5,
+      "off": 0,
+      "label": "Clip 2/2"
+    },
+    {
+      "id": "note:1:55",
+      "kind": "button",
+      "strip": 1,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 2/3"
+    },
+    {
+      "id": "note:1:56",
+      "kind": "button",
+      "strip": 1,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 2/4"
+    },
+    {
+      "id": "note:1:57",
+      "kind": "button",
+      "strip": 1,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 2/5"
+    },
+    {
+      "id": "cc:2:7",
+      "kind": "fader",
+      "strip": 2,
+      "label": "Track fader 3"
+    },
+    {
+      "id": "cc:0:50",
+      "kind": "knob",
+      "strip": 2,
+      "ring": 50,
+      "label": "Track knob 3"
+    },
+    {
+      "id": "cc:0:18",
+      "kind": "knob",
+      "strip": 2,
+      "ring": 18,
+      "label": "Device knob 3"
+    },
+    {
+      "id": "note:2:51",
+      "kind": "button",
+      "strip": 2,
+      "on": 1,
+      "label": "Track select 3"
+    },
+    {
+      "id": "note:2:50",
+      "kind": "button",
+      "strip": 2,
+      "on": 1,
+      "label": "Activator 3"
+    },
+    {
+      "id": "note:2:53",
+      "kind": "button",
+      "strip": 2,
+      "on": 1,
+      "off": 0,
+      "label": "Clip 3/1"
+    },
+    {
+      "id": "note:2:54",
+      "kind": "button",
+      "strip": 2,
+      "on": 5,
+      "off": 0,
+      "label": "Clip 3/2"
+    },
+    {
+      "id": "note:2:55",
+      "kind": "button",
+      "strip": 2,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 3/3"
+    },
+    {
+      "id": "note:2:56",
+      "kind": "button",
+      "strip": 2,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 3/4"
+    },
+    {
+      "id": "note:2:57",
+      "kind": "button",
+      "strip": 2,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 3/5"
+    },
+    {
+      "id": "cc:3:7",
+      "kind": "fader",
+      "strip": 3,
+      "label": "Track fader 4"
+    },
+    {
+      "id": "cc:0:51",
+      "kind": "knob",
+      "strip": 3,
+      "ring": 51,
+      "label": "Track knob 4"
+    },
+    {
+      "id": "cc:0:19",
+      "kind": "knob",
+      "strip": 3,
+      "ring": 19,
+      "label": "Device knob 4"
+    },
+    {
+      "id": "note:3:51",
+      "kind": "button",
+      "strip": 3,
+      "on": 1,
+      "label": "Track select 4"
+    },
+    {
+      "id": "note:3:50",
+      "kind": "button",
+      "strip": 3,
+      "on": 1,
+      "label": "Activator 4"
+    },
+    {
+      "id": "note:3:53",
+      "kind": "button",
+      "strip": 3,
+      "on": 1,
+      "off": 0,
+      "label": "Clip 4/1"
+    },
+    {
+      "id": "note:3:54",
+      "kind": "button",
+      "strip": 3,
+      "on": 5,
+      "off": 0,
+      "label": "Clip 4/2"
+    },
+    {
+      "id": "note:3:55",
+      "kind": "button",
+      "strip": 3,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 4/3"
+    },
+    {
+      "id": "note:3:56",
+      "kind": "button",
+      "strip": 3,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 4/4"
+    },
+    {
+      "id": "note:3:57",
+      "kind": "button",
+      "strip": 3,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 4/5"
+    },
+    {
+      "id": "cc:4:7",
+      "kind": "fader",
+      "strip": 4,
+      "label": "Track fader 5"
+    },
+    {
+      "id": "cc:0:52",
+      "kind": "knob",
+      "strip": 4,
+      "ring": 52,
+      "label": "Track knob 5"
+    },
+    {
+      "id": "cc:0:20",
+      "kind": "knob",
+      "strip": 4,
+      "ring": 20,
+      "label": "Device knob 5"
+    },
+    {
+      "id": "note:4:51",
+      "kind": "button",
+      "strip": 4,
+      "on": 1,
+      "label": "Track select 5"
+    },
+    {
+      "id": "note:4:50",
+      "kind": "button",
+      "strip": 4,
+      "on": 1,
+      "label": "Activator 5"
+    },
+    {
+      "id": "note:4:53",
+      "kind": "button",
+      "strip": 4,
+      "on": 1,
+      "off": 0,
+      "label": "Clip 5/1"
+    },
+    {
+      "id": "note:4:54",
+      "kind": "button",
+      "strip": 4,
+      "on": 5,
+      "off": 0,
+      "label": "Clip 5/2"
+    },
+    {
+      "id": "note:4:55",
+      "kind": "button",
+      "strip": 4,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 5/3"
+    },
+    {
+      "id": "note:4:56",
+      "kind": "button",
+      "strip": 4,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 5/4"
+    },
+    {
+      "id": "note:4:57",
+      "kind": "button",
+      "strip": 4,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 5/5"
+    },
+    {
+      "id": "cc:5:7",
+      "kind": "fader",
+      "strip": 5,
+      "label": "Track fader 6"
+    },
+    {
+      "id": "cc:0:53",
+      "kind": "knob",
+      "strip": 5,
+      "ring": 53,
+      "label": "Track knob 6"
+    },
+    {
+      "id": "cc:0:21",
+      "kind": "knob",
+      "strip": 5,
+      "ring": 21,
+      "label": "Device knob 6"
+    },
+    {
+      "id": "note:5:51",
+      "kind": "button",
+      "strip": 5,
+      "on": 1,
+      "label": "Track select 6"
+    },
+    {
+      "id": "note:5:50",
+      "kind": "button",
+      "strip": 5,
+      "on": 1,
+      "label": "Activator 6"
+    },
+    {
+      "id": "note:5:53",
+      "kind": "button",
+      "strip": 5,
+      "on": 1,
+      "off": 0,
+      "label": "Clip 6/1"
+    },
+    {
+      "id": "note:5:54",
+      "kind": "button",
+      "strip": 5,
+      "on": 5,
+      "off": 0,
+      "label": "Clip 6/2"
+    },
+    {
+      "id": "note:5:55",
+      "kind": "button",
+      "strip": 5,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 6/3"
+    },
+    {
+      "id": "note:5:56",
+      "kind": "button",
+      "strip": 5,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 6/4"
+    },
+    {
+      "id": "note:5:57",
+      "kind": "button",
+      "strip": 5,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 6/5"
+    },
+    {
+      "id": "cc:6:7",
+      "kind": "fader",
+      "strip": 6,
+      "label": "Track fader 7"
+    },
+    {
+      "id": "cc:0:54",
+      "kind": "knob",
+      "strip": 6,
+      "ring": 54,
+      "label": "Track knob 7"
+    },
+    {
+      "id": "cc:0:22",
+      "kind": "knob",
+      "strip": 6,
+      "ring": 22,
+      "label": "Device knob 7"
+    },
+    {
+      "id": "note:6:51",
+      "kind": "button",
+      "strip": 6,
+      "on": 1,
+      "label": "Track select 7"
+    },
+    {
+      "id": "note:6:50",
+      "kind": "button",
+      "strip": 6,
+      "on": 1,
+      "label": "Activator 7"
+    },
+    {
+      "id": "note:6:53",
+      "kind": "button",
+      "strip": 6,
+      "on": 1,
+      "off": 0,
+      "label": "Clip 7/1"
+    },
+    {
+      "id": "note:6:54",
+      "kind": "button",
+      "strip": 6,
+      "on": 5,
+      "off": 0,
+      "label": "Clip 7/2"
+    },
+    {
+      "id": "note:6:55",
+      "kind": "button",
+      "strip": 6,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 7/3"
+    },
+    {
+      "id": "note:6:56",
+      "kind": "button",
+      "strip": 6,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 7/4"
+    },
+    {
+      "id": "note:6:57",
+      "kind": "button",
+      "strip": 6,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 7/5"
+    },
+    {
+      "id": "cc:7:7",
+      "kind": "fader",
+      "strip": 7,
+      "label": "Track fader 8"
+    },
+    {
+      "id": "cc:0:55",
+      "kind": "knob",
+      "strip": 7,
+      "ring": 55,
+      "label": "Track knob 8"
+    },
+    {
+      "id": "cc:0:23",
+      "kind": "knob",
+      "strip": 7,
+      "ring": 23,
+      "label": "Device knob 8"
+    },
+    {
+      "id": "note:7:51",
+      "kind": "button",
+      "strip": 7,
+      "on": 1,
+      "label": "Track select 8"
+    },
+    {
+      "id": "note:7:50",
+      "kind": "button",
+      "strip": 7,
+      "on": 1,
+      "label": "Activator 8"
+    },
+    {
+      "id": "note:7:53",
+      "kind": "button",
+      "strip": 7,
+      "on": 1,
+      "off": 0,
+      "label": "Clip 8/1"
+    },
+    {
+      "id": "note:7:54",
+      "kind": "button",
+      "strip": 7,
+      "on": 5,
+      "off": 0,
+      "label": "Clip 8/2"
+    },
+    {
+      "id": "note:7:55",
+      "kind": "button",
+      "strip": 7,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 8/3"
+    },
+    {
+      "id": "note:7:56",
+      "kind": "button",
+      "strip": 7,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 8/4"
+    },
+    {
+      "id": "note:7:57",
+      "kind": "button",
+      "strip": 7,
+      "on": 3,
+      "off": 0,
+      "label": "Clip 8/5"
+    },
+    {
+      "id": "cc:0:14",
+      "kind": "fader",
+      "label": "Master fader"
+    },
+    {
+      "id": "note:0:91",
+      "kind": "button",
+      "on": 1,
+      "label": "TAKE"
+    },
+    {
+      "id": "note:0:92",
+      "kind": "button",
+      "on": 1,
+      "label": "Abort"
+    },
+    {
+      "id": "note:0:93",
+      "kind": "button",
+      "on": 1,
+      "label": "Cut"
+    },
+    {
+      "id": "note:0:98",
+      "kind": "button",
+      "on": 1,
+      "label": "Shift"
+    },
+    {
+      "id": "note:0:94",
+      "kind": "button",
+      "on": 1,
+      "label": "Bank up"
+    },
+    {
+      "id": "note:0:95",
+      "kind": "button",
+      "on": 1,
+      "label": "Bank down"
+    },
+    {
+      "id": "note:0:80",
+      "kind": "button",
+      "on": 1,
+      "label": "Preset flip"
+    },
+    {
+      "id": "note:0:81",
+      "kind": "button",
+      "on": 1,
+      "label": "Copy to preview"
+    },
+    {
+      "id": "note:0:82",
+      "kind": "button",
+      "on": 1,
+      "label": "Scene 1"
+    },
+    {
+      "id": "note:0:83",
+      "kind": "button",
+      "on": 1,
+      "label": "Scene 2"
+    },
+    {
+      "id": "note:0:84",
+      "kind": "button",
+      "on": 1,
+      "label": "Scene 3"
+    },
+    {
+      "id": "note:0:85",
+      "kind": "button",
+      "on": 1,
+      "label": "Scene 4"
+    },
+    {
+      "id": "note:0:86",
+      "kind": "button",
+      "on": 1,
+      "label": "Scene 5"
+    }
+  ],
+  "bindings": [
+    {
+      "control": "cc:0:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "cc:0:48",
+      "label": "Source",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "values": [
+          "LIVE_1",
+          "LIVE_2",
+          "LIVE_3",
+          "LIVE_4",
+          "LIVE_5",
+          "LIVE_6",
+          "LIVE_7",
+          "LIVE_8",
+          "LIVE_9",
+          "LIVE_10",
+          "LIVE_11",
+          "LIVE_12",
+          "LIVE_13",
+          "LIVE_14",
+          "LIVE_15",
+          "LIVE_16"
+        ]
+      }
+    },
+    {
+      "control": "cc:0:16",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posH"
+      },
+      "options": {
+        "min": -1920,
+        "max": 3840,
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:0:51",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:53",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:55",
+      "label": "Live 1",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_1"
+      }
+    },
+    {
+      "control": "note:0:56",
+      "label": "Live 2",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_2"
+      }
+    },
+    {
+      "control": "note:0:57",
+      "label": "Live 3",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_3"
+      }
+    },
+    {
+      "control": "note:0:50",
+      "label": "Aspect",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "cropping.classic.aspectOverride"
+      },
+      "options": {
+        "action": "toggle",
+        "wrap": true
+      }
+    },
+    {
+      "control": "cc:1:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "cc:0:49",
+      "label": "Source",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "values": [
+          "LIVE_1",
+          "LIVE_2",
+          "LIVE_3",
+          "LIVE_4",
+          "LIVE_5",
+          "LIVE_6",
+          "LIVE_7",
+          "LIVE_8",
+          "LIVE_9",
+          "LIVE_10",
+          "LIVE_11",
+          "LIVE_12",
+          "LIVE_13",
+          "LIVE_14",
+          "LIVE_15",
+          "LIVE_16"
+        ]
+      }
+    },
+    {
+      "control": "cc:0:17",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posV"
+      },
+      "options": {
+        "min": -1080,
+        "max": 2160,
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:1:51",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:1:53",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:1:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:1:55",
+      "label": "Live 1",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_1"
+      }
+    },
+    {
+      "control": "note:1:56",
+      "label": "Live 2",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_2"
+      }
+    },
+    {
+      "control": "note:1:57",
+      "label": "Live 3",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_3"
+      }
+    },
+    {
+      "control": "note:1:50",
+      "label": "Aspect",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "cropping.classic.aspectOverride"
+      },
+      "options": {
+        "action": "toggle",
+        "wrap": true
+      }
+    },
+    {
+      "control": "cc:2:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "cc:0:50",
+      "label": "Source",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "values": [
+          "LIVE_1",
+          "LIVE_2",
+          "LIVE_3",
+          "LIVE_4",
+          "LIVE_5",
+          "LIVE_6",
+          "LIVE_7",
+          "LIVE_8",
+          "LIVE_9",
+          "LIVE_10",
+          "LIVE_11",
+          "LIVE_12",
+          "LIVE_13",
+          "LIVE_14",
+          "LIVE_15",
+          "LIVE_16"
+        ]
+      }
+    },
+    {
+      "control": "cc:0:18",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeH"
+      },
+      "options": {
+        "min": 0,
+        "max": 3840,
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:2:51",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:2:53",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:2:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:2:55",
+      "label": "Live 1",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_1"
+      }
+    },
+    {
+      "control": "note:2:56",
+      "label": "Live 2",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_2"
+      }
+    },
+    {
+      "control": "note:2:57",
+      "label": "Live 3",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_3"
+      }
+    },
+    {
+      "control": "note:2:50",
+      "label": "Aspect",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "cropping.classic.aspectOverride"
+      },
+      "options": {
+        "action": "toggle",
+        "wrap": true
+      }
+    },
+    {
+      "control": "cc:3:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "cc:0:51",
+      "label": "Source",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "values": [
+          "LIVE_1",
+          "LIVE_2",
+          "LIVE_3",
+          "LIVE_4",
+          "LIVE_5",
+          "LIVE_6",
+          "LIVE_7",
+          "LIVE_8",
+          "LIVE_9",
+          "LIVE_10",
+          "LIVE_11",
+          "LIVE_12",
+          "LIVE_13",
+          "LIVE_14",
+          "LIVE_15",
+          "LIVE_16"
+        ]
+      }
+    },
+    {
+      "control": "cc:0:19",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeV"
+      },
+      "options": {
+        "min": 0,
+        "max": 2160,
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:3:51",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:3:53",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:3:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:3:55",
+      "label": "Live 1",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_1"
+      }
+    },
+    {
+      "control": "note:3:56",
+      "label": "Live 2",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_2"
+      }
+    },
+    {
+      "control": "note:3:57",
+      "label": "Live 3",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_3"
+      }
+    },
+    {
+      "control": "note:3:50",
+      "label": "Aspect",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "cropping.classic.aspectOverride"
+      },
+      "options": {
+        "action": "toggle",
+        "wrap": true
+      }
+    },
+    {
+      "control": "cc:4:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "cc:0:52",
+      "label": "Source",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "values": [
+          "LIVE_1",
+          "LIVE_2",
+          "LIVE_3",
+          "LIVE_4",
+          "LIVE_5",
+          "LIVE_6",
+          "LIVE_7",
+          "LIVE_8",
+          "LIVE_9",
+          "LIVE_10",
+          "LIVE_11",
+          "LIVE_12",
+          "LIVE_13",
+          "LIVE_14",
+          "LIVE_15",
+          "LIVE_16"
+        ]
+      }
+    },
+    {
+      "control": "cc:0:20",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.left"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:4:51",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:4:53",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:4:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:4:55",
+      "label": "Live 1",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_1"
+      }
+    },
+    {
+      "control": "note:4:56",
+      "label": "Live 2",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_2"
+      }
+    },
+    {
+      "control": "note:4:57",
+      "label": "Live 3",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_3"
+      }
+    },
+    {
+      "control": "note:4:50",
+      "label": "Aspect",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "cropping.classic.aspectOverride"
+      },
+      "options": {
+        "action": "toggle",
+        "wrap": true
+      }
+    },
+    {
+      "control": "cc:5:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "cc:0:53",
+      "label": "Source",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "values": [
+          "LIVE_1",
+          "LIVE_2",
+          "LIVE_3",
+          "LIVE_4",
+          "LIVE_5",
+          "LIVE_6",
+          "LIVE_7",
+          "LIVE_8",
+          "LIVE_9",
+          "LIVE_10",
+          "LIVE_11",
+          "LIVE_12",
+          "LIVE_13",
+          "LIVE_14",
+          "LIVE_15",
+          "LIVE_16"
+        ]
+      }
+    },
+    {
+      "control": "cc:0:21",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.right"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:5:51",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:5:53",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:5:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:5:55",
+      "label": "Live 1",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_1"
+      }
+    },
+    {
+      "control": "note:5:56",
+      "label": "Live 2",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_2"
+      }
+    },
+    {
+      "control": "note:5:57",
+      "label": "Live 3",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_3"
+      }
+    },
+    {
+      "control": "note:5:50",
+      "label": "Aspect",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "cropping.classic.aspectOverride"
+      },
+      "options": {
+        "action": "toggle",
+        "wrap": true
+      }
+    },
+    {
+      "control": "cc:6:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "cc:0:54",
+      "label": "Source",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "values": [
+          "LIVE_1",
+          "LIVE_2",
+          "LIVE_3",
+          "LIVE_4",
+          "LIVE_5",
+          "LIVE_6",
+          "LIVE_7",
+          "LIVE_8",
+          "LIVE_9",
+          "LIVE_10",
+          "LIVE_11",
+          "LIVE_12",
+          "LIVE_13",
+          "LIVE_14",
+          "LIVE_15",
+          "LIVE_16"
+        ]
+      }
+    },
+    {
+      "control": "cc:0:22",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.top"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:6:51",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:6:53",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:6:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:6:55",
+      "label": "Live 1",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_1"
+      }
+    },
+    {
+      "control": "note:6:56",
+      "label": "Live 2",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_2"
+      }
+    },
+    {
+      "control": "note:6:57",
+      "label": "Live 3",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_3"
+      }
+    },
+    {
+      "control": "note:6:50",
+      "label": "Aspect",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "cropping.classic.aspectOverride"
+      },
+      "options": {
+        "action": "toggle",
+        "wrap": true
+      }
+    },
+    {
+      "control": "cc:7:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "cc:0:55",
+      "label": "Source",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "values": [
+          "LIVE_1",
+          "LIVE_2",
+          "LIVE_3",
+          "LIVE_4",
+          "LIVE_5",
+          "LIVE_6",
+          "LIVE_7",
+          "LIVE_8",
+          "LIVE_9",
+          "LIVE_10",
+          "LIVE_11",
+          "LIVE_12",
+          "LIVE_13",
+          "LIVE_14",
+          "LIVE_15",
+          "LIVE_16"
+        ]
+      }
+    },
+    {
+      "control": "cc:0:23",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.bottom"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:7:51",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:7:53",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:7:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:7:55",
+      "label": "Live 1",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_1"
+      }
+    },
+    {
+      "control": "note:7:56",
+      "label": "Live 2",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_2"
+      }
+    },
+    {
+      "control": "note:7:57",
+      "label": "Live 3",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "source.inputNum"
+      },
+      "options": {
+        "action": "set",
+        "value": "LIVE_3"
+      }
+    },
+    {
+      "control": "note:7:50",
+      "label": "Aspect",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "cropping.classic.aspectOverride"
+      },
+      "options": {
+        "action": "toggle",
+        "wrap": true
+      }
+    },
+    {
+      "control": "cc:0:14",
+      "label": "T-bar",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.tbarPosition"
+      },
+      "options": {
+        "takeover": "pickup"
+      }
+    },
+    {
+      "control": "note:0:91",
+      "label": "TAKE",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.xTake"
+      },
+      "options": {
+        "action": "trigger"
+      }
+    },
+    {
+      "control": "note:0:92",
+      "label": "Abort",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.xTakeAbort"
+      },
+      "options": {
+        "action": "trigger"
+      }
+    },
+    {
+      "control": "note:0:93",
+      "label": "Cut",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.xCut"
+      },
+      "options": {
+        "action": "trigger"
+      }
+    },
+    {
+      "control": "note:0:98",
+      "label": "Shift",
+      "target": {
+        "kind": "action",
+        "action": "shift"
+      }
+    },
+    {
+      "control": "note:0:94",
+      "label": "Bank up",
+      "target": {
+        "kind": "action",
+        "action": "bank",
+        "delta": 1
+      }
+    },
+    {
+      "control": "note:0:95",
+      "label": "Bank down",
+      "target": {
+        "kind": "action",
+        "action": "bank",
+        "delta": -1
+      }
+    },
+    {
+      "control": "note:0:80",
+      "label": "Preset flip",
+      "target": {
+        "kind": "action",
+        "action": "selectPreset",
+        "value": "toggle"
+      }
+    },
+    {
+      "control": "note:0:81",
+      "label": "Copy to preview",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.xCopyProgramToPreview"
+      },
+      "options": {
+        "action": "trigger"
+      }
+    },
+    {
+      "control": "note:0:82",
+      "label": "S1",
+      "target": {
+        "kind": "action",
+        "action": "selectScreen",
+        "value": "S1"
+      }
+    },
+    {
+      "control": "note:0:83",
+      "label": "S2",
+      "target": {
+        "kind": "action",
+        "action": "selectScreen",
+        "value": "S2"
+      }
+    },
+    {
+      "control": "note:0:84",
+      "label": "S3",
+      "target": {
+        "kind": "action",
+        "action": "selectScreen",
+        "value": "S3"
+      }
+    },
+    {
+      "control": "note:0:85",
+      "label": "S4",
+      "target": {
+        "kind": "action",
+        "action": "selectScreen",
+        "value": "S4"
+      }
+    },
+    {
+      "control": "note:0:86",
+      "label": "S5",
+      "target": {
+        "kind": "action",
+        "action": "selectScreen",
+        "value": "S5"
+      }
+    }
+  ]
+}

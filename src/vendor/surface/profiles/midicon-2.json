@@ -1,0 +1,980 @@
+{
+  "id": "midicon-2",
+  "name": "Elation MIDICON-2",
+  "stripCount": 8,
+  "match": {
+    "namePattern": "MIDICON-2"
+  },
+  "feedback": {
+    "protocol": "generic"
+  },
+  "notes": "Rotaries send one note per click, so each is two controls. Faders are motorised and take position by echo.",
+  "verified": false,
+  "controls": [
+    {
+      "id": "cc:0:1",
+      "kind": "fader",
+      "strip": 0,
+      "motorised": true,
+      "label": "Playback fader 1"
+    },
+    {
+      "id": "cc:0:2",
+      "kind": "fader",
+      "strip": 1,
+      "motorised": true,
+      "label": "Playback fader 2"
+    },
+    {
+      "id": "cc:0:3",
+      "kind": "fader",
+      "strip": 2,
+      "motorised": true,
+      "label": "Playback fader 3"
+    },
+    {
+      "id": "cc:0:4",
+      "kind": "fader",
+      "strip": 3,
+      "motorised": true,
+      "label": "Playback fader 4"
+    },
+    {
+      "id": "cc:0:5",
+      "kind": "fader",
+      "strip": 4,
+      "motorised": true,
+      "label": "Playback fader 5"
+    },
+    {
+      "id": "cc:0:6",
+      "kind": "fader",
+      "strip": 5,
+      "motorised": true,
+      "label": "Playback fader 6"
+    },
+    {
+      "id": "cc:0:7",
+      "kind": "fader",
+      "strip": 6,
+      "motorised": true,
+      "label": "Playback fader 7"
+    },
+    {
+      "id": "cc:0:8",
+      "kind": "fader",
+      "strip": 7,
+      "motorised": true,
+      "label": "Playback fader 8"
+    },
+    {
+      "id": "cc:0:9",
+      "kind": "fader",
+      "motorised": true,
+      "label": "Master fader"
+    },
+    {
+      "id": "note:0:41",
+      "kind": "button",
+      "strip": 0,
+      "label": "Playback top 1"
+    },
+    {
+      "id": "note:0:42",
+      "kind": "button",
+      "strip": 1,
+      "label": "Playback top 2"
+    },
+    {
+      "id": "note:0:43",
+      "kind": "button",
+      "strip": 2,
+      "label": "Playback top 3"
+    },
+    {
+      "id": "note:0:44",
+      "kind": "button",
+      "strip": 3,
+      "label": "Playback top 4"
+    },
+    {
+      "id": "note:0:45",
+      "kind": "button",
+      "strip": 4,
+      "label": "Playback top 5"
+    },
+    {
+      "id": "note:0:46",
+      "kind": "button",
+      "strip": 5,
+      "label": "Playback top 6"
+    },
+    {
+      "id": "note:0:47",
+      "kind": "button",
+      "strip": 6,
+      "label": "Playback top 7"
+    },
+    {
+      "id": "note:0:48",
+      "kind": "button",
+      "strip": 7,
+      "label": "Playback top 8"
+    },
+    {
+      "id": "note:0:49",
+      "kind": "button",
+      "strip": 0,
+      "label": "Playback bottom 1"
+    },
+    {
+      "id": "note:0:50",
+      "kind": "button",
+      "strip": 1,
+      "label": "Playback bottom 2"
+    },
+    {
+      "id": "note:0:51",
+      "kind": "button",
+      "strip": 2,
+      "label": "Playback bottom 3"
+    },
+    {
+      "id": "note:0:52",
+      "kind": "button",
+      "strip": 3,
+      "label": "Playback bottom 4"
+    },
+    {
+      "id": "note:0:53",
+      "kind": "button",
+      "strip": 4,
+      "label": "Playback bottom 5"
+    },
+    {
+      "id": "note:0:54",
+      "kind": "button",
+      "strip": 5,
+      "label": "Playback bottom 6"
+    },
+    {
+      "id": "note:0:55",
+      "kind": "button",
+      "strip": 6,
+      "label": "Playback bottom 7"
+    },
+    {
+      "id": "note:0:56",
+      "kind": "button",
+      "strip": 7,
+      "label": "Playback bottom 8"
+    },
+    {
+      "id": "note:0:86",
+      "kind": "encoder",
+      "tick": 1,
+      "label": "Rotary 1 right"
+    },
+    {
+      "id": "note:0:87",
+      "kind": "encoder",
+      "tick": -1,
+      "label": "Rotary 1 left"
+    },
+    {
+      "id": "note:0:68",
+      "kind": "button",
+      "label": "Rotary 1 press"
+    },
+    {
+      "id": "note:0:88",
+      "kind": "encoder",
+      "tick": 1,
+      "label": "Rotary 2 right"
+    },
+    {
+      "id": "note:0:89",
+      "kind": "encoder",
+      "tick": -1,
+      "label": "Rotary 2 left"
+    },
+    {
+      "id": "note:0:69",
+      "kind": "button",
+      "label": "Rotary 2 press"
+    },
+    {
+      "id": "note:0:90",
+      "kind": "encoder",
+      "tick": 1,
+      "label": "Rotary 3 right"
+    },
+    {
+      "id": "note:0:91",
+      "kind": "encoder",
+      "tick": -1,
+      "label": "Rotary 3 left"
+    },
+    {
+      "id": "note:0:70",
+      "kind": "button",
+      "label": "Rotary 3 press"
+    },
+    {
+      "id": "note:0:92",
+      "kind": "encoder",
+      "tick": 1,
+      "label": "Rotary 4 right"
+    },
+    {
+      "id": "note:0:93",
+      "kind": "encoder",
+      "tick": -1,
+      "label": "Rotary 4 left"
+    },
+    {
+      "id": "note:0:71",
+      "kind": "button",
+      "label": "Rotary 4 press"
+    },
+    {
+      "id": "note:0:94",
+      "kind": "encoder",
+      "tick": 1,
+      "label": "Rotary 5 right"
+    },
+    {
+      "id": "note:0:95",
+      "kind": "encoder",
+      "tick": -1,
+      "label": "Rotary 5 left"
+    },
+    {
+      "id": "note:0:72",
+      "kind": "button",
+      "label": "Rotary 5 press"
+    },
+    {
+      "id": "note:0:96",
+      "kind": "encoder",
+      "tick": 1,
+      "label": "Rotary 6 right"
+    },
+    {
+      "id": "note:0:97",
+      "kind": "encoder",
+      "tick": -1,
+      "label": "Rotary 6 left"
+    },
+    {
+      "id": "note:0:73",
+      "kind": "button",
+      "label": "Rotary 6 press"
+    },
+    {
+      "id": "note:0:98",
+      "kind": "encoder",
+      "tick": 1,
+      "label": "Rotary 7 right"
+    },
+    {
+      "id": "note:0:99",
+      "kind": "encoder",
+      "tick": -1,
+      "label": "Rotary 7 left"
+    },
+    {
+      "id": "note:0:74",
+      "kind": "button",
+      "label": "Rotary 7 press"
+    },
+    {
+      "id": "note:0:100",
+      "kind": "encoder",
+      "tick": 1,
+      "label": "Rotary 8 right"
+    },
+    {
+      "id": "note:0:101",
+      "kind": "encoder",
+      "tick": -1,
+      "label": "Rotary 8 left"
+    },
+    {
+      "id": "note:0:75",
+      "kind": "button",
+      "label": "Rotary 8 press"
+    },
+    {
+      "id": "note:0:57",
+      "kind": "button",
+      "label": "Bank up"
+    },
+    {
+      "id": "note:0:58",
+      "kind": "button",
+      "label": "Bank down"
+    },
+    {
+      "id": "note:0:67",
+      "kind": "button",
+      "label": "Blackout (unbound by design)"
+    }
+  ],
+  "bindings": [
+    {
+      "control": "cc:0:1",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "cc:0:2",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "cc:0:3",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "cc:0:4",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "cc:0:5",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "cc:0:6",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "cc:0:7",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "cc:0:8",
+      "label": "Opacity",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "opacity.opacity"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "cc:0:9",
+      "label": "T-bar",
+      "target": {
+        "kind": "screenGroup",
+        "screen": "@selected",
+        "param": "control.tbarPosition"
+      },
+      "options": {
+        "takeover": "jump"
+      }
+    },
+    {
+      "control": "note:0:41",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:42",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:43",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:44",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:45",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:46",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:47",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:48",
+      "label": "Select",
+      "target": {
+        "kind": "action",
+        "action": "selectLayer",
+        "value": "@strip"
+      }
+    },
+    {
+      "control": "note:0:49",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:50",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:51",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:52",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:53",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:54",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:55",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:56",
+      "label": "Key",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@strip",
+        "param": "keying.enable"
+      },
+      "options": {
+        "action": "toggle"
+      }
+    },
+    {
+      "control": "note:0:86",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posH"
+      },
+      "options": {
+        "min": -1920,
+        "max": 3840
+      }
+    },
+    {
+      "control": "note:0:87",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posH"
+      },
+      "options": {
+        "min": -1920,
+        "max": 3840
+      }
+    },
+    {
+      "control": "note:0:68",
+      "label": "Reset",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posH"
+      },
+      "options": {
+        "action": "set",
+        "value": null,
+        "resetToDefault": true
+      }
+    },
+    {
+      "control": "note:0:88",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posV"
+      },
+      "options": {
+        "min": -1080,
+        "max": 2160
+      }
+    },
+    {
+      "control": "note:0:89",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posV"
+      },
+      "options": {
+        "min": -1080,
+        "max": 2160
+      }
+    },
+    {
+      "control": "note:0:69",
+      "label": "Reset",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.posV"
+      },
+      "options": {
+        "action": "set",
+        "value": null,
+        "resetToDefault": true
+      }
+    },
+    {
+      "control": "note:0:90",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeH"
+      },
+      "options": {
+        "min": 0,
+        "max": 3840
+      }
+    },
+    {
+      "control": "note:0:91",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeH"
+      },
+      "options": {
+        "min": 0,
+        "max": 3840
+      }
+    },
+    {
+      "control": "note:0:70",
+      "label": "Reset",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeH"
+      },
+      "options": {
+        "action": "set",
+        "value": null,
+        "resetToDefault": true
+      }
+    },
+    {
+      "control": "note:0:92",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeV"
+      },
+      "options": {
+        "min": 0,
+        "max": 2160
+      }
+    },
+    {
+      "control": "note:0:93",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeV"
+      },
+      "options": {
+        "min": 0,
+        "max": 2160
+      }
+    },
+    {
+      "control": "note:0:71",
+      "label": "Reset",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "position.sizeV"
+      },
+      "options": {
+        "action": "set",
+        "value": null,
+        "resetToDefault": true
+      }
+    },
+    {
+      "control": "note:0:94",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.left"
+      },
+      "options": {}
+    },
+    {
+      "control": "note:0:95",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.left"
+      },
+      "options": {}
+    },
+    {
+      "control": "note:0:72",
+      "label": "Reset",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.left"
+      },
+      "options": {
+        "action": "set",
+        "value": null,
+        "resetToDefault": true
+      }
+    },
+    {
+      "control": "note:0:96",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.right"
+      },
+      "options": {}
+    },
+    {
+      "control": "note:0:97",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.right"
+      },
+      "options": {}
+    },
+    {
+      "control": "note:0:73",
+      "label": "Reset",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.right"
+      },
+      "options": {
+        "action": "set",
+        "value": null,
+        "resetToDefault": true
+      }
+    },
+    {
+      "control": "note:0:98",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.top"
+      },
+      "options": {}
+    },
+    {
+      "control": "note:0:99",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.top"
+      },
+      "options": {}
+    },
+    {
+      "control": "note:0:74",
+      "label": "Reset",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.top"
+      },
+      "options": {
+        "action": "set",
+        "value": null,
+        "resetToDefault": true
+      }
+    },
+    {
+      "control": "note:0:100",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.bottom"
+      },
+      "options": {}
+    },
+    {
+      "control": "note:0:101",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.bottom"
+      },
+      "options": {}
+    },
+    {
+      "control": "note:0:75",
+      "label": "Reset",
+      "target": {
+        "kind": "layer",
+        "screen": "@selected",
+        "preset": "@selected",
+        "layer": "@selected",
+        "param": "cropping.classic.bottom"
+      },
+      "options": {
+        "action": "set",
+        "value": null,
+        "resetToDefault": true
+      }
+    },
+    {
+      "control": "note:0:57",
+      "label": "Bank up",
+      "target": {
+        "kind": "action",
+        "action": "bank",
+        "delta": 1
+      }
+    },
+    {
+      "control": "note:0:58",
+      "label": "Bank down",
+      "target": {
+        "kind": "action",
+        "action": "bank",
+        "delta": -1
+      }
+    }
+  ]
+}

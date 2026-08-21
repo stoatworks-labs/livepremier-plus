@@ -92,3 +92,15 @@ export const fmtClock = (ms) => {
   const s = (t % 60).toFixed(1).padStart(4, '0');
   return `${m}:${s}`;
 };
+
+/**
+ * Enter, however the event happens to spell it.
+ *
+ * `key` is not always populated — some synthetic and remote-input paths leave
+ * it empty while still carrying `code` or the legacy `keyCode`. Both places
+ * that commit on Enter (a numeric field, the console) need the same answer, so
+ * it lives here rather than in either of them.
+ */
+export function isEnter(ev) {
+  return ev.key === 'Enter' || ev.code === 'Enter' || ev.code === 'NumpadEnter' || ev.keyCode === 13;
+}
