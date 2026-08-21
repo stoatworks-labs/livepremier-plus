@@ -1,6 +1,6 @@
 {
   "name": "livepremier-plus",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "A VPU resource map and a theatre cue stack inside an Analog Way LivePremier Web RCS session, served by a local proxy.",
