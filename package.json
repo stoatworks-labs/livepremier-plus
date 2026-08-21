@@ -7,7 +7,7 @@
   "bin": { "livepremier-plus": "server/index.js" },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js test/proxy.test.js",
+    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js test/proxy.test.js test/expr.test.js",
     "serve": "node tools/serve.mjs",
     "sync:vpu-model": "node tools/sync-vpu-model.mjs"
   }

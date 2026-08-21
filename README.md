@@ -10,6 +10,8 @@ product rather than as a bolt-on:
 - **Timeline** — a theatre-style cue stack. A numbered list that advances on
   one GO, with per-cue fade, delay and follow times, driving the switcher's
   preset recalls and TAKE.
+- **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
+  layer width and get 1000, the way you can in every other tool on the desk.
 
 Point it at a switcher, open the address it prints, and you get the vendor's
 own Web RCS with the extra panels already in it. It rides the vendor app's own
@@ -56,6 +58,49 @@ in the fleet's usual shape. See [launcher/](launcher/).
 > **On binding wide.** The default is loopback for a reason: this proxy is an
 > unauthenticated route to a switcher's entire control surface. `--host 0.0.0.0`
 > hands that to everyone on the network. Do it deliberately, not by habit.
+
+## Arithmetic in numeric fields
+
+Type an expression into any of Web RCS's own numeric fields and it is evaluated
+when you commit — on Enter, or on leaving the field:
+
+| typed | becomes |
+| --- | --- |
+| `1080-80` | `1000` |
+| `1920/2` | `960` |
+| `(1920-40)/2` | `940` |
+| `1920*2` | `3840` |
+
+`+ - * / ( )` and decimals, with the usual precedence. The result is clamped to
+the field's own declared range and rounded to its `step`, so a width of
+`9000+1000` lands on 8192 rather than being refused.
+
+Nothing else about the field changes. The vendor still validates it, still
+decides what to send, and still drags the other axis along if the aspect lock
+is on — all this does is substitute the number you meant, an instant before
+Web RCS reads it.
+
+**Where it applies, and why that is narrow on purpose.** Only fields the vendor
+itself marks as numeric, which it does by putting `min`, `max` and `step` on
+them — its geometry fields report `step="1"` with real ranges. That is a
+steadier signal than any class name in a CSS-modules build, and it excludes
+everything that must not be touched: labels have no `step`, and neither does
+the transition-time field, whose `00:01.000` would be mangled by anything
+treating `:` as arithmetic.
+
+**Opacity and zoom are deliberately excluded.** Those are real
+`input[type="number"]` fields, and a number input *discards* anything it cannot
+parse — after typing `1080-80` the browser reports `value === ""`, and the
+expression is visible on screen but unreadable from script. Supporting them
+would mean swapping `type` to `text` on focus and reimplementing the native
+up/down stepping operators use. Mutating a vendor element's `type` on every
+focus, in a UI driving a live show, to win arithmetic on an opacity field is
+not a good trade.
+
+There is **no `eval`** anywhere in this path. `src/core/expr.js` is a
+hand-written recursive-descent parser over a closed token set; anything it does
+not fully understand is refused rather than guessed at, and the field is left
+exactly as typed for the vendor to reject as it would today.
 
 ## What it looks like
 
@@ -203,7 +248,12 @@ or claiming the firmware is unsupported.
 npm test
 ```
 
-54 tests, no network and no browser.
+74 tests, no network and no browser.
+
+Twenty cover the expression evaluator, weighted towards what it must **refuse**
+— `1/0`, `2+`, `1920x1080`, `00:01.000`, and anything resembling code — because
+the failure mode that matters is a plausible wrong value on air, not a parse
+error someone notices.
 
 Twenty-two cover the proxy against a stand-in Web RCS on a real socket rather
 than a mock — injection ordering against deferred scripts, chunked and gzipped

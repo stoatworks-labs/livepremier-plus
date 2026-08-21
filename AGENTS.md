@@ -82,6 +82,39 @@ remembered. It also means re-pointing at a backup frame costs a form submission
 rather than a restart — and re-pointing **hangs up the existing relays**, so a
 page cannot go on driving the box the operator thinks they have left.
 
+## Arithmetic in vendor fields (`ui/math-fields.js`)
+
+Three things here are load-bearing and were each verified on a running Web RCS
+rather than reasoned about:
+
+- **The selector is `input[type=text]` with a `step` attribute.** Web RCS's
+  numeric fields are *text* inputs carrying `min`/`max`/`step` — geometry
+  reports `step="1"`, X spans -960..2880, width 0..8192. Using the vendor's own
+  declaration avoids matching a per-build class hash, and excludes labels and
+  the `00:01.000` transition field, neither of which has a `step`.
+- **`type="number"` fields are excluded on purpose.** A number input discards
+  what it cannot parse: after `1080-80` the browser reports `value === ""` with
+  `validity.badInput`, and `selectionStart` is `null`. The expression is on
+  screen and unreadable from script. Supporting them needs a `type` swap on
+  focus plus reimplemented arrow-key stepping — do not add it casually.
+- **Capture phase on `document` is the entire timing strategy.** React attaches
+  its handlers at the root container, so a capture listener on `document` runs
+  before them. We rewrite the value, then let the event continue into the
+  vendor's own commit handler.
+
+Writing takes the controlled-input dance: React overrides `value` on the
+element, so use the native setter from `HTMLInputElement.prototype` and then
+dispatch a bubbling `input` event, or React's state never learns about it.
+Verified end to end — `1080-80` in a width produced `sizeH=1000` on the wire,
+with the vendor's aspect lock sending `sizeV` alongside it, exactly as if the
+number had been typed.
+
+**Never put `eval` or `new Function` in this path.** `core/expr.js` is a
+recursive-descent parser over a closed token set and must stay one. It refuses
+rather than guesses — division by zero is rejected specifically because
+`Infinity` would survive the clamp and land as the field's max, which is a
+plausible-looking wrong answer.
+
 ## A note on the `wru-` prefix
 
 CSS classes (`wru-cuelist`, `wru-overlay`), the `window.__WRU_HOOK` global and
@@ -164,7 +197,7 @@ no benefit. Read `wru` as "the panels".
 
 ## Testing
 
-`npm test` — 54 tests, no network, no browser. Seven run against a real Aquilon
+`npm test` — 74 tests, no network, no browser. Seven run against a real Aquilon
 C capture (`aquilon-c-live-resources.json`, read 2026-08-21) and are the only
 coverage of fitted mixers, output links and Optimized mode, none of which a
 simulator produces.

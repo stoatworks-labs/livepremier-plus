@@ -18,6 +18,7 @@ import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell } from './ui/shell.js';
 import { createVpuPanel } from './ui/vpu-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
+import { installMathFields } from './ui/math-fields.js';
 
 const TAG = '[LivePremier Plus]';
 
@@ -88,6 +89,14 @@ async function boot() {
     });
     if (!seen) return;
   }
+
+  /*
+   * Arithmetic in the vendor's own numeric fields — `1080-80` in a layer width
+   * gives 1000. Installed as soon as we know this is Web RCS, and before the
+   * panels, because it is useful on its own: it improves the stock UI whether
+   * or not anyone ever opens a panel of ours.
+   */
+  installMathFields();
 
   const session = new Session(transport);
   const storage = makeStorage();
