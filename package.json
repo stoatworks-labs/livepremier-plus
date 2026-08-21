@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Chrome extension: a VPU resource map and a theatre cue stack inside an Analog Way LivePremier Web RCS session.",
   "scripts": {
-    "test": "node --test test/core.test.js test/modules.test.js",
-    "serve": "node tools/serve.mjs"
+    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js",
+    "serve": "node tools/serve.mjs",
+    "sync:vpu-model": "node tools/sync-vpu-model.mjs"
   }
 }

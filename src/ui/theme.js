@@ -53,33 +53,40 @@ const CSS = `
 
 .wru-vpu-device {
   background: #08141B; border: 0.1rem solid #283239; border-radius: 0.333333rem;
-  padding: 0.833333rem; margin-bottom: 0.833333rem;
+  padding: 0.833333rem;
 }
-.wru-vpu-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
-  gap: 0.333333rem;
-}
-.wru-vpu-unit {
-  border: 0.1rem solid #283239; border-radius: 0.25rem;
-  padding: 0.333333rem 0.416667rem; min-height: 4.25rem;
-  display: flex; flex-direction: column; gap: 0.166667rem;
-  background: rgba(255,255,255,0.04);
-}
-/* Not fitted at all: the chassis has no card in that processor slot. */
-.wru-vpu-unit--absent { opacity: 0.28; background: transparent; border-style: dashed; }
-/* Fitted and free - this is the headroom a config still has to spend. */
-.wru-vpu-unit--spare { border-color: #49535B; background: rgba(255,255,255,0.04); }
-/* Allocated. Hue carries the screen, so one screen reads as one block. */
-.wru-vpu-unit--used { border-color: currentColor; background: color-mix(in srgb, currentColor 16%, transparent); }
-.wru-vpu-unit--changed { outline: 0.166667rem solid #F39910; outline-offset: -0.166667rem; }
+/* The link grid, drawn the way the manual draws a VPU: an 8x8 field of links,
+   layer links in from the left, output links out top and bottom. */
+.wru-vpu-svg { width: 26rem; height: auto; display: block; }
+.wru-vpu-svg--unfitted { opacity: 0.3; }
 
-.wru-vpu-id { font-size: 0.833333rem; letter-spacing: 0.0416667rem; color: rgba(255,255,255,0.7); }
-.wru-vpu-alloc { font-weight: 700; }
-.wru-vpu-meta { font-size: 0.833333rem; color: #838B91; margin-top: auto; }
-.wru-vpu-pipe {
-  display: inline-block; padding: 0 0.25rem; border-radius: 0.166667rem;
-  background: rgba(255,255,255,0.16); font-size: 0.833333rem;
+.wru-field { fill: rgba(0,0,0,0.3); stroke: #49535B; stroke-width: 1; }
+.wru-lattice { stroke: rgba(255,255,255,0.08); stroke-width: 1; }
+.wru-link-in { stroke: #616D75; stroke-width: 1.5; }
+.wru-link-out { stroke: #616D75; stroke-width: 1.5; }
+.wru-link-no {
+  fill: #838B91; font-size: 7px; text-anchor: middle;
+  font-family: OpenSans, Helvetica, sans-serif;
 }
+
+.wru-cell { fill: currentColor; fill-opacity: 0.55; stroke: currentColor; stroke-width: 1.2; }
+/* An added layer, distinguished from the screen's native layer. NATIVE is a
+   layer slot that costs mixers - it is NOT the screen's background, which
+   lives in a different subtree entirely and costs nothing. */
+.wru-cell--layered { fill-opacity: 0.28; stroke-dasharray: 3 2; }
+.wru-cell--changed { stroke: #F39910; stroke-width: 2; }
+.wru-tie { stroke: currentColor; stroke-width: 2; stroke-opacity: 0.5; }
+.wru-cell-label {
+  fill: #08141B; font-size: 9px; font-weight: 700; text-anchor: middle;
+  font-family: OpenSans, Helvetica, sans-serif; pointer-events: none;
+}
+.wru-cell-sub {
+  fill: #08141B; font-size: 7px; text-anchor: middle; fill-opacity: 0.75;
+  font-family: OpenSans, Helvetica, sans-serif; pointer-events: none;
+}
+/* The scaling-engine boundary at four output links. Not drawn on a VPU in
+   Optimized mode, which removes it. */
+.wru-boundary { stroke: #F64747; stroke-width: 1.5; stroke-dasharray: 4 3; stroke-opacity: 0.85; }
 
 .wru-legend { display: flex; flex-wrap: wrap; gap: 0.666667rem; align-items: center; }
 .wru-swatch { width: 0.833333rem; height: 0.833333rem; border-radius: 0.166667rem; display: inline-block; }
@@ -117,6 +124,7 @@ const CSS = `
   display: inline-block; padding: 0 0.333333rem; border-radius: 0.166667rem;
   background: rgba(255,255,255,0.08); font-size: 0.833333rem; margin-right: 0.166667rem;
 }
+.wru-tag--good { background: rgba(0,255,127,0.1); color: #00FF7F; }
 
 .wru-empty { color: #838B91; padding: 2rem; text-align: center; }
 .wru-warn { color: #F39910; }

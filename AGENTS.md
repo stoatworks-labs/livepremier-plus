@@ -66,17 +66,34 @@ and should need only a new `transports/` module. Keep device I/O out of `core/`.
 - **The VPU panel never writes.** Every property it reads is `readOnly` in the
   device's own model. Keep it that way; the tool's value on a show floor
   depends on being provably harmless.
-- **Two firmware models for the VPU mapping** (`vpuMixerList` vs
-  `vpuLayerList`) and both are in the field. `core/vpu.js` normalises them.
-  `slice` is `null` where not reported — that is "not reported", not slice 0.
+- **The VPU model is vendored, not written here.** `src/vendor/vpu-model.js` is
+  a copy of aquilon-vpu-map's `public/vpu.js`; edits belong upstream, and
+  `npm run sync:vpu-model` brings them back. Anything this extension needs that
+  the model lacks goes in `core/vpu.js`, which only adapts the device store into
+  the record shape the model expects.
+- **`NATIVE` is a layer, not a background.** It is the first entry of the
+  device's `PRECONFIG_SCREEN_LAYER` enum, a layer slot that consumes mixers and
+  is counted by `layerCount`. Backgrounds live in `preconfig/backgrounds/` and
+  cost no mixer at all. Calling `NATIVE` a background in the UI was wrong and is
+  the confusion to avoid — there is a test pinning the wording.
+- **Auxiliaries do not use the VPU.** `usedInScreen` draws on an S1–S24 enum
+  with no `A*` entries, and `preconfig/resources` has no aux module. Do not add
+  an aux column to the VPU panel.
+- **Optimized mode belongs to the whole VPU**, not to the screen that triggered
+  it, and it removes the four-link scaling-engine boundary. Drawing that
+  boundary on an optimized VPU shows a constraint the device is not applying.
 
 ## Traps that cost time here
 
-- **The simulator reports no fitted VPU units at all.** A simulated Cmax answers
-  the resource mapping with 128 units, every one `isAvailable: false`. That is
-  correct and the panel says "not fitted" — it is not a bug, and it means the
-  populated rendering cannot be seen against the simulator without pushing a
-  recorded mapping into the local mirror.
+- **A simulator has no VPU at all**, so the VPU panel cannot be developed
+  against one. It reports a `vpuLayerList` that is present and permanently empty
+  and no `vpuMixerList` (`$vpuLayer` answers `E12` on hardware). Use
+  `tools/harness.html` with the live capture instead. The panel names this case
+  explicitly rather than drawing an empty chassis.
+- **The Browser pane blocks cross-origin requests when the tab is on the LAN.**
+  Injecting the modules from a local dev server works against a page on
+  localhost and fails with `ERR_BLOCKED_BY_CLIENT` against a real device, with
+  the request never reaching the server. That is the harness's reason to exist.
 - **The sidebar separator's padding lives on an inner title element**, not on
   the separator itself. Writing `textContent` to the wrapper loses the indent
   and the heading sits flush to the edge while the vendor's are inset.
@@ -88,11 +105,14 @@ and should need only a new `transports/` module. Keep device I/O out of `core/`.
 
 ## Testing
 
-`npm test` — 22 tests, no network, no browser. Two fixtures are real captures
-from a running simulator; `mixer-model.json` is hand-authored to the older
-firmware's shape, which a simulator cannot produce.
+`npm test` — 32 tests, no network, no browser. Seven run against a real Aquilon
+C capture (`aquilon-c-live-resources.json`, read 2026-08-21) and are the only
+coverage of fitted mixers, output links and Optimized mode, none of which a
+simulator produces.
 
-For the panels themselves, `npm run serve` and the console recipe in the README.
+For the panels themselves, `tools/harness.html` — see the README. It proxies the
+vendor stylesheet from a named device so the panels are judged in the real
+design system, and no vendor asset is committed here.
 Note what that does *not* cover: MV3 packaging, the isolated-world loader, and
 `chrome.storage` persistence have never been exercised in a packed extension.
 

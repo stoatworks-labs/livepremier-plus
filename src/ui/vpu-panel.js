@@ -1,185 +1,365 @@
 /*
- * The VPU allocation map.
+ * The VPU map.
  *
- * What this is for: a LivePremier configuration either fits in the mixing
- * resources the chassis has, or it does not, and the stock UI tells you which
- * only by refusing the configuration. This draws the budget instead - every
- * unit the chassis has, who holds it, and how much is left.
+ * A LivePremier configuration either fits in the mixing resources the chassis
+ * has, or it does not, and the stock UI tells you which only by refusing the
+ * configuration. This draws the budget instead.
  *
- * Reading it:
- *  - one block per processor card, one tile per VPU unit
- *  - colour is the screen holding the unit, so a screen reads as one mass
- *  - dashed and faint means the slot is not fitted; outlined means fitted and
- *    free, which is the headroom figure that actually matters
- *  - CURRENT is what is running; STAGED is the pending preconfig. The device
- *    keeps both, and the difference is the cost of applying the change, so
- *    the diff is the point rather than a footnote.
+ * The main view is the **link grid**, which is how Analog Way's own manual
+ * draws a VPU (§5.5): an 8x8 field of links, layer links in from the left,
+ * output links out through the top and bottom. A layer occupies a block; the
+ * columns are the output links the device itself reports, and the rows are
+ * packed, because nothing in the object model names the layer link. The
+ * vertical rule at four columns is the scaling-engine boundary — and it is
+ * deliberately not drawn on a VPU in Optimized mode, which removes it.
  *
- * Every value here is read-only on the device. Nothing in this panel writes.
+ * All of the derivation is the shared model in `core/vpu.js`; this file only
+ * draws. Nothing here writes to the device — every property involved is
+ * readOnly in the device's own model.
  */
 
-import { h, fill, button, readout, sectionTitle } from './dom.js';
+import { h, button, readout, sectionTitle } from './dom.js';
 import { panel } from './shell.js';
 import { screenColour } from './theme.js';
-import { readMap, diffMaps, layerLabel } from '../core/vpu.js';
+import {
+  readSide, diffSides, inspectMapping, layerLabel, layerShort,
+  LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY
+} from '../core/vpu.js';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+const CELL = 26;
+const FIELD = LINKS_PER_VPU * CELL;
+const PAD_L = 30;
+const PAD_T = 20;
+
+function s(tag, attrs = {}, ...children) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) if (v != null) el.setAttribute(k, v);
+  for (const c of children) if (c != null) el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+  return el;
+}
 
 export function createVpuPanel({ session, onRefresh }) {
-  const view = { which: 'current', showSpare: true, showAbsent: false };
+  const view = { which: 'current', device: null, detail: false };
 
   function render() {
     const store = session.store;
-    if (!store.ready) return panel({ toolbar: title(), body: h('div', { class: 'wru-empty', text: 'Waiting for the device store…' }) });
-
-    const current = readMap(store, 'current');
-    const staged = readMap(store, 'new');
-
-    if (!current) {
-      return panel({
-        toolbar: title(),
-        body: h('div', { class: 'wru-empty' },
-          h('div', { class: 'aw-font-subtitle-1 aw-margin-bottom-medium', text: 'No VPU mapping reported' }),
-          h('div', { text: 'This firmware does not expose preconfig/resources/*/status/mapping under either name this build knows (vpuMixerList or vpuLayerList).' }))
-      });
+    if (!store.ready) {
+      return panel({ toolbar: title(), body: h('div', { class: 'wru-empty', text: 'Waiting for the device store…' }) });
     }
 
-    const map = view.which === 'new' && staged ? staged : current;
-    const changes = staged ? diffMaps(current, staged) : [];
-    const changedKeys = new Set(changes.map((c) => c.key));
+    const side = readSide(store, view.which);
+    if (!side) return panel({ toolbar: title(), body: unavailable(store) });
+
+    const diffs = diffSides(store);
+    const changed = new Set(
+      diffs.flatMap((d) => d.changes.map((c) => d.device + '/' + c.mixer)));
+
+    if (!view.device || !side.devices.some((d) => d.key === view.device)) {
+      view.device = side.devices[0].key;
+    }
+    const device = side.devices.find((d) => d.key === view.device);
 
     return panel({
-      toolbar: title(map, changes),
+      toolbar: title(side, diffs),
       body: h('div', {},
-        summary(map, changes),
-        ...map.devices.map((d) => deviceBlock(d, map, changedKeys)))
+        summary(device, side),
+        grids(device, changed),
+        screenTable(store, side),
+        diffs.length ? changeList(diffs) : null,
+        view.detail ? detail(device) : null)
     });
   }
 
-  function title(map, changes) {
+  /**
+   * A device with no mixer map is not the same as a device with an empty one,
+   * and the difference is worth spelling out rather than drawing 64 grey boxes.
+   */
+  function unavailable(store) {
+    const info = inspectMapping(store, view.which);
+    const messages = {
+      simulator: [
+        'No VPU mixer map on this device',
+        'This box reports a vpuLayerList collection and no vpuMixerList. That is what a ' +
+        'LivePremier simulator looks like: the collection exists but is permanently empty, ' +
+        'and $vpuLayer answers E12 on real hardware. There is no allocation here to draw — ' +
+        'the panel is working, the simulator simply has no VPU.'
+      ],
+      'no-mixer-collection': [
+        'No VPU mixer map on this device',
+        'The resource mapping is present but carries no vpuMixerList. Either this firmware ' +
+        'reports the allocation somewhere else, or the chassis has no VPU fitted.'
+      ],
+      'no-mapping': [
+        'No resource mapping reported',
+        'Nothing at preconfig/resources/' + view.which + '/status/mapping. On a firmware ' +
+        'this build does not know, that path may have moved.'
+      ]
+    };
+    const [heading, body] = messages[info.reason] || messages['no-mapping'];
+    return h('div', { class: 'wru-empty' },
+      h('div', { class: 'aw-font-subtitle-1 aw-margin-bottom-medium', text: heading }),
+      h('div', { style: { maxWidth: '46rem', margin: '0 auto' }, text: body }));
+  }
+
+  function title(side, diffs) {
+    const devices = side ? side.devices : [];
     return [
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-large' },
         h('div', { class: 'aw-font-subtitle-1', text: 'VPU Resources' }),
-        map ? h('span', { class: 'wru-tag', text: map.variant === 'mixer' ? 'mixer model' : 'scaler model' }) : null,
-        changes && changes.length
-          ? h('span', { class: 'wru-tag wru-warn', text: changes.length + ' staged change' + (changes.length === 1 ? '' : 's') })
+        diffs && diffs.length
+          ? h('span', {
+              class: 'wru-tag wru-warn',
+              text: diffs.reduce((n, d) => n + d.changes.length, 0) + ' staged change'
+                + (diffs.reduce((n, d) => n + d.changes.length, 0) === 1 ? '' : 's')
+            })
           : null),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
+        devices.length > 1
+          ? devices.map((d) => button(d.role, {
+              onClick: () => { view.device = d.key; onRefresh(); },
+              active: view.device === d.key, variant: 'ghost'
+            }))
+          : null,
         button('Current', { onClick: () => { view.which = 'current'; onRefresh(); }, active: view.which === 'current' }),
         button('Staged', { onClick: () => { view.which = 'new'; onRefresh(); }, active: view.which === 'new' }),
-        button('Spare', { onClick: () => { view.showSpare = !view.showSpare; onRefresh(); }, active: view.showSpare, variant: 'ghost' }),
-        button('Empty slots', { onClick: () => { view.showAbsent = !view.showAbsent; onRefresh(); }, active: view.showAbsent, variant: 'ghost' }))
+        button('Detail', { onClick: () => { view.detail = !view.detail; onRefresh(); }, active: view.detail, variant: 'ghost' }))
     ];
   }
 
-  function summary(map, changes) {
-    const t = map.totals;
-    const screens = [...map.byScreen.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0]), undefined, { numeric: true }));
-
+  function summary(device, side) {
+    const sum = device.summary;
     const bar = h('div', { class: 'wru-bar aw-margin-top-small' });
-    for (const [screenId, layers] of screens) {
-      const count = [...layers.values()].reduce((n, arr) => n + arr.length, 0);
+    for (const a of sum.allocations) {
       bar.append(h('span', {
-        style: { width: (count / Math.max(1, t.available) * 100) + '%', background: screenColour(screenId) },
-        title: `${screenId}: ${count} of ${t.available} fitted units`
+        style: { width: (a.mixers.length / Math.max(1, sum.fitted) * 100) + '%', background: screenColour(a.screen) },
+        title: `${a.screen} ${layerLabel(a.layer)}: ${a.mixers.length} mixer${a.mixers.length === 1 ? '' : 's'}`
       }));
     }
-    if (t.spare > 0) bar.append(h('span', { style: { width: (t.spare / Math.max(1, t.available) * 100) + '%', background: '#283239' }, title: `spare: ${t.spare}` }));
+    if (sum.spare > 0) {
+      bar.append(h('span', {
+        style: { width: (sum.spare / Math.max(1, sum.fitted) * 100) + '%', background: '#283239' },
+        title: sum.spare + ' spare'
+      }));
+    }
 
     return h('div', { class: 'aw-margin-bottom-large' },
-      h('div', { class: 'aw-flex-row aw-gap-col-massive aw-margin-bottom-small' },
-        readout('Fitted', `${t.available} of ${t.total}`),
-        readout('Allocated', t.enabled),
-        readout('Spare', t.spare, { tone: t.spare > 0 ? 'green' : 'red' }),
-        readout('Screens in use', map.byScreen.size)),
+      h('div', { class: 'aw-flex-row aw-gap-col-massive aw-margin-bottom-small aw-flex-wrap' },
+        readout('Fitted', `${sum.fitted} of ${sum.max}`),
+        readout('Allocated', sum.enabled),
+        readout('Spare', sum.spare, { tone: sum.spare > 0 ? 'green' : 'red' }),
+        readout('Screens', sum.screens),
+        readout('Layer runs', sum.allocations.length),
+        side.devices.length > 1 ? readout('Device', device.role) : null),
       bar,
       h('div', { class: 'wru-legend aw-margin-top-medium' },
-        ...screens.map(([screenId, layers]) => {
-          const count = [...layers.values()].reduce((n, arr) => n + arr.length, 0);
-          return h('span', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
-            h('span', { class: 'wru-swatch', style: { background: screenColour(screenId) } }),
-            h('span', { class: 'aw-font-body-2', text: `${screenId} · ${count}` }));
-        }),
+        ...[...new Set(sum.allocations.map((a) => a.screen))].map((screen) =>
+          h('span', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
+            h('span', { class: 'wru-swatch', style: { background: screenColour(screen) } }),
+            h('span', { class: 'aw-font-body-2', text: String(screen) }))),
         h('span', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
           h('span', { class: 'wru-swatch', style: { background: '#283239', border: '0.1rem solid #49535B' } }),
-          h('span', { class: 'aw-font-body-2', text: 'spare' }))),
-      changes && changes.length ? changeList(changes) : null);
+          h('span', { class: 'aw-font-body-2', text: 'spare' })),
+        h('span', { class: 'aw-font-body-2 aw-text-tertiary', text: '· hatched block = an added layer, not the native one' })));
   }
 
-  function changeList(changes) {
-    return h('div', { class: 'aw-margin-top-large' },
-      sectionTitle('Staged against current'),
-      h('div', { class: 'aw-flex-col aw-gap-row-mini' },
-        ...changes.slice(0, 40).map((c) => {
-          if (c.added) return h('div', { class: 'aw-font-body-2', text: `${c.key} appears` });
-          if (c.gone) return h('div', { class: 'aw-font-body-2', text: `${c.key} disappears` });
-          const bits = c.fields.map((f) => `${f}: ${fmt(c.before[f])} → ${fmt(c.after[f])}`).join(', ');
-          return h('div', { class: 'aw-font-body-2' },
-            h('span', { class: 'aw-font-body-1-bold', text: c.key + ' ' }),
-            h('span', { class: 'aw-text-secondary', text: bits }));
-        }),
-        changes.length > 40 ? h('div', { class: 'aw-text-tertiary', text: `…and ${changes.length - 40} more` }) : null));
+  function grids(device, changed) {
+    const drawn = device.grids.filter((g) => g.fitted || g.blocks.length);
+    if (!drawn.length) {
+      return h('div', { class: 'wru-empty', text: 'No VPU fitted on ' + device.role + '.' });
+    }
+    return h('div', { class: 'aw-margin-bottom-large' },
+      sectionTitle('Link grid',
+        h('span', {
+          class: 'aw-font-body-2 aw-text-tertiary',
+          text: drawn[0].placement === 'derived'
+            ? 'columns derived — this capture reports no output links'
+            : 'columns as the device reports them'
+        })),
+      h('div', { class: 'aw-flex-row aw-flex-wrap aw-gap-col-large aw-gap-row-large' },
+        ...drawn.map((g) => vpuBlock(g, device, changed))));
   }
 
-  const fmt = (v) => (v === null || v === undefined ? '—' : String(v));
+  function vpuBlock(grid, device, changed) {
+    const optimized = device.optimized.has(grid.vpu);
+    return h('div', { class: 'wru-vpu-device' },
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium aw-margin-bottom-small' },
+        h('div', { class: 'aw-font-body-1-bold', text: 'VPU ' + grid.vpu }),
+        grid.fitted
+          ? h('span', { class: 'wru-tag', text: grid.blocks.length + ' blocks, ' + grid.spare + ' spare' })
+          : h('span', { class: 'wru-tag', text: 'not fitted' }),
+        optimized ? h('span', { class: 'wru-tag wru-tag--good', text: 'optimized' }) : null,
+        grid.overflow ? h('span', { class: 'wru-tag wru-warn', text: 'overflows 8 links' }) : null),
+      vpuSvg(grid, optimized, device, changed));
+  }
 
-  function deviceBlock(device, map, changedKeys) {
-    const units = device.units.filter((u) => {
-      if (!u.available) return view.showAbsent;
-      if (!u.enabled) return view.showSpare;
-      return true;
+  function vpuSvg(grid, optimized, device, changed) {
+    const W = PAD_L + FIELD + 12;
+    const H = PAD_T + FIELD + PAD_T;
+    const x0 = PAD_L;
+    const y0 = PAD_T;
+    const root = s('svg', {
+      class: 'wru-vpu-svg' + (grid.fitted ? '' : ' wru-vpu-svg--unfitted'),
+      viewBox: `0 0 ${W} ${H}`,
+      role: 'img',
+      'aria-label': `VPU ${grid.vpu}, ${grid.blocks.length} layer blocks`
     });
 
-    const fitted = device.units.filter((u) => u.available).length;
-    const used = device.units.filter((u) => u.available && u.enabled).length;
+    root.append(s('rect', { class: 'wru-field', x: x0, y: y0, width: FIELD, height: FIELD, rx: 2 }));
 
-    return h('div', { class: 'wru-vpu-device' },
-      h('div', { class: 'aw-flex-row-center-v-space-between aw-margin-bottom-small' },
-        h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium' },
-          h('div', { class: 'aw-font-subtitle-1', text: device.role }),
-          h('span', { class: 'wru-tag', text: device.fitted ? `${used}/${fitted} in use` : 'not fitted' })),
-        h('div', { class: 'aw-font-body-2 aw-text-tertiary', text: `${device.pipes.filter((p) => p.used).length} output pipes used` })),
-      units.length
-        ? h('div', { class: 'wru-vpu-grid' }, ...units.map((u) => unitTile(u, device, changedKeys)))
-        : h('div', { class: 'aw-text-tertiary aw-font-body-2', text: 'Nothing to show with the current filters.' }));
+    for (let i = 1; i < LINKS_PER_VPU; i++) {
+      root.append(
+        s('line', { class: 'wru-lattice', x1: x0 + i * CELL, y1: y0, x2: x0 + i * CELL, y2: y0 + FIELD }),
+        s('line', { class: 'wru-lattice', x1: x0, y1: y0 + i * CELL, x2: x0 + FIELD, y2: y0 + i * CELL }));
+    }
+
+    /* Layer links in from the left, output links out top and bottom — the
+       manual's own orientation, and the reason the grid reads as a VPU. */
+    for (let i = 0; i < LINKS_PER_VPU; i++) {
+      const cy = y0 + i * CELL + CELL / 2;
+      root.append(s('line', { class: 'wru-link-in', x1: x0 - 22, y1: cy, x2: x0 - 4, y2: cy }));
+      const cx = x0 + i * CELL + CELL / 2;
+      root.append(
+        s('line', { class: 'wru-link-out', x1: cx, y1: y0 - 13, x2: cx, y2: y0 - 3 }),
+        s('line', { class: 'wru-link-out', x1: cx, y1: y0 + FIELD + 3, x2: cx, y2: y0 + FIELD + 13 }),
+        s('text', { class: 'wru-link-no', x: cx, y: y0 - 16 }, String(i + 1)));
+    }
+
+    for (const b of grid.blocks) {
+      const colour = screenColour(b.screen);
+      const cols = b.cols && b.cols.length ? b.cols : [b.col || 0];
+      const span = b.size || 1;
+      const by = y0 + b.row * CELL;
+      const bh = span * CELL;
+      const isNative = b.layer === 'NATIVE';
+      const isChanged = changed.has(device.key + '/' + b.mixer);
+
+      const g = s('g', { class: 'wru-blk', style: `color:${colour}` });
+      g.append(s('title', {},
+        `${b.mixer}\n${b.screen} · ${layerLabel(b.layer)} · slice ${b.slice}` +
+        `\ncapability ${b.capability}` +
+        (b.cutnfill && b.cutnfill !== 'OFF' ? `\ncut & fill ${b.cutnfill}` : '') +
+        `\noutput link${cols.length === 1 ? '' : 's'} ${cols.map((c) => c + 1).join(', ')}` +
+        (b.spansBoundary ? '\nspans the scaling-engine boundary' : '') +
+        (isChanged ? '\nCHANGED in the staged configuration' : '')));
+
+      /* A mixer driving non-adjacent links is still one allocation; the tie
+         line says so. Drawn first so it passes behind the cells. */
+      if (cols.length > 1) {
+        const a = x0 + cols[0] * CELL + (span * CELL) / 2;
+        const z = x0 + cols[cols.length - 1] * CELL + (span * CELL) / 2;
+        g.append(s('line', { class: 'wru-tie', x1: a, y1: by + bh / 2, x2: z, y2: by + bh / 2 }));
+      }
+
+      cols.forEach((c, i) => {
+        const bx = x0 + c * CELL;
+        const bw = span * CELL;
+        g.append(s('rect', {
+          class: 'wru-cell' + (isNative ? '' : ' wru-cell--layered') + (isChanged ? ' wru-cell--changed' : ''),
+          x: bx + 1.5, y: by + 1.5, width: bw - 3, height: bh - 3, rx: 2
+        }));
+        if (i === 0) {
+          g.append(s('text', { class: 'wru-cell-label', x: bx + bw / 2, y: by + bh / 2 - 2 }, String(b.screen)));
+          g.append(s('text', { class: 'wru-cell-sub', x: bx + bw / 2, y: by + bh / 2 + 8 }, layerShort(b.layer)));
+        }
+      });
+      root.append(g);
+    }
+
+    /* Optimized mode removes the boundary for the whole VPU, so drawing it
+       there would show a constraint the device is not applying. */
+    if (!optimized) {
+      root.append(s('line', {
+        class: 'wru-boundary',
+        x1: x0 + SCALING_ENGINE_BOUNDARY * CELL, y1: y0,
+        x2: x0 + SCALING_ENGINE_BOUNDARY * CELL, y2: y0 + FIELD
+      }));
+    }
+    return root;
   }
 
-  function unitTile(u, device, changedKeys) {
-    const allocated = u.available && u.enabled;
-    const colour = allocated ? screenColour(u.screen) : '#616D75';
-    const cls = ['wru-vpu-unit'];
-    if (!u.available) cls.push('wru-vpu-unit--absent');
-    else if (!u.enabled) cls.push('wru-vpu-unit--spare');
-    else cls.push('wru-vpu-unit--used');
-    if (changedKeys.has(device.key + '/' + u.id)) cls.push('wru-vpu-unit--changed');
+  /**
+   * The device's own answer to "does this fit".
+   *
+   * The remaining and exceeding figures exist only on the staged side, because
+   * that is the side the question is about.
+   */
+  function screenTable(store, side) {
+    const entries = Object.entries(side.screenStatus);
+    if (!entries.length) return null;
+    const staged = view.which === 'new';
 
-    const short = u.id.replace(/^PROC_(\d+)_(MIXER|SCALER)_(\d+)$/, 'P$1·$3');
-    const tip = [
-      u.id,
-      `available: ${u.available}`,
-      `enabled: ${u.enabled}`,
-      `capability: ${u.capability ?? '—'}`,
-      `screen: ${u.screen ?? '—'}`,
-      `layer: ${u.layer ?? '—'}`,
-      u.slice != null ? `slice: ${u.slice}` : null,
-      u.channel != null ? `channel: ${u.channel}` : null,
-      u.pipes.length ? 'pipes: ' + u.pipes.map((p) => `${p.index}→out ${p.output}`).join(', ') : 'pipes: none',
-      Object.keys(u.scalers).length
-        ? 'scalers: ' + Object.entries(u.scalers).map(([k, v]) => `${k} fill ${v.fill ?? '—'} / cut ${v.cut ?? '—'}`).join('; ')
-        : null
-    ].filter(Boolean).join('\n');
+    return h('div', { class: 'aw-margin-bottom-large' },
+      sectionTitle('Screens', h('span', {
+        class: 'aw-font-body-2 aw-text-tertiary',
+        text: staged ? 'staged configuration' : 'running configuration'
+      })),
+      h('table', { class: 'wru-cuelist' },
+        h('thead', {}, h('tr', {}, ...['Screen', 'Mode', 'Outputs', 'Used', 'Remaining', 'Layers', 'Optimized', '']
+          .map((t) => h('th', { text: t })))),
+        h('tbody', {}, ...entries.map(([id, st]) => {
+          const exceeding = Number(st.exceedingOutputCapabilities || 0)
+            + Number(st.exceedingLayerCapabilities || 0);
+          return h('tr', { class: 'wru-cue' },
+            h('td', {}, h('span', { class: 'wru-swatch aw-margin-right-small', style: { background: screenColour(id) } }), id),
+            h('td', { class: 'aw-text-secondary', text: st.mode ?? '—' }),
+            h('td', { text: st.outputCount ?? '—' }),
+            h('td', { text: st.usedOutputCapabilities ?? '—' }),
+            h('td', { text: st.remainingOutputCapabilities ?? '—' }),
+            h('td', { text: st.layerCount ?? '—' }),
+            h('td', { text: st.isOptimized ? 'yes' : 'no' }),
+            h('td', {}, exceeding
+              ? h('span', { class: 'wru-tag wru-warn', text: 'exceeds by ' + exceeding })
+              : (st.remainingOutputCapabilities !== undefined
+                  ? h('span', { class: 'wru-tag wru-tag--good', text: 'fits' })
+                  : null)));
+        }))));
+  }
 
-    return h('div', { class: cls, style: { color: colour }, title: tip },
-      h('div', { class: 'wru-vpu-id', text: short }),
-      allocated
-        ? h('div', { class: 'wru-vpu-alloc aw-font-body-2', text: u.screen })
-        : h('div', { class: 'wru-vpu-alloc aw-font-body-2 aw-text-tertiary', text: u.available ? 'spare' : 'empty' }),
-      allocated ? h('div', { class: 'aw-font-body-2 aw-text-secondary', text: layerLabel(u.layer) }) : null,
-      h('div', { class: 'wru-vpu-meta aw-flex-row-center-v aw-gap-col-mini' },
-        u.slice != null && allocated ? h('span', { text: 'slice ' + u.slice }) : null,
-        u.capability && u.capability !== 'OFF' ? h('span', { text: u.capability }) : null,
-        ...u.pipes.map((p) => h('span', { class: 'wru-vpu-pipe', text: 'out ' + p.output }))));
+  function changeList(diffs) {
+    return h('div', { class: 'aw-margin-bottom-large' },
+      sectionTitle('Staged against running'),
+      h('div', { class: 'aw-flex-col aw-gap-row-mini' },
+        ...diffs.flatMap((d) => d.changes.slice(0, 40).map((c) =>
+          h('div', { class: 'aw-font-body-2' },
+            h('span', { class: 'aw-font-body-1-bold', text: (diffs.length > 1 ? d.device + '/' : '') + c.mixer + ' ' }),
+            h('span', {
+              class: 'aw-text-secondary',
+              text: c.changed.map((ch) => `${ch.prop}: ${fmt(ch.from)} → ${fmt(ch.to)}`).join(', ')
+            })))),
+        h('div', {
+          class: 'aw-text-tertiary aw-margin-top-small',
+          text: 'Output links count as changes: a staged configuration can move a layer onto different links with every other value identical.'
+        })));
+  }
+
+  const fmt = (v) => (v === undefined || v === null ? '—' : String(v));
+
+  function detail(device) {
+    const rows = Object.entries(device.mixers)
+      .filter(([, r]) => r && r.isAvailable)
+      .map(([id, r]) => h('tr', { class: 'wru-cue' },
+        h('td', { class: 'wru-cue-number', text: id.replace(/^PROC_(\d+)_MIXER_(\d+)$/, 'P$1·$2') }),
+        h('td', { text: r.isEnabled ? String(r.usedInScreen) : '—' }),
+        h('td', { text: r.isEnabled ? layerLabel(r.usedInLayer) : 'spare' }),
+        h('td', { text: r.slice ?? '—' }),
+        h('td', { text: r.capability ?? '—' }),
+        h('td', { text: r.cutnfillCapa ?? '—' }),
+        h('td', { text: r.seamlessCapa ? 'yes' : 'no' }),
+        h('td', {
+          text: Object.entries(r.mixerAllocation || {})
+            .filter(([, v]) => v && v !== 'NONE')
+            .map(([k, v]) => k.replace('usedOnOutPipe', '') + '→' + v).join(' ') || '—'
+        })));
+
+    return h('div', {},
+      sectionTitle('Every fitted mixer'),
+      h('table', { class: 'wru-cuelist' },
+        h('thead', {}, h('tr', {}, ...['Mixer', 'Screen', 'Layer', 'Slice', 'Capability', 'Cut & fill', 'Seamless', 'Links']
+          .map((t) => h('th', { text: t })))),
+        h('tbody', {}, ...rows)));
   }
 
   return { render, view };
 }
-
-export { fill };

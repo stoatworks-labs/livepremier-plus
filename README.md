@@ -14,12 +14,16 @@ product rather than as a bolt-on:
 It rides the vendor app's own WebSocket. No second connection to the device, no
 replacement UI, and nothing to configure.
 
-> **Status: 0.1.0, unreleased.** Verified end to end against the AW LivePremier
-> Simulator 6.2.73 — panels render inside the real Web RCS, the device store
-> mirrors live, and cue writes were confirmed on the wire. **It has never run
-> against a physical Aquilon**, and it has never been loaded as a packed
-> extension in Chrome; the panels were exercised by injecting the same content
-> scripts into a live session (see [Testing](#testing)).
+> **Status: 0.1.0, unreleased.** The panels render inside a real Web RCS
+> session, the device store mirrors live, and cue writes were confirmed on the
+> wire against the LivePremier Simulator 6.2.73. The VPU map has been **read
+> from a live Aquilon C** and is tested against that capture — including its
+> Optimized mode, its interleaved output links, and a staged preconfig that
+> differs from the running one. **Nothing has ever been written to that
+> device**, and the timeline has only ever fired at a simulator. It has also
+> never been loaded as a packed extension in Chrome; the panels were exercised
+> by injecting the same content scripts into a live session, and through the
+> bench in [Testing](#testing).
 
 ---
 
@@ -91,19 +95,29 @@ and runs under plain Node, which is what the test suite does. The extension is
 one front-end over it; a standalone client talking AWJ over TCP 10606 is meant
 to be another, and only needs a second `transports/` module.
 
-## Two firmware models
+## The VPU model is shared, not reimplemented
 
-The VPU mapping is reported under two different names depending on firmware,
-and both are handled:
+`src/vendor/vpu-model.js` is a **copy** of `public/vpu.js` from
+[aquilon-vpu-map](https://github.com/stoatworks-labs/aquilon-vpu-map), the
+standalone tool that reads the same allocation over AWJ. Deliberately the same
+model in both places: if two tools derived their own answers from one device
+they would eventually disagree about what the box is doing, and both would look
+right. A Chrome extension has to contain every file it loads, so it is a copy
+rather than an import — `npm run sync:vpu-model` re-copies it and rewrites the
+recorded commit, and `test/vendor.test.js` fails if the copy has drifted from an
+upstream checkout.
 
-| | collection | per device | out-pipes | slice index |
-|---|---|---|---|---|
-| mixer model | `vpuMixerList`, `PROC_n_MIXER_m` | 64 | 2 | yes |
-| scaler model | `vpuLayerList`, `PROC_n_SCALER_m` | 32 | 8 | no |
+`src/core/vpu.js` is the only part that differs between the two projects. That
+tool assembles mixer records from a few hundred AWJ reads; this one lifts them
+straight out of the device store the page already has, which also gets the
+per-screen resource status — the device's own "does this fit" figures — for
+free, where the standalone reader spends 24 round trips on it.
 
-`slice` is `null` where the firmware does not report it, and the panel shows
-that as absent rather than as slice zero. A firmware reporting neither is
-reported as unknown, not drawn as an empty chassis.
+**A simulator has no VPU at all.** It carries a `vpuLayerList` that is present
+and permanently empty and no `vpuMixerList`; `$vpuLayer` answers `E12` on real
+hardware. That is an artefact of the simulator, not a second firmware
+generation, and the panel says so plainly rather than drawing an empty chassis
+or claiming the firmware is unsupported.
 
 ## Safety
 
@@ -125,8 +139,23 @@ reported as unknown, not drawn as an empty chassis.
 npm test
 ```
 
-22 tests over the path table, the store, both VPU models and the cue engine.
-Two fixtures are real captures from a running simulator.
+32 tests over the path table, the store, the VPU adapter and the cue engine.
+Seven of them run against `aquilon-c-live-resources.json` — the resource subtree
+of a real Aquilon C, read from the device on 2026-08-21 — and cover ground no
+simulator can reach: fitted mixers, interleaved output links, Optimized mode,
+and a staged preconfig whose every difference is a link move.
+
+There is also a bench for the panels on their own:
+
+```bash
+DEVICE=192.168.2.142 npm run serve
+# then open http://127.0.0.1:8765/tools/harness.html
+```
+
+It renders a panel against a recorded store, and proxies the vendor's real
+stylesheet, fonts and icon sprite from the named device — the panels are built
+from the vendor's utility classes, so a bench with a stylesheet of its own would
+prove nothing about how they look. No vendor asset is copied into this repo.
 
 To exercise the panels inside a live Web RCS session without packing the
 extension:

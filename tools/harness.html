@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>webRCS unleashed — panel harness</title>
+<!--
+  A bench for the panels, outside a real Web RCS session.
+
+  The panels are built out of the vendor's own utility classes, so a harness
+  with a stylesheet of its own would prove nothing about how they look. This
+  one pulls the real stylesheet, fonts and icon sprite straight from a device
+  through the dev server's proxy:
+
+      DEVICE=192.168.2.142 npm run serve
+      open http://127.0.0.1:8765/tools/harness.html
+
+  Then it feeds the panel a recorded device store rather than a live one, so a
+  configuration can be examined without holding a session open on the switcher.
+  Nothing here writes: it builds a store, hands it to the panel, and draws.
+
+  Without DEVICE set the panels still render, unstyled - useful for checking
+  structure, useless for checking design.
+-->
+<link rel="stylesheet" href="/vendor-style.css">
+<style>
+  html { font-size: 12px; }           /* the host's own root size */
+  body {
+    margin: 0; background: #1B272F; color: #fff; height: 100vh;
+    font-family: OpenSans, "Helvetica Neue", Arial, Helvetica, sans-serif; font-size: 14px;
+  }
+  #app { height: 100vh; display: flex; flex-direction: column; }
+  #bar {
+    display: flex; gap: .75rem; align-items: center; flex: 0 0 auto;
+    padding: .5rem 1rem; background: #08141B; border-bottom: 1px solid #283239;
+    font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: #838B91;
+  }
+  #bar select, #bar button {
+    background: rgba(0,0,0,.3); color: #fff; border: 1px solid #49535B;
+    border-radius: 3px; padding: 2px 6px; font: inherit; text-transform: none;
+  }
+  #mount { flex: 1 1 auto; position: relative; min-height: 0; }
+  #warn { color: #F39910; text-transform: none; letter-spacing: 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="bar">
+    <strong>panel harness</strong>
+    <select id="fixture"></select>
+    <select id="which">
+      <option value="current">current</option>
+      <option value="new">staged</option>
+    </select>
+    <button id="reload">redraw</button>
+    <span id="meta"></span>
+    <span id="warn"></span>
+  </div>
+  <div id="mount"></div>
+</div>
+
+<script type="module">
+import { DeviceStore } from '/src/core/device-store.js';
+import { installStyles } from '/src/ui/theme.js';
+import { createVpuPanel } from '/src/ui/vpu-panel.js';
+import { inspectMapping } from '/src/core/vpu.js';
+
+const FIXTURES = [
+  ['aquilon-c-live-resources.json', 'Aquilon C — live capture'],
+  ['sim-6.2.73-resources.json', 'Simulator 6.2.73 — no VPU'],
+  ['mixer-model.json', 'Synthetic mixer model']
+];
+
+const els = {
+  fixture: document.getElementById('fixture'),
+  which: document.getElementById('which'),
+  reload: document.getElementById('reload'),
+  mount: document.getElementById('mount'),
+  meta: document.getElementById('meta'),
+  warn: document.getElementById('warn')
+};
+
+for (const [file, label] of FIXTURES) {
+  els.fixture.append(Object.assign(document.createElement('option'), { value: file, textContent: label }));
+}
+
+installStyles();
+
+/* The vendor stylesheet only arrives when the server has a DEVICE to proxy. */
+if (![...document.styleSheets].some((s) => (s.href || '').endsWith('/vendor-style.css') && s.cssRules?.length)) {
+  els.warn.textContent = 'vendor stylesheet not loaded — start the server with DEVICE=<ip> to see real theming';
+}
+
+let panel = null;
+let store = null;
+
+/* One panel instance per fixture: its own toolbar toggles live in view state,
+   and rebuilding it on every redraw would reset them under the operator. */
+async function load() {
+  store = new DeviceStore();
+  store.hydrate(await (await fetch('/test/fixtures/' + els.fixture.value)).json());
+  const session = { store, state: 'live', send: () => false };
+  panel = createVpuPanel({ session, onRefresh: paint });
+  panel.view.which = els.which.value;
+  paint();
+}
+
+function paint() {
+  if (!panel) return;
+  els.which.value = panel.view.which;
+  els.mount.replaceChildren(panel.render());
+  const info = inspectMapping(store, panel.view.which);
+  els.meta.textContent = info.present
+    ? `${info.devices.length} device(s), fitted: ${info.fitted}`
+    : `no mapping (${info.reason})`;
+}
+
+els.fixture.addEventListener('change', load);
+els.which.addEventListener('change', () => { panel.view.which = els.which.value; paint(); });
+els.reload.addEventListener('click', load);
+load();
+</script>
+</body>
+</html>

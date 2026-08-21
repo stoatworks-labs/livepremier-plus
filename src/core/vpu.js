@@ -1,222 +1,198 @@
 /*
- * The VPU allocation map, normalised.
+ * The device store, adapted into the shared VPU model.
  *
- * A VPU is the Aquilon's physical mixing/scaling resource. The device hands
- * them out to (screen, layer) pairs, and a wide canvas consumes several per
- * layer. Every property here is read-only on the device: this is reported
- * allocation, not a set of knobs. The value of drawing it is that it is the
- * budget which decides whether a configuration fits.
+ * The model itself lives in `../vendor/vpu-model.js` — a copy of the one
+ * aquilon-vpu-map runs, deliberately identical so the two tools cannot reach
+ * different conclusions about the same box. This file is the only part that
+ * differs between them: that tool assembles mixer records from a few hundred
+ * AWJ reads, and this one lifts them straight out of the device store the Web
+ * RCS page already has.
  *
- * Two firmware generations spell the same map differently, and both are in
- * the field:
+ * Store spelling of the AWJ paths the model was built against:
  *
- *   'mixer'   vpuMixerList / PROC_n_MIXER_m, 64 per device, two out-pipes,
- *             a `slice` index, and an A/B scaler pair carrying fill and cut
- *             memory assignments.
- *   'scaler'  vpuLayerList / PROC_n_SCALER_m, 32 per device, eight out-pipes,
- *             no slice index.
+ *   preconfig/resources/{current|new}/status/mapping
+ *     /deviceList/items/<1-4>/vpuMixerList/items/PROC_<1-4>_MIXER_<1-16>
+ *       /pp/<prop>
+ *       /mixerAllocation/pp/usedOnOutPipe<1-8>
+ *       /scalerList/items/{A,B}/pp/{memoryFill,memoryCut}
+ *   preconfig/resources/{current|new}/screenList/items/S<n>/status/pp/<prop>
  *
- * Rather than pick one, this module reads whichever is present and produces a
- * single shape. `slice` is null on firmwares that do not report it, and the
- * UI has to treat that as "not reported" rather than as slice zero.
+ * The screen status is free here. The standalone tool spends 24 round trips on
+ * it; the store already holds it, which is the one real advantage of living
+ * inside the vendor page.
  */
 
 import { ROOT, resourceMapping } from './paths.js';
+import {
+  MIXER_IDS, MIXER_PROPS, SCALERS, OUT_PIPES, parseMixerId,
+  summarise, buildLinkGrid, optimizedVpus, diff,
+  LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY, LAYER_CAPABILITIES, capacityToLinks
+} from '../vendor/vpu-model.js';
 
-/* Collection names to try, most recent spelling first. */
-const UNIT_COLLECTIONS = [
-  { name: 'vpuMixerList', variant: 'mixer', alloc: 'mixerAllocation', pipes: 2 },
-  { name: 'vpuLayerList', variant: 'scaler', alloc: 'scalerAllocation', pipes: 8 }
-];
+export {
+  MIXER_IDS, MIXER_PROPS, SCALERS, OUT_PIPES, parseMixerId,
+  summarise, buildLinkGrid, optimizedVpus, diff,
+  LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY, LAYER_CAPABILITIES, capacityToLinks
+};
 
-/** Which of the two models this store reports, or null if neither is present. */
-export function detectVariant(store, which = 'current') {
-  const base = store.get(resourceMapping(which));
-  const devices = base && base.deviceList && base.deviceList.items;
-  if (!devices) return null;
-  const first = devices[Object.keys(devices)[0]];
-  if (!first) return null;
-  for (const c of UNIT_COLLECTIONS) if (first[c.name]) return c;
-  return null;
-}
+/** Where a device's mixer collection sits under the resource mapping. */
+const mixerCollection = (which, deviceKey) =>
+  [...resourceMapping(which), 'deviceList', 'items', String(deviceKey), 'vpuMixerList'];
 
-const PIPE_NONE = 'NONE';
+const screenResources = (which) =>
+  [ROOT, 'preconfig', 'resources', which, 'screenList'];
 
-function readUnit(id, node, collection) {
-  const pp = (node && node.pp) || {};
-  const alloc = ((node && node[collection.alloc]) || {}).pp || {};
-
-  const pipes = [];
-  for (let i = 1; i <= collection.pipes; i++) {
-    const v = alloc['usedOnOutPipe' + i];
-    if (v !== undefined && v !== PIPE_NONE) pipes.push({ index: i, output: v });
-  }
-
-  /* Scaler memories exist only on the mixer model, and even there the device
-     rejects the read on some firmwares — absent is normal, not an error. */
-  const scalers = {};
-  const list = node && node.scalerList && node.scalerList.items;
-  if (list) {
-    for (const [sk, sv] of Object.entries(list)) {
-      const spp = (sv && sv.pp) || {};
-      scalers[sk] = { fill: spp.memoryFill ?? null, cut: spp.memoryCut ?? null };
-    }
-  }
-
-  const m = /^PROC_(\d+)_(?:MIXER|SCALER)_(\d+)$/.exec(id);
-  return {
-    id,
-    proc: m ? Number(m[1]) : null,
-    index: m ? Number(m[2]) : null,
-    available: pp.isAvailable === true,
-    enabled: pp.isEnabled === true,
-    capability: pp.capability ?? null,
-    seamless: pp.seamlessCapa ?? null,
-    screen: pp.usedInScreen ?? null,
-    layer: pp.usedInLayer ?? null,
-    slice: pp.slice ?? null,
-    channel: pp.channel ?? null,
-    pipes,
-    scalers
-  };
+/**
+ * Which devices the mapping covers. 1 is the master, 2-4 are Link followers.
+ */
+export function deviceKeys(store, which = 'current') {
+  const base = [...resourceMapping(which), 'deviceList'];
+  return store.itemKeys(base);
 }
 
 /**
- * Read the whole map for one side of the preconfig.
+ * Mixer records for one device, in the shape the model expects.
  *
- * `which` is 'current' (running) or 'new' (staged). The device keeps both, and
- * a configuration is applied by promoting one to the other — so the difference
- * between them is the answer to "what is this change about to cost me".
+ * A mixer that is not fitted is reduced to `{isAvailable: false}` — the same
+ * thing the AWJ reader does, and it matters: an absent mixer still reports
+ * stale screen and layer values that would otherwise read as an allocation.
  */
-export function readMap(store, which = 'current') {
-  const collection = detectVariant(store, which);
-  if (!collection) return null;
+export function readMixers(store, { which = 'current', device = '1' } = {}) {
+  const base = mixerCollection(which, device);
+  const items = store.get([...base, 'items']);
+  if (!items) return null;
 
-  const base = store.get(resourceMapping(which));
-  const deviceItems = base.deviceList.items;
-  const deviceKeys = base.deviceList.itemKeys || Object.keys(deviceItems);
-
-  const devices = [];
-  for (const dk of deviceKeys) {
-    const dnode = deviceItems[dk];
-    if (!dnode) continue;
-    const unitItems = (dnode[collection.name] || {}).items || {};
-    const unitKeys = (dnode[collection.name] || {}).itemKeys || Object.keys(unitItems);
-    const units = unitKeys.map((uk) => readUnit(uk, unitItems[uk], collection));
-
-    const pipeItems = (dnode.pipeList || {}).items || {};
-    const pipes = Object.entries(pipeItems).map(([pk, pv]) => ({
-      id: pk,
-      used: !!((pv && pv.pp) || {}).isUsed
-    }));
-
-    devices.push({
-      key: dk,
-      role: dk === '1' ? 'Master' : 'Follower ' + dk,
-      fitted: units.some((u) => u.available),
-      units,
-      pipes
-    });
-  }
-
-  return { variant: collection.variant, which, devices, ...summarise(devices) };
-}
-
-function summarise(devices) {
-  let total = 0, available = 0, enabled = 0;
-  const byScreen = new Map();
-  for (const d of devices) {
-    for (const u of d.units) {
-      total++;
-      if (u.available) available++;
-      /* An unavailable unit still carries stale screen/layer values, so only
-         enabled ones are counted as an allocation. */
-      if (!u.available || !u.enabled) continue;
-      enabled++;
-      const sk = u.screen ?? '—';
-      if (!byScreen.has(sk)) byScreen.set(sk, new Map());
-      const layers = byScreen.get(sk);
-      const lk = u.layer ?? '—';
-      if (!layers.has(lk)) layers.set(lk, []);
-      layers.get(lk).push({ device: d.key, ...u });
-    }
-  }
-  return {
-    totals: { total, available, enabled, spare: available - enabled },
-    byScreen
-  };
-}
-
-/**
- * What changes between the running configuration and the staged one.
- *
- * Returns per-unit deltas keyed by "device/unit". Only fields that actually
- * differ are listed, so an unchanged map produces an empty array — which is
- * the normal reading when nothing is staged.
- */
-export function diffMaps(current, next) {
-  if (!current || !next) return [];
-  const index = (map) => {
-    const out = new Map();
-    for (const d of map.devices) for (const u of d.units) out.set(d.key + '/' + u.id, u);
-    return out;
-  };
-  const a = index(current), b = index(next);
-  const fields = ['available', 'enabled', 'capability', 'screen', 'layer', 'slice', 'channel'];
-  const changes = [];
-  for (const [k, before] of a) {
-    const after = b.get(k);
-    if (!after) { changes.push({ key: k, gone: true, before }); continue; }
-    const changed = fields.filter((f) => before[f] !== after[f]);
-    if (changed.length) changes.push({ key: k, before, after, fields: changed });
-  }
-  for (const [k, after] of b) if (!a.has(k)) changes.push({ key: k, added: true, after });
-  return changes;
-}
-
-/**
- * Emit one device's units in the flat record shape the standalone
- * `aquilon-vpu-map` tool reads, so a map captured here can be opened there
- * and vice versa. Deliberately an adapter rather than a shared import: that
- * tool reaches the device over AWJ, which a browser extension cannot do, and
- * a vendored copy of its model would drift the moment either side moved.
- */
-export function toMixerRecords(map, deviceKey = '1') {
-  const device = map && map.devices.find((d) => d.key === String(deviceKey));
-  if (!device) return {};
   const out = {};
-  for (const u of device.units) {
-    if (!u.available) { out[u.id] = { isAvailable: false }; continue; }
-    const rec = {
-      isAvailable: true,
-      isEnabled: u.enabled,
-      usedInScreen: u.screen,
-      usedInLayer: u.layer,
-      channel: u.channel,
-      slice: u.slice,
-      capability: u.capability,
-      seamlessCapa: u.seamless,
-      mixerAllocation: {
-        usedOnOutPipe1: pipeAt(u, 1),
-        usedOnOutPipe2: pipeAt(u, 2)
-      }
-    };
-    if (Object.keys(u.scalers).length) {
-      rec.scalers = Object.fromEntries(Object.entries(u.scalers).map(
-        ([k, v]) => [k, { memoryFill: v.fill, memoryCut: v.cut }]));
+  for (const id of MIXER_IDS) {
+    const node = items[id];
+    if (!node) continue;
+    const pp = node.pp || {};
+    if (pp.isAvailable !== true) { out[id] = { isAvailable: false }; continue; }
+
+    const rec = { isAvailable: true };
+    for (const p of MIXER_PROPS) rec[p] = pp[p];
+
+    const alloc = (node.mixerAllocation || {}).pp || {};
+    rec.mixerAllocation = {};
+    for (let k = 1; k <= OUT_PIPES; k++) {
+      rec.mixerAllocation[`usedOnOutPipe${k}`] = alloc[`usedOnOutPipe${k}`];
     }
-    out[u.id] = rec;
+
+    const scalers = (node.scalerList || {}).items;
+    if (scalers) {
+      rec.scalers = {};
+      for (const s of SCALERS) {
+        const spp = ((scalers[s] || {}).pp) || {};
+        rec.scalers[s] = { memoryFill: spp.memoryFill, memoryCut: spp.memoryCut };
+      }
+    }
+    out[id] = rec;
   }
   return out;
 }
 
-const pipeAt = (unit, index) => {
-  const found = unit.pipes.find((p) => p.index === index);
-  return found ? found.output : PIPE_NONE;
-};
+/**
+ * Per-screen resource status: how much of the box each screen spends, whether
+ * it fits, and whether its VPU is in Optimized mode.
+ *
+ * Screens that are not configured report `mode: 'DISABLED'` and are dropped,
+ * matching the standalone reader so both feed `optimizedVpus` the same thing.
+ * Only the staged side carries the `remaining…` / `exceeding…` figures — they
+ * answer "would this configuration fit", which is a question about `new`.
+ */
+export function readScreenStatus(store, { which = 'current' } = {}) {
+  const base = screenResources(which);
+  const keys = store.itemKeys(base);
+  const out = {};
+  for (const id of keys) {
+    const pp = store.get([...base, 'items', id, 'status', 'pp']);
+    if (!pp || pp.mode === undefined || pp.mode === 'DISABLED') continue;
+    out[id] = { ...pp };
+  }
+  return out;
+}
 
-/** Human label for a (screen, layer) allocation group. */
+/**
+ * Is there a VPU mapping to draw at all, and if not, why not.
+ *
+ * Worth distinguishing carefully. A simulator carries a `vpuLayerList`
+ * collection that is present and permanently empty, and no `vpuMixerList` —
+ * `$vpuLayer` answers E12 on real hardware, so that collection is an artefact
+ * of the simulator rather than a second firmware generation. Reporting it as
+ * "no VPU support" or drawing it as an empty chassis would both be misleading.
+ */
+export function inspectMapping(store, which = 'current') {
+  const mapping = store.get(resourceMapping(which));
+  if (!mapping || !mapping.deviceList) return { present: false, reason: 'no-mapping' };
+
+  const keys = deviceKeys(store, which);
+  const withMixers = keys.filter((k) => store.get([...mixerCollection(which, k), 'items']));
+  if (!withMixers.length) {
+    const first = (mapping.deviceList.items || {})[keys[0]] || {};
+    if (first.vpuLayerList) return { present: false, reason: 'simulator', devices: keys };
+    return { present: false, reason: 'no-mixer-collection', devices: keys };
+  }
+
+  const fitted = withMixers.some((k) => {
+    const items = store.get([...mixerCollection(which, k), 'items']) || {};
+    return Object.values(items).some((n) => n && n.pp && n.pp.isAvailable === true);
+  });
+  return { present: true, devices: withMixers, fitted };
+}
+
+/**
+ * Everything the panel needs for one side of the preconfig, per device.
+ *
+ * Returns null when there is no mapping, so callers can tell "nothing to draw"
+ * from "an empty chassis" — see `inspectMapping` for the difference.
+ */
+export function readSide(store, which = 'current') {
+  const info = inspectMapping(store, which);
+  if (!info.present) return null;
+  const screenStatus = readScreenStatus(store, { which });
+  const devices = info.devices.map((key) => {
+    const mixers = readMixers(store, { which, device: key });
+    return {
+      key,
+      role: key === '1' ? 'Master' : 'Follower ' + key,
+      mixers,
+      summary: summarise(mixers),
+      grids: buildLinkGrid(mixers),
+      optimized: optimizedVpus(mixers, screenStatus)
+    };
+  });
+  return { which, devices, screenStatus, fitted: info.fitted };
+}
+
+/**
+ * What a staged preconfig would change, per device.
+ *
+ * The model's `diff` compares output links as well as properties — a staged
+ * configuration can move a layer onto different links with every other value
+ * identical, and comparing properties alone calls that no change.
+ */
+export function diffSides(store) {
+  const current = inspectMapping(store, 'current');
+  const staged = inspectMapping(store, 'new');
+  if (!current.present || !staged.present) return [];
+  return current.devices.map((key) => ({
+    device: key,
+    changes: diff(
+      readMixers(store, { which: 'current', device: key }),
+      readMixers(store, { which: 'new', device: key })
+    )
+  })).filter((d) => d.changes.length);
+}
+
+/**
+ * How a layer slot is written in the UI.
+ *
+ * `NATIVE` is the first entry of the device's PRECONFIG_SCREEN_LAYER enum — a
+ * layer slot that consumes mixers and is counted by `layerCount`. It is **not**
+ * the screen's background: backgrounds live in `preconfig/backgrounds/`, cost
+ * no mixer at all, and calling this one a background is the confusion to avoid.
+ */
 export const layerLabel = (layer) =>
-  layer === 'NATIVE' ? 'Background' : layer == null ? '—' : 'Layer ' + layer;
+  layer === 'NATIVE' ? 'Native layer' : layer == null ? '—' : 'Layer ' + layer;
 
-export { ROOT };
+export const layerShort = (layer) => (layer === 'NATIVE' ? 'NAT' : 'L' + layer);

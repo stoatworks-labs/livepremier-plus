@@ -20,7 +20,10 @@ import { dirname, join } from 'node:path';
 
 import { toAwj, CMD, screenAuxControl, ROOT } from '../src/core/paths.js';
 import { DeviceStore } from '../src/core/device-store.js';
-import { readMap, diffMaps, detectVariant } from '../src/core/vpu.js';
+import {
+  readMixers, readSide, diffSides, inspectMapping, layerLabel, layerShort,
+  summarise, parseMixerId, MIXER_PROPS, LINKS_PER_VPU
+} from '../src/core/vpu.js';
 import { CueStack, ACTION_KINDS, toTenths, SETTLE_MS } from '../src/core/cuestack.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -81,73 +84,149 @@ test('itemKeys prefers the device order over object key order', () => {
 
 /* --------------------------------------------------------------------- vpu */
 
-test('scaler-model firmware is read from a real simulator snapshot', () => {
-  const store = storeFrom(fixture('sim-6.2.73-resources.json'));
-  assert.equal(detectVariant(store).variant, 'scaler');
+/*
+ * The VPU model itself is vendored from aquilon-vpu-map and tested there. What
+ * is tested here is the adapter: that the device store yields exactly the
+ * record shape that model expects.
+ *
+ * aquilon-c-6output-5k.json is a real capture from an Aquilon C, taken through
+ * that tool - S1 a six-output screen with a native layer plus two more, S2 at
+ * 5K. It is deliberately the awkward configuration: the simpler capture alone
+ * supports assumptions this one disproves.
+ */
 
-  const map = readMap(store, 'current');
-  assert.equal(map.variant, 'scaler');
-  assert.equal(map.devices.length, 4);
-  /* 4 devices x 32 units. Nothing is fitted on this simulated chassis, which
-     is exactly the case a naive reader would mistake for "no VPU support". */
-  assert.equal(map.totals.total, 128);
-  assert.equal(map.totals.available, 0);
-  assert.equal(map.totals.enabled, 0);
-  assert.equal(map.devices[0].fitted, false);
+/** Wrap flat mixer records back into the store shape the device serves. */
+function storeWithMixers(current, next = null, screenStatus = null) {
+  const side = (mixers) => {
+    const items = {};
+    for (const [id, rec] of Object.entries(mixers)) {
+      if (!rec.isAvailable) { items[id] = { pp: { isAvailable: false } }; continue; }
+      const { mixerAllocation, scalers, ...pp } = rec;
+      items[id] = {
+        pp: { ...pp, isAvailable: true },
+        mixerAllocation: { pp: { ...mixerAllocation } }
+      };
+      if (scalers) {
+        items[id].scalerList = {
+          itemKeys: Object.keys(scalers),
+          items: Object.fromEntries(Object.entries(scalers).map(([k, v]) => [k, { pp: { ...v } }]))
+        };
+      }
+    }
+    return {
+      status: { mapping: { deviceList: { itemKeys: ['1'], items: { 1: {
+        vpuMixerList: { itemKeys: Object.keys(mixers), items }
+      } } } } },
+      screenList: screenStatus
+        ? { itemKeys: Object.keys(screenStatus),
+            items: Object.fromEntries(Object.entries(screenStatus).map(([k, v]) => [k, { status: { pp: v } }])) }
+        : undefined
+    };
+  };
+  return storeFrom({ device: { preconfig: { resources: {
+    current: side(current),
+    new: side(next || current)
+  } } } });
+}
+
+test('a real capture survives the round trip into store shape and back', () => {
+  const capture = fixture('aquilon-c-6output-5k.json');
+  const store = storeWithMixers(capture.current);
+  const mixers = readMixers(store, { which: 'current', device: '1' });
+
+  for (const [id, before] of Object.entries(capture.current)) {
+    if (!before.isAvailable) { assert.deepEqual(mixers[id], { isAvailable: false }, id); continue; }
+    for (const prop of MIXER_PROPS) assert.equal(mixers[id][prop], before[prop], `${id}.${prop}`);
+    assert.deepEqual(mixers[id].mixerAllocation, before.mixerAllocation, id);
+  }
 });
 
-test('mixer-model firmware yields the same shape, with slices', () => {
-  const store = storeFrom(fixture('mixer-model.json'));
-  assert.equal(detectVariant(store).variant, 'mixer');
+test('the shared model reads the capture the same way through the adapter', () => {
+  const capture = fixture('aquilon-c-6output-5k.json');
+  const side = readSide(storeWithMixers(capture.current), 'current');
+  const direct = summarise(capture.current);
+  assert.deepEqual(side.devices[0].summary, direct,
+    'the adapter must not change what the model concludes');
 
-  const map = readMap(store, 'current');
-  assert.equal(map.totals.total, 6);
-  assert.equal(map.totals.available, 5);
-  assert.equal(map.totals.enabled, 4);
-  assert.equal(map.totals.spare, 1);
-
-  const unit = map.devices[0].units[0];
-  assert.equal(unit.proc, 1);
-  assert.equal(unit.index, 1);
-  assert.equal(unit.slice, 0);
-  assert.deepEqual(unit.pipes, [{ index: 1, output: '1' }]);
-  assert.deepEqual(unit.scalers.A, { fill: 'SM5', cut: 'SM1' });
-
-  /* S1 holds two slices of its background; S2 holds a background and a layer. */
-  assert.equal(map.byScreen.get('S1').get('NATIVE').length, 2);
-  assert.equal(map.byScreen.get('S2').get('1').length, 1);
+  /* The capture: S1 native plus two layers, S2 at 5K. Runs are per
+     (screen, layer), and a six-output screen spends two mixers per slice. */
+  const sum = side.devices[0].summary;
+  assert.equal(sum.enabled, 24);
+  assert.ok(sum.allocations.some((a) => a.screen === 'S1' && a.layer === 'NATIVE'));
+  assert.ok(sum.allocations.some((a) => a.capability === '5K'),
+    'the 5K layer must survive - capacity is read from the enum position');
 });
 
-test('a unit that is enabled but not available is not counted as allocated', () => {
-  const data = fixture('mixer-model.json');
-  const items = data.device.preconfig.resources.current.status.mapping
-    .deviceList.items['1'].vpuMixerList.items;
-  items.PROC_2_MIXER_1.pp.isEnabled = true; // available stays false
-  const map = readMap(storeFrom(data), 'current');
-  assert.equal(map.totals.enabled, 4);
+test('the link grid takes its columns from the output links the device reports', () => {
+  const capture = fixture('aquilon-c-6output-5k.json');
+  const side = readSide(storeWithMixers(capture.current), 'current');
+  const grids = side.devices[0].grids;
+  const drawn = grids.filter((g) => g.blocks.length);
+  assert.ok(drawn.length, 'expected at least one populated VPU');
+  assert.equal(drawn[0].placement, 'reported-columns');
+
+  for (const g of drawn) {
+    assert.ok(!g.overflow, `VPU ${g.vpu} must fit in ${LINKS_PER_VPU} link rows`);
+    for (const b of g.blocks) {
+      assert.ok(b.cols.length > 0, `${b.mixer} must sit on at least one output link`);
+      assert.ok(b.row >= 0 && b.row < LINKS_PER_VPU, `${b.mixer} row in range`);
+    }
+  }
 });
 
-test('diffing current against staged is what makes the map worth drawing', () => {
-  const store = storeFrom(fixture('mixer-model.json'));
-  const changes = diffMaps(readMap(store, 'current'), readMap(store, 'new'));
-  const byKey = Object.fromEntries(changes.map((c) => [c.key, c]));
+test('optimized mode is resolved from screen status onto whole VPUs', () => {
+  const capture = fixture('aquilon-c-6output-5k.json');
+  const status = { S1: { mode: 'FREESTYLE', isOptimized: true, outputCount: 6 },
+                   S2: { mode: 'FREESTYLE', isOptimized: false, outputCount: 1 },
+                   S9: { mode: 'DISABLED' } };
+  const store = storeWithMixers(capture.current, null, status);
+  const side = readSide(store, 'current');
 
-  /* MIXER_4 moves from S2 to S3, and the spare MIXER_5 is called into use. */
-  assert.deepEqual(byKey['1/PROC_1_MIXER_4'].fields, ['screen']);
-  assert.equal(byKey['1/PROC_1_MIXER_4'].after.screen, 'S3');
-  assert.ok(byKey['1/PROC_1_MIXER_5'].fields.includes('enabled'));
-  assert.equal(changes.length, 2);
+  assert.deepEqual(Object.keys(side.screenStatus), ['S1', 'S2'], 'DISABLED screens are dropped');
+  /* Optimized belongs to the VPU, not to the screen that triggered it. */
+  const s1Vpus = new Set(Object.entries(capture.current)
+    .filter(([, r]) => r.isEnabled && r.usedInScreen === 'S1')
+    .map(([id]) => parseMixerId(id).processor));
+  assert.deepEqual([...side.devices[0].optimized].sort(), [...s1Vpus].sort());
+});
+
+test('a staged change to output links alone is still reported as a change', () => {
+  const capture = fixture('aquilon-c-6output-5k.json');
+  const staged = structuredClone(capture.current);
+  const victim = Object.keys(staged).find((id) => staged[id].isEnabled);
+  staged[victim].mixerAllocation.usedOnOutPipe1 = '8';
+
+  const store = storeWithMixers(capture.current, staged);
+  const diffs = diffSides(store);
+  assert.equal(diffs.length, 1);
+  assert.equal(diffs[0].changes.length, 1);
+  assert.equal(diffs[0].changes[0].mixer, victim);
+  assert.equal(diffs[0].changes[0].changed[0].prop, 'link 1');
 });
 
 test('an unchanged preconfig produces an empty diff', () => {
-  const store = storeFrom(fixture('sim-6.2.73-resources.json'));
-  assert.deepEqual(diffMaps(readMap(store, 'current'), readMap(store, 'new')), []);
+  const capture = fixture('aquilon-c-6output-5k.json');
+  assert.deepEqual(diffSides(storeWithMixers(capture.current)), []);
 });
 
-test('a firmware reporting neither collection is reported as unknown, not empty', () => {
-  const store = storeFrom({ device: { preconfig: { resources: { current: { status: { mapping: { deviceList: { items: { 1: {} } } } } } } } } });
-  assert.equal(detectVariant(store), null);
-  assert.equal(readMap(store, 'current'), null);
+test('a simulator is reported as having no VPU, not as an empty chassis', () => {
+  const store = storeFrom(fixture('sim-6.2.73-resources.json'));
+  const info = inspectMapping(store, 'current');
+  assert.equal(info.present, false);
+  /* vpuLayerList present, vpuMixerList absent: $vpuLayer answers E12 on real
+     hardware, so this collection is a simulator artefact rather than a second
+     firmware generation, and the panel has to say so. */
+  assert.equal(info.reason, 'simulator');
+  assert.equal(readSide(store, 'current'), null);
+});
+
+test('NATIVE is named as a layer, never as the background', () => {
+  /* Backgrounds live in preconfig/backgrounds and cost no mixer at all;
+     NATIVE is a layer slot that does. Conflating them is the trap. */
+  assert.equal(layerLabel('NATIVE'), 'Native layer');
+  assert.equal(layerShort('NATIVE'), 'NAT');
+  assert.equal(layerLabel('2'), 'Layer 2');
+  assert.doesNotMatch(layerLabel('NATIVE').toLowerCase(), /background/);
 });
 
 /* --------------------------------------------------------------- cuestack */
@@ -285,15 +364,3 @@ test('a send that never left the browser is reported, not swallowed', () => {
   assert.equal(failures.length, 1);
 });
 
-test('a map can be handed to the standalone aquilon-vpu-map tool unchanged', async () => {
-  const { toMixerRecords } = await import('../src/core/vpu.js');
-  const map = readMap(storeFrom(fixture('mixer-model.json')), 'current');
-  const records = toMixerRecords(map, '1');
-
-  assert.equal(records.PROC_1_MIXER_1.isAvailable, true);
-  assert.equal(records.PROC_1_MIXER_1.slice, 0);
-  assert.equal(records.PROC_1_MIXER_1.mixerAllocation.usedOnOutPipe1, '1');
-  assert.equal(records.PROC_1_MIXER_1.mixerAllocation.usedOnOutPipe2, 'NONE');
-  assert.equal(records.PROC_1_MIXER_1.scalers.A.memoryFill, 'SM5');
-  assert.deepEqual(records.PROC_2_MIXER_1, { isAvailable: false });
-});
