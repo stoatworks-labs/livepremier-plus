@@ -63,6 +63,54 @@ npm start -- --device 192.168.2.142
 There is a desktop app too — a tray launcher with an interface and port picker,
 in the fleet's usual shape. See [launcher/](launcher/).
 
+## Download
+
+Nothing below this line is hand-written: `gen-downloads.py` owns everything
+between the markers and rewrites it wholesale at each release.
+
+<!-- downloads:start -->
+
+## Download
+
+**[v0.3.1](https://github.com/stoatworks-labs/livepremier-plus/releases/tag/v0.3.1)** — prebuilt for macOS, Windows and Linux. Pick your platform:
+
+<details>
+<summary><b>macOS</b> — Apple Silicon, Intel</summary>
+
+| Build | Download | Size |
+| --- | --- | --- |
+| Apple Silicon · .dmg disk image | [`livepremier-plus-0.3.1-macos-aarch64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-aarch64.dmg) | 46 MB |
+| Intel · .dmg disk image | [`livepremier-plus-0.3.1-macos-x86_64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-x86_64.dmg) | 48 MB |
+| Apple Silicon · .pkg installer | [`livepremier-plus-0.3.1-macos-aarch64.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-aarch64.pkg) | 40 MB |
+| Intel · .pkg installer | [`livepremier-plus-0.3.1-macos-x86_64.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-x86_64.pkg) | 42 MB |
+
+</details>
+
+<details>
+<summary><b>Windows</b> — x64</summary>
+
+| Build | Download | Size |
+| --- | --- | --- |
+| x64 · .exe installer | [`LivePremier.Plus_0.3.1_x64-setup.exe`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/LivePremier.Plus_0.3.1_x64-setup.exe) | 25 MB |
+
+</details>
+
+<details>
+<summary><b>Linux</b> — x64</summary>
+
+| Build | Download | Size |
+| --- | --- | --- |
+| x64 · .deb package (Debian/Ubuntu) | [`LivePremier.Plus_0.3.1_amd64.deb`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/LivePremier.Plus_0.3.1_amd64.deb) | 50 MB |
+| x64 · .rpm package (Fedora/RHEL) | [`LivePremier.Plus-0.3.1-1.x86_64.rpm`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/LivePremier.Plus-0.3.1-1.x86_64.rpm) | 50 MB |
+
+</details>
+
+All builds, checksums and release notes: [github.com/stoatworks-labs/livepremier-plus/releases](https://github.com/stoatworks-labs/livepremier-plus/releases).
+
+The Windows builds are unsigned, so SmartScreen warns once.
+
+<!-- downloads:end -->
+
 > **On binding wide.** The default is loopback for a reason: this proxy is an
 > unauthenticated route to a switcher's entire control surface. `--host 0.0.0.0`
 > hands that to everyone on the network. Do it deliberately, not by habit.
