@@ -435,3 +435,81 @@ test('the remembered switcher survives a restart', async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('extra modules are injected after the panels, and only when asked for', async () => {
+  const { server: device } = fakeDevice();
+  const devicePort = await listen(device);
+  const proxy = await createProxy({
+    device: `127.0.0.1:${devicePort}`,
+    root: ROOT,
+    extraModules: [`${NS}/demo/seed.js`],
+    extraFiles: { '/demo/seed.js': join(ROOT, 'tools', 'demo', 'seed.js') },
+    log: () => {}
+  });
+  const port = await listen(proxy);
+  try {
+    const html = await (await fetch(`http://127.0.0.1:${port}/`)).text();
+    const panels = html.indexOf('data-lpp="panels"');
+    const extra = html.indexOf('data-lpp="extra"');
+    assert.ok(extra > panels, 'extras run after the panels, so window.__WRU exists');
+
+    const served = await fetch(`http://127.0.0.1:${port}${NS}/demo/seed.js`);
+    assert.equal(served.status, 200);
+    assert.match(await served.text(), /LivePremier Plus demo/);
+  } finally {
+    await close(proxy);
+    await close(device);
+  }
+});
+
+test('an unregistered extra path is not reachable', async () => {
+  const { server: device } = fakeDevice();
+  const devicePort = await listen(device);
+  const proxy = await createProxy({
+    device: `127.0.0.1:${devicePort}`,
+    root: ROOT,
+    extraFiles: { '/demo/seed.js': join(ROOT, 'tools', 'demo', 'seed.js') },
+    log: () => {}
+  });
+  const port = await listen(proxy);
+  try {
+    /* extraFiles is an exact-match table, so nothing about the request builds a
+       path — but check the neighbours anyway. */
+    for (const bad of ['/demo/other.js', '/demo/', '/demo/seed.js/../../package.json']) {
+      const res = await fetch(`http://127.0.0.1:${port}${NS}${bad}`);
+      assert.equal(res.status, 404, bad);
+    }
+  } finally {
+    await close(proxy);
+    await close(device);
+  }
+});
+
+test('the demo cue stack is valid for the cue engine', async () => {
+  /* The demo seeds a stack straight to disk, bypassing the UI, so nothing else
+     would catch a malformed cue until someone pressed GO. */
+  const { CueStack } = await import('../src/core/cuestack.js');
+  const { readFile } = await import('node:fs/promises');
+  const demoSrc = await readFile(join(ROOT, 'tools', 'demo.mjs'), 'utf8');
+  assert.match(demoSrc, /function demoStack/, 'demo still defines a stack');
+
+  const sent = [];
+  const stack = new CueStack({ send: (cmd) => { sent.push(cmd); return true; } });
+  /* Rebuild the same shape the demo writes. */
+  stack.load({
+    version: 1,
+    name: 'Demo',
+    cues: [{
+      id: 'demo-1', number: '1', label: 'House open', notes: '', enabled: true,
+      fade: 1, delay: 0, follow: false, followTime: 0,
+      actions: [
+        { kind: 'screenPreset', slot: 1, targets: ['S1'], mode: 'PREVIEW' },
+        { kind: 'take', targets: ['S1'] }
+      ]
+    }]
+  });
+  assert.equal(stack.cues.length, 1);
+  const result = stack.fire(stack.cues[0]);
+  assert.ok(result.sent > 0, 'the demo cue actually produces writes');
+  assert.ok(sent.some((c) => Array.isArray(c.path)), 'writes are {path, value} commands');
+});

@@ -115,6 +115,41 @@ rather than guesses — division by zero is rejected specifically because
 `Infinity` would survive the clamp and land as the field's max, which is a
 plausible-looking wrong answer.
 
+## The demo environment, and one thing it revealed
+
+`npm run demo` (`tools/demo.mjs`) runs the app against a simulator and splices
+the recorded Aquilon C resource subtree into the store after hydration, because
+**a simulator has no VPU** and the VPU map is the headline panel. It refuses any
+non-loopback address — it seeds a cue stack and rewrites part of the store, and
+neither belongs near a production frame.
+
+It leans on a small, general extension point in `proxy.js`: `extraModules`
+(module URLs injected *after* `main.js`, so `window.__WRU` exists) and
+`extraFiles` (an **exact-match** table of NS path to file, so nothing about a
+request builds a filesystem path). Both default empty; production injects
+nothing extra.
+
+`tools/demo/seed.js` writes into `store.root` directly rather than via
+`store.set()`. That is deliberate: `startsWith(path, prefix)` only notifies
+subscribers whose prefix is a prefix of the written path, so a single write at
+`preconfig/resources` would reach nobody watching deeper — and the panels all
+subscribe well below it. It splices, then calls `shell.refresh()` explicitly.
+
+**⚠️ Verifying panels in the Browser pane: `requestAnimationFrame` does not fire
+while the pane is hidden**, and `onRefresh` is `throttleFrame`-wrapped. A panel
+will look frozen and two views will hash identically, which reads exactly like a
+broken toggle. Call `window.__WRU.shell.refresh()` to force a synchronous
+render before comparing. This cost a real debugging round; the CURRENT/STAGED
+toggle was fine all along (hashes `664e6945` vs `cc652f36`).
+
+**A related correction.** The project memory said running-vs-staged was
+"visibly different in the grid". It is not, and that is correct behaviour: both
+sides drive the same *output links*, so `buildLinkGrid` rightly produces the
+same geometry. What differs is which **pipe slot** inside each mixer carries
+the link. The panel surfaces that in the header badge (`26 staged changes`) and
+as `CHANGED in the staged configuration` on the affected blocks in DETAIL — not
+as moved blocks. Do not "fix" the grid to move them.
+
 ## A note on the `wru-` prefix
 
 CSS classes (`wru-cuelist`, `wru-overlay`), the `window.__WRU_HOOK` global and
@@ -197,7 +232,7 @@ no benefit. Read `wru` as "the panels".
 
 ## Testing
 
-`npm test` — 74 tests, no network, no browser. Seven run against a real Aquilon
+`npm test` — 77 tests, no network, no browser. Seven run against a real Aquilon
 C capture (`aquilon-c-live-resources.json`, read 2026-08-21) and are the only
 coverage of fitted mixers, output links and Optimized mode, none of which a
 simulator produces.

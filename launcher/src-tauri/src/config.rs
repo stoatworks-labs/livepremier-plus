@@ -19,6 +19,46 @@ use std::path::{Path, PathBuf};
 pub struct LauncherConfig {
     pub app: AppSpec,
     pub inject: InjectSpec,
+    /// Optional extra inputs the panel collects (e.g. a device IP, a model
+    /// selector). Each becomes a `{key}` placeholder usable anywhere `{host}`
+    /// is — args, env values, config-file values. `[[field]]` in TOML.
+    #[serde(default)]
+    pub field: Vec<FieldSpec>,
+}
+
+/// A custom input rendered in the panel above the interface/port controls.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct FieldSpec {
+    /// Placeholder name — `{key}` is substituted with the entered value.
+    pub key: String,
+    /// Label shown in the panel.
+    pub label: String,
+    /// `text` (free entry) or `select` (a fixed list of `options`).
+    #[serde(rename = "type", default = "default_field_type")]
+    pub kind: String,
+    /// Greyed hint for a text field.
+    #[serde(default)]
+    pub placeholder: String,
+    /// Pre-filled value when nothing is remembered.
+    #[serde(default)]
+    pub default: String,
+    /// Choices for a `select` field. A bare string is both value and label;
+    /// `{ value, label }` separates the two (e.g. value `livecore`, label
+    /// `LiveCore`).
+    #[serde(default)]
+    pub options: Vec<FieldOption>,
+}
+
+/// A `select` option — either a plain string or a `{ value, label }` table.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum FieldOption {
+    Simple(String),
+    Labeled { value: String, label: String },
+}
+
+fn default_field_type() -> String {
+    "text".into()
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -110,6 +150,7 @@ fn subst(
     port: u16,
     config: Option<&str>,
     resource: Option<&str>,
+    fields: &BTreeMap<String, String>,
 ) -> String {
     let mut out = s
         .replace("{host}", host)
@@ -119,6 +160,9 @@ fn subst(
     }
     if let Some(c) = config {
         out = out.replace("{config}", c);
+    }
+    for (k, v) in fields {
+        out = out.replace(&format!("{{{k}}}"), v);
     }
     out
 }
@@ -227,9 +271,9 @@ fn resolve_against(path: &str, base: Option<&Path>) -> String {
 }
 
 /// On Windows a bundled command ships with a `.exe` extension (e.g. `node.exe`),
-/// but `launcher.toml` names it without one (`node`). If the extension-less
-/// program isn't present and a `.exe` sibling is, prefer that so the spawn finds
-/// the executable. No-op on other platforms.
+/// but `launcher.toml` names it without one (`node`, `bin/flock`). If the
+/// extension-less program isn't present and a `.exe` sibling is, prefer that so
+/// the spawn finds the executable. No-op on other platforms.
 #[cfg(windows)]
 fn with_windows_exe(program: String) -> String {
     let p = Path::new(&program);
@@ -259,6 +303,7 @@ pub fn build_launch(
     cfg: &LauncherConfig,
     bind_host: &str,
     port: u16,
+    fields: &BTreeMap<String, String>,
     work_dir: &Path,
     resource_dir: Option<&Path>,
 ) -> Result<Launch, String> {
@@ -278,7 +323,7 @@ pub fn build_launch(
             let mut doc = raw
                 .parse::<toml_edit::DocumentMut>()
                 .map_err(|e| format!("parsing template {template}: {e}"))?;
-            let value = subst(&ci.value, bind_host, port, None, res);
+            let value = subst(&ci.value, bind_host, port, None, res, fields);
             set_dotted(&mut doc, &ci.set_key, &value);
 
             std::fs::create_dir_all(work_dir)
@@ -290,10 +335,10 @@ pub fn build_launch(
         }
         "env" => {
             for (k, v) in &cfg.inject.env {
-                envs.push((k.clone(), subst(v, bind_host, port, None, res)));
+                envs.push((k.clone(), subst(v, bind_host, port, None, res, fields)));
             }
         }
-        "args" => { /* host/port already substituted into args below */ }
+        "args" => { /* host/port/fields already substituted into args below */ }
         other => return Err(format!("unknown inject.mode: {other}")),
     }
 
@@ -301,27 +346,15 @@ pub fn build_launch(
         .app
         .args
         .iter()
-        .map(|a| subst(a, bind_host, port, rendered_config.as_deref(), res))
+        .map(|a| subst(a, bind_host, port, rendered_config.as_deref(), res, fields))
         .collect();
 
     // Substitute {resource} in the command, then resolve any remaining relative
     // path against the resource dir (covers both `{resource}/node` and `bin/x`).
     let program = with_windows_exe(resolve_against(
-        &subst(&cfg.app.command, bind_host, port, None, res),
+        &subst(&cfg.app.command, bind_host, port, None, res, fields),
         resource_dir,
     ));
-
-    // On Windows the embedded runtime ships as `node.exe`; configs carry the
-    // extensionless name, so append `.exe` when that's what actually exists.
-    #[cfg(windows)]
-    let program = {
-        if std::path::Path::new(&program).exists() {
-            program
-        } else {
-            let exe = format!("{program}.exe");
-            if std::path::Path::new(&exe).exists() { exe } else { program }
-        }
-    };
 
     // Prefer an explicit cwd; otherwise run from the writable work dir so a
     // bundled server can persist state (it can't write inside a read-only .app).
@@ -377,7 +410,7 @@ mod tests {
             template.display()
         ));
 
-        let launch = build_launch(&cfg, "10.0.0.5", 9000, &tmp, None).unwrap();
+        let launch = build_launch(&cfg, "10.0.0.5", 9000, &std::collections::BTreeMap::new(), &tmp, None).unwrap();
         // The single positional arg is the rendered config path.
         assert_eq!(launch.args.len(), 1);
         let rendered = std::fs::read_to_string(&launch.args[0]).unwrap();
@@ -413,7 +446,7 @@ mod tests {
             template.display()
         ));
 
-        let launch = build_launch(&cfg, "0.0.0.0", 8080, &tmp, None).unwrap();
+        let launch = build_launch(&cfg, "0.0.0.0", 8080, &std::collections::BTreeMap::new(), &tmp, None).unwrap();
         assert_eq!(launch.args[0], "--config");
         let rendered = std::fs::read_to_string(&launch.args[1]).unwrap();
         assert!(
@@ -440,13 +473,37 @@ mod tests {
             "#,
         );
 
-        let launch = build_launch(&cfg, "192.168.1.20", 8420, &tmp, None).unwrap();
+        let launch = build_launch(&cfg, "192.168.1.20", 8420, &std::collections::BTreeMap::new(), &tmp, None).unwrap();
         assert!(launch
             .envs
             .contains(&("RFUTILS_SERVER_PORT".into(), "8420".into())));
         assert!(launch
             .envs
             .contains(&("RFUTILS_HOST".into(), "192.168.1.20".into())));
+    }
+
+    /// {resource} in command + args resolves to the bundle resource dir
+    /// (how the RFutils bundle points at its embedded Node + server).
+    #[test]
+    fn resource_placeholder_in_command_and_args() {
+        let res = std::env::temp_dir().join("av-launcher-test-resph");
+        let work = std::env::temp_dir().join("av-launcher-test-resph-work");
+        let cfg = parse(
+            r#"
+            [app]
+            name = "RFutils"
+            command = "{resource}/node"
+            args = ["{resource}/app/server.mjs"]
+            [inject]
+            mode = "env"
+            [inject.env]
+            PORT = "{port}"
+            "#,
+        );
+        let launch = build_launch(&cfg, "0.0.0.0", 8420, &std::collections::BTreeMap::new(), &work, Some(&res)).unwrap();
+        assert_eq!(launch.program, format!("{}/node", res.to_string_lossy()));
+        assert_eq!(launch.args, vec![format!("{}/app/server.mjs", res.to_string_lossy())]);
+        assert!(launch.envs.contains(&("PORT".into(), "8420".into())));
     }
 
     /// args mode: {host}/{port} substituted directly into argv.
@@ -463,8 +520,40 @@ mod tests {
             mode = "args"
             "#,
         );
-        let launch = build_launch(&cfg, "127.0.0.1", 7000, &tmp, None).unwrap();
+        let launch = build_launch(&cfg, "127.0.0.1", 7000, &std::collections::BTreeMap::new(), &tmp, None).unwrap();
         assert_eq!(launch.args, vec!["--host", "127.0.0.1", "--port", "7000"]);
+    }
+
+    /// Custom [[field]] values substitute as {key} in args (openrcs' switcher IP
+    /// and model reach the server as {device}/{platform}).
+    #[test]
+    fn custom_fields_in_args() {
+        let tmp = std::env::temp_dir().join("av-launcher-test-fields");
+        let cfg = parse(
+            r#"
+            [app]
+            name = "openrcs"
+            command = "openrcs-server"
+            args = ["--device", "{device}:10500", "--platform", "{platform}", "--listen", "{host}:{port}"]
+            [inject]
+            mode = "args"
+            [[field]]
+            key = "device"
+            label = "Switcher IP"
+            [[field]]
+            key = "platform"
+            label = "Model"
+            type = "select"
+            "#,
+        );
+        let mut fields = std::collections::BTreeMap::new();
+        fields.insert("device".to_string(), "192.168.1.42".to_string());
+        fields.insert("platform".to_string(), "livecore".to_string());
+        let launch = build_launch(&cfg, "0.0.0.0", 8730, &fields, &tmp, None).unwrap();
+        assert_eq!(
+            launch.args,
+            vec!["--device", "192.168.1.42:10500", "--platform", "livecore", "--listen", "0.0.0.0:8730"]
+        );
     }
 
     /// Shipped bundle: a relative `command` + `template` resolve against the
@@ -490,7 +579,7 @@ mod tests {
             value = "{host}:{port}"
             "#,
         );
-        let launch = build_launch(&cfg, "0.0.0.0", 8080, &work, Some(&res)).unwrap();
+        let launch = build_launch(&cfg, "0.0.0.0", 8080, &std::collections::BTreeMap::new(), &work, Some(&res)).unwrap();
         assert_eq!(launch.program, res.join("flock").to_string_lossy());
         assert_eq!(launch.cwd, Some(work.clone()));
         let rendered = std::fs::read_to_string(&launch.args[0]).unwrap();

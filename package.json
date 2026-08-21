@@ -4,11 +4,14 @@
   "private": true,
   "type": "module",
   "description": "A VPU resource map and a theatre cue stack inside an Analog Way LivePremier Web RCS session, served by a local proxy.",
-  "bin": { "livepremier-plus": "server/index.js" },
+  "bin": {
+    "livepremier-plus": "server/index.js"
+  },
   "scripts": {
     "start": "node server/index.js",
     "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js test/proxy.test.js test/expr.test.js",
     "serve": "node tools/serve.mjs",
-    "sync:vpu-model": "node tools/sync-vpu-model.mjs"
+    "sync:vpu-model": "node tools/sync-vpu-model.mjs",
+    "demo": "node tools/demo.mjs"
   }
 }

@@ -59,6 +59,46 @@ in the fleet's usual shape. See [launcher/](launcher/).
 > unauthenticated route to a switcher's entire control surface. `--host 0.0.0.0`
 > hands that to everyone on the network. Do it deliberately, not by habit.
 
+## The demo environment
+
+```bash
+npm run demo
+```
+
+Brings the whole thing up against a **LivePremier Simulator**, with a real
+Aquilon C's resource map folded in and an example cue stack already loaded, so
+every panel has something real to show without a switcher in the room. It
+prints a short list of things worth trying and the URL to open.
+
+It needs a simulator running, and that is not a shortcut — the panels mount
+into Web RCS's own sidebar, are drawn with its own utility classes and ride its
+own socket, so a demo that stubbed all of that would be a demo of something
+that is not the product. The simulator is Analog Way's, runs locally, and is
+the honest way to have the genuine vendor UI with no device and no vendor asset
+copied into this repo.
+
+What the simulator cannot provide is a **VPU** — it has no `vpuMixerList` at
+all, so the panel against a bare one correctly reports there is nothing to
+draw. `tools/demo/seed.js` supplies that from the recorded capture: 32 of 64
+mixers fitted, 26 allocated, S1 in Optimized mode, and a staged preconfig
+differing from the running one in 26 mixers. Everything outside
+`preconfig/resources` stays the simulator's own live state, so cues fired from
+the timeline really do go on the wire.
+
+It **refuses to run against anything that is not loopback.** The demo splices a
+store subtree and seeds a cue stack, and "I thought it was the simulator" is
+exactly the mistake worth making impossible. To drive a real switcher, use
+`npm start -- --device <address>`.
+
+If the simulator is on another port:
+
+```bash
+LPP_DEMO_DEVICE=127.0.0.1:3001 npm run demo
+```
+
+The demo's cue stack lives in a temporary directory and is deleted on exit —
+`~/.livepremier-plus` is never touched.
+
 ## Arithmetic in numeric fields
 
 Type an expression into any of Web RCS's own numeric fields and it is evaluated
@@ -248,7 +288,7 @@ or claiming the firmware is unsupported.
 npm test
 ```
 
-74 tests, no network and no browser.
+77 tests, no network and no browser.
 
 Twenty cover the expression evaluator, weighted towards what it must **refuse**
 — `1/0`, `2+`, `1920x1080`, `00:01.000`, and anything resembling code — because

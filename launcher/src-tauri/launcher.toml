@@ -5,11 +5,15 @@
 # runtime and a straight copy of the repo's server/ and src/ trees. Nothing is
 # compiled, nothing is installed. {resource} = the .app resource dir.
 #
-# Note what is NOT injected here: the switcher. Every other launcher in the
-# fleet only has to choose an interface and a port, and this one keeps that
-# contract — the target device is chosen in the browser, on the app's own setup
-# page, and remembered between runs. That is deliberate: an operator re-points
-# at a backup frame far more often than they restart the launcher.
+# The switcher can be named here OR left blank. Blank is the normal case: the
+# app's own setup page asks for it in the browser and remembers it, which is
+# what lets an operator re-point at a backup frame without restarting anything
+# — and works from a browser on a different machine, which a launcher field
+# cannot. The field is here for the fixed-install case where the box never
+# changes and nobody should be asked twice.
+#
+# An empty field injects an empty LPP_DEVICE, which the server treats as unset
+# and falls through to the remembered device. So blank is safe, not broken.
 
 [app]
 name = "LivePremier Plus"
@@ -25,6 +29,14 @@ mode = "env"
 [inject.env]
 LPP_PORT = "{port}"
 LPP_HOST = "{host}"
+LPP_DEVICE = "{device}"
+
+# Optional. Blank means "ask in the browser and remember it" — see above.
+[[field]]
+key = "device"
+label = "Switcher (optional)"
+type = "text"
+placeholder = "192.168.2.142"
 
 # Palette mirrored from the app's own setup page.
 [app.theme]

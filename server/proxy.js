@@ -76,10 +76,17 @@ export function splitDevice(device, fallbackPort = 80) {
  * which is deferred by definition and lands after the vendor bundle — exactly
  * where we want it, since it needs the app's DOM.
  */
-export function buildInjection(hookSource) {
+export function buildInjection(hookSource, extraModules = []) {
+  const extra = extraModules
+    .map((src) => `\n<script type="module" src="${src}" data-lpp="extra"></script>`)
+    .join('');
   return (
     `\n<script data-lpp="hook">\n${hookSource}\n</script>` +
-    `\n<script type="module" src="${NS}/src/main.js" data-lpp="panels"></script>\n`
+    `\n<script type="module" src="${NS}/src/main.js" data-lpp="panels"></script>` +
+    /* After the panels, so anything extra can rely on window.__WRU existing —
+       modules execute in document order. Used by the demo environment to fold
+       a recorded capture into a live store; empty in normal use. */
+    `${extra}\n`
   );
 }
 
@@ -101,9 +108,14 @@ function decode(buf, encoding) {
  * @param {number} [opts.devicePort]  default port when `device` carries none
  * @param {string} opts.root          repo root, where src/ is served from
  * @param {object} [opts.storage]     {load(), save(data)} for cue stacks
+ * @param {string[]} [opts.extraModules]  extra module URLs to inject after the panels
+ * @param {Record<string,string>} [opts.extraFiles]  NS-relative path -> file on disk
  * @param {(msg:string)=>void} [opts.log]
  */
-export async function createProxy({ device = null, devicePort = 80, root, storage = null, log = () => {} }) {
+export async function createProxy({
+  device = null, devicePort = 80, root, storage = null,
+  extraModules = [], extraFiles = {}, log = () => {}
+}) {
   /*
    * The switcher is chosen at runtime, not baked in at startup.
    *
@@ -124,7 +136,7 @@ export async function createProxy({ device = null, devicePort = 80, root, storag
      than a string in here means the tests and any future front-end load the
      same bytes the browser gets. */
   const hookSource = await readFile(join(root, 'src/hook/ws-hook.js'), 'utf8');
-  const injection = buildInjection(hookSource);
+  const injection = buildInjection(hookSource, extraModules);
 
   /* Shown until a switcher is chosen. Self-contained on purpose: at this
      point there is no device to borrow a stylesheet from. */
@@ -188,6 +200,24 @@ export async function createProxy({ device = null, devicePort = 80, root, storag
         return sendJson(res, 200, { ok: true });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
+    }
+
+    /* Anything a caller registered explicitly, by exact path. Nothing here is
+       derived from the request, so there is no traversal surface — the demo
+       environment uses it to serve a capture and its seed script. */
+    if (Object.prototype.hasOwnProperty.call(extraFiles, rest)) {
+      try {
+        const body = await readFile(extraFiles[rest]);
+        res.writeHead(200, {
+          'content-type': TYPES[extname(extraFiles[rest])] || 'application/octet-stream',
+          'cache-control': 'no-store'
+        });
+        return res.end(body);
+      } catch (err) {
+        log(`extra file ${rest}: ${err.message}`);
+        res.writeHead(404, { 'content-type': 'text/plain' });
+        return res.end('not found');
+      }
     }
 
     /* Our own module tree. Path traversal is stripped before it touches the
