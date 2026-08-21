@@ -152,13 +152,17 @@ export function readSide(store, which = 'current') {
   const screenStatus = readScreenStatus(store, { which });
   const devices = info.devices.map((key) => {
     const mixers = readMixers(store, { which, device: key });
+    // Optimized mode decides whether a layer's bar may cross the centre line, so
+    // the grid has to know it before it lays anything out (§5.5.6) — work it out
+    // first and hand it in, rather than only using it to style the boundary.
+    const optimized = optimizedVpus(mixers, screenStatus);
     return {
       key,
       role: key === '1' ? 'Master' : 'Follower ' + key,
       mixers,
       summary: summarise(mixers),
-      grids: buildLinkGrid(mixers),
-      optimized: optimizedVpus(mixers, screenStatus)
+      grids: buildLinkGrid(mixers, optimized),
+      optimized
     };
   });
   return { which, devices, screenStatus, fitted: info.fitted };

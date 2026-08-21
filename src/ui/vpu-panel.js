@@ -32,6 +32,8 @@ const CELL = 26;
 const FIELD = LINKS_PER_VPU * CELL;
 const PAD_L = 30;
 const PAD_T = 20;
+const HEAD = 13;      // the screen bar over the output links
+const BAND_GAP = 10;  // between the field and the native-layer band
 
 function s(tag, attrs = {}, ...children) {
   const el = document.createElementNS(SVG_NS, tag);
@@ -175,7 +177,7 @@ export function createVpuPanel({ session, onRefresh }) {
           class: 'aw-font-body-2 aw-text-tertiary',
           text: drawn[0].placement === 'derived'
             ? 'columns derived — this capture reports no output links'
-            : 'columns as the device reports them'
+            : 'a row is one layer link, carrying one layer; columns are each screen’s own output links'
         })),
       h('div', { class: 'aw-flex-row aw-flex-wrap aw-gap-col-large aw-gap-row-large' },
         ...drawn.map((g) => vpuBlock(g, device, changed))));
@@ -187,7 +189,12 @@ export function createVpuPanel({ session, onRefresh }) {
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium aw-margin-bottom-small' },
         h('div', { class: 'aw-font-body-1-bold', text: 'VPU ' + grid.vpu }),
         grid.fitted
-          ? h('span', { class: 'wru-tag', text: grid.blocks.length + ' blocks, ' + grid.spare + ' spare' })
+          ? h('span', {
+              class: 'wru-tag',
+              text: grid.rowsUsed + '/' + LINKS_PER_VPU + ' layer links' +
+                (grid.backgroundRows ? ', ' + grid.backgroundRows + ' native' : '') +
+                (grid.spare ? ', ' + grid.spare + ' spare' : '')
+            })
           : h('span', { class: 'wru-tag', text: 'not fitted' }),
         optimized ? h('span', { class: 'wru-tag wru-tag--good', text: 'optimized' }) : null,
         grid.overflow ? h('span', { class: 'wru-tag wru-warn', text: 'overflows 8 links' }) : null),
@@ -195,10 +202,22 @@ export function createVpuPanel({ session, onRefresh }) {
   }
 
   function vpuSvg(grid, optimized, device, changed) {
+    /* Native layers spend output capacity but not layer capacity, so they are laid
+       out in a band under the eight links rather than inside them, and the screen
+       bar over the top says which output links belong to which screen. */
+    const bandRows = grid.backgroundRows || 0;
+    const screens = grid.screens || [];
+    const head = screens.length ? HEAD + 3 : 0;
+    const bandTop = head + PAD_T + FIELD + (bandRows ? BAND_GAP : 0);
+    const bandH = bandRows * CELL;
+
     const W = PAD_L + FIELD + 12;
-    const H = PAD_T + FIELD + PAD_T;
+    const H = bandTop + bandH + PAD_T;
     const x0 = PAD_L;
-    const y0 = PAD_T;
+    const y0 = head + PAD_T;
+    const yOf = (row) =>
+      row >= LINKS_PER_VPU ? bandTop + (row - LINKS_PER_VPU) * CELL : y0 + row * CELL;
+
     const root = s('svg', {
       class: 'wru-vpu-svg' + (grid.fitted ? '' : ' wru-vpu-svg--unfitted'),
       viewBox: `0 0 ${W} ${H}`,
@@ -206,23 +225,51 @@ export function createVpuPanel({ session, onRefresh }) {
       'aria-label': `VPU ${grid.vpu}, ${grid.blocks.length} layer blocks`
     });
 
+    /* A screen owns a contiguous run of output links (manual 5.5.4), and all of
+       its layers start at the same one. Without this bar the columns are unreadable. */
+    for (const sc of screens) {
+      const sx = x0 + sc.col * CELL;
+      const sw = sc.width * CELL;
+      const g = s('g', { class: 'wru-screen-bar', style: `color:${screenColour(sc.screen)}` });
+      g.append(s('title', {}, `${sc.screen} · output link${sc.width === 1 ? '' : 's'} 1-${sc.width}`));
+      g.append(s('rect', { x: sx + 1, y: 2, width: sw - 2, height: HEAD, rx: 2 }));
+      g.append(s('text', { x: sx + sw / 2, y: 2 + HEAD - 3 }, String(sc.screen)));
+      root.append(g);
+    }
+
     root.append(s('rect', { class: 'wru-field', x: x0, y: y0, width: FIELD, height: FIELD, rx: 2 }));
+    if (bandRows) {
+      root.append(
+        s('rect', { class: 'wru-field wru-band', x: x0, y: bandTop, width: FIELD, height: bandH, rx: 2 }),
+        s('text', { class: 'wru-band-label', x: x0 - 4, y: bandTop + bandH / 2 + 3 }, 'bg'));
+    }
 
     for (let i = 1; i < LINKS_PER_VPU; i++) {
       root.append(
         s('line', { class: 'wru-lattice', x1: x0 + i * CELL, y1: y0, x2: x0 + i * CELL, y2: y0 + FIELD }),
         s('line', { class: 'wru-lattice', x1: x0, y1: y0 + i * CELL, x2: x0 + FIELD, y2: y0 + i * CELL }));
+      if (bandRows) {
+        root.append(s('line', {
+          class: 'wru-lattice', x1: x0 + i * CELL, y1: bandTop, x2: x0 + i * CELL, y2: bandTop + bandH }));
+      }
+    }
+    for (let i = 1; i < bandRows; i++) {
+      root.append(s('line', {
+        class: 'wru-lattice', x1: x0, y1: bandTop + i * CELL, x2: x0 + FIELD, y2: bandTop + i * CELL }));
     }
 
     /* Layer links in from the left, output links out top and bottom — the
-       manual's own orientation, and the reason the grid reads as a VPU. */
+       manual's own orientation, and the reason the grid reads as a VPU. There are
+       eight layer links and they belong to the field, not to the band. */
     for (let i = 0; i < LINKS_PER_VPU; i++) {
       const cy = y0 + i * CELL + CELL / 2;
       root.append(s('line', { class: 'wru-link-in', x1: x0 - 22, y1: cy, x2: x0 - 4, y2: cy }));
       const cx = x0 + i * CELL + CELL / 2;
       root.append(
         s('line', { class: 'wru-link-out', x1: cx, y1: y0 - 13, x2: cx, y2: y0 - 3 }),
-        s('line', { class: 'wru-link-out', x1: cx, y1: y0 + FIELD + 3, x2: cx, y2: y0 + FIELD + 13 }),
+        s('line', {
+          class: 'wru-link-out',
+          x1: cx, y1: bandTop + bandH + 3, x2: cx, y2: bandTop + bandH + 13 }),
         s('text', { class: 'wru-link-no', x: cx, y: y0 - 16 }, String(i + 1)));
     }
 
@@ -230,51 +277,91 @@ export function createVpuPanel({ session, onRefresh }) {
       const colour = screenColour(b.screen);
       const cols = b.cols && b.cols.length ? b.cols : [b.col || 0];
       const span = b.size || 1;
-      const by = y0 + b.row * CELL;
-      const bh = span * CELL;
-      const isNative = b.layer === 'NATIVE';
-      const isChanged = changed.has(device.key + '/' + b.mixer);
+      const rows = b.height || span;
+      const by = yOf(b.row);
+      const bh = rows * CELL;
+      const isNative = b.background || b.layer === 'NATIVE';
+      const mixers = b.mixers || [b.mixer];
+      const slices = b.slices || [b.slice];
+      const isChanged = mixers.some((m) => changed.has(device.key + '/' + m));
+
+      const first = cols[0];
+      const last = cols[cols.length - 1];
+      const bx = x0 + first * CELL;
+      const bw = (last - first + span) * CELL;
 
       const g = s('g', { class: 'wru-blk', style: `color:${colour}` });
       g.append(s('title', {},
-        `${b.mixer}\n${b.screen} · ${layerLabel(b.layer)} · slice ${b.slice}` +
+        `${mixers.join(', ')}\n${b.screen} · ${layerLabel(b.layer)}` +
+        `\nslice${slices.length === 1 ? '' : 's'} ${slices.join(', ')}` +
         `\ncapability ${b.capability}` +
+        (isNative
+          ? '\nnative layer — spends output capacity, not layer capacity'
+          : `\n${rows} layer-capacity link${rows === 1 ? '' : 's'}`) +
         (b.cutnfill && b.cutnfill !== 'OFF' ? `\ncut & fill ${b.cutnfill}` : '') +
-        `\noutput link${cols.length === 1 ? '' : 's'} ${cols.map((c) => c + 1).join(', ')}` +
-        (b.spansBoundary ? '\nspans the scaling-engine boundary' : '') +
+        `\n${b.screen} output link${(b.outputs || cols).length === 1 ? '' : 's'} ` +
+        `${(b.outputs || cols.map((c) => c + 1)).join(', ')}` +
+        (b.wrapped ? '\nwrapped onto another layer link at the centre line' : '') +
         (isChanged ? '\nCHANGED in the staged configuration' : '')));
 
-      /* A mixer driving non-adjacent links is still one allocation; the tie
-         line says so. Drawn first so it passes behind the cells. */
-      if (cols.length > 1) {
-        const a = x0 + cols[0] * CELL + (span * CELL) / 2;
-        const z = x0 + cols[cols.length - 1] * CELL + (span * CELL) / 2;
-        g.append(s('line', { class: 'wru-tie', x1: a, y1: by + bh / 2, x2: z, y2: by + bh / 2 }));
+      /* Adjacent links are one continuous crosspoint; only a gap in what the
+         device reports breaks the block. Nothing gapped survives the model as it
+         stands, but a firmware that reports differently should still draw. */
+      const runs = [];
+      for (const c of cols) {
+        const tail = runs[runs.length - 1];
+        if (tail && c === tail[1] + 1) tail[1] = c;
+        else runs.push([c, c]);
       }
-
-      cols.forEach((c, i) => {
-        const bx = x0 + c * CELL;
-        const bw = span * CELL;
+      if (runs.length > 1) {
+        g.append(s('rect', {
+          class: 'wru-span', x: bx + 1.5, y: by + 1.5, width: bw - 3, height: bh - 3, rx: 2 }));
+      }
+      for (const [from, to] of runs) {
         g.append(s('rect', {
           class: 'wru-cell' + (isNative ? '' : ' wru-cell--layered') + (isChanged ? ' wru-cell--changed' : ''),
-          x: bx + 1.5, y: by + 1.5, width: bw - 3, height: bh - 3, rx: 2
+          x: x0 + from * CELL + 1.5,
+          y: by + 1.5,
+          width: (to - from + span) * CELL - 3,
+          height: bh - 3,
+          rx: 2
         }));
-        if (i === 0) {
-          g.append(s('text', { class: 'wru-cell-label', x: bx + bw / 2, y: by + bh / 2 - 2 }, String(b.screen)));
-          g.append(s('text', { class: 'wru-cell-sub', x: bx + bw / 2, y: by + bh / 2 + 8 }, layerShort(b.layer)));
-        }
-      });
+      }
+
+      if (bh >= 34) {
+        g.append(s('text', { class: 'wru-cell-label', x: bx + CELL / 2, y: by + bh / 2 - 2 }, String(b.screen)));
+        g.append(s('text', { class: 'wru-cell-sub', x: bx + CELL / 2, y: by + bh / 2 + 8 }, layerShort(b.layer)));
+      } else {
+        g.append(s('text', {
+          class: 'wru-cell-label wru-cell-label--sm', x: bx + 4, y: by + bh / 2 + 3
+        }, `${b.screen} ${layerShort(b.layer)}`));
+      }
+      if (slices.length > 1 && bh >= 20) {
+        g.append(s('text', { class: 'wru-cell-sub wru-cell-count', x: bx + bw - 3, y: by + bh - 3 },
+          '×' + slices.length));
+      }
+
+      /* The manual's hook: this piece took another layer link because the layer
+         reached past the centre line (5.5.4). */
+      if (b.wrapped) {
+        const hx = bx - 8;
+        g.append(s('path', {
+          class: 'wru-hook',
+          d: `M${hx},${by - 8} L${hx},${by + bh / 2 - 4} q0,4 4,4 L${bx - 1},${by + bh / 2}`
+        }));
+      }
       root.append(g);
     }
 
-    /* Optimized mode removes the boundary for the whole VPU, so drawing it
-       there would show a constraint the device is not applying. */
-    if (!optimized) {
-      root.append(s('line', {
-        class: 'wru-boundary',
-        x1: x0 + SCALING_ENGINE_BOUNDARY * CELL, y1: y0,
-        x2: x0 + SCALING_ENGINE_BOUNDARY * CELL, y2: y0 + FIELD
-      }));
+    /* The scaling-engine boundary at four output links. Drawn on every VPU: a
+       layer-capacity link cannot cross it, which is why layers reaching both
+       halves are split in two. Optimized mode lifts it for capacity-2 layers
+       only (5.5.6), so there it is drawn quieter rather than hidden. */
+    const bcls = 'wru-boundary' + (optimized ? ' wru-boundary--soft' : '');
+    const bnd = x0 + SCALING_ENGINE_BOUNDARY * CELL;
+    root.append(s('line', { class: bcls, x1: bnd, y1: y0, x2: bnd, y2: y0 + FIELD }));
+    if (bandRows) {
+      root.append(s('line', { class: bcls, x1: bnd, y1: bandTop, x2: bnd, y2: bandTop + bandH }));
     }
     return root;
   }

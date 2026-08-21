@@ -169,7 +169,13 @@ test('the link grid takes its columns from the output links the device reports',
     assert.ok(!g.overflow, `VPU ${g.vpu} must fit in ${LINKS_PER_VPU} link rows`);
     for (const b of g.blocks) {
       assert.ok(b.cols.length > 0, `${b.mixer} must sit on at least one output link`);
-      assert.ok(b.row >= 0 && b.row < LINKS_PER_VPU, `${b.mixer} row in range`);
+      // Natives are laid out in the band below the field, rows LINKS_PER_VPU up.
+      if (b.section === 'background') assert.ok(b.row >= LINKS_PER_VPU, `${b.mixer} in the band`);
+      else assert.ok(b.row >= 0 && b.row < LINKS_PER_VPU, `${b.mixer} row in range`);
+      // The columns the device reports are the screen's own links, contiguous.
+      for (let i = 1; i < b.cols.length; i++) {
+        assert.equal(b.cols[i], b.cols[i - 1] + 1, `${b.mixer} bar is continuous`);
+      }
     }
   }
 });

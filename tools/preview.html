@@ -1,0 +1,119 @@
+<!doctype html>
+<!--
+  The VPU panel, rendered from a recorded capture with no device in front of you.
+
+  There is no Aquilon to point this extension at any more, and it cannot be seen
+  any other way: tools/serve.mjs needs a real Web RCS tab to inject into, and the
+  panel only ever draws what a device store says. So this page builds the store
+  shape out of a capture in test/fixtures and mounts the panel against it.
+
+      npm run serve
+      open http://127.0.0.1:8765/tools/preview.html
+
+  It is a dev harness, not a feature — no MV3 plumbing, no websocket, no cue
+  stack, and the vendor page's own stylesheet is absent so the layout is plainer
+  than the real thing. What it does show truthfully is the link grid, which is
+  the part that is easy to get wrong and impossible to check by reading.
+-->
+<meta charset="utf-8">
+<title>webRCS unleashed — VPU panel preview</title>
+<style>
+  body { margin: 0; background: #08141B; color: #C7CDD1;
+         font-family: OpenSans, Helvetica, Arial, sans-serif; }
+  .bar { display: flex; gap: 1rem; align-items: center; padding: 0.75rem 1rem;
+         border-bottom: 1px solid #2A343B; font-size: 0.85rem; }
+  select { background: #16232B; color: inherit; border: 1px solid #49535B;
+           border-radius: 3px; padding: 0.3rem 0.5rem; font: inherit; }
+  .note { color: #838B91; }
+</style>
+
+<div class="bar">
+  <label>Capture <select id="pick"></select></label>
+  <label>Side <select id="side"><option value="current">current</option><option value="new">new</option></select></label>
+  <span class="note">Recorded captures only — no device is contacted.</span>
+</div>
+<div id="mount"></div>
+
+<script type="module">
+  import { installStyles } from '../src/ui/theme.js';
+  import { createVpuPanel } from '../src/ui/vpu-panel.js';
+  import { DeviceStore } from '../src/core/device-store.js';
+
+  const CAPTURES = [
+    ['aquilon-c-6output-5k.json', 'Six-output screen + a 5K layer'],
+    ['aquilon-c-live-resources.json', 'Live resources capture'],
+  ];
+
+  installStyles(document);
+
+  /*
+   * The device store the panel reads, built from a capture's mixer table.
+   * Mirrors test/core.test.js's storeWithMixers — the same shape the vendor page
+   * holds in memory, `pp` for properties and `items` for collections.
+   */
+  function storeFromCapture(capture) {
+    const side = (mixers) => {
+      const items = {};
+      for (const [id, rec] of Object.entries(mixers || {})) {
+        if (!rec.isAvailable) { items[id] = { pp: { isAvailable: false } }; continue; }
+        const { mixerAllocation, scalers, ...pp } = rec;
+        items[id] = { pp: { ...pp, isAvailable: true }, mixerAllocation: { pp: { ...mixerAllocation } } };
+        if (scalers) {
+          items[id].scalerList = {
+            itemKeys: Object.keys(scalers),
+            items: Object.fromEntries(Object.entries(scalers).map(([k, v]) => [k, { pp: { ...v } }])),
+          };
+        }
+      }
+      return {
+        status: { mapping: { deviceList: { itemKeys: ['1'], items: { 1: {
+          vpuMixerList: { itemKeys: Object.keys(mixers || {}), items },
+        } } } } },
+      };
+    };
+
+    const withScreens = (node, status) => {
+      if (!status) return node;
+      node.screenList = {
+        itemKeys: Object.keys(status),
+        items: Object.fromEntries(
+          Object.entries(status).map(([k, v]) => [k, { status: { pp: { ...v } } }])),
+      };
+      return node;
+    };
+
+    // The panel reads through DeviceStore's own accessors, not a plain object, so
+    // hydrate a real one — the same thing test/core.test.js does.
+    const status = capture.screenStatus || {};
+    const store = new DeviceStore();
+    store.hydrate({
+      device: { preconfig: { resources: {
+        current: withScreens(side(capture.current), status.current),
+        new: withScreens(side(capture.new || capture.current), status.new || status.current),
+      } } },
+    });
+    return store;
+  }
+
+  const pick = document.getElementById('pick');
+  const sideSel = document.getElementById('side');
+  const mount = document.getElementById('mount');
+  pick.replaceChildren(...CAPTURES.map(([file, label]) =>
+    Object.assign(document.createElement('option'), { value: file, textContent: label })));
+
+  async function show() {
+    const res = await fetch(`../test/fixtures/${pick.value}`);
+    const capture = await res.json();
+    const store = storeFromCapture(capture);
+    // createVpuPanel returns { render, view } — `view` is the panel's own state,
+    // which is how the real shell drives it too.
+    const panel = createVpuPanel({ session: { store }, onRefresh: () => paint() });
+    panel.view.which = sideSel.value;
+    const paint = () => mount.replaceChildren(panel.render());
+    paint();
+  }
+
+  pick.addEventListener('change', show);
+  sideSel.addEventListener('change', show);
+  show();
+</script>

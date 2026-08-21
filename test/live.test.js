@@ -138,8 +138,20 @@ test('the link grid places every live mixer inside the 8x8 field', () => {
     assert.ok(!g.overflow, `VPU ${g.vpu} fits in eight link rows`);
     for (const b of g.blocks) {
       assert.ok(b.cols.length > 0, `${b.mixer} sits on at least one output link`);
-      assert.ok(b.row >= 0 && b.row < 8, `${b.mixer} row ${b.row} is on the field`);
       assert.ok(b.cols.every((c) => c >= 0 && c < 8), `${b.mixer} columns are on the field`);
+      // A native layer spends output capacity but not layer capacity, so it is
+      // laid out in the band below the eight links — rows 8 and up, deliberately.
+      if (b.section === 'background') assert.ok(b.row >= 8, `${b.mixer} is in the band`);
+      else assert.ok(b.row >= 0 && b.row < 8, `${b.mixer} row ${b.row} is on the field`);
+    }
+    // No two layers on one layer link, which is the rule the grid exists to show.
+    const owner = new Map();
+    for (const b of g.blocks) {
+      for (let r = b.row; r < b.row + (b.height || 1); r++) {
+        const who = `${b.screen} ${b.layer}`;
+        assert.ok(!owner.has(r) || owner.get(r) === who, `VPU ${g.vpu} link ${r} is shared`);
+        owner.set(r, who);
+      }
     }
   }
 });

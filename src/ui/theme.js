@@ -61,6 +61,20 @@ const CSS = `
 .wru-vpu-svg--unfitted { opacity: 0.3; }
 
 .wru-field { fill: rgba(0,0,0,0.3); stroke: #49535B; stroke-width: 1; }
+/* The native layers, laid out below the eight layer-capacity links because they
+   spend output capacity and not layer capacity. */
+.wru-band { stroke-dasharray: 4 3; stroke-opacity: 0.75; }
+.wru-band-label {
+  fill: #838B91; font-size: 7px; text-anchor: end; fill-opacity: 0.8;
+  font-family: OpenSans, Helvetica, sans-serif;
+}
+/* Which output links belong to which screen: a screen owns a contiguous run of
+   them, and all of its layers start at the same one. */
+.wru-screen-bar rect { fill: currentColor; fill-opacity: 0.5; stroke: currentColor; stroke-width: 1.2; }
+.wru-screen-bar text {
+  fill: #08141B; font-size: 8px; font-weight: 700; text-anchor: middle;
+  font-family: OpenSans, Helvetica, sans-serif; pointer-events: none;
+}
 .wru-lattice { stroke: rgba(255,255,255,0.08); stroke-width: 1; }
 .wru-link-in { stroke: #616D75; stroke-width: 1.5; }
 .wru-link-out { stroke: #616D75; stroke-width: 1.5; }
@@ -76,6 +90,12 @@ const CSS = `
 .wru-cell--layered { fill-opacity: 0.28; stroke-dasharray: 3 2; }
 .wru-cell--changed { stroke: #F39910; stroke-width: 2; }
 .wru-tie { stroke: currentColor; stroke-width: 2; stroke-opacity: 0.5; }
+/* Only drawn when a layer's links are reported in pieces: the block itself is
+   continuous across adjacent links. */
+.wru-span { fill: none; stroke: currentColor; stroke-width: 1.2; stroke-dasharray: 3 2; stroke-opacity: 0.8; }
+/* The manual's wrap hook — this piece took another layer link because the layer
+   reached past the centre line (5.5.4). */
+.wru-hook { fill: none; stroke: #F39910; stroke-width: 1.5; }
 .wru-cell-label {
   fill: #08141B; font-size: 9px; font-weight: 700; text-anchor: middle;
   font-family: OpenSans, Helvetica, sans-serif; pointer-events: none;
@@ -84,9 +104,17 @@ const CSS = `
   fill: #08141B; font-size: 7px; text-anchor: middle; fill-opacity: 0.75;
   font-family: OpenSans, Helvetica, sans-serif; pointer-events: none;
 }
-/* The scaling-engine boundary at four output links. Not drawn on a VPU in
-   Optimized mode, which removes it. */
+/* A one-link-tall block has no room for two lines, and four bars all reading
+   the screen name would say nothing. */
+.wru-cell-label--sm { font-size: 7px; text-anchor: start; }
+/* Several slices ride one layer's links; the count says how many. */
+.wru-cell-count { text-anchor: end; }
+/* The scaling-engine boundary at four output links. Drawn on every VPU — a
+   layer-capacity link cannot cross it, which is why a layer reaching both halves
+   is split in two. Optimized mode lifts it for capacity-2 layers only (5.5.6),
+   so there it is drawn quieter rather than hidden. */
 .wru-boundary { stroke: #F64747; stroke-width: 1.5; stroke-dasharray: 4 3; stroke-opacity: 0.85; }
+.wru-boundary--soft { stroke-opacity: 0.3; }
 
 .wru-legend { display: flex; flex-wrap: wrap; gap: 0.666667rem; align-items: center; }
 .wru-swatch { width: 0.833333rem; height: 0.833333rem; border-radius: 0.166667rem; display: inline-block; }
