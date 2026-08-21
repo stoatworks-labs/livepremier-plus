@@ -38,6 +38,8 @@ to install in the browser.
 
 ## Running it
 
+Needs **Node 20 or newer** and has no dependencies to install.
+
 ```bash
 npm start
 ```

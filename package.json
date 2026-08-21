@@ -15,5 +15,8 @@
     "demo": "node tools/demo.mjs",
     "sync:mynah-lang": "node tools/sync-mynah-lang.mjs",
     "sync:surface-core": "node tools/sync-surface-core.mjs"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
