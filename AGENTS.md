@@ -308,10 +308,10 @@ decision, not an oversight — see the note in the project memory. Its
 integer-thousandths cue numbering is worth adopting here if cue numbers ever
 become keys rather than labels.
 
-Reverse-engineering notes, the bundle-extraction recipe and the raw device
-captures live in the private `webrcs-unleashed-research` repo, not here. That
-repo kept its name through the 0.2.0 rename — it is a research log, and
-rewriting its history to match a product name would cost more than it is worth.
+Derivation notes and the raw device captures live in a separate private
+research repo, not here, and that separation is deliberate now that this one is
+public. Keep it: nothing describing how the device model was arrived at belongs
+in this repository.
 
 `launcher/` is the fleet's standard Tauri shell (see `~/projects/tooling/av-launcher`),
 retargeted via `src-tauri/launcher.toml` alone. No Rust was changed and none

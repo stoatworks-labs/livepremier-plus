@@ -4,8 +4,8 @@
     {
       "name": "livepremier-plus",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["server/index.js", "--port", "8534"],
-      "port": 8534
+      "runtimeArgs": ["server/index.js", "--port", "8535"],
+      "port": 8535
     },
     {
       "name": "panel-bench",

@@ -41,7 +41,7 @@ if (args.help || args.h) {
 
   --device <host[:port]>   the switcher. Optional — if omitted, the page asks,
                            and the last one used is remembered.
-  --port <n>               local port to listen on   (default 8534)
+  --port <n>               local port to listen on   (default 8535)
   --host <addr>            local address to bind      (default 127.0.0.1)
   --data <dir>             where cue stacks are kept  (default ~/.livepremier-plus)
 
@@ -49,7 +49,7 @@ Then open http://<host>:<port>/ in any browser.`);
   process.exit(0);
 }
 
-const port = Number(args.port || process.env.LPP_PORT || 8534);
+const port = Number(args.port || process.env.LPP_PORT || 8535);
 /*
  * Loopback by default. This proxy is an unauthenticated route to a switcher's
  * full control surface, so binding it to every interface is a decision the

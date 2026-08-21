@@ -39,7 +39,7 @@ import { createProxy, NS, splitDevice } from '../server/proxy.js';
 import { StackStore } from '../server/storage.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const PORT = Number(process.env.LPP_DEMO_PORT || 8534);
+const PORT = Number(process.env.LPP_DEMO_PORT || 8535);
 
 /* Where a simulator usually is. The vendor's own default is 3000; the rest are
    here because people move it. */

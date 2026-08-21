@@ -1,3 +1,5 @@
+> Built with AI assistance ([Claude Code](https://claude.com/claude-code)).
+
 # LivePremier Plus
 
 A local app that puts two things inside an Analog Way **LivePremier** Web RCS
@@ -40,7 +42,7 @@ to install in the browser.
 npm start
 ```
 
-Then open `http://127.0.0.1:8534/` and give it the switcher's address. That
+Then open `http://127.0.0.1:8535/` and give it the switcher's address. That
 address is remembered, so subsequent runs go straight to the Web RCS.
 
 You can also name the device up front, which skips the setup page:
@@ -52,7 +54,7 @@ npm start -- --device 192.168.2.142
 | flag | meaning |
 | --- | --- |
 | `--device <host[:port]>` | the switcher. Port defaults to 80 (a simulator is usually `:3000`). |
-| `--port <n>` | local port to listen on (default 8534) |
+| `--port <n>` | local port to listen on (default 8535) |
 | `--host <addr>` | local address to bind (default `127.0.0.1`) |
 | `--data <dir>` | where cue stacks are kept (default `~/.livepremier-plus`) |
 
@@ -86,9 +88,8 @@ own `npm run build:lang` output — the same artefact its Companion module
 vendors. If a command means the wrong thing, the fix is in mynah.
 
 That is worth more than tidiness. Mynah's compiler and this repo's `CMD`
-builder were derived independently — one from the Web RCS bundle, one from live
-captures — and they emit **byte-identical** store paths for the commands both
-know. Two independent derivations agreeing is the strongest evidence either is
+builder were arrived at independently — and they emit **byte-identical** store
+paths for the commands both know. Two independent derivations agreeing is the strongest evidence either is
 right, and it stays true only while nobody re-types the grammar here. A test
 pins it.
 
@@ -255,7 +256,7 @@ GET /                    the device's own index.html, plus:
   <script type="module" src="/__lpp/src/main.js">
 GET /styles/app.<hash>.css         proxied, untouched
 GET /api/stores/device             proxied, streamed — it is over 100 MB
-ws://localhost:8534                relayed byte-for-byte to the device
+ws://localhost:8535                relayed byte-for-byte to the device
 ```
 
 Three properties of that arrangement are load-bearing:

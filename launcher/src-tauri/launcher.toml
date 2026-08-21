@@ -20,7 +20,7 @@ name = "LivePremier Plus"
 command = "{resource}/node"
 args = ["{resource}/livepremier-plus-app/server/index.js"]
 url = "http://{host}:{port}/"
-default_port = 8534
+default_port = 8535
 # cwd omitted -> runs from the writable app-config dir.
 
 [inject]
