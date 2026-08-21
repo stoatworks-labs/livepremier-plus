@@ -1,0 +1,10 @@
+.git
+.github
+.claude
+launcher
+test
+tools
+docs
+node_modules
+*.md
+!package.json

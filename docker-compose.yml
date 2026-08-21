@@ -1,0 +1,17 @@
+services:
+  livepremier-plus:
+    build: .
+    image: ghcr.io/stoatworks-labs/livepremier-plus:latest
+    container_name: livepremier-plus
+    restart: unless-stopped
+    ports:
+      - "8535:8535"
+    volumes:
+      # Cue stacks and the remembered switcher address.
+      - ./config:/config
+    environment:
+      # Optional. Leave unset and the page asks for a switcher, then remembers
+      # it in the volume above.
+      # LPP_DEVICE: "192.168.2.142"
+      LPP_HOST: "0.0.0.0"
+      LPP_PORT: "8535"

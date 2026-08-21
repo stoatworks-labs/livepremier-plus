@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['18', '22']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      # No dependencies and no build step, so there is nothing to install.
+      - name: test
+        run: npm test
+
+  docker:
+    # There is no container runtime on the machine this was written on, so this
+    # build is the only proof the Dockerfile is valid. Build only — publishing
+    # is docker.yml's job.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: build image
+        run: docker build -t livepremier-plus:ci .
+      - name: it starts and answers /__lpp/status
+        run: |
+          docker run -d --name lpp -p 8535:8535 livepremier-plus:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8535/__lpp/status; then echo; exit 0; fi
+            sleep 1
+          done
+          echo "did not become healthy"; docker logs lpp; exit 1
+
+      # With no switcher configured every path serves the setup page. That is
+      # the first thing a new user sees, so it is worth proving it renders.
+      - name: it serves the setup page when unconfigured
+        run: |
+          curl -fsS http://127.0.0.1:8535/ | grep -q 'Switcher address' \
+            || { echo "setup page missing"; docker logs lpp; exit 1; }
