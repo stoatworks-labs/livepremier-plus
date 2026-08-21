@@ -101,11 +101,11 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: cd launcher && npm run tauri build -- --target ${{ matrix.tauri_target }}
+        run: cd launcher && npm run tauri build -- --bundles app --target ${{ matrix.tauri_target }}
 
       - name: Build desktop bundle (unsigned macOS)
         if: startsWith(matrix.os, 'macos') && steps.cfg.outputs.signing != 'true'
-        run: cd launcher && npm run tauri build -- --target ${{ matrix.tauri_target }}
+        run: cd launcher && npm run tauri build -- --bundles app --target ${{ matrix.tauri_target }}
 
       - name: Build desktop bundle (Windows)
         if: startsWith(matrix.os, 'windows')
@@ -139,6 +139,10 @@ jobs:
             rl_adhoc_sign "$stage/$app"
           fi
           rl_pkg "${{ matrix.name }}" "$stage" --app "$app"
+          # Tauri's own dmg bundler is skipped above (its Finder/AppleScript step
+          # fails on the cross-compiled x86_64 bundle), so the .dmg comes from the
+          # same helper and the same staged .app as the .pkg.
+          rl_dmg "${{ matrix.name }}" "$stage" --app "$app"
 
       - name: Collect installers
         shell: bash
