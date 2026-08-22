@@ -73,6 +73,14 @@ in the fleet's usual shape. See [launcher/](launcher/).
 Nothing below this line is hand-written: `gen-downloads.py` owns everything
 between the markers and rewrites it wholesale at each release.
 
+> **There is also a preview build.**
+> [**v0.4.0-preview.1**](https://github.com/stoatworks-labs/livepremier-plus/releases/tag/v0.4.0-preview.1)
+> adds Midra 4K / Alta 4K detection, audio patching on the command line,
+> timecode input with a cue chase, and two pop-out windows — a console and a
+> QLab-style cue editor. It is marked as a pre-release on GitHub, so it stays
+> out of "Latest release" and the table below keeps pointing at the stable
+> version. Try it on a rehearsal, not on a show.
+
 <!-- downloads:start -->
 
 ## Download
