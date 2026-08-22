@@ -25,6 +25,7 @@ import {
   summarise, parseMixerId, MIXER_PROPS, LINKS_PER_VPU
 } from '../src/core/vpu.js';
 import { CueStack, ACTION_KINDS, toTenths, SETTLE_MS } from '../src/core/cuestack.js';
+import { readIdentity, describe } from '../src/core/identity.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));
@@ -370,3 +371,69 @@ test('a send that never left the browser is reported, not swallowed', () => {
   assert.equal(failures.length, 1);
 });
 
+
+/* ------------------------------------------------------------------ *
+ * Device identity.
+ *
+ * The fixture is the simulator's own `system/deviceList`, trimmed to the
+ * fields this reads. It is worth having as a fixture rather than a literal
+ * because of the shape it proves: the list is four slots long on a
+ * single-frame box, and the three empty ones are filled with a placeholder
+ * rather than left out.
+ * ------------------------------------------------------------------ */
+
+const identityStore = () => {
+  const store = new DeviceStore();
+  store.hydrate(fixture('sim-6.2.73-identity.json'));
+  return store;
+};
+
+test('identity is read off the device, model code and all', () => {
+  const id = readIdentity(identityStore());
+  assert.equal(id.present, true);
+  assert.equal(id.primary.model, 'NLC_CMAX');
+  assert.equal(id.primary.family, 'AQUILON');
+  assert.equal(id.primary.firmware, '6.2.73');
+  assert.equal(id.primary.chassis, '6U');
+  assert.equal(id.primary.serial, 'ZZ9999');
+  assert.equal(id.primary.platformId, 1280);
+});
+
+test('a simulator says so, and that is what excuses the missing VPU', () => {
+  assert.equal(readIdentity(identityStore()).primary.simulated, true);
+});
+
+/* The whole reason `linked` exists: four slots, one frame. Reporting the slot
+   count as a frame count would tell an operator they have a linked system. */
+test('empty device slots are not counted as linked frames', () => {
+  const id = readIdentity(identityStore());
+  assert.equal(id.frames.length, 4);
+  assert.equal(id.linked.length, 1);
+  assert.equal(id.linked[0].key, '1');
+  assert.deepEqual(id.frames.slice(1).map((f) => f.populated), [false, false, false]);
+});
+
+test('nothing is invented when the store has no identity block', () => {
+  const store = new DeviceStore();
+  store.hydrate({ device: {} });
+  const id = readIdentity(store);
+  assert.equal(id.present, false);
+  assert.equal(id.primary, null);
+  assert.deepEqual(id.linked, []);
+});
+
+/* An unknown model must read as unknown, not as a default. Gating a command
+   on a guess is how a switcher gets sent something it cannot do. */
+test('an unrecognised model is reported as absent rather than guessed at', () => {
+  const store = new DeviceStore();
+  store.hydrate({ device: { system: { deviceList: { itemKeys: ['1'], items: { 1: { pp: {} } } } } } });
+  const id = readIdentity(store);
+  assert.equal(id.present, true);
+  assert.equal(id.primary.model, null);
+  assert.equal(id.primary.family, null);
+  assert.equal(describe(id.primary), 'unrecognised model');
+});
+
+test('a device is described by family and model together', () => {
+  assert.equal(describe(readIdentity(identityStore()).primary), 'AQUILON NLC_CMAX (simulator)');
+});

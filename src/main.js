@@ -22,6 +22,7 @@ import { installMathFields } from './ui/math-fields.js';
 import { TabHost, watchVendorTabs } from './ui/tabs.js';
 import { createConsolePanel } from './ui/console-panel.js';
 import { createMidiPanel } from './ui/midi-panel.js';
+import { createSettingsPanel } from './ui/settings-panel.js';
 
 const TAG = '[LivePremier Plus]';
 
@@ -115,6 +116,7 @@ async function boot() {
   const timeline = createTimelinePanel({ session, stack, storage, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
   const midi = createMidiPanel({ session, onRefresh: refresh });
+  const settings = createSettingsPanel({ session, onRefresh: refresh });
 
   /*
    * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
@@ -136,7 +138,10 @@ async function boot() {
       { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', render: () => vpu.render() },
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
-      { id: 'midi', label: 'MIDI Mapping', icon: 'gpio-18', after: 'Virtual RC400T', render: () => midi.render() }
+      { id: 'midi', label: 'MIDI Mapping', icon: 'gpio-18', after: 'Virtual RC400T', render: () => midi.render() },
+      /* Nor is this one: settings for the installation go where the device's
+         own installation settings are, inside the Preconfig flyout. */
+      { id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig', render: () => settings.render() }
     ]
   });
 

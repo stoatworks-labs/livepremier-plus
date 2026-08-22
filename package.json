@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js test/proxy.test.js test/expr.test.js test/tabs.test.js",
+    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js test/proxy.test.js test/expr.test.js test/tabs.test.js test/shell.test.js",
     "serve": "node tools/serve.mjs",
     "sync:vpu-model": "node tools/sync-vpu-model.mjs",
     "demo": "node tools/demo.mjs",

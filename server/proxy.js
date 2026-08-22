@@ -142,7 +142,17 @@ export async function createProxy({
      point there is no device to borrow a stylesheet from. */
   const setupPage = await readFile(join(root, 'server/setup.html'), 'utf8');
 
-  const state = { device: target ? `${target.host}:${target.port}` : null, clients: 0, upstreamError: null };
+  /*
+   * Our own version, read off the manifest rather than duplicated in a
+   * constant — the settings page prints it, and a number that has to be kept
+   * in step by hand is a number that will eventually be wrong. A build that
+   * cannot read it says so instead of inventing one.
+   */
+  let version = null;
+  try { version = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')).version || null; }
+  catch { version = null; }
+
+  const state = { device: target ? `${target.host}:${target.port}` : null, clients: 0, upstreamError: null, version };
 
   /*
    * Every socket pair we have relayed.

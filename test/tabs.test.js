@@ -224,3 +224,58 @@ test('a page with no tab strip is simply left alone', async () => {
     assert.equal(host.active, null);
   });
 });
+
+/*
+ * Preconfig heads its page with a strip built from the same Semantic UI
+ * classes as the per-screen tab strip, and it comes first in the document.
+ * The difference is what the anchors are: icon links to other routes, not
+ * tabs over a pane. Ours belong on the pane switcher and nowhere else — this
+ * shipped wrong, putting the words "Console" and "Timeline" in a row of
+ * glyphs on a page they have nothing to do with.
+ */
+function withNavStrip(stub) {
+  const { doc, El, container } = stub;
+  const nav = new El('div');
+  nav.className = 'ui tabular aw-gap-col-mini aw-margin-horizontal-huge floating center menu';
+  for (const href of ['/preconfig/system', '/preconfig/multiviewers']) {
+    const a = new El('a');
+    a.className = 'icon item aw-padding-none';
+    a.setAttribute('href', href);
+    const i = new El('i'); i.className = 'icon large aw-block-big';
+    a.append(i);
+    nav.append(a);
+  }
+  /* Before the real strip, so "first match wins" would pick the wrong one. */
+  doc.children = [nav, ...doc.children.filter((c) => c !== nav)];
+  nav.parentElement = doc;
+  container.parentElement = doc;
+  return nav;
+}
+
+test('a strip of route links is not mistaken for a tab strip', async () => {
+  await withDom(async (stub) => {
+    const nav = withNavStrip(stub);
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({
+      tabs: [{ id: 'console', label: 'Console', icon: 'mini-list-14', render: () => stub.doc.createElement('div') }]
+    });
+    host._mount();
+
+    assert.equal(nav.querySelectorAll('[data-lpp-tab]').length, 0, 'nothing added to the route links');
+    assert.equal(stub.strip.querySelectorAll('[data-lpp-tab]').length, 1, 'added to the pane switcher');
+  });
+});
+
+test('a page with only route links gets no tabs at all', async () => {
+  await withDom(async (stub) => {
+    /* Take the pane switcher away: this is the Preconfig page. */
+    stub.container.children = stub.container.children.filter((c) => c !== stub.strip);
+    const nav = withNavStrip(stub);
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({
+      tabs: [{ id: 'console', label: 'Console', icon: 'mini-list-14', render: () => stub.doc.createElement('div') }]
+    });
+    assert.equal(host._mount(), false);
+    assert.equal(nav.querySelectorAll('[data-lpp-tab]').length, 0);
+  });
+});

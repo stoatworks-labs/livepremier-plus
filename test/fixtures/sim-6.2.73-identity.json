@@ -1,0 +1,136 @@
+{
+ "device": {
+  "system": {
+   "deviceList": {
+    "itemKeys": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ],
+    "items": {
+     "1": {
+      "pp": {
+       "dev": "NLC_CMAX",
+       "platformId": 1280,
+       "label": "AQUILON",
+       "isSimulated": true
+      },
+      "version": {
+       "pp": {
+        "variable": 0,
+        "updater": "6.2.73",
+        "webRcs": "",
+        "isOutdated": false
+       }
+      },
+      "serial": {
+       "pp": {
+        "serialNumber": "ZZ9999",
+        "reference": 0,
+        "dateCode": 0
+       }
+      },
+      "hardware": {
+       "device": {
+        "pp": {
+         "chassis": "6U"
+        }
+       }
+      }
+     },
+     "2": {
+      "pp": {
+       "dev": "NLC_DBG",
+       "platformId": 1280,
+       "label": "",
+       "isSimulated": false
+      },
+      "version": {
+       "pp": {
+        "variable": 0,
+        "updater": "",
+        "webRcs": "",
+        "isOutdated": false
+       }
+      },
+      "serial": {
+       "pp": {
+        "serialNumber": "",
+        "reference": 0,
+        "dateCode": 0
+       }
+      },
+      "hardware": {
+       "device": {
+        "pp": {
+         "chassis": "4U"
+        }
+       }
+      }
+     },
+     "3": {
+      "pp": {
+       "dev": "NLC_DBG",
+       "platformId": 1280,
+       "label": "",
+       "isSimulated": false
+      },
+      "version": {
+       "pp": {
+        "variable": 0,
+        "updater": "",
+        "webRcs": "",
+        "isOutdated": false
+       }
+      },
+      "serial": {
+       "pp": {
+        "serialNumber": "",
+        "reference": 0,
+        "dateCode": 0
+       }
+      },
+      "hardware": {
+       "device": {
+        "pp": {
+         "chassis": "4U"
+        }
+       }
+      }
+     },
+     "4": {
+      "pp": {
+       "dev": "NLC_DBG",
+       "platformId": 1280,
+       "label": "",
+       "isSimulated": false
+      },
+      "version": {
+       "pp": {
+        "variable": 0,
+        "updater": "",
+        "webRcs": "",
+        "isOutdated": false
+       }
+      },
+      "serial": {
+       "pp": {
+        "serialNumber": "",
+        "reference": 0,
+        "dateCode": 0
+       }
+      },
+      "hardware": {
+       "device": {
+        "pp": {
+         "chassis": "4U"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}

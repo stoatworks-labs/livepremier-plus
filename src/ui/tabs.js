@@ -59,11 +59,32 @@ export class TabHost {
     if (this._observer) { this._observer.disconnect(); this._observer = null; }
   }
 
-  /** The vendor strip, if this page has one. */
+  /**
+   * The vendor strip, if this page has one *of the right kind*.
+   *
+   * `.ui.tabular.menu` is not unique to the per-screen panel: Preconfig heads
+   * its page with a strip built from the same Semantic UI classes. That one is
+   * **page navigation** — every anchor is an `href` to another route, and the
+   * items are icons with no text. Appending Console and Timeline to it put two
+   * words in a row of glyphs, on a page they have nothing to do with, and
+   * clicking one hid a pane belonging to a different screen.
+   *
+   * So a strip qualifies only if it holds a **pane switcher**: an anchor with
+   * a heading and no `href`. That is the structural difference between "these
+   * tabs change what is shown here" and "these links go somewhere else", and
+   * it does not depend on a class name, a route or a label.
+   */
   _strip() {
-    const strip = document.querySelector(STRIP_SEL);
-    if (strip && strip.querySelector('a')) return strip;
+    for (const strip of document.querySelectorAll(STRIP_SEL)) {
+      if (this._switchers(strip).length) return strip;
+    }
     return null;
+  }
+
+  /** The vendor's own pane-switching tabs in a strip, ours excluded. */
+  _switchers(strip) {
+    return [...strip.querySelectorAll('a')].filter(
+      (a) => !a.hasAttribute(OURS) && !a.hasAttribute('href') && a.querySelector('h5'));
   }
 
   /** The vendor's content pane: the strip's sibling that is not the strip. */
@@ -82,7 +103,7 @@ export class TabHost {
 
     /* Prefer an inactive tab as the template — an active one would drag its
        own state classes in, and stripping them is guesswork we can skip. */
-    const anchors = [...strip.querySelectorAll('a')];
+    const anchors = this._switchers(strip);
     const template = anchors.find((a) => !a.classList.contains('active')) || anchors[0];
     if (!template) return false;
 

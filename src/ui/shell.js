@@ -31,25 +31,63 @@ const MENU_SEL = '[class*="sidebar-module__c__menu___"]';
 const SEPARATOR_SEL = '[class*="sidebar-module__c__separator___"]';
 const LABEL_SEL = '[class*="sidebar-module__c__menu__title__label___"]';
 const TITLE_SEL = '[class*="sidebar-module__c__menu__title___"]';
+/* Preconfig is the one sidebar item with a flyout of its own: a list of
+   `<a>` items, each a route under /preconfig. */
+const SUBLIST_SEL = '[class*="sidebar-module__c__submenu__list___"]';
+const SUBITEM_SEL = '[class*="sidebar-module__c__submenu__list__item___"]';
+/* Put on every link we create, so the "operator navigated away" listener can
+   tell one of ours from the vendor's wherever it happens to sit. */
+const NAV_MARK = 'data-lpp-nav';
+
+/**
+ * Find a hashed class name by its stable middle, in the page's own stylesheets.
+ *
+ * CSS-modules names are `<module>__<part>___<hash>`; only the hash moves
+ * between builds. When no element on the page is currently wearing the class
+ * there is nowhere else to read it from — and a proxied page is same-origin,
+ * so `cssRules` is legible. Cross-origin sheets throw on access; skip them
+ * rather than let one abort the search.
+ */
+export function classFromStylesheets(fragment, doc = document) {
+  const re = new RegExp('\\.([A-Za-z0-9_-]*' + fragment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[A-Za-z0-9_-]*)');
+  for (const sheet of doc.styleSheets || []) {
+    let rules;
+    try { rules = sheet.cssRules; } catch { continue; }
+    for (const rule of rules || []) {
+      const hit = rule.selectorText && re.exec(rule.selectorText);
+      if (hit) return hit[1];
+    }
+  }
+  return null;
+}
 
 export class Shell {
   /**
-   * @param {{title:string, entries:Array<{id:string,label:string,icon:string,render:Function,after?:string}>}} opts
+   * @param {{title:string, entries:Array<{id:string,label:string,icon:string,render:Function,after?:string,submenuOf?:string}>}} opts
    *
-   * An entry carrying `after` is placed directly beneath the vendor item with
-   * that label, in the vendor's own section, rather than in ours. That is for
-   * a tool that belongs to an existing part of the app — MIDI Mapping sits
-   * under Virtual RC400T because both are about control surfaces, and putting
-   * it in a PLUS section at the bottom would file it by who wrote it rather
-   * than by what it does.
+   * Three placements, in the order a reader will meet them:
+   *
+   * - No hint at all: the entry goes in our own section at the bottom of the
+   *   sidebar, under `title`.
+   * - `after: '<vendor label>'` puts it directly beneath that vendor item, in
+   *   the vendor's own section. That is for a tool that belongs to an existing
+   *   part of the app — MIDI Mapping sits under Virtual RC400T because both
+   *   are about control surfaces, and a PLUS section at the bottom would file
+   *   it by who wrote it rather than by what it does.
+   * - `submenuOf: '<vendor label>'` puts it *inside* that item's flyout, at
+   *   the end of the list. Only Preconfig has one, and app-wide settings
+   *   belong beside the device's own System page for the same reason.
    */
   constructor({ title = 'Unleashed', entries = [] } = {}) {
     this.title = title;
     this.entries = entries;
     this.active = null;
     this.nav = new Map();
+    /* For a submenu entry: the vendor menu item whose flyout it sits in, so
+       that opening ours lights its parent up the way a vendor page does. */
+    this._parents = new Map();
     this._observer = null;
-    this._activeClasses = { title: [], link: [] };
+    this._activeClasses = { title: [], sub: [] };
   }
 
   start() {
@@ -59,19 +97,22 @@ export class Shell {
        Both placements are checked — an anchored entry can be lost on its own
        when the vendor section it sits in re-renders. */
     this._observer = new MutationObserver(() => {
-      const sectioned = this.entries.some((e) => !e.after);
+      const sectioned = this.entries.some((e) => !e.after && !e.submenuOf);
       if (sectioned && !document.getElementById('wru-nav-section')) return this._mount();
       for (const entry of this.entries) {
-        if (entry.after && !document.getElementById('wru-nav-' + entry.id)) return this._mount();
+        if ((entry.after || entry.submenuOf) && !document.getElementById('wru-nav-' + entry.id)) return this._mount();
       }
     });
     const row = document.querySelector('.aw-app');
     if (row) this._observer.observe(row, { childList: true, subtree: true });
 
-    /* Any stock navigation means the operator has left our panel. */
+    /* Any stock navigation means the operator has left our panel. Our own
+       entries are excluded by the marker rather than by where they sit: a
+       submenu entry of ours lives inside the vendor's own flyout, so there is
+       no ancestor of ours to test for. */
     document.addEventListener('click', (ev) => {
       const link = ev.target.closest && ev.target.closest('a[href]');
-      if (link && !link.closest('#wru-nav-section') && !link.closest('#wru-overlay')) this.hide();
+      if (link && !link.hasAttribute(NAV_MARK) && !link.closest('#wru-nav-section') && !link.closest('#wru-overlay')) this.hide();
     }, true);
     window.addEventListener('popstate', () => this.hide());
   }
@@ -83,12 +124,13 @@ export class Shell {
     const anySeparator = sidebar.querySelector(SEPARATOR_SEL);
     if (!anyMenu) return false;
     const list = anyMenu.parentElement;
-    if (!list || document.getElementById('wru-nav-section')) return true;
+    if (!list) return false;
 
     this._captureActiveClasses(sidebar);
 
     const anchored = this.entries.filter((e) => e.after);
-    const sectioned = this.entries.filter((e) => !e.after);
+    const nested = this.entries.filter((e) => e.submenuOf);
+    const sectioned = this.entries.filter((e) => !e.after && !e.submenuOf);
 
     for (const entry of anchored) {
       if (document.getElementById('wru-nav-' + entry.id)) continue;
@@ -98,6 +140,22 @@ export class Shell {
       node.id = 'wru-nav-' + entry.id;
       host.after(node);
       this.nav.set(entry.id, node);
+    }
+
+    for (const entry of nested) {
+      if (document.getElementById('wru-nav-' + entry.id)) continue;
+      const host = this._itemByLabel(sidebar, entry.submenuOf);
+      const sublist = host && host.querySelector(SUBLIST_SEL);
+      /* No flyout means this build files that page differently; the entry is
+         dropped rather than invented somewhere it does not belong. */
+      if (!sublist) continue;
+      const template = sublist.querySelector(SUBITEM_SEL);
+      if (!template) continue;
+      const node = this._cloneSubItem(template, entry);
+      node.id = 'wru-nav-' + entry.id;
+      sublist.append(node);
+      this.nav.set(entry.id, node);
+      this._parents.set(entry.id, host);
     }
 
     if (sectioned.length && !document.getElementById('wru-nav-section')) {
@@ -140,9 +198,24 @@ export class Shell {
    */
   _captureActiveClasses(sidebar) {
     const activeTitle = sidebar.querySelector('[class*="menu__title--active___"]');
-    if (!activeTitle) return;
-    const classes = [...activeTitle.classList];
-    this._activeClasses.title = classes.filter((c) => c.includes('--active___'));
+    if (activeTitle) {
+      this._activeClasses.title = [...activeTitle.classList].filter((c) => c.includes('--active___'));
+    }
+    /*
+     * The flyout's active class cannot be lifted off a live element the way
+     * the title's can: it only exists while the operator is on a page inside
+     * that flyout, and they may never go to one. So it is read out of the
+     * vendor's own stylesheet instead — same source, no waiting.
+     */
+    if (!this._activeClasses.sub.length) {
+      const activeSub = sidebar.querySelector('[class*="submenu__list__item--active___"]');
+      if (activeSub) {
+        this._activeClasses.sub = [...activeSub.classList].filter((c) => c.includes('--active___'));
+      } else {
+        const fromCss = classFromStylesheets('submenu__list__item--active___');
+        if (fromCss) this._activeClasses.sub = [fromCss];
+      }
+    }
   }
 
   _cloneSeparator(template, text) {
@@ -167,6 +240,7 @@ export class Shell {
     const link = node.querySelector(TITLE_SEL) || node.querySelector('a');
     if (link) {
       for (const c of [...link.classList]) if (c.includes('--active___')) link.classList.remove(c);
+      link.setAttribute(NAV_MARK, '');
       link.setAttribute('href', '#' + entry.id);
       link.removeAttribute('aria-current');
       link.addEventListener('click', (ev) => { ev.preventDefault(); this.toggle(entry.id); });
@@ -185,6 +259,25 @@ export class Shell {
        Preconfig would otherwise drag its whole tree along with it. */
     if (link) node.replaceChildren(link);
 
+    return node;
+  }
+
+  /**
+   * A flyout item, cloned from one of the vendor's own.
+   *
+   * Simpler than a menu item — no icon, no submenu of its own, just an anchor
+   * carrying text — but the same rule applies: the padding and the type scale
+   * live in a hashed class, so copy the element rather than build one.
+   */
+  _cloneSubItem(template, entry) {
+    const node = template.cloneNode(true);
+    node.removeAttribute('id');
+    node.removeAttribute('aria-current');
+    for (const c of [...node.classList]) if (c.includes('--active___')) node.classList.remove(c);
+    node.setAttribute(NAV_MARK, '');
+    node.setAttribute('href', '#' + entry.id);
+    node.textContent = entry.label;
+    node.addEventListener('click', (ev) => { ev.preventDefault(); this.toggle(entry.id); });
     return node;
   }
 
@@ -229,11 +322,25 @@ export class Shell {
 
   _syncNav() {
     for (const [id, node] of this.nav) {
-      const link = node.querySelector(TITLE_SEL) || node.querySelector('a');
-      if (!link) continue;
       const on = this.active === id;
-      for (const c of this._activeClasses.title) link.classList.toggle(c, on);
+      const nested = this._parents.has(id);
+      /* A flyout item IS the anchor; a menu item wraps one. */
+      const link = nested ? node : (node.querySelector(TITLE_SEL) || node.querySelector('a'));
+      if (!link) continue;
+      for (const c of (nested ? this._activeClasses.sub : this._activeClasses.title)) link.classList.toggle(c, on);
       if (on) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
+
+      /*
+       * Opening a flyout entry also lights its parent, because that is what
+       * the vendor does for every page in the flyout and the operator reads
+       * the sidebar for "where am I". Only ever turned ON here: the vendor's
+       * router owns that class the rest of the time, and clearing it when one
+       * of ours closes would blank a highlight React had put there for a page
+       * that is genuinely open.
+       */
+      const parent = this._parents.get(id);
+      const title = parent && (parent.querySelector(TITLE_SEL) || parent.querySelector('a'));
+      if (on && title) for (const c of this._activeClasses.title) title.classList.add(c);
     }
   }
 
