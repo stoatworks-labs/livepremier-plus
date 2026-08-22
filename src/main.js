@@ -24,6 +24,8 @@ import { createConsolePanel } from './ui/console-panel.js';
 import { createMidiPanel } from './ui/midi-panel.js';
 import { createSettingsPanel } from './ui/settings-panel.js';
 import { detectPlatform, supports } from './core/platform.js';
+import { createTimecodeSource } from './ui/timecode-source.js';
+import { TimecodeChase } from './core/chase.js';
 
 const TAG = '[LivePremier Plus]';
 
@@ -124,11 +126,32 @@ async function boot() {
   const platform = () => detectPlatform(session.store);
   const can = (capability) => supports(platform(), capability);
 
+  /*
+   * Timecode, and the chase that fires cues off it.
+   *
+   * Both exist from boot even with no source chosen: the chase costs a timer
+   * that returns immediately while nothing is armed, and having them here
+   * rather than inside a panel means the clock keeps running when the operator
+   * navigates away from the Timeline tab — which, mid-show, they will.
+   */
+  const timecode = createTimecodeSource();
+  const chase = new TimecodeChase({ stack, clock: timecode.clock, rate: 25 });
+  /*
+   * The chase fires on each reading, not on a timer — see `core/chase.js`. All
+   * that is left here is noticing that the feed has *gone*, which no reading
+   * will ever announce, and being late to that costs nothing.
+   */
+  setInterval(() => timecode.clock.poll(), 250);
+  chase.addEventListener('fired', (ev) => {
+    console.info(TAG, 'timecode fired cue', ev.detail.cue.number || ev.detail.cue.id);
+    refresh();
+  });
+
   const vpu = createVpuPanel({ session, platform, onRefresh: refresh });
-  const timeline = createTimelinePanel({ session, stack, storage, onRefresh: refresh });
+  const timeline = createTimelinePanel({ session, stack, storage, timecode, chase, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
   const midi = createMidiPanel({ session, onRefresh: refresh });
-  const settings = createSettingsPanel({ session, platform, onRefresh: refresh });
+  const settings = createSettingsPanel({ session, platform, timecode, onRefresh: refresh });
 
   /*
    * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
@@ -201,7 +224,7 @@ async function boot() {
   tabs.remount();
 
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform };
+  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

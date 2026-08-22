@@ -30,6 +30,17 @@ async function walk(dir) {
   return out;
 }
 
+/*
+ * An audio worklet runs in the AudioWorklet global scope, where
+ * `AudioWorkletProcessor` and `registerProcessor` exist and almost nothing
+ * else does. Stubbing the two of them is better than putting the file on the
+ * skip list: the point of this test is catching a file that does not parse,
+ * and skipping it would exempt the one file in the tree that no other test
+ * ever loads.
+ */
+globalThis.AudioWorkletProcessor ??= class { constructor() { this.port = { postMessage() {} }; } };
+globalThis.registerProcessor ??= () => {};
+
 test('every module parses and links', async () => {
   const files = await walk(src);
   assert.ok(files.length >= 8, 'expected to find the module tree');

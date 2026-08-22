@@ -67,6 +67,16 @@ export function makeCue(partial = {}) {
     /* When true the following cue fires automatically after `followTime`. */
     follow: partial.follow === true,
     followTime: partial.followTime ?? 0,
+    /*
+     * `hh:mm:ss:ff`, and this cue is fired by the clock reaching it rather
+     * than by the GO button. Held as the operator typed it rather than as a
+     * number of seconds: it is read back into the same field, it is what they
+     * see on the generator, and turning it into seconds would need a frame
+     * rate that the cue itself has no business knowing.
+     *
+     * null for an ordinary GO cue, which is most of them.
+     */
+    timecode: partial.timecode || null,
     actions: (partial.actions || []).map((a) => ({ ...a }))
   };
 }

@@ -23,10 +23,12 @@
 
 import { h, button, readout, sectionTitle, fmtClock } from './dom.js';
 import { panel } from './shell.js';
+import { parseTimecodeString } from '../core/chase.js';
+import { formatTimecode } from '../core/timecode.js';
 import { ACTION_KINDS } from '../core/cuestack.js';
 import { ROOT } from '../core/paths.js';
 
-export function createTimelinePanel({ session, stack, storage, onRefresh }) {
+export function createTimelinePanel({ session, stack, storage, timecode = null, chase = null, onRefresh }) {
   const view = { editing: null, adding: false, armedUntil: null, lastFired: null };
 
   stack.addEventListener('fired', (ev) => { view.lastFired = ev.detail; onRefresh(); });
@@ -70,8 +72,14 @@ export function createTimelinePanel({ session, stack, storage, onRefresh }) {
         standby
           ? h('span', { class: 'wru-tag', text: `standby ${standby.number || '#' + (stack.pointer + 1)} ${standby.label}`.trim() })
           : h('span', { class: 'wru-tag', text: 'end of stack' }),
-        armed ? h('span', { class: 'wru-tag wru-warn', text: 'armed' }) : null),
+        armed ? h('span', { class: 'wru-tag wru-warn', text: 'armed' }) : null,
+        timecodeTag()),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
+        chase ? button(chase.enabled ? 'Chasing' : 'Chase', {
+          onClick: () => { chase.enabled ? chase.disarm() : chase.arm(); onRefresh(); },
+          active: chase.enabled,
+          title: 'Fire cues that carry a timecode when the clock reaches them'
+        }) : null,
         button('Back', { onClick: () => { stack.back(); onRefresh(); }, iconId: 'arrows-left-10' }),
         button('Stop', { onClick: () => { stack.stop(); onRefresh(); }, variant: 'danger', disabled: !stack.running }),
         button(armed ? 'Go now' : 'Go', { onClick: () => { stack.go(); onRefresh(); }, variant: 'go', disabled: !standby }))
@@ -114,8 +122,32 @@ export function createTimelinePanel({ session, stack, storage, onRefresh }) {
     const rows = stack.cues.map((cue, i) => cueRow(cue, i));
     return h('table', { class: 'wru-cuelist' },
       h('thead', {}, h('tr', {},
-        ...['', 'Cue', 'Label', 'Actions', 'Fade', 'Delay', 'Follow', ''].map((t) => h('th', { text: t })))),
+        ...['', 'Cue', 'Timecode', 'Label', 'Actions', 'Fade', 'Delay', 'Follow', ''].map((t) => h('th', { text: t })))),
       h('tbody', {}, ...rows));
+  }
+
+  /**
+   * The clock, and whether it is running.
+   *
+   * A stale feed shows the last reading dimmed rather than disappearing: an
+   * operator wants to see *where it stopped*, and a blank readout says only
+   * that something is wrong without saying what.
+   */
+  function timecodeTag() {
+    if (!timecode) return null;
+    const clock = timecode.clock;
+    const running = clock.running;
+    const text = formatTimecode(clock.reading);
+    if (!clock.reading) {
+      return timecode.state.kind === 'none'
+        ? null
+        : h('span', { class: 'wru-tag', text: 'waiting for timecode' });
+    }
+    return h('span', {
+      class: ['wru-tag', running ? 'wru-tag--good' : 'wru-warn'],
+      title: running ? `Timecode from ${timecode.state.kind}` : 'The timecode feed has stopped',
+      text: running ? text : text + ' stopped'
+    });
   }
 
   function cueRow(cue, i) {
@@ -135,6 +167,9 @@ export function createTimelinePanel({ session, stack, storage, onRefresh }) {
         onChange: (ev) => { stack.update(cue.id, { enabled: ev.target.checked }); save(); onRefresh(); }
       })),
       h('td', { class: 'wru-cue-number', text: cue.number || String(i + 1) }),
+      /* A cue with a timecode is fired by the clock rather than by GO, so it
+         is worth being able to see which at a glance down the column. */
+      h('td', { class: 'wru-cue-number', text: cue.timecode || '—' }),
       h('td', { text: cue.label || '—' }),
       h('td', { class: 'wru-cue-actions', text: describe(cue) }),
       h('td', { text: cue.fade == null ? '—' : cue.fade + 's' }),
@@ -148,6 +183,14 @@ export function createTimelinePanel({ session, stack, storage, onRefresh }) {
 
   function editRow(cue, cls) {
     const num = h('input', { class: 'wru-input wru-input--narrow', value: cue.number });
+    /* Free text rather than four spinners: an operator reads a timecode off a
+       screen and types it, and `parseTimecodeString` refuses anything that is
+       not one rather than half-accepting it. */
+    const tc = h('input', {
+      class: 'wru-input wru-input--narrow', value: cue.timecode || '',
+      placeholder: '––:––:––:––', spellcheck: 'false',
+      title: 'Fire this cue when timecode reaches here. Leave empty for a GO cue.'
+    });
     const label = h('input', { class: 'wru-input', value: cue.label });
     const fade = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: cue.fade ?? '' });
     const delay = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: cue.delay ?? 0 });
@@ -155,8 +198,13 @@ export function createTimelinePanel({ session, stack, storage, onRefresh }) {
     const followTime = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: cue.followTime ?? 0 });
 
     const commit = () => {
+      const typed = tc.value.trim();
       stack.update(cue.id, {
         number: num.value,
+        /* Kept as the operator typed it, and only if it is readable — a
+           half-typed timecode saved as a cue trigger is a cue that fires at
+           some other moment entirely. */
+        timecode: typed && parseTimecodeString(typed) ? typed : null,
         label: label.value,
         fade: fade.value === '' ? null : Number(fade.value),
         delay: Number(delay.value) || 0,
@@ -171,6 +219,7 @@ export function createTimelinePanel({ session, stack, storage, onRefresh }) {
     return h('tr', { class: cls },
       h('td', {}),
       h('td', {}, num),
+      h('td', {}, tc),
       h('td', {}, label),
       h('td', { class: 'wru-cue-actions', text: describe(cue) }),
       h('td', {}, fade),

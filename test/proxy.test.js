@@ -551,3 +551,86 @@ test('our version is reported so the settings page need not guess it', async () 
     await close(proxy);
   }
 });
+
+/*
+ * Timecode pushed in from outside.
+ *
+ * The page reads MTC and LTC itself; this is the path for a generator on
+ * another machine, or anything else that can make an HTTP request.
+ */
+test('a pushed timecode is accepted in both spellings', async () => {
+  const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
+  const port = await listen(proxy);
+  const base = `http://127.0.0.1:${port}${NS}/timecode`;
+  const push = (body) => fetch(base, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+  });
+  try {
+    const text = await (await push('01:02:03:04')).json();
+    assert.equal(text.ok, true);
+    assert.deepEqual(text.timecode, { hours: 1, minutes: 2, seconds: 3, frames: 4, rate: null, dropFrame: false });
+
+    /* A semicolon before the frames is how the industry spells drop-frame. */
+    const drop = await (await push({ timecode: '10:00:00;12', rate: 30 })).json();
+    assert.equal(drop.timecode.dropFrame, true);
+    assert.equal(drop.timecode.rate, 30);
+
+    const obj = await (await push({ hours: 5, minutes: 6, seconds: 7, frames: 8 })).json();
+    assert.equal(obj.timecode.hours, 5);
+
+    /* And the last one is readable, so a page that has just opened knows
+       where things are without waiting for the next push. */
+    const now = await (await fetch(base)).json();
+    assert.equal(now.timecode.hours, 5);
+  } finally {
+    await close(proxy);
+  }
+});
+
+/*
+ * Out of range is refused, not clamped. A frame number of 40 is a bug in
+ * whatever sent it, and a clamped 29 would hide it behind a plausible value a
+ * cue stack would then act on.
+ */
+test('a timecode that cannot be one is refused rather than clamped', async () => {
+  const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
+  const port = await listen(proxy);
+  const base = `http://127.0.0.1:${port}${NS}/timecode`;
+  try {
+    for (const body of ['99:00:00:00', '01:02:03', { hours: 1 }, { hours: 1, minutes: 2, seconds: 3, frames: 99 }, 'nonsense']) {
+      const res = await fetch(base, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body)
+      });
+      assert.equal(res.status, 400, JSON.stringify(body));
+    }
+  } finally {
+    await close(proxy);
+  }
+});
+
+test('the timecode stream hands over what it already knows, then the next push', async () => {
+  const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
+  const port = await listen(proxy);
+  const base = `http://127.0.0.1:${port}${NS}/timecode`;
+  try {
+    await fetch(base, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '"01:00:00:00"' });
+
+    const res = await fetch(base + '/stream');
+    assert.match(res.headers.get('content-type'), /event-stream/);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    /* The opening frame carries the last known position, so a page does not
+       sit blank until the next message. */
+    let seen = '';
+    while (!seen.includes('"hours":1')) seen += decoder.decode((await reader.read()).value);
+
+    await fetch(base, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '"02:00:00:00"' });
+    let next = '';
+    while (!next.includes('"hours":2')) next += decoder.decode((await reader.read()).value);
+
+    await reader.cancel();
+  } finally {
+    await close(proxy);
+  }
+});

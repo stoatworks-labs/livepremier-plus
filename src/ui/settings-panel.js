@@ -28,6 +28,8 @@ import { h, button, readout, sectionTitle } from './dom.js';
 import { panel } from './shell.js';
 import { readIdentity } from '../core/identity.js';
 import { detectPlatform, CAPABILITIES } from '../core/platform.js';
+import { SOURCE_KINDS } from './timecode-source.js';
+import { formatTimecode } from '../core/timecode.js';
 
 /*
  * What is installed, and where to find it.
@@ -80,10 +82,6 @@ const FEATURES = [
  */
 const PLANNED = [
   {
-    name: 'Timecode source',
-    what: 'The audio or MIDI input the timeline chases, and its offset.'
-  },
-  {
     name: 'Audio patching',
     what: 'Names for the audio sources and destinations the console patches between.'
   },
@@ -93,7 +91,7 @@ const PLANNED = [
   }
 ];
 
-export function createSettingsPanel({ session, platform = null, onRefresh = () => {} }) {
+export function createSettingsPanel({ session, platform = null, timecode = null, onRefresh = () => {} }) {
   /*
    * The proxy's own status: our version, and which switcher it is pointed at.
    * Fetched once and cached, because none of it changes while the page is
@@ -232,6 +230,83 @@ export function createSettingsPanel({ session, platform = null, onRefresh = () =
         'switcher — not because it has been disabled.'));
   }
 
+  /* ------------------------------------------------------------- timecode */
+
+  /*
+   * Where timecode comes from.
+   *
+   * The first setting on this page that is actually a setting. Three ways in,
+   * and the picker lists what each of them can see rather than asking the
+   * operator to type a device name — MIDI ports and audio inputs are both
+   * enumerable, and the third needs nothing chosen at all.
+   */
+  function timecodeSection() {
+    if (!timecode) return null;
+    const { clock, state } = timecode;
+
+    const pick = h('select', {
+      class: 'wru-input', style: { maxWidth: '18rem' },
+      onChange: (ev) => choose(ev.target.value)
+    }, SOURCE_KINDS.map((k) => h('option', {
+      value: k.id, selected: state.kind === k.id ? 'selected' : null, text: k.label
+    })));
+
+    const devices = h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' });
+    paintDevices(devices);
+
+    const reading = clock.reading;
+    const rows = h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
+      readout('Reading', formatTimecode(reading)),
+      readout('State', clock.running ? 'running' : (reading ? 'stopped' : 'nothing yet'),
+        { tone: clock.running ? null : 'tertiary' }),
+      readout('Rate', reading && reading.rate ? reading.rate + (reading.dropFrame ? ' DF' : '') : '—'));
+
+    const notes = [];
+    if (state.error) notes.push(note('warn', state.error));
+    /*
+     * The one that is not guessable. LTC does not transmit its frame rate —
+     * only the drop-frame flag — so the reader has to be told, and a reader
+     * told 25 while the tape runs at 30 puts every cue in the wrong place.
+     */
+    if (state.kind === 'audio') {
+      notes.push(note('info', 'LTC does not carry its frame rate, so the rate above is the one this ' +
+        'app assumes. Cue timecodes are read at that rate too, so the two agree.'));
+    }
+    if (state.kind === 'backend') {
+      notes.push(note('info', 'POST a timecode to /__lpp/timecode — either "01:02:03:04" or ' +
+        '{hours,minutes,seconds,frames} — and every open page hears it.'));
+    }
+
+    return card('Timecode',
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium aw-flex-wrap' }, pick, devices),
+      rows, ...notes);
+  }
+
+  async function paintDevices(host) {
+    host.textContent = '';
+    const kind = timecode.state.kind;
+    if (kind !== 'midi' && kind !== 'audio') return;
+    let list = [];
+    try { list = kind === 'midi' ? await timecode.midiInputs() : await timecode.audioInputs(); }
+    catch (err) { host.append(h('span', { class: 'wru-tag wru-warn', text: err.message })); return; }
+    if (!list.length) {
+      host.append(h('span', { class: 'wru-tag', text: 'no inputs found' }));
+      return;
+    }
+    host.append(h('select', {
+      class: 'wru-input', style: { maxWidth: '18rem' },
+      onChange: (ev) => choose(kind, ev.target.value)
+    }, list.map((d) => h('option', {
+      value: d.id, selected: timecode.state.deviceId === d.id ? 'selected' : null, text: d.label
+    }))));
+  }
+
+  async function choose(kind, deviceId = '') {
+    try { await timecode.use(kind, deviceId); }
+    catch { /* the error is on `state` and the next render shows it */ }
+    onRefresh();
+  }
+
   /* ------------------------------------------------------------- features */
 
   function featureSection() {
@@ -295,6 +370,7 @@ export function createSettingsPanel({ session, platform = null, onRefresh = () =
     const body = h('div', { class: 'aw-flex-col aw-gap-row-large' },
       deviceSection(),
       compatibilitySection(),
+      timecodeSection(),
       proxySection(),
       featureSection(),
       plannedSection());
