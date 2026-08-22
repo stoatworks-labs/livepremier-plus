@@ -34,6 +34,11 @@ to install in the browser.
 > fired at a simulator, and **no panel has been driven live against physical
 > hardware in a browser.** That is the first thing to try.
 
+**[Watch it work (50s)](https://www.youtube.com/watch?v=mGjGiNO_tSo)** — the real
+application, driven through its own controls: the VPU map off a real Aquilon C
+capture, a command typed into the Console, and `1080-80` becoming 1000 in a
+layer width.
+
 ---
 
 ## Running it
