@@ -14,14 +14,23 @@
  * sidebar. That would have filed it by who wrote it rather than by what it is,
  * which is the same argument that put MIDI Mapping under Virtual RC400T.
  *
- * ## This is deliberately a placeholder
+ * ## Most of it is still a readout, and the rest is real
  *
- * Everything it shows is read — device identity, firmware, where each panel
- * lives, whether the session is up. Nothing is written, because nothing here
- * is configurable yet. The settings that are coming are listed by name and
- * plainly marked as not yet arrived, so the page is honest about being a frame
- * rather than dressed up with controls that do nothing. A toggle that silently
- * fails is worse than an empty row that says what it is waiting for.
+ * Device identity, firmware, where each panel lives, whether the session is
+ * up — all read. Two groups are genuinely settings and are written through
+ * `PUT /__lpp/settings`: how the console reads a typed line, and whether this
+ * process is listening for OSC. Anything still on the roadmap is listed by
+ * name and plainly marked as not yet arrived, because a toggle that silently
+ * fails is worse than a row that says what it is waiting for.
+ *
+ * ## Why these settings are not kept in the page
+ *
+ * Two reasons, and neither is a preference. The OSC listener is a UDP socket
+ * in the server process — a browser cannot open one, see one, or be the
+ * authority on whether one is bound. And the console exists in two windows at
+ * once, the tab and the popout, so a per-page setting would have them
+ * disagreeing about which language the operator chose. See
+ * `../core/settings.js`.
  */
 
 import { h, button, readout, sectionTitle } from './dom.js';
@@ -30,6 +39,10 @@ import { readIdentity } from '../core/identity.js';
 import { detectPlatform, CAPABILITIES } from '../core/platform.js';
 import { SOURCE_KINDS } from './timecode-source.js';
 import { formatTimecode } from '../core/timecode.js';
+import {
+  AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES, OSC_BIND_CHOICES
+} from '../core/settings.js';
+import { OSC_ROOT } from '../vendor/mynah-lang.mjs';
 
 /*
  * What is installed, and where to find it.
@@ -98,7 +111,18 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
    * open — re-pointing the proxy hangs up this tab's socket, so a settings
    * page that outlived a change of device is not a case that arises.
    */
-  const state = { status: null, statusError: null, asked: false };
+  const state = {
+    status: null,
+    statusError: null,
+    asked: false,
+    /* The defaults until the process answers. Rendering controls against them
+       is honest — they are what is in force when nothing has been chosen — and
+       it avoids a page that flickers between empty and populated. */
+    settings: { ...DEFAULT_SETTINGS },
+    osc: null,
+    saveError: null,
+    saving: false
+  };
 
   async function loadStatus() {
     if (state.asked) return;
@@ -107,9 +131,44 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
       const res = await fetch('/__lpp/status', { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       state.status = await res.json();
+      if (state.status.settings) state.settings = state.status.settings;
+      state.osc = state.status.osc || null;
     } catch (err) {
       state.statusError = err.message;
     }
+    onRefresh();
+  }
+
+  /**
+   * Change one setting.
+   *
+   * One field at a time, merged server-side, so this page never has to restate
+   * the rest and cannot race a console that is changing a different one.
+   *
+   * The result is broadcast on `window` because the console reads these too
+   * and is very often in another window — a language change that reached the
+   * settings page and not the command line would be the whole feature failing
+   * quietly.
+   */
+  async function put(patch) {
+    state.saving = true;
+    state.saveError = null;
+    onRefresh();
+    try {
+      const res = await fetch('/__lpp/settings', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(patch)
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'HTTP ' + res.status);
+      state.settings = body.settings;
+      state.osc = body.osc || null;
+      window.dispatchEvent(new CustomEvent('lpp:settings', { detail: state.settings }));
+    } catch (err) {
+      state.saveError = err.message;
+    }
+    state.saving = false;
     onRefresh();
   }
 
@@ -335,12 +394,142 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
         })));
   }
 
+  /* -------------------------------------------------------- console setup */
+
+  /**
+   * A labelled picker over a closed list of choices.
+   *
+   * Each option carries a sentence, and the sentence for whichever is selected
+   * is printed under the control. That is deliberate rather than decorative:
+   * every choice on this page trades something — a language for detection, an
+   * AWJ client slot for a reply, a loopback bind for the network being able to
+   * fire takes — and a `title` attribute is not where a trade-off gets read.
+   */
+  function picker(label, choices, current, onPick) {
+    const chosen = choices.find((c) => c.id === current) || choices[0];
+    return h('div', { class: 'aw-flex-col aw-gap-row-mini', style: { flex: '1 1 22rem' } },
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: label }),
+      h('select', {
+        class: 'wru-input', style: { maxWidth: '24rem' },
+        disabled: state.saving ? 'disabled' : null,
+        onChange: (ev) => onPick(ev.target.value)
+      }, choices.map((c) => h('option', {
+        value: c.id, selected: c.id === current ? 'selected' : null, text: c.label
+      }))),
+      h('div', { class: 'aw-font-caption aw-text-tertiary', text: chosen.what }));
+  }
+
+  function consoleSection() {
+    const notes = [];
+    if (state.saveError) notes.push(note('warn', `Could not save: ${state.saveError}`));
+
+    /*
+     * The two halves of "how does a typed line reach the switcher". Kept in
+     * one card because choosing AWJ as the language and leaving the transport
+     * on store writes is a perfectly sensible combination that reads as a
+     * contradiction if the two controls are in different places.
+     */
+    if (state.settings.awjTransport === 'socket') {
+      notes.push(note('info',
+        'A real AWJ socket spends one of the device’s five client slots for the length of each '
+        + 'exchange, and it can be switched off entirely in the Web RCS security settings. '
+        + 'A message sent this way goes out exactly as typed.'));
+    } else {
+      notes.push(note('info',
+        'An AWJ message is converted to the store spelling and rides the vendor’s own socket, '
+        + 'landing at the same node. A get still needs a real socket, and uses one whichever '
+        + 'transport is chosen here — it has nowhere else to answer from.'));
+    }
+
+    return card('Console language',
+      h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
+        picker('Language', LANGUAGE_CHOICES, state.settings.consoleLanguage,
+          (v) => put({ consoleLanguage: v })),
+        picker('AWJ via', AWJ_TRANSPORTS, state.settings.awjTransport,
+          (v) => put({ awjTransport: v }))),
+      ...notes);
+  }
+
+  /* ------------------------------------------------------------------ OSC */
+
+  /**
+   * The OSC listener.
+   *
+   * The only setting on this page that opens a port, which is why it is off by
+   * default, binds loopback unless told otherwise, and says in as many words
+   * what the other option means. This fires takes on a video switcher.
+   */
+  function oscSection() {
+    const on = state.settings.oscEnabled;
+    const live = state.osc;
+
+    const toggle = h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { cursor: 'pointer' } },
+      h('input', {
+        type: 'checkbox',
+        checked: on ? 'checked' : null,
+        disabled: state.saving ? 'disabled' : null,
+        onChange: (ev) => put({ oscEnabled: ev.target.checked })
+      }),
+      h('span', { class: 'aw-font-body-1', text: 'Listen for OSC' }));
+
+    const port = h('div', { class: 'aw-flex-col aw-gap-row-mini' },
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'UDP port' }),
+      h('input', {
+        class: 'wru-input', type: 'text', value: String(state.settings.oscPort),
+        style: { maxWidth: '7rem' },
+        disabled: state.saving ? 'disabled' : null,
+        /* Committed on blur and on Enter, not per keystroke: rebinding a UDP
+           socket on the way from 8000 to 9000 would bind 900 first. */
+        onBlur: (ev) => commitPort(ev.target.value),
+        onKeyDown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); } }
+      }));
+
+    const rows = live
+      ? h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
+        readout('State', live.listening ? `listening on ${live.address}:${live.port}` : 'not listening',
+          { tone: live.listening ? null : 'tertiary' }),
+        readout('Received', String(live.received)),
+        readout('Writes sent', String(live.sent)),
+        readout('Refused', String(live.failed), { tone: live.failed ? null : 'tertiary' }))
+      : null;
+
+    const notes = [];
+    if (live && live.lastError) notes.push(note('warn', live.lastError));
+    if (on) {
+      notes.push(note('info',
+        `Addresses start ${OSC_ROOT}/ — the full dictionary is in docs/OSC.md. `
+        + 'Messages are written to the switcher over AWJ on TCP 10606, which works with no '
+        + 'browser open; that port can be switched off in the Web RCS security settings.'));
+      notes.push(note('info',
+        'preview and program are refused here and answered only in the console: naming a '
+        + 'buffer needs the device’s take state, which this process does not hold. Address a '
+        + 'buffer directly — /a, /b or /c.'));
+    }
+
+    return card('OSC input',
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' },
+        toggle, port,
+        picker('Accept from', OSC_BIND_CHOICES, state.settings.oscBind, (v) => put({ oscBind: v }))),
+      rows, ...notes);
+  }
+
+  function commitPort(raw) {
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n <= 1024 || n >= 65536) {
+      /* Refused rather than clamped, and the field is repainted with what is
+         actually in force — a silently corrected port is one an operator will
+         spend an hour sending to. */
+      state.saveError = `${raw} is not a usable port — pick something above 1024`;
+      return onRefresh();
+    }
+    if (n === state.settings.oscPort) return;
+    void put({ oscPort: n });
+  }
+
   /* -------------------------------------------------------------- planned */
 
   function plannedSection() {
-    return card('Settings',
-      h('div', { class: 'aw-font-body-1 aw-text-secondary aw-margin-bottom-medium',
-        text: 'Nothing here is configurable yet. These are the settings this page is being built to hold.' }),
+    return card('Still to come',
       h('div', { class: 'aw-flex-col aw-gap-row-medium' },
         PLANNED.map((p) => h('div', { class: 'aw-flex-row aw-gap-col-large aw-flex-wrap', style: { opacity: '0.55' } },
           h('div', { class: 'aw-font-body-1-bold', style: { minWidth: '11rem' } },
@@ -357,6 +546,9 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
     class: ['aw-font-caption', tone === 'warn' ? 'wru-warn' : 'aw-text-tertiary'], text
   });
 
+  /* Refreshing has to re-read the settings too, not just the device status —
+     another window may have changed one. */
+
   function toolbar() {
     return [
       h('div', { class: 'aw-font-subtitle-1', text: 'LivePremier Plus' }),
@@ -370,6 +562,8 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
     const body = h('div', { class: 'aw-flex-col aw-gap-row-large' },
       deviceSection(),
       compatibilitySection(),
+      consoleSection(),
+      oscSection(),
       timecodeSection(),
       proxySection(),
       featureSection(),

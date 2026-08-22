@@ -40,6 +40,14 @@ const CSS = `
 }
 .wru-console-cmd { font-family: ui-monospace, Menlo, monospace; white-space: pre; }
 .wru-console-detail { font-size: 0.9rem; }
+/* Which language a line was read as.
+   Fixed width so a column of them lines up — the reason to look at this chip
+   at all is usually to scan back down the log for the one line that was read
+   as something other than the rest. */
+.wru-console-lang {
+  flex: 0 0 auto; min-width: 3.5rem; text-align: center;
+  color: #838B91; letter-spacing: 0.02em;
+}
 .wru-console-ok   { border-left-color: #00FF7F; background: rgba(0,255,127,0.05); }
 .wru-console-warn { border-left-color: #F39910; background: rgba(243,153,16,0.05); }
 .wru-console-err  { border-left-color: #F64747; background: rgba(246,71,71,0.06); }

@@ -34,6 +34,10 @@ import zlib from 'node:zlib';
 import { readFile } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
 
+import { normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged } from '../src/core/settings.js';
+import { exchange as awjExchange } from './awj.js';
+import { createOscServer } from './osc.js';
+
 /** Where our own routes live. Namespaced so it cannot collide with a vendor path. */
 export const NS = '/__lpp';
 
@@ -163,6 +167,59 @@ export async function createProxy({
   const state = { device: target ? `${target.host}:${target.port}` : null, clients: 0, upstreamError: null, version };
 
   /*
+   * Settings, and the UDP socket one of them opens.
+   *
+   * Loaded once at startup and held in memory: the panels read them on every
+   * repaint, and hitting the disk for that would be silly. `src/core/settings.js`
+   * owns what is allowed — a stored file that a person has edited is coerced
+   * rather than rejected, because refusing to start over one bad field would
+   * take the app down for a typo.
+   */
+  let settings = normaliseSettings(storage && storage.loadSettings ? await storage.loadSettings() : {});
+
+  /* Ring buffer of what the OSC listener has heard, so a console opened after
+     a message arrived can still show it. Small on purpose — this is a tail for
+     debugging a sender, not a log. */
+  const OSC_HISTORY = 100;
+  const oscHistory = [];
+  const oscListeners = new Set();
+  let osc = null;
+
+  function noteOsc(entry) {
+    oscHistory.unshift(entry);
+    if (oscHistory.length > OSC_HISTORY) oscHistory.length = OSC_HISTORY;
+    const line = `event: osc\ndata: ${JSON.stringify(entry)}\n\n`;
+    for (const listener of oscListeners) {
+      try { listener.write(line); } catch { oscListeners.delete(listener); }
+    }
+  }
+
+  /**
+   * Bring the OSC listener into line with the settings.
+   *
+   * Always stops first, even when only the port changed: rebinding a UDP
+   * socket that is still open fails with EADDRINUSE against *itself*, which
+   * reads as somebody else holding the port and sends whoever is debugging it
+   * a long way in the wrong direction.
+   */
+  async function applyOsc() {
+    if (osc) { await osc.stop(); osc = null; }
+    if (!settings.oscEnabled) return;
+    osc = createOscServer({
+      port: settings.oscPort,
+      address: settings.oscBind,
+      /* Read per message, not captured — re-pointing at a backup frame must
+         re-point the OSC input too, and an input still driving the old box
+         would be the worst possible version of that feature. */
+      deviceHost: () => (target ? target.host : null),
+      onActivity: noteOsc,
+      log,
+    });
+    await osc.start();
+  }
+  await applyOsc();
+
+  /*
    * Timecode pushed in from outside.
    *
    * The browser can read MTC over Web MIDI and LTC off an audio input all by
@@ -226,13 +283,107 @@ export async function createProxy({
       return undefined;   /* held open deliberately */
     }
 
+    /*
+     * Settings.
+     *
+     * Server-side rather than in the page because two of them are not the
+     * page's business: the OSC listener is a UDP socket in this process, and
+     * the console exists in two windows at once — a per-page setting would
+     * have the tab and the popout disagreeing about which language the
+     * operator chose. See `src/core/settings.js`.
+     */
+    if (rest === '/settings') {
+      if (req.method === 'GET') return sendJson(res, 200, { settings, osc: osc ? osc.state : null });
+      if (req.method === 'PUT' || req.method === 'POST') {
+        const body = await collect(req, 16 * 1024);
+        let parsed;
+        try { parsed = JSON.parse(body.toString('utf8')); }
+        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+
+        /* Merged onto what is already held, so a panel may send one field
+           without having to restate the rest and without racing another
+           surface that is changing a different one. */
+        const next = normaliseSettings({ ...settings, ...(parsed.settings ?? parsed) });
+        const needsRebind = oscChanged(settings, next);
+        settings = next;
+        if (storage && storage.saveSettings) await storage.saveSettings(settings);
+        if (needsRebind) await applyOsc();
+
+        return sendJson(res, 200, { ok: true, settings, osc: osc ? osc.state : null });
+      }
+      return sendJson(res, 405, { error: 'method not allowed' });
+    }
+
+    /*
+     * A real AWJ exchange, on behalf of the page.
+     *
+     * The browser cannot open TCP 10606; this process can. Note what this is
+     * NOT: it never reads into the store mirror, holds no connection and
+     * subscribes to nothing. `awj.js` sets out why that keeps the
+     * single-source-of-truth rule intact — read it before extending this.
+     */
+    if (rest === '/awj') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' });
+      if (!target) return sendJson(res, 409, { error: 'no switcher configured' });
+
+      const body = await collect(req, 256 * 1024);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); }
+      catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+
+      const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
+      if (messages.length === 0) return sendJson(res, 400, { error: 'no messages' });
+
+      /* The op set is closed, and it is checked here rather than trusted from
+         the page: this is the one route in the app that puts bytes on a socket
+         chosen by whatever posted to it. */
+      for (const m of messages) {
+        if (m.op !== 'replace' && m.op !== 'get') {
+          return sendJson(res, 400, { error: 'op must be "replace" or "get" — AWJ has no others' });
+        }
+        if (typeof m.path !== 'string' || !m.path) {
+          return sendJson(res, 400, { error: 'every message needs a path' });
+        }
+      }
+
+      try {
+        const replies = await awjExchange({ host: target.host, messages });
+        return sendJson(res, 200, { ok: true, replies });
+      } catch (err) {
+        /* 502, not 500: the failure is upstream, and saying so is what tells
+           an operator to go and check the device's own AWJ setting. */
+        return sendJson(res, 502, { error: err.message });
+      }
+    }
+
+    /* What the OSC listener has heard. The tail first, then a live stream, so
+       a console opened after a message arrived still shows it. */
+    if (rest === '/osc/stream') {
+      res.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-store',
+        connection: 'keep-alive',
+        'x-accel-buffering': 'no'
+      });
+      res.write(': osc stream open\n\n');
+      for (const entry of [...oscHistory].reverse()) {
+        res.write(`event: osc\ndata: ${JSON.stringify(entry)}\n\n`);
+      }
+      oscListeners.add(res);
+      req.on('close', () => oscListeners.delete(res));
+      return undefined;   /* held open deliberately */
+    }
+
     if (rest === '/console' || rest === '/timeline') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(rest === '/console' ? consolePage : timelinePage);
     }
 
     if (rest === '/status') {
-      return sendJson(res, 200, { ...state, ok: true, configured: !!target });
+      return sendJson(res, 200, {
+        ...state, ok: true, configured: !!target,
+        settings, osc: osc ? osc.state : null
+      });
     }
 
     if (rest === '/device') {
@@ -460,6 +611,15 @@ export async function createProxy({
     }
     relays.clear();
     state.clients = 0;
+
+    /* The UDP socket is invisible to `server.close()` for the same reason an
+       upgraded socket is — it was never the HTTP server's to begin with. A
+       bound datagram socket keeps the event loop alive, so leaving it open
+       here would hang the launcher's Stop button exactly as an un-hung-up
+       relay does. Fire-and-forget: teardown must not wait on it. */
+    if (osc) { const closing = osc; osc = null; void closing.stop(); }
+    for (const listener of oscListeners) { try { listener.end(); } catch { /* gone */ } }
+    oscListeners.clear();
   };
 
   return server;

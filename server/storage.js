@@ -42,6 +42,32 @@ export class StackStore {
     await writeFile(join(this.dir, 'device.json'), JSON.stringify({ device }, null, 2), 'utf8');
   }
 
+  /**
+   * App settings, which are NOT keyed by device.
+   *
+   * A cue stack belongs to one switcher; how the console reads a typed line
+   * and whether an OSC port is open belong to this installation. Re-pointing
+   * at a backup frame mid-show must not silently change the command language
+   * or close a port a lighting desk is sending to — so these live in their own
+   * file with no device in the key.
+   */
+  async loadSettings() {
+    try {
+      const raw = JSON.parse(await readFile(join(this.dir, 'settings.json'), 'utf8'));
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch {
+      return {};
+    }
+  }
+
+  async saveSettings(settings) {
+    await mkdir(this.dir, { recursive: true });
+    const file = join(this.dir, 'settings.json');
+    const tmp = `${file}.${process.pid}.tmp`;
+    await writeFile(tmp, JSON.stringify(settings, null, 2), 'utf8');
+    await rename(tmp, file);
+  }
+
   _file(deviceKey) {
     /* Dots are excluded along with everything else outside the allowlist, so
        no key can produce a name containing `..` — the filename stays obviously

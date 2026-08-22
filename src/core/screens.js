@@ -66,6 +66,35 @@ export function listDestinations(store, { includeUnused = false } = {}) {
   return out;
 }
 
+/**
+ * Which preset bank is program on a destination, and which is preview.
+ *
+ * `AT_UP` / `AT_DOWN` name the end of the travel, not the bank. The pair has
+ * to be read off `presetUp`/`presetDown` — never assume A is program, because
+ * a take swaps them and the mapping differs between screens on one device.
+ *
+ * Exported because two things need it and neither should re-derive it: the
+ * screen cards draw the banks, and the command line has to resolve a typed
+ * `preview` or `program` to the buffer a live layer path actually takes.
+ *
+ * @param {{get: Function}} store
+ * @param {string} id  a screen or aux key — `S1`, `A2`
+ */
+export function presetBanks(store, id) {
+  const group = store.get([ROOT, 'screenAuxGroupList', 'items', id]) || {};
+  const gControl = pp(group.control);
+  const gStatus = pp(group.status);
+  const atUp = gStatus.transition !== 'AT_DOWN';
+  return {
+    program: (atUp ? gControl.presetUp : gControl.presetDown) || 'A',
+    preview: (atUp ? gControl.presetDown : gControl.presetUp) || 'B',
+    /* Whether the device actually said, as against these being the fallbacks.
+       A command that would put a layer in the wrong buffer must refuse rather
+       than run on a guess, so the caller needs to be able to tell. */
+    reported: !!(gControl.presetUp && gControl.presetDown)
+  };
+}
+
 function readDestination(store, kind, listName, id, node) {
   const status = pp(node && node.status);
   const control = pp(node && node.control);
@@ -73,12 +102,7 @@ function readDestination(store, kind, listName, id, node) {
   const group = store.get([ROOT, 'screenAuxGroupList', 'items', id]) || {};
   const gControl = pp(group.control);
   const gStatus = pp(group.status);
-
-  /* `AT_UP` / `AT_DOWN` name the end of the travel, not the bank. Read the
-     bank off the pair, never assume A is program. */
-  const atUp = gStatus.transition !== 'AT_DOWN';
-  const program = (atUp ? gControl.presetUp : gControl.presetDown) || 'A';
-  const preview = (atUp ? gControl.presetDown : gControl.presetUp) || 'B';
+  const { program, preview } = presetBanks(store, id);
 
   return {
     id,

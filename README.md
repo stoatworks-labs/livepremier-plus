@@ -156,6 +156,88 @@ paths for the commands both know. Two independent derivations agreeing is the st
 right, and it stays true only while nobody re-types the grammar here. A test
 pins it.
 
+### Four languages, one line
+
+The same command line also takes raw AWJ, raw Web RCS store JSON, and OSC.
+These are all the same write:
+
+```
+Take Screen 1
+AWJ DeviceObject/$screenAuxGroup/@items/S1/control/@props/xTake = true
+{"path":["device","screenAuxGroupList","items","S1","control","pp","xTake"],"value":true}
+/lp/screen/1/take
+```
+
+Mynah is the language for driving a show. The other three are for the times a
+show is not going well: a path out of a packet capture, a frame out of a
+browser's network panel, an address a lighting desk is already sending. Each is
+something you already have in front of you, and translating it by hand costs a
+typo on a live frame.
+
+Each line is read as whichever language it looks like, and the verdict is shown
+beside the feedback before you press Enter — a line read as the wrong language
+complains about a character rather than about a command, which reads like your
+own typo. A leading `MYNAH`, `AWJ`, `JSON` or `OSC` says which outright, and
+**Settings → Console language** can turn detection off altogether.
+
+### Reading a value back
+
+`AWJ get DeviceObject/system/$device/@items/1/@props/dev` answers. Nothing else
+here does — the vendor's socket carries a stream of changes rather than a
+request and its answer — so a `get` goes out on a **real TCP 10606 socket**
+opened by this process, and the reply lands in the console log.
+
+Everything else rides the vendor's own connection, whichever language it was
+typed in: one path is held once and rendered for either transport, so an AWJ
+message converts to a store write and lands at the same node. **Settings → AWJ
+via** switches that, for when you want the message on the wire exactly as
+typed; the device allows five AWJ clients and this spends one of them for the
+length of each exchange.
+
+## OSC input
+
+Off by default. Turn it on in **Settings → OSC input** and this process listens
+on a UDP port, so QLab, TouchOSC, Companion or a lighting desk can drive the
+switcher directly.
+
+```
+/lp/screen/1/take
+/lp/screen/1/memory/5/recall/preview
+/lp/master/memory/12/store
+/lp/screen/1/preset/a/layer/2/opacity/opacity/norm 0.5
+```
+
+**[The full dictionary is in docs/OSC.md](docs/OSC.md)** — every address, its
+argument and its range. It is the same address space the MIDI mapping binds to:
+a fader is bound to a screen, a preset, a layer and a parameter, and that
+four-part address is the same thing whether it arrives as a control change or
+as a packet. The document is generated from the resolver's own tables, so it
+cannot describe an address that does not work.
+
+Four things worth knowing before you wire a surface to it:
+
+- **The address is the target; the argument is only the value.** A button with
+  a fixed address and no argument still means something specific, which is what
+  lets a TouchOSC layout be drawn once with no logic behind it.
+- **A trigger fires on a non-zero argument and on none at all.** Surfaces send
+  `1` on press and `0` on release; firing on both would take the screen twice.
+- **A recall never defaults to program.** `/lp/screen/1/memory/5/recall` goes to
+  preview. Reaching air costs the explicit word, here as everywhere else.
+- **`/norm` takes 0–1 and scales; without it the value is in the device's own
+  units.** Opacity is 0–256, not 0–100. Which one `0.5` meant cannot be worked
+  out from the value, so it is said in the address instead.
+
+It binds to loopback unless you choose otherwise, and the other option says in
+as many words that the network will be able to fire takes. Messages are written
+to the switcher over AWJ, so it works with no browser open — which is the
+point — and that port can be switched off in the Web RCS security settings.
+
+> **Over UDP, live layer parameters must name a buffer** — `/a`, `/b` or `/c`.
+> `preview` and `program` name whichever buffer is pending or live right now,
+> and resolving that needs the device's take state, which this listener does
+> not hold. It refuses those addresses with that reason rather than guessing.
+> The Console *can* resolve them, because the page has the device store.
+
 ## MIDI Mapping
 
 Under Virtual RC400T. Pick an input, an output for feedback, and a controller
@@ -443,8 +525,18 @@ or claiming the firmware is unsupported.
 - **A cue is reported as *sent*, never as *confirmed*.** Recalls and takes
   return nothing on this protocol. The log counts writes that left the browser;
   device status is shown separately, from the device's own status properties.
-- **No second connection.** The device counts its clients and shows them in the
-  header; an extra socket would appear there as a phantom operator.
+- **No second connection to the Web RCS.** The device counts its clients and
+  shows them in the header; an extra socket would appear there as a phantom
+  operator. The AWJ socket is a different budget — five clients — and is opened
+  per exchange and closed, never held.
+- **The OSC listener is off until you turn it on**, binds to loopback unless
+  you choose otherwise, and never answers a packet. It listens; it does not
+  reply, because replying to a spoofable datagram tells an unknown host that
+  something here is worth sending to.
+- **An OSC address that cannot be resolved is refused, not approximated.** An
+  enum value the device does not have, a parameter that is read-only, a preset
+  that needs a take state this process does not hold — each is turned away with
+  the reason, and counted in Settings.
 - **Re-pointing drops the old relay.** Moving to a backup frame hangs up the
   sockets aimed at the previous one, so a page cannot go on driving a device
   the operator believes they have left.
@@ -455,7 +547,19 @@ or claiming the firmware is unsupported.
 npm test
 ```
 
-88 tests, no network and no browser.
+199 tests, no browser. The socket tests bind real ports on loopback.
+
+Twenty-three cover OSC and AWJ. The framing ones run against a stand-in device
+on a real TCP socket rather than a mock, deliberately: everything worth catching
+there lives in the plumbing — the `0x04` terminator, a reply that straddles a
+read boundary, a write discarded because the socket was destroyed before it
+flushed — and a mocked `net.connect` would simply agree with whatever the code
+did. Two of those three were real bugs the tests found.
+
+One test asserts that `docs/OSC.md` is exactly what its generator produces, and
+another runs every address the document lists through the resolver. A published
+address space that describes something which does not work is worse than none,
+because the reader believes it.
 
 Twenty cover the expression evaluator, weighted towards what it must **refuse**
 — `1/0`, `2+`, `1920x1080`, `00:01.000`, and anything resembling code — because

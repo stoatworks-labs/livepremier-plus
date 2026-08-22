@@ -68,12 +68,31 @@ Do not "simplify" any of these; each is load-bearing and each was verified.
   alongside a `content-length` is illegal and strict clients reject it outright.
   This shipped as a bug and was caught by a test, not by looking at it.
 
-**There is deliberately no AWJ path in the server.** It would be easy — this is
-a process, it can open TCP 10606 — but the store is already mirrored and stays
-current from the socket, so an AWJ reader would be a second source of truth for
-the same VPU state. Two sources that can disagree about what is on air is not
-worth a faster first paint. If you are about to add one, that is the argument
-to beat.
+**There is now an AWJ path in the server, and the old argument still stands.**
+`server/awj.js` opens TCP 10606. Read this before touching it, because the
+reason it is allowed is narrow.
+
+The original argument was: the store is already mirrored and stays current from
+the vendor socket, so **an AWJ reader would be a second source of truth for the
+same VPU state**, and two sources that can disagree about what is on air is not
+worth a faster first paint. Every word of that is about *reading state into the
+mirror*, and it is still correct.
+
+What was added is not that:
+
+- **Nothing in it ever touches the store mirror.** A reply goes back to whoever
+  asked and is then forgotten. The mirror still has exactly one source.
+- **It holds no connection and subscribes to nothing.** One socket per
+  exchange, opened and closed — the device allows five clients and counts them.
+- **Both callers need something the mirror cannot give.** A typed
+  `{"op":"get",…}` wants what the *device* says right now, in the protocol's own
+  spelling; answering from the mirror would be answering a question about the
+  device with our own opinion of it. And the OSC listener has to work with no
+  browser open at all, which is the entire point of a show-control input.
+
+If you are about to make it hold a connection open, subscribe to anything, or
+write into the store mirror, the original argument applies to you and you have
+to beat it.
 
 **The switcher is chosen at runtime, not at startup.** That is what lets the
 desktop launcher be the fleet's stock shell with no fork: it injects a host and
@@ -117,6 +136,53 @@ plausible-looking wrong answer.
 
 ## Where our surfaces live, and why
 
+### Four command languages, one command line
+
+The Console takes Mynah, raw AWJ, raw Web RCS store JSON and OSC. All four come
+out of `src/vendor/mynah-lang.mjs` — the same vendored build that has always
+supplied the grammar — so this repo still states no grammar of its own. The
+panel picks a route and nothing else.
+
+Three things about it are load-bearing:
+
+- **Detection is by shape, and the verdict is shown as you type.** A line read
+  as the wrong language produces an error about a *character* rather than about
+  a command, and an operator reads that as their own typo. The chip beside the
+  feedback says what the line is being read as, before Enter, and the log keeps
+  it on every row — the question "why did that not do what I meant" is usually
+  asked about a line several commands back.
+- **A language prefix must never collide with a Mynah keyword.** `STORE` was an
+  alias for `JSON` upstream for one commit and turned every `Store Master 12`
+  into a JSON parse error, silently. Mynah's `dialects.test.ts` pins it; the
+  fix belongs there, not here.
+- **Almost everything still rides the vendor's socket.** `Path` holds both
+  spellings of one address, so a typed AWJ message converts to a store write
+  and lands at the identical node. Only two cases take `POST /__lpp/awj`: the
+  operator chose the real-socket transport, or the line contains a `get`, which
+  the vendor socket cannot answer because it carries changes rather than
+  answers.
+
+⚠️ **`preview` and `program` need the device's take state.** The Console can
+resolve them — the page has the store mirror, through `presetBanks()` in
+`core/screens.js`. The OSC listener cannot, and refuses those addresses with
+that reason rather than guessing. A layer move landing in whichever buffer
+happened to be live is the exact failure being defended against. That asymmetry
+is intended and is documented in `docs/OSC.md`.
+
+### `docs/OSC.md` is generated — `npm run gen:osc-docs`
+
+A published address space is a promise to somebody building a TouchOSC layout,
+and they cannot check it short of trying every address at a switcher. So the
+tables come from `oscDictionary(PARAMS)` — the same call the resolver uses —
+and `test/osc.test.js` fails when the checked-in file stops matching. Edit the
+prose in `tools/gen-osc-docs.mjs`; never edit the tables.
+
+`src/core/osc-dictionary.js` is what widens the space: mynah ships the seven
+layer parameters it can vouch for, and the control surface's `catalogue.json`
+adds sixty-seven read off a real device. Regenerating that catalogue against
+different firmware changes the document with nobody editing prose, which is the
+point of the ids being structural.
+
 - **Console and Timeline are tabs in the vendor's strip** on Screens / Aux.
   (`ui/tabs.js`), cloned from a real tab exactly as `Shell` clones a sidebar
   entry. The strip's container carries a CSS-modules hash, so it is found by
@@ -133,7 +199,15 @@ plausible-looking wrong answer.
   somewhere else", and it needs no class, route or label.
 - **Settings are in the Preconfig flyout** (`ui/settings-panel.js`), beneath the
   device's own System page, because Preconfig is where Web RCS files things
-  about the installation as a whole. `Shell` takes `submenuOf: '<vendor label>'`
+  about the installation as a whole. Two groups of them are real settings now —
+  the console language pair and the OSC listener — and they are **server-side**
+  (`src/core/settings.js`, `PUT /__lpp/settings`, one file in `~/.livepremier-plus`).
+  Not `localStorage`, for two reasons that are not preferences: the OSC listener
+  is a UDP socket in the server process, and the Console exists in two windows
+  at once, so a per-page setting would have the tab and the popout disagreeing
+  about which language the operator chose. They are also **not keyed by device**
+  — re-pointing at a backup frame mid-show must not change the command language
+  or close a port a lighting desk is sending to. `Shell` takes `submenuOf: '<vendor label>'`
   for this. The flyout's active class **cannot be lifted off a live element** the
   way the sidebar's can — it exists only while the operator is on a page inside
   the flyout, and they may never go to one — so it is read out of the vendor's
@@ -265,9 +339,17 @@ available. **Verified, not assumed**: `window.isSecureContext === true` and
 operator who opens the switcher's own address gets no MIDI — the panel says so
 explicitly, because that failure is not guessable.
 
-OSC is still not possible in the page (no UDP anywhere in a browser). If it is
-ever wanted, this process is already the local host awj-surface's node host
-assumes — that is the place for it, not the panel.
+OSC is still not possible **in the page** — there is no UDP anywhere in a
+browser, by any route, and serving from loopback does nothing about that. So it
+went where it always had to: `server/osc.js`, in this process. It is off by
+default, binds loopback unless told otherwise, and writes to the switcher over
+AWJ rather than through a tab, because a cue fires at 20:03 whether or not
+anybody has a Web RCS open.
+
+Its address space is the dictionary the MIDI mapping already needed — a fader
+is bound to a screen, a preset, a layer and a parameter, and that four-part
+address is the same thing whether it arrives as a control change or as a
+packet. `docs/OSC.md` publishes it and is **generated**; see below.
 
 ## The demo environment, and one thing it revealed
 
