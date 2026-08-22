@@ -44,7 +44,11 @@ const EXAMPLES = [
   ['R Sc 1 Th 4 Me 5 Pre', 'The same, over screens 1 to 4, in short form.'],
   ['Store Master 12', 'Save the current state as master memory 12.'],
   ['Select Screen 2 Layer 1 Thru 4', 'Put four layers under the next command.'],
-  ['Clear Screen 1', 'Empty the preview.']
+  ['Clear Screen 1', 'Empty the preview.'],
+  ['Set Audio Patch Input 1 Channel 1 To Dante 1', 'Route one audio channel.'],
+  ['Set Audio Patch Input 1 Channel 1 Thru 8 To Dante 1', 'Lay a run of eight onto Dante 1–8.'],
+  ['Set Audio Mute Dante 1 Thru 6', 'Silence six Dante channels.'],
+  ['Set Audio Patch None To Output 3', 'Clear all eight channels of output 3.']
 ];
 
 export function createSyntaxPanel() {
@@ -106,7 +110,7 @@ export function createSyntaxPanel() {
       }
       /* The reference matter goes at the end, and only when nothing is being
          searched for — it is orientation, not a result. */
-      if (!state.query.trim()) list.append(examples(), limits());
+      if (!state.query.trim()) list.append(examples(), audioNote(), limits());
     }
 
     repaint();
@@ -138,6 +142,22 @@ export function createSyntaxPanel() {
         EXAMPLES.map(([cmd, what]) => h('div', { class: 'lpp-example' },
           h('code', { class: 'wru-console-cmd', text: cmd }),
           h('div', { class: 'aw-font-caption aw-text-secondary', text: what })))));
+  }
+
+  /**
+   * The one thing about audio a reference has to say out loud.
+   *
+   * Everything else in the grammar is discoverable from the word list; the
+   * flat Dante numbering is not, because the device's own store groups it into
+   * eights and someone who has seen that will expect to type the group.
+   */
+  function audioNote() {
+    return h('div', { class: 'aw-flex-col aw-gap-row-mini' },
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Audio' }),
+      h('div', { class: 'aw-font-caption aw-text-secondary', text:
+        'Dante is numbered straight through, 1 to 64 — say Dante 11, not Dante 2 Channel 3. ' +
+        'A unit with no Channel means all eight of it. Muting an Input silences it into every ' +
+        'destination it feeds; muting an Output silences only that channel.' }));
   }
 
   function limits() {

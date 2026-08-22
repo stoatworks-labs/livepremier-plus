@@ -57,6 +57,21 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
     hint: null
   };
 
+  /**
+   * What the compiler actually said.
+   *
+   * A failed compile is `{ok:false, errors:[{message}]}` — there is no
+   * `.error`, and reading for one meant every refusal in the language showed
+   * as the bare words "cannot compile" for as long as this panel has existed.
+   * The compiler's messages are the useful part: they name which end of a
+   * patch is the wrong way round, or how far past the end of a destination a
+   * run would have gone.
+   */
+  function compileError(compiled) {
+    const first = compiled && compiled.errors && compiled.errors[0];
+    return (first && first.message) || 'cannot compile';
+  }
+
   function note(kind, text, detail) {
     state.log.unshift({ at: Date.now(), kind, text, detail });
     if (state.log.length > LOG_MAX) state.log.length = LOG_MAX;
@@ -85,7 +100,7 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
     try {
       const compiled = compile(result.command ?? result);
       if (compiled && compiled.ok && compiled.summary) state.hint = compiled.summary;
-      else if (compiled && compiled.ok === false) state.error = compiled.error || 'cannot compile';
+      else if (compiled && compiled.ok === false) state.error = compileError(compiled);
     } catch { /* incomplete is not an error */ }
   }
 
@@ -115,7 +130,7 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
       return finish();
     }
     if (!compiled || compiled.ok === false) {
-      note('error', text, (compiled && compiled.error) || 'could not compile');
+      note('error', text, compileError(compiled));
       return finish();
     }
 
