@@ -84,8 +84,8 @@ between the markers and rewrites it wholesale at each release.
 
 | Build | Download | Size |
 | --- | --- | --- |
-| Apple Silicon · .dmg disk image | [`livepremier-plus-0.3.1-macos-aarch64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-aarch64.dmg) | 46 MB |
-| Intel · .dmg disk image | [`livepremier-plus-0.3.1-macos-x86_64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-x86_64.dmg) | 48 MB |
+| Apple Silicon · .dmg disk image | [`livepremier-plus-0.3.1-macos-aarch64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-aarch64.dmg) | 40 MB |
+| Intel · .dmg disk image | [`livepremier-plus-0.3.1-macos-x86_64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-x86_64.dmg) | 42 MB |
 | Apple Silicon · .pkg installer | [`livepremier-plus-0.3.1-macos-aarch64.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-aarch64.pkg) | 40 MB |
 | Intel · .pkg installer | [`livepremier-plus-0.3.1-macos-x86_64.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-x86_64.pkg) | 42 MB |
 
@@ -112,7 +112,7 @@ between the markers and rewrites it wholesale at each release.
 
 All builds, checksums and release notes: [github.com/stoatworks-labs/livepremier-plus/releases](https://github.com/stoatworks-labs/livepremier-plus/releases).
 
-The Windows builds are unsigned, so SmartScreen warns once.
+macOS builds are signed and notarised and open normally. The Windows builds are unsigned, so SmartScreen warns once.
 
 <!-- downloads:end -->
 
