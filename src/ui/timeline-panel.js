@@ -59,6 +59,20 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
     return panel({ toolbar: toolbar(), body: body() });
   }
 
+  /**
+   * Open the editor in a window of its own.
+   *
+   * Reused rather than re-opened, exactly as the console's is: two of these
+   * would each hold the same stack and each repaint on every device frame.
+   */
+  let child = null;
+  function popOut() {
+    if (child && !child.closed) { child.focus(); return; }
+    child = window.open('/__lpp/timeline', 'lpp-timeline',
+      'width=1200,height=800,menubar=no,toolbar=no,location=no');
+    if (!child) onRefresh();
+  }
+
   function toolbar() {
     const standby = stack.standby;
     const armed = view.armedUntil && view.armedUntil > Date.now();
@@ -75,6 +89,11 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
         armed ? h('span', { class: 'wru-tag wru-warn', text: 'armed' }) : null,
         timecodeTag()),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
+        button('Pop out', {
+          iconId: 'set-layer-to-fullscreen-18',
+          title: 'Open the full cue editor in its own window',
+          onClick: popOut
+        }),
         chase ? button(chase.enabled ? 'Chasing' : 'Chase', {
           onClick: () => { chase.enabled ? chase.disarm() : chase.arm(); onRefresh(); },
           active: chase.enabled,

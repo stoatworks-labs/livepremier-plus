@@ -290,6 +290,47 @@ const CSS = `
 }
 .lpp-orphan { padding: 3rem; max-width: 40rem; color: #838B91; }
 .lpp-orphan h1 { color: #fff; margin: 0 0 0.5rem; }
+
+/* ------------------------------------------- popped-out timeline editor -- */
+
+/* The QLab arrangement: a list you drive from the keyboard, and everything
+   about the selected cue in a panel underneath it. */
+.lpp-editor { display: flex; flex-direction: column; }
+.lpp-cuelist-host { flex: 1 1 auto; overflow: auto; background: #1B272F; min-height: 0; }
+.lpp-cuelist { table-layout: fixed; }
+.lpp-cuelist td { white-space: nowrap; }
+.lpp-cue--selected { outline: 0.1rem solid #2185D0; outline-offset: -0.1rem; background: rgba(33,133,208,0.12); }
+/* A cue fired by the clock rather than by GO — worth telling apart at a
+   glance, since it is the difference between a cue that waits for you and one
+   that does not. */
+.lpp-tc { color: #54C8FF; }
+
+.lpp-inspector {
+  flex: 0 0 auto; max-height: 42%; overflow: auto;
+  border-top: 0.1rem solid #283239; background: #08141B; padding: 0.833333rem 1rem;
+}
+.lpp-inspector-head { margin-bottom: 0.666667rem; }
+.lpp-inspector-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: 0.833333rem;
+}
+.lpp-field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.lpp-actions { margin-top: 0.833333rem; }
+.lpp-action {
+  background: rgba(255,255,255,0.04); border: 0.1rem solid #283239;
+  border-radius: 0.166667rem; padding: 0.166667rem 0.5rem;
+}
+.lpp-editor-foot {
+  flex: 0 0 auto; padding: 0.5rem 1rem;
+  border-top: 0.1rem solid #283239; background: #1B272F;
+}
+
+/* The running clock, big enough to read across a production desk. */
+.lpp-clock {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.5rem; letter-spacing: 0.05rem; color: #616D75;
+}
+.lpp-clock--live { color: #00FF7F; }
 `;
 
 /**

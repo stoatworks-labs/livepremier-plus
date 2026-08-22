@@ -147,6 +147,8 @@ export async function createProxy({
      on this origin, because it drives the Web RCS tab's own session through
      `window.opener` and that only works same-origin. */
   const consolePage = await readFile(join(root, 'server/console.html'), 'utf8');
+  /* And the timeline editor, on the same terms. */
+  const timelinePage = await readFile(join(root, 'server/timeline.html'), 'utf8');
 
   /*
    * Our own version, read off the manifest rather than duplicated in a
@@ -224,9 +226,9 @@ export async function createProxy({
       return undefined;   /* held open deliberately */
     }
 
-    if (rest === '/console') {
+    if (rest === '/console' || rest === '/timeline') {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-      return res.end(consolePage);
+      return res.end(rest === '/console' ? consolePage : timelinePage);
     }
 
     if (rest === '/status') {

@@ -45,6 +45,7 @@ import { installStyles } from './theme.js';
 import { createConsolePanel } from './console-panel.js';
 import { createPreviewWall } from './preview.js';
 import { createSyntaxPanel, createMacroPanel } from './syntax-panel.js';
+import { buildTimelineEditor } from './timeline-editor.js';
 
 const SPRITE_ID = '__SVG_SPRITE_NODE__';
 
@@ -85,16 +86,70 @@ export function adoptVendorChrome(doc, openerDoc) {
 }
 
 /**
- * Build the popout into `doc`, driving the opener's session.
+ * Everything a popped-out window needs before it can draw anything.
+ *
+ * Shared by every popout — the console and the timeline editor both — because
+ * the awkward parts are identical and are the parts worth getting right once:
+ * finding the opener's session, borrowing the vendor's stylesheet, and saying
+ * so out loud when the window it came from goes away.
+ *
+ * `build` is called with the live bridge and returns whatever it likes; it is
+ * only reached when there is genuinely a session to drive.
+ *
+ * @param {{doc: Document, opener: Window, build: Function}} opts
+ */
+export function bootPopout({ doc = document, opener = window.opener, build }) {
+  const bridge = opener && !opener.closed ? opener.__WRU : null;
+  if (!bridge || !bridge.session) return mountOrphan(doc, 'no session');
+  if (!adoptVendorChrome(doc, opener.document)) return mountOrphan(doc, 'no vendor page');
+
+  const banner = h('div');
+  doc.body.append(banner);
+  const built = build({ doc, bridge, banner }) || {};
+
+  /*
+   * The opener is this window's only route to the device. Watch for it going
+   * and say so loudly — a panel that has quietly stopped reaching a switcher
+   * is the failure mode worth spending a banner on.
+   */
+  const watch = setInterval(() => {
+    if (opener && !opener.closed && opener.__WRU) return;
+    clearInterval(watch);
+    try { built.stop && built.stop(); } catch { /* tearing down is best effort */ }
+    banner.textContent = '';
+    banner.append(h('div', { class: 'lpp-banner' },
+      'The Web RCS window this came from has closed, so there is no connection to the switcher. ',
+      'Nothing done here will be sent. Open it again from Web RCS.'));
+    for (const field of doc.querySelectorAll('input, select, button')) field.disabled = true;
+  }, 1000);
+
+  (doc.defaultView || window).addEventListener('pagehide', () => {
+    clearInterval(watch);
+    try { built.stop && built.stop(); } catch { /* going away anyway */ }
+  });
+
+  return built;
+}
+
+/**
+ * Build the console popout into `doc`, driving the opener's session.
  *
  * @param {{doc: Document, opener: Window}} opts
  */
 export function mountPopout({ doc = document, opener = window.opener } = {}) {
-  const bridge = opener && !opener.closed ? opener.__WRU : null;
-  if (!bridge || !bridge.session) return mountOrphan(doc, 'no session');
+  return bootPopout({ doc, opener, build: ({ bridge }) => buildConsole(doc, bridge) });
+}
 
-  if (!adoptVendorChrome(doc, opener.document)) return mountOrphan(doc, 'no vendor page');
+/**
+ * Build the timeline editor popout: a cue list with an inspector under it.
+ *
+ * @param {{doc: Document, opener: Window}} opts
+ */
+export function mountTimelinePopout({ doc = document, opener = window.opener } = {}) {
+  return bootPopout({ doc, opener, build: ({ bridge }) => buildTimelineEditor(doc, bridge) });
+}
 
+function buildConsole(doc, bridge) {
   const { session } = bridge;
 
   /* No Pop out button in here — this is where it pops out to. */
@@ -116,10 +171,8 @@ export function mountPopout({ doc = document, opener = window.opener } = {}) {
   const sideTabs = h('div', { class: 'lpp-side-tabs aw-flex-row-center-v aw-gap-col-mini' });
   const sideBody = h('div', { class: 'lpp-side-pane' });
   const consoleHost = h('div', { class: 'lpp-console' });
-  const banner = h('div');
 
   const root = h('div', { class: 'lpp-popout' },
-    banner,
     h('div', { class: 'lpp-top' },
       h('section', { class: 'lpp-previews' },
         h('div', { class: 'lpp-pane-head' },
@@ -185,27 +238,14 @@ export function mountPopout({ doc = document, opener = window.opener } = {}) {
   session.addEventListener('frame', onFrame);
   session.addEventListener('state', onFrame);
 
-  /*
-   * The opener is this window's only route to the device. Watch for it going
-   * and say so loudly — a command line that has quietly stopped reaching a
-   * switcher is the failure mode worth spending a banner on.
-   */
-  const watch = setInterval(() => {
-    if (opener && !opener.closed && opener.__WRU) return;
-    clearInterval(watch);
-    wall.stop();
-    session.removeEventListener('frame', onFrame);
-    session.removeEventListener('state', onFrame);
-    banner.textContent = '';
-    banner.append(h('div', { class: 'lpp-banner' },
-      'The Web RCS window this came from has closed, so there is no connection to the switcher. ',
-      'Nothing typed here will be sent. Open the console again from Web RCS.'));
-    for (const field of doc.querySelectorAll('input')) field.disabled = true;
-  }, 1000);
-
-  (doc.defaultView || window).addEventListener('pagehide', () => { wall.stop(); clearInterval(watch); });
-
-  return { paintWall, paintConsole, paintSide, wall };
+  return {
+    paintWall, paintConsole, paintSide, wall,
+    stop() {
+      wall.stop();
+      session.removeEventListener('frame', onFrame);
+      session.removeEventListener('state', onFrame);
+    }
+  };
 }
 
 /** Nothing to attach to: say why, in plain words, and stop. */

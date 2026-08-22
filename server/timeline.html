@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Timeline — LivePremier Plus</title>
+<!--
+  Deliberately bare — see console.html; the reasoning is identical.
+
+  Every stylesheet and every icon this page uses belongs to the vendor and is
+  copied off the opener at runtime — see `adoptVendorChrome` in
+  src/ui/popout.js. Linking them here would mean hard-coding the per-build
+  hashes in their filenames, which change every firmware, and this project's
+  standing rule is that nothing about the vendor's markup is hard-coded.
+
+  The only rule below is the page background, so a slow stylesheet does not
+  flash white in a dark room.
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #08141B; color: #fff; }
+  body { font-family: OpenSans, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<script type="module">
+  import { mountTimelinePopout } from '/__lpp/src/ui/popout.js';
+  mountTimelinePopout({ doc: document, opener: window.opener });
+</script>
+</body>
+</html>
