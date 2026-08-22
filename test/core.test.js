@@ -26,6 +26,9 @@ import {
 } from '../src/core/vpu.js';
 import { CueStack, ACTION_KINDS, toTenths, SETTLE_MS } from '../src/core/cuestack.js';
 import { readIdentity, describe } from '../src/core/identity.js';
+import {
+  listDestinations, readLayers, anchorToTopLeft, snapshotUrl, sourceLabel
+} from '../src/core/screens.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));
@@ -436,4 +439,104 @@ test('an unrecognised model is reported as absent rather than guessed at', () =>
 
 test('a device is described by family and model together', () => {
   assert.equal(describe(readIdentity(identityStore()).primary), 'AQUILON NLC_CMAX (simulator)');
+});
+
+/* ------------------------------------------------------------------ *
+ * Screens and auxiliaries, as something you can draw.
+ *
+ * The fixture is the simulator's own screen/aux/group subtree, trimmed to
+ * four layer slots. It carries the case that matters most: S1's preset has
+ * geometry for layer 2 pointing at LIVE_3 at full screen, and layer 2 is not
+ * allocated. Anything that draws the preset without consulting the screen's
+ * own layer list paints that stale layer over the picture.
+ * ------------------------------------------------------------------ */
+
+const destStore = () => {
+  const store = new DeviceStore();
+  store.hydrate(fixture('sim-6.2.73-destinations.json'));
+  return store;
+};
+
+test('only destinations that are in service are listed', () => {
+  const list = listDestinations(destStore());
+  assert.deepEqual(list.map((d) => d.id), ['S1']);
+  assert.equal(list[0].kind, 'screen');
+  assert.equal(list[0].layerCount, 1);
+});
+
+test('the unused ones are still reachable when asked for', () => {
+  const list = listDestinations(destStore(), { includeUnused: true });
+  assert.deepEqual(list.map((d) => d.id), ['S1', 'S2', 'A1']);
+  assert.equal(list.find((d) => d.id === 'A1').kind, 'aux');
+  assert.equal(list.find((d) => d.id === 'S2').isUsed, false);
+});
+
+/* AT_UP means presetUp is on air. Reading it the other way round would put
+   the preview picture under a PGM label, with nothing to give it away. */
+test('the live bank comes from the transition end, not from a guess', () => {
+  const [s1] = listDestinations(destStore());
+  assert.equal(s1.transition, 'AT_UP');
+  assert.deepEqual(s1.banks, { program: 'B', preview: 'A' });
+});
+
+test('the reverse end swaps the banks over', () => {
+  const store = destStore();
+  store.set([ROOT, 'screenAuxGroupList', 'items', 'S1', 'status', 'pp'],
+    { isUsed: true, transition: 'AT_DOWN', take: 'OFF', tbarPosition: 0 });
+  const [s1] = listDestinations(store);
+  assert.deepEqual(s1.banks, { program: 'A', preview: 'B' });
+});
+
+test('the canvas size is the one the device reports', () => {
+  const [s1] = listDestinations(destStore());
+  assert.deepEqual(s1.canvas, { width: 1920, height: 1080, reported: true });
+});
+
+/* The whole point of the file. */
+test('a layer with geometry but no allocation is not drawn', () => {
+  const store = destStore();
+  const [s1] = listDestinations(store);
+  const layers = readLayers(store, s1, 'A');
+  assert.deepEqual(layers.map((l) => l.label), ['L1']);
+  /* Layer 2 is in the preset, at full screen, on LIVE_3 — and it is OFF. */
+  const preset = store.get([ROOT, 'screenList', 'items', 'S1', 'presetList', 'items', 'A', 'layerList', 'items', '2']);
+  assert.equal(preset.source.pp.inputNum, 'LIVE_3');
+});
+
+test('an anchored layer resolves to a top-left rectangle in canvas pixels', () => {
+  const store = destStore();
+  const [s1] = listDestinations(store);
+  const [l1] = readLayers(store, s1, 'A');
+  /* MIDDLE_CENTER at 960,540, 960x960 on a 1920x1080 canvas. */
+  assert.deepEqual(l1.rect, { left: 480, top: 60, width: 960, height: 960 });
+  assert.equal(l1.frac.left, 0.25);
+  assert.equal(l1.source, 'LIVE_1');
+  assert.equal(l1.snapshot, '/api/device/snapshots/inputs/1');
+  assert.equal(l1.opacity, 1);
+});
+
+test('every anchor corner resolves without a table of combinations', () => {
+  assert.deepEqual(anchorToTopLeft('TOP_LEFT', 100, 50, 200, 100), { left: 100, top: 50 });
+  assert.deepEqual(anchorToTopLeft('BOTTOM_RIGHT', 100, 50, 200, 100), { left: -100, top: -50 });
+  assert.deepEqual(anchorToTopLeft('MIDDLE_CENTER', 100, 50, 200, 100), { left: 0, top: 0 });
+  assert.deepEqual(anchorToTopLeft('TOP_CENTER', 100, 50, 200, 100), { left: 0, top: 50 });
+  /* An anchor we cannot read goes to the centre rather than to a corner. */
+  assert.deepEqual(anchorToTopLeft('SOMETHING_NEW', 100, 50, 200, 100), { left: 0, top: 0 });
+});
+
+/* Only live inputs and stills have a picture; everything else is drawn as a
+   labelled rectangle, which is what the vendor does too. */
+test('a snapshot URL exists only for sources that have one', () => {
+  assert.equal(snapshotUrl('LIVE_7'), '/api/device/snapshots/inputs/7');
+  assert.equal(snapshotUrl('STILL_2'), '/api/device/snapshots/images/2');
+  assert.equal(snapshotUrl('NONE'), null);
+  assert.equal(snapshotUrl('COLOR'), null);
+  assert.equal(snapshotUrl(undefined), null);
+});
+
+test('sources are labelled the way an operator names them', () => {
+  assert.equal(sourceLabel('LIVE_3'), 'IN3');
+  assert.equal(sourceLabel('STILL_1'), 'IMG1');
+  assert.equal(sourceLabel('NONE'), '');
+  assert.equal(sourceLabel('COLOR_BAR'), 'COLOR BAR');
 });

@@ -123,12 +123,59 @@ plausible-looking wrong answer.
   **structure** — the parent of `.ui.tabular.menu` — never by name. React
   re-renders that subtree on every selection change; a MutationObserver puts
   the tabs back, and `_mount()` is idempotent because it runs constantly.
+
+  ⚠️ **`.ui.tabular.menu` is not unique to that panel.** Preconfig heads its
+  page with a strip built from the same Semantic UI classes, and Console and
+  Timeline were appended to it for a release — two words in a row of glyphs, on
+  a page they have nothing to do with. A strip only qualifies if it holds a
+  **pane switcher**: an anchor with a heading and no `href`. That is the
+  difference between "these tabs change what is shown here" and "these links go
+  somewhere else", and it needs no class, route or label.
+- **Settings are in the Preconfig flyout** (`ui/settings-panel.js`), beneath the
+  device's own System page, because Preconfig is where Web RCS files things
+  about the installation as a whole. `Shell` takes `submenuOf: '<vendor label>'`
+  for this. The flyout's active class **cannot be lifted off a live element** the
+  way the sidebar's can — it exists only while the operator is on a page inside
+  the flyout, and they may never go to one — so it is read out of the vendor's
+  own stylesheet (`classFromStylesheets`). A proxied page is same-origin, so
+  `cssRules` is legible.
 - **MIDI Mapping is anchored under Virtual RC400T**, not in the PLUS section.
   `Shell` entries take an optional `after: '<vendor label>'` for this. The
   anchor is matched on the visible **label**, because that is the only part of
   the sidebar markup the vendor has not hashed.
-- **Only the VPU map stays in PLUS** — it is a whole-device view, and the other
-  three belong to parts of the app that already exist.
+- **Only the VPU map stays in PLUS** — it is a whole-device view, and the others
+  belong to parts of the app that already exist.
+
+### The popped-out console (`ui/popout.js`, `server/console.html`)
+
+`/__lpp/console` is a document of **ours**, served from this process rather than
+proxied, opened by the Pop out button on the Console. It holds the screen and
+aux previews, a full-width command line and a Syntax/Macros shelf.
+
+Two things about it are load-bearing:
+
+- **It opens no socket and fetches no store.** It reaches back through
+  `window.opener.__WRU` and drives the session already running in the Web RCS
+  tab. That is the only reason a second window is allowed at all — see idea 3
+  above; a window that connected on its own would show up in the device's own
+  client count as a phantom operator. It also means the popout **must** be on
+  our origin, and that losing the opener has to be handled out loud: a command
+  line that has quietly stopped reaching a switcher is the failure worth a
+  banner.
+- **It ships no stylesheet.** The `<link>` hrefs, the `#__SVG_SPRITE_NODE__`
+  icon sprite and the root `font-size` are copied off the opener at runtime.
+  Never hard-code them: the hashes change every firmware, and every `aw-`
+  spacing value is in rem against the vendor's `html { font-size: 12px }`, so a
+  popout on the browser default lays out half again too large.
+
+⚠️ **There is no screen snapshot endpoint.** `/api/device/snapshots/<type>/<id>`
+serves inputs, images, outputs, multiviewers and timers — the screen card is
+composed in the browser, and `core/screens.js` does the reading half. The trap
+that file exists to close: **a preset carries geometry for every layer slot,
+allocated or not.** On the simulator S1's preset A has layer 2 on `LIVE_3` at
+full screen, and layer 2 does not exist. The preset says *where*; the screen's
+own `layerList/items/<n>/status/pp/capability` says *whether*. Drawing the
+preset alone covers every screen in stale full-frame layers.
 
 ## MIDI: the constraint that used to decide the architecture, and does not now
 

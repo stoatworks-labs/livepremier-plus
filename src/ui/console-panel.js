@@ -39,7 +39,12 @@ import {
 const HISTORY_MAX = 100;
 const LOG_MAX = 200;
 
-export function createConsolePanel({ session, onRefresh = () => {} }) {
+/**
+ * @param {object} opts
+ * @param {boolean} [opts.popoutEnabled] show the Pop out button. False inside
+ *   the popout itself, which has nowhere further to go.
+ */
+export function createConsolePanel({ session, onRefresh = () => {}, popoutEnabled = true } = {}) {
   /* Kept outside render() so a repaint driven by device traffic does not wipe
      what the operator is halfway through typing. */
   const state = {
@@ -234,6 +239,28 @@ export function createConsolePanel({ session, onRefresh = () => {} }) {
       h('span', { class: 'wru-console-detail aw-text-secondary', text: entry.detail || '' }));
   }
 
+  /**
+   * Open the big console in a window of its own.
+   *
+   * Reused rather than re-opened: a second click focuses the window that is
+   * already up. Two of these would each hold a reference to this session and
+   * each run their own snapshot clock, which is twice the traffic to the
+   * switcher for one operator.
+   *
+   * The popout is not offered inside the popout — `popout` is only defined
+   * where there is somewhere to pop out *from*.
+   */
+  let child = null;
+  function popOut() {
+    if (child && !child.closed) { child.focus(); return; }
+    child = window.open('/__lpp/console', 'lpp-console',
+      'width=1400,height=900,menubar=no,toolbar=no,location=no');
+    if (!child) {
+      note('warn', 'pop out', 'the browser blocked the window — allow pop-ups for this address');
+      onRefresh();
+    }
+  }
+
   function toolbar() {
     const live = session.state === 'live';
     return h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium' },
@@ -243,10 +270,17 @@ export function createConsolePanel({ session, onRefresh = () => {} }) {
         text: live ? 'connected' : session.state
       }),
       h('div', { style: { flex: '1' } }),
+      popoutEnabled
+        ? button('Pop out', {
+          iconId: 'set-layer-to-fullscreen-18',
+          title: 'Open the console in its own window, with screen previews and the command dictionary',
+          onClick: popOut
+        })
+        : null,
       button('Clear', { onClick: () => { state.log = []; onRefresh(); }, variant: 'ghost' }));
   }
 
-  return { render, state };
+  return { render, state, popOut };
 }
 
 /** The keyword table, for a help view. Exposed so tests can assert on it. */

@@ -1,0 +1,1407 @@
+{
+ "device": {
+  "screenList": {
+   "itemKeys": [
+    "S1",
+    "S2"
+   ],
+   "items": {
+    "S1": {
+     "control": {
+      "pp": {
+       "label": "",
+       "transitionGroup": "S1"
+      }
+     },
+     "status": {
+      "pp": {
+       "mode": "FREESTYLE",
+       "mixingMode": "MIXER_SEAMLESS",
+       "transitionGroup": "S1",
+       "isStacked": false,
+       "layerCount": 1,
+       "outputCount": 1,
+       "capabilities": 1,
+       "regionValidity": [
+        "1"
+       ],
+       "hasOverlapWarning": [],
+       "isStereo3d": false
+      },
+      "size": {
+       "pp": {
+        "sizeH": 1920,
+        "sizeV": 1080
+       }
+      }
+     },
+     "layerList": {
+      "itemKeys": [
+       "NATIVE",
+       "1",
+       "2",
+       "3"
+      ],
+      "items": {
+       "NATIVE": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": false,
+          "usedInRegions": [
+           "1"
+          ],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "1": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "DUAL",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": true,
+          "usedInRegions": [
+           "1"
+          ],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": false,
+          "usedInRegions": [
+           "1"
+          ],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": false,
+          "usedInRegions": [
+           "1"
+          ],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       }
+      }
+     },
+     "presetList": {
+      "itemKeys": [
+       "A",
+       "B"
+      ],
+      "items": {
+       "A": {
+        "layerList": {
+         "itemKeys": [
+          "NATIVE",
+          "1",
+          "2",
+          "3"
+         ],
+         "items": {
+          "NATIVE": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "1": {
+           "source": {
+            "pp": {
+             "inputNum": "LIVE_1"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "LIVE_1"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 960,
+             "sizeV": 960
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "2": {
+           "source": {
+            "pp": {
+             "inputNum": "LIVE_3"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "LIVE_3"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "3": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          }
+         }
+        }
+       },
+       "B": {
+        "layerList": {
+         "itemKeys": [
+          "NATIVE",
+          "1",
+          "2",
+          "3"
+         ],
+         "items": {
+          "NATIVE": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "1": {
+           "source": {
+            "pp": {
+             "inputNum": "LIVE_1"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "LIVE_1"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "2": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "3": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "S2": {
+     "control": {
+      "pp": {
+       "label": "",
+       "transitionGroup": "S2"
+      }
+     },
+     "status": {
+      "pp": {
+       "mode": "DISABLED",
+       "mixingMode": "MIXER_SEAMLESS",
+       "transitionGroup": "S2",
+       "isStacked": false,
+       "layerCount": 0,
+       "outputCount": 0,
+       "capabilities": 0,
+       "regionValidity": [],
+       "hasOverlapWarning": [],
+       "isStereo3d": false
+      },
+      "size": {
+       "pp": {
+        "sizeH": 1920,
+        "sizeV": 1080
+       }
+      }
+     },
+     "layerList": {
+      "itemKeys": [
+       "NATIVE",
+       "1",
+       "2",
+       "3"
+      ],
+      "items": {
+       "NATIVE": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": false,
+          "usedInRegions": [],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "1": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": false,
+          "usedInRegions": [],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": false,
+          "usedInRegions": [],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": false,
+          "usedInRegions": [],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       }
+      }
+     },
+     "presetList": {
+      "itemKeys": [
+       "A",
+       "B"
+      ],
+      "items": {
+       "A": {
+        "layerList": {
+         "itemKeys": [
+          "NATIVE",
+          "1",
+          "2",
+          "3"
+         ],
+         "items": {
+          "NATIVE": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "1": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "2": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "3": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          }
+         }
+        }
+       },
+       "B": {
+        "layerList": {
+         "itemKeys": [
+          "NATIVE",
+          "1",
+          "2",
+          "3"
+         ],
+         "items": {
+          "NATIVE": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "1": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "2": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "3": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "auxiliaryList": {
+   "itemKeys": [
+    "A1"
+   ],
+   "items": {
+    "A1": {
+     "control": {
+      "pp": {
+       "label": "",
+       "transitionGroup": "A1"
+      }
+     },
+     "status": {
+      "pp": {
+       "mode": "DISABLED",
+       "transitionGroup": "A1",
+       "isAuxAdvanced": true,
+       "layerCount": 0,
+       "outputCount": 0,
+       "capabilities": 0
+      },
+      "size": {
+       "pp": {
+        "sizeH": 1920,
+        "sizeV": 1080
+       }
+      }
+     },
+     "layerList": {
+      "itemKeys": [
+       "NATIVE",
+       "1",
+       "2",
+       "3"
+      ],
+      "items": {
+       "NATIVE": {
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "1": {
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "2": {
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "3": {
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       }
+      }
+     },
+     "presetList": {
+      "itemKeys": [
+       "A",
+       "B"
+      ],
+      "items": {
+       "A": {
+        "layerList": {
+         "itemKeys": [
+          "NATIVE",
+          "1",
+          "2",
+          "3"
+         ],
+         "items": {
+          "NATIVE": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "1": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "2": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "3": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          }
+         }
+        }
+       },
+       "B": {
+        "layerList": {
+         "itemKeys": [
+          "NATIVE",
+          "1",
+          "2",
+          "3"
+         ],
+         "items": {
+          "NATIVE": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "1": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "2": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          },
+          "3": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "screenAuxGroupList": {
+   "itemKeys": [
+    "S1",
+    "S2",
+    "A1"
+   ],
+   "items": {
+    "S1": {
+     "control": {
+      "pp": {
+       "copyMode": false,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": true,
+       "xTakeUp": false,
+       "xTakeDown": false,
+       "xTakeAbort": true,
+       "xCut": true,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": true,
+       "transition": "AT_UP",
+       "take": "OFF",
+       "tbarPosition": 65535,
+       "isTbarPositionValid": true
+      }
+     }
+    },
+    "S2": {
+     "control": {
+      "pp": {
+       "copyMode": false,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": false,
+       "xTakeUp": false,
+       "xTakeDown": false,
+       "xTakeAbort": false,
+       "xCut": false,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": false,
+       "transition": "AT_DOWN",
+       "take": "OFF",
+       "tbarPosition": 0,
+       "isTbarPositionValid": true
+      }
+     }
+    },
+    "A1": {
+     "control": {
+      "pp": {
+       "copyMode": false,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": false,
+       "xTakeUp": false,
+       "xTakeDown": false,
+       "xTakeAbort": false,
+       "xCut": false,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": false,
+       "transition": "AT_DOWN",
+       "take": "OFF",
+       "tbarPosition": 0,
+       "isTbarPositionValid": true
+      }
+     }
+    }
+   }
+  }
+ }
+}

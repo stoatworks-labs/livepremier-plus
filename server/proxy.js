@@ -142,6 +142,12 @@ export async function createProxy({
      point there is no device to borrow a stylesheet from. */
   const setupPage = await readFile(join(root, 'server/setup.html'), 'utf8');
 
+  /* The popped-out console. A document of ours rather than a proxied one, so
+     it is served from here and not fetched from the switcher — but it must be
+     on this origin, because it drives the Web RCS tab's own session through
+     `window.opener` and that only works same-origin. */
+  const consolePage = await readFile(join(root, 'server/console.html'), 'utf8');
+
   /*
    * Our own version, read off the manifest rather than duplicated in a
    * constant — the settings page prints it, and a number that has to be kept
@@ -167,6 +173,11 @@ export async function createProxy({
 
   async function serveOwn(req, res, url) {
     const rest = url.pathname.slice(NS.length) || '/';
+
+    if (rest === '/console') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(consolePage);
+    }
 
     if (rest === '/status') {
       return sendJson(res, 200, { ...state, ok: true, configured: !!target });

@@ -184,6 +184,112 @@ const CSS = `
 
 .wru-empty { color: #838B91; padding: 2rem; text-align: center; }
 .wru-warn { color: #F39910; }
+
+/* ------------------------------------------------- popped-out console -- */
+
+/* A three-region window: previews and the reference shelf side by side, with
+   the command line spanning the full width beneath them. The console is the
+   thing being used; the previews are what it is being used at. */
+.lpp-popout {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; background: #08141B;
+}
+.lpp-top { flex: 1 1 auto; display: flex; min-height: 0; }
+.lpp-previews { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.lpp-side {
+  flex: 0 0 26rem; display: flex; flex-direction: column; min-height: 0;
+  border-left: 0.1rem solid #283239; background: #1B272F;
+}
+.lpp-pane-head {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: 0.666667rem 1rem; background: #08141B;
+  border-bottom: 0.1rem solid #283239; flex: 0 0 auto;
+}
+.lpp-wall-body { flex: 1 1 auto; overflow: auto; padding: 1rem; background: #1B272F; }
+.lpp-console {
+  flex: 0 0 auto; height: 40%; min-height: 14rem; max-height: 60%;
+  border-top: 0.1rem solid #283239; position: relative;
+  display: flex; flex-direction: column;
+}
+/* The console renders the standard panel frame; make it fill this region. */
+.lpp-console > .wru-overlay-inner { flex: 1 1 auto; min-height: 0; }
+
+.lpp-side-tabs { padding: 0.5rem 0.5rem 0; flex: 0 0 auto; }
+.lpp-tab {
+  appearance: none; border: 0; background: transparent; color: #838B91;
+  font-family: inherit; font-size: 1rem; letter-spacing: 0.0416667rem;
+  text-transform: uppercase; padding: 0.5rem 0.833333rem; cursor: pointer;
+  border-bottom: 0.166667rem solid transparent;
+}
+.lpp-tab:hover { color: #fff; }
+.lpp-tab--on { color: #54C8FF; border-bottom-color: #54C8FF; }
+.lpp-side-pane { flex: 1 1 auto; overflow: auto; min-height: 0; }
+.lpp-side-body { padding: 1rem; }
+
+.lpp-words { display: flex; flex-wrap: wrap; gap: 0.333333rem; }
+/* The shortest unambiguous abbreviation is the point of the row, so it is the
+   bright half and the rest of the word trails off behind it. */
+.lpp-word {
+  background: rgba(255,255,255,0.05); border: 0.1rem solid #283239;
+  border-radius: 0.166667rem; padding: 0.083333rem 0.333333rem; font-size: 0.916667rem;
+}
+.lpp-example {
+  border-left: 0.166667rem solid #283239; padding: 0.166667rem 0 0.166667rem 0.5rem;
+}
+
+/* ------------------------------------------------------------ previews -- */
+
+.lpp-controls { row-gap: 0.5rem; }
+.lpp-chip {
+  appearance: none; border: 0.1rem solid #49535B; background: rgba(255,255,255,0.04);
+  color: #838B91; font-family: inherit; font-size: 0.916667rem; line-height: 1.33333rem;
+  padding: 0.083333rem 0.5rem; border-radius: 0.166667rem; cursor: pointer;
+}
+.lpp-chip:hover { color: #fff; }
+.lpp-chip--on { background: #2185D0; border-color: #2185D0; color: #fff; }
+.lpp-chip--pgm.lpp-chip--on { background: #F64747; border-color: #F64747; }
+.lpp-chip--prw.lpp-chip--on { background: #00FF7F; border-color: #00FF7F; color: #08141B; }
+
+.lpp-wall { display: flex; flex-wrap: wrap; gap: 1rem; align-content: flex-start; }
+.lpp-card {
+  background: #08141B; border: 0.1rem solid #283239; border-radius: 0.333333rem;
+  padding: 0.5rem; display: flex; flex-direction: column; gap: 0.416667rem;
+}
+.lpp-card-head { min-width: 0; }
+
+/* The stage keeps the screen's own aspect ratio: a padding-top percentage on
+   an empty spacer, with the layers absolutely positioned over it. Screens are
+   not all 16:9 — a canvas can be any shape the operator built. */
+.lpp-stage { position: relative; background: #000; overflow: hidden; border: 0.1rem solid #323F48; }
+.lpp-stage--pgm { border-color: rgba(246,71,71,0.6); }
+.lpp-stage--prw { border-color: rgba(0,255,127,0.45); }
+.lpp-stage-pad { width: 100%; }
+.lpp-stage-inner { position: absolute; inset: 0; }
+.lpp-stage-tag {
+  position: absolute; top: 0; left: 0; padding: 0 0.333333rem;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.0416667rem;
+  background: rgba(8,20,27,0.75); pointer-events: none;
+}
+.lpp-stage-tag--pgm { color: #F64747; }
+.lpp-stage-tag--prw { color: #00FF7F; }
+
+.lpp-layer { position: absolute; overflow: hidden; outline: 1px solid rgba(255,255,255,0.35); }
+/* NATIVE is a layer slot that costs mixers, not the screen's background —
+   drawn quieter so it does not read as a source someone put there. */
+.lpp-layer--native { outline-style: dashed; outline-color: rgba(255,255,255,0.2); }
+.lpp-layer-img { width: 100%; height: 100%; object-fit: fill; display: block; }
+.lpp-layer-tag {
+  position: absolute; left: 0; bottom: 0; padding: 0 0.25rem;
+  font-size: 0.75rem; background: rgba(8,20,27,0.7); color: #fff;
+  pointer-events: none; white-space: nowrap;
+}
+
+.lpp-banner {
+  background: rgba(246,71,71,0.15); border-bottom: 0.1rem solid #F64747;
+  color: #fff; padding: 0.666667rem 1rem; flex: 0 0 auto;
+}
+.lpp-orphan { padding: 3rem; max-width: 40rem; color: #838B91; }
+.lpp-orphan h1 { color: #fff; margin: 0 0 0.5rem; }
 `;
 
 /**

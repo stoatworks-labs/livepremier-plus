@@ -18,7 +18,7 @@ import net from 'node:net';
 import zlib from 'node:zlib';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 import { createProxy, injectInto, buildInjection, splitDevice, validHost, NS } from '../server/proxy.js';
@@ -512,4 +512,42 @@ test('the demo cue stack is valid for the cue engine', async () => {
   const result = stack.fire(stack.cues[0]);
   assert.ok(result.sent > 0, 'the demo cue actually produces writes');
   assert.ok(sent.some((c) => Array.isArray(c.path)), 'writes are {path, value} commands');
+});
+
+/*
+ * The popped-out console is one of ours, not one of the switcher's.
+ *
+ * It has to be served from this origin rather than proxied, because it drives
+ * the Web RCS tab's session through `window.opener` — and that reference is
+ * only live between same-origin documents. It also has to be reachable before
+ * a switcher is chosen, since the namespace is answered ahead of the proxy.
+ */
+test('the popped-out console is served by us, on our own origin', async () => {
+  const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
+  const port = await listen(proxy);
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}${NS}/console`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /text\/html/);
+    const body = await res.text();
+    assert.match(body, /popout\.js/, 'boots the popout module');
+    /* Nothing about the vendor may be baked in here: the stylesheet hrefs and
+       the icon sprite are copied off the opener at runtime, because their
+       hashes change every firmware. */
+    assert.doesNotMatch(body, /\/styles\/(app|boot)\./, 'no hard-coded vendor stylesheet');
+  } finally {
+    await close(proxy);
+  }
+});
+
+test('our version is reported so the settings page need not guess it', async () => {
+  const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
+  const port = await listen(proxy);
+  try {
+    const status = await (await fetch(`http://127.0.0.1:${port}${NS}/status`)).json();
+    const pkg = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
+    assert.equal(status.version, pkg.version);
+  } finally {
+    await close(proxy);
+  }
 });
