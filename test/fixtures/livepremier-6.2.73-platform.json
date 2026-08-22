@@ -1,0 +1,320 @@
+{
+ "device": {
+  "system": {
+   "pp": {
+    "ready": true
+   },
+   "version": {
+    "pp": null
+   },
+   "serial": {
+    "pp": null
+   },
+   "deviceList": {
+    "itemKeys": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ],
+    "items": {
+     "1": {
+      "pp": {
+       "dev": "NLC_CMAX",
+       "platformId": 1280,
+       "label": "AQUILON",
+       "isSimulated": true
+      },
+      "version": {
+       "pp": {
+        "variable": 0,
+        "updater": "6.2.73",
+        "webRcs": "",
+        "isOutdated": false
+       }
+      },
+      "serial": {
+       "pp": {
+        "serialNumber": "ZZ9999",
+        "reference": 0,
+        "dateCode": 0
+       }
+      },
+      "hardware": {
+       "device": {
+        "pp": {
+         "chassis": "6U"
+        }
+       }
+      }
+     },
+     "2": {
+      "pp": {
+       "dev": "NLC_DBG",
+       "platformId": 1280,
+       "label": "",
+       "isSimulated": false
+      },
+      "version": {
+       "pp": {
+        "variable": 0,
+        "updater": "",
+        "webRcs": "",
+        "isOutdated": false
+       }
+      },
+      "serial": {
+       "pp": {
+        "serialNumber": "",
+        "reference": 0,
+        "dateCode": 0
+       }
+      },
+      "hardware": {
+       "device": {
+        "pp": {
+         "chassis": "4U"
+        }
+       }
+      }
+     },
+     "3": {
+      "pp": {
+       "dev": "NLC_DBG",
+       "platformId": 1280,
+       "label": "",
+       "isSimulated": false
+      },
+      "version": {
+       "pp": {
+        "variable": 0,
+        "updater": "",
+        "webRcs": "",
+        "isOutdated": false
+       }
+      },
+      "serial": {
+       "pp": {
+        "serialNumber": "",
+        "reference": 0,
+        "dateCode": 0
+       }
+      },
+      "hardware": {
+       "device": {
+        "pp": {
+         "chassis": "4U"
+        }
+       }
+      }
+     },
+     "4": {
+      "pp": {
+       "dev": "NLC_DBG",
+       "platformId": 1280,
+       "label": "",
+       "isSimulated": false
+      },
+      "version": {
+       "pp": {
+        "variable": 0,
+        "updater": "",
+        "webRcs": "",
+        "isOutdated": false
+       }
+      },
+      "serial": {
+       "pp": {
+        "serialNumber": "",
+        "reference": 0,
+        "dateCode": 0
+       }
+      },
+      "hardware": {
+       "device": {
+        "pp": {
+         "chassis": "4U"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "inputList": {},
+  "stillList": {},
+  "outputList": {},
+  "softedge": {},
+  "customFormats": {},
+  "screenList": {},
+  "auxiliaryList": {},
+  "screenAuxGroupList": {
+   "itemKeys": [
+    "S1"
+   ],
+   "items": {
+    "S1": {
+     "control": {
+      "pp": {
+       "copyMode": false,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": true,
+       "xTakeUp": false,
+       "xTakeDown": false,
+       "xTakeAbort": true,
+       "xCut": true,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": true,
+       "transition": "AT_UP",
+       "take": "OFF",
+       "tbarPosition": 65535,
+       "isTbarPositionValid": true
+      }
+     }
+    }
+   }
+  },
+  "keyerBank": {},
+  "layerBank": {},
+  "presetBank": {
+   "control": {
+    "pp": {
+     "xDelete": false
+    },
+    "screenList": {
+     "items": {
+      "S1": {
+       "pp": {
+        "autoScale": true
+       }
+      }
+     },
+     "itemKeys": [
+      "S1",
+      "S2",
+      "S3",
+      "S4"
+     ]
+    },
+    "auxiliaryList": {
+     "items": {
+      "A1": {
+       "pp": {
+        "autoScale": true
+       }
+      }
+     },
+     "itemKeys": [
+      "A1",
+      "A2",
+      "A3",
+      "A4"
+     ]
+    },
+    "save": {
+     "screenList": {
+      "itemKeys": [
+       "S1",
+       "S2",
+       "S3",
+       "S4"
+      ],
+      "items": {}
+     },
+     "auxiliaryList": {
+      "itemKeys": [
+       "A1",
+       "A2",
+       "A3",
+       "A4"
+      ],
+      "items": {}
+     }
+    },
+    "load": {
+     "slotList": {
+      "itemKeys": [
+       "1",
+       "2",
+       "3",
+       "4"
+      ],
+      "items": {}
+     }
+    }
+   }
+  },
+  "masterPresetBank": {},
+  "monitoringBank": {},
+  "monitoringList": {},
+  "audio": {
+   "control": {
+    "deviceList": {
+     "itemKeys": [
+      "1",
+      "2",
+      "3",
+      "4"
+     ],
+     "items": {
+      "1": {
+       "txList": {
+        "items": {},
+        "itemKeys": [
+         "OUTPUT_1",
+         "OUTPUT_2",
+         "OUTPUT_3",
+         "OUTPUT_4"
+        ]
+       },
+       "rxList": {
+        "items": {},
+        "itemKeys": [
+         "NONE",
+         "INPUT_1_CHANNEL_1",
+         "INPUT_1_CHANNEL_2",
+         "INPUT_1_CHANNEL_3"
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  "timerList": {},
+  "gpios": {},
+  "preconfig": {
+   "resources": {
+    "current": {
+     "status": {
+      "mapping": {
+       "deviceList": {
+        "itemKeys": [
+         "1",
+         "2",
+         "3",
+         "4"
+        ],
+        "items": {
+         "1": {}
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "lutLibraries": {},
+  "backup": {}
+ }
+}

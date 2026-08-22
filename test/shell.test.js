@@ -76,7 +76,14 @@ function stubDom() {
       const i = this.parentElement.children.indexOf(this);
       if (i >= 0) { this.parentElement.children[i] = node; node.parentElement = this.parentElement; }
     }
-    get isConnected() { return true; }
+    remove() {
+      const p = this.parentElement;
+      if (!p) return;
+      const i = p.children.indexOf(this);
+      if (i >= 0) p.children.splice(i, 1);
+      this.parentElement = null;
+    }
+    get isConnected() { return this.parentElement !== null || this.tagName === 'DOCUMENT'; }
     addEventListener(t, fn) { (this._handlers[t] ||= []).push(fn); }
     click() { for (const fn of this._handlers.click || []) fn({ preventDefault() {}, stopPropagation() {}, target: this }); }
     cloneNode() {
@@ -92,9 +99,12 @@ function stubDom() {
     querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
   }
 
-  /* Enough CSS selector to run the shell: a tag, a class chain, and the
-     substring-attribute form every hashed class is matched by. */
+  /* Enough CSS selector to run the shell: a tag, a class chain, the
+     substring-attribute form every hashed class is matched by, and a comma
+     list — the sidebar selectors are lists now, because Analog Way spells the
+     module `sidebar-module` on LivePremier and `sidebar` on Midra and Alta. */
   function matches(el, sel) {
+    if (sel.includes(',')) return sel.split(',').some((one) => matches(el, one.trim()));
     const attr = /^\[([a-zA-Z-]+)\*="([^"]+)"\]$/.exec(sel);
     if (attr) {
       const v = attr[1] === 'class' ? el.className : el.getAttribute(attr[1]);
@@ -324,5 +334,92 @@ test('an entry naming a menu this device does not have is simply dropped', async
     shell._mount();
     assert.equal(doc.getElementById('wru-nav-settings'), null);
     assert.equal(sublist.children.length, 2);
+  });
+});
+
+/*
+ * The other spelling.
+ *
+ * Midra 4K and Alta 4K run a different platform (`mng-platform`) whose Web RCS
+ * names the same module `sidebar__c__…` rather than `sidebar-module__c__…`.
+ * Every segment after `__c__` is identical, so both spellings are matched.
+ *
+ * The panels themselves are LivePremier-only for now — see `core/platform.js`
+ * — but the settings page has to mount on those switchers regardless, because
+ * it is where an operator finds out why nothing else is on offer. An app that
+ * silently does nothing is worse than one that explains itself.
+ */
+test('the sidebar is found under either platform\'s spelling of it', async () => {
+  const stub = stubDom();
+  /* Rename every hashed class the way the other platform spells it. */
+  const rename = (el) => {
+    el.className = [...el.classList].map((c) => c.replace(/^sidebar-module__c/, 'sidebar__c')).join(' ');
+    for (const kid of el.children) rename(kid);
+  };
+  rename(stub.doc);
+
+  const g = globalThis;
+  const prevDoc = g.document;
+  const prevWin = g.window;
+  g.document = stub.doc;
+  g.window = { addEventListener() {} };
+  try {
+    const { Shell, SIDEBAR_SELECTOR } = await import('../src/ui/shell.js');
+    assert.ok(stub.doc.querySelector(SIDEBAR_SELECTOR), 'the exported selector finds it too');
+
+    const shell = new Shell({
+      entries: [entry({ id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig' })]
+    });
+    assert.equal(shell._mount(), true);
+    assert.deepEqual(stub.sublist.children.map((a) => a.textContent),
+      ['System', 'Outputs', 'LivePremier Plus']);
+  } finally { g.document = prevDoc; g.window = prevWin; }
+});
+
+/*
+ * Gating. A panel written against paths a switcher does not have belongs off
+ * the sidebar, not on it and failing when opened.
+ */
+test('an entry that declines to be enabled is never mounted', async () => {
+  await withDom(async ({ doc, sublist }) => {
+    const { Shell } = await import('../src/ui/shell.js');
+    const shell = new Shell({
+      title: 'PLUS',
+      entries: [
+        entry({ id: 'vpu', label: 'VPU Map', enabled: () => false }),
+        entry({ id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig', enabled: () => true })
+      ]
+    });
+    shell._mount();
+    assert.equal(doc.getElementById('wru-nav-vpu'), null);
+    /* And with nothing left in it, our section is not created at all. */
+    assert.equal(doc.getElementById('wru-nav-section'), null);
+    assert.equal(sublist.children.length, 3, 'the enabled one still mounts');
+  });
+});
+
+/*
+ * The store arrives after the panels do, so everything is offered until it
+ * lands and `remount` is what takes back whatever turns out not to apply.
+ */
+test('remount drops what the switcher turned out not to support', async () => {
+  await withDom(async ({ doc, list }) => {
+    const { Shell } = await import('../src/ui/shell.js');
+    let known = false;
+    const shell = new Shell({
+      title: 'PLUS',
+      entries: [entry({ id: 'vpu', label: 'VPU Map', enabled: () => !known })]
+    });
+    shell._mount();
+    assert.ok(doc.getElementById('wru-nav-section'), 'offered while unknown');
+
+    shell.show('vpu');
+    assert.equal(shell.active, 'vpu');
+
+    known = true;
+    shell.remount();
+    assert.equal(doc.getElementById('wru-nav-section'), null, 'and gone once known');
+    assert.equal(shell.active, null, 'closing the panel it was showing');
+    assert.equal(list.children.filter((c) => c.getAttribute('id') === 'wru-nav-section').length, 0);
   });
 });

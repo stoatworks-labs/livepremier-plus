@@ -27,6 +27,7 @@
 import { h, button, readout, sectionTitle } from './dom.js';
 import { panel } from './shell.js';
 import { readIdentity } from '../core/identity.js';
+import { detectPlatform, CAPABILITIES } from '../core/platform.js';
 
 /*
  * What is installed, and where to find it.
@@ -40,22 +41,28 @@ const FEATURES = [
   {
     name: 'VPU Map',
     where: 'Sidebar, under PLUS',
-    what: 'Which mixers each screen is using, running against staged.'
+    what: 'Which mixers each screen is using, running against staged.',
+    /* Which capability has to hold for this to be on the sidebar at all. A
+       feature with no `needs` is platform-independent. */
+    needs: 'vpuMap'
   },
   {
     name: 'Console',
     where: 'Screens / Aux., beside Properties',
-    what: 'A command line over the device — takes, preset recalls, layer moves.'
+    what: 'A command line over the device — takes, preset recalls, layer moves.',
+    needs: 'console'
   },
   {
     name: 'Timeline',
     where: 'Screens / Aux., beside Properties',
-    what: 'A theatre cue stack with GO, fades and a standby cue.'
+    what: 'A theatre cue stack with GO, fades and a standby cue.',
+    needs: 'cueStack'
   },
   {
     name: 'MIDI Mapping',
     where: 'Sidebar, under Virtual RC400T',
-    what: 'A MIDI control surface driving the switcher from this page.'
+    what: 'A MIDI control surface driving the switcher from this page.',
+    needs: 'console'
   },
   {
     name: 'Field arithmetic',
@@ -73,10 +80,6 @@ const FEATURES = [
  */
 const PLANNED = [
   {
-    name: 'Model compatibility',
-    what: 'Which commands and graphs this switcher supports, and what is hidden because it does not.'
-  },
-  {
     name: 'Timecode source',
     what: 'The audio or MIDI input the timeline chases, and its offset.'
   },
@@ -90,7 +93,7 @@ const PLANNED = [
   }
 ];
 
-export function createSettingsPanel({ session, onRefresh = () => {} }) {
+export function createSettingsPanel({ session, platform = null, onRefresh = () => {} }) {
   /*
    * The proxy's own status: our version, and which switcher it is pointed at.
    * Fetched once and cached, because none of it changes while the page is
@@ -115,22 +118,26 @@ export function createSettingsPanel({ session, onRefresh = () => {} }) {
   /* --------------------------------------------------------------- device */
 
   function deviceSection() {
+    /*
+     * Identity comes from `core/platform.js` now, not from the LivePremier
+     * device list directly — the two platforms keep it in different places
+     * and only that file knows which to read. `readIdentity` is still used
+     * for the linked-frame note, which is a LivePremier idea and has no
+     * meaning on a single-frame Midra or Alta.
+     */
+    const here = platform ? platform() : detectPlatform(session.store);
     const id = readIdentity(session.store);
-    const frame = id.primary;
 
-    if (!id.present) {
-      return card('This switcher',
-        h('div', { class: 'wru-empty', text: session.store.ready
-          ? 'The device store has no identity block — this build reports it somewhere else.'
-          : 'Waiting for the device store.' }));
+    if (!here.ready) {
+      return card('This switcher', h('div', { class: 'wru-empty', text: 'Waiting for the device store.' }));
     }
 
     const rows = h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
-      readout('Model', frame.model || 'unknown', { tone: frame.model ? null : 'tertiary' }),
-      readout('Family', frame.family || '—'),
-      readout('Firmware', frame.firmware || '—'),
-      readout('Chassis', frame.chassis || '—'),
-      readout('Serial', frame.serial || '—'));
+      readout('Platform', here.name),
+      readout('Model', here.model || 'unknown', { tone: here.model ? null : 'tertiary' }),
+      readout('Firmware', here.firmware || '—'),
+      here.chassis ? readout('Chassis', here.chassis) : null,
+      readout('Serial', here.serial || '—'));
 
     /*
      * Say when it is a simulator, because it changes what the other panels
@@ -138,17 +145,22 @@ export function createSettingsPanel({ session, onRefresh = () => {} }) {
      * map on one is the right answer and not a fault to chase.
      */
     const notes = [];
-    if (frame.simulated) {
+    if (here.simulated) {
       notes.push(note('warn', 'Simulated device — there is no VPU behind it, so the VPU Map has nothing to draw.'));
     }
-    if (frame.outdated) {
+    if (id.primary && id.primary.outdated) {
       notes.push(note('warn', 'The device reports its firmware as out of date.'));
     }
     /* Only the slots with a frame actually in them. The list is always four
-       long; saying "4 linked frames" on a single box would be a lie. */
-    if (id.linked.length > 1) {
-      notes.push(note('info', `${id.linked.length} linked frames: ` +
-        id.linked.map((f) => `${f.key} ${f.model || '?'}`).join(', ') + '. Identity above is the master.'));
+       long on LivePremier; saying "4 linked frames" on a single box would be a
+       lie, and on Midra or Alta there is no list at all. */
+    if (here.frames.length > 1) {
+      notes.push(note('info', `${here.frames.length} linked frames: ` +
+        here.frames.map((f) => `${f.key} ${f.model || '?'}`).join(', ') + '. Identity above is the master.'));
+    }
+    if (here.id === 'unknown') {
+      notes.push(note('warn', 'This switcher does not report its platform anywhere this build looks. ' +
+        'Features are being offered on the strength of what its store contains, listed below.'));
     }
 
     return card('This switcher', rows, ...notes);
@@ -181,16 +193,71 @@ export function createSettingsPanel({ session, onRefresh = () => {} }) {
     return card('LivePremier Plus', rows, ...notes);
   }
 
+  /* -------------------------------------------------------- compatibility */
+
+  /*
+   * What this switcher supports, and how we know.
+   *
+   * Every row is the result of asking the store whether the path that feature
+   * writes to is there — not of looking the model up in a table. So the
+   * evidence is shown alongside the verdict: if a feature is off, the reason
+   * is a named thing that is missing, which is checkable rather than a claim.
+   */
+  function compatibilitySection() {
+    const here = platform ? platform() : detectPlatform(session.store);
+    if (!here.ready) {
+      return card('Compatibility',
+        h('div', { class: 'wru-empty', text: 'Waiting for the device store.' }));
+    }
+
+    const rows = CAPABILITIES.map((cap) => {
+      const state = here.capabilities[cap.id];
+      const on = state.supported === true;
+      return h('div', { class: 'aw-flex-row aw-gap-col-large aw-flex-wrap' },
+        h('div', { style: { minWidth: '11rem' }, class: 'aw-flex-row-center-v aw-gap-col-small' },
+          h('span', { class: ['wru-tag', on ? 'wru-tag--good' : ''], text: on ? 'yes' : 'no' }),
+          h('span', { class: 'aw-font-body-1-bold', text: cap.label })),
+        h('div', { style: { flex: '1 1 20rem' }, class: 'aw-font-body-1', text: on
+          ? `Offered — this switcher reports ${cap.needs}.`
+          : (cap.absent || `Not offered — this switcher does not report ${cap.needs}.`) }));
+    });
+
+    return card('Compatibility',
+      h('div', { class: 'aw-font-body-1 aw-text-secondary aw-margin-bottom-medium', text:
+        `${here.name} runs ${here.family || 'a platform this build does not recognise'}. ` +
+        'Each feature is offered only when the part of the device store it drives is actually present.' }),
+      h('div', { class: 'aw-flex-col aw-gap-row-medium' }, rows),
+      note('info', 'LivePremier and Midra 4K / Alta 4K are different platforms with different object ' +
+        'models, so a feature that is off here is off because the paths behind it do not exist on this ' +
+        'switcher — not because it has been disabled.'));
+  }
+
   /* ------------------------------------------------------------- features */
 
   function featureSection() {
+    const here = platform ? platform() : detectPlatform(session.store);
+    /*
+     * A feature this switcher does not get is dimmed and said to be absent,
+     * not quietly listed as though it were there. The compatibility card above
+     * gives the reason; this one is the map of where things are, and a map
+     * that marks a room which does not exist is worse than no map.
+     */
     return card('What this adds',
       h('div', { class: 'aw-flex-col aw-gap-row-medium' },
-        FEATURES.map((f) => h('div', { class: 'aw-flex-row aw-gap-col-large aw-flex-wrap' },
-          h('div', { class: 'aw-font-body-1-bold', style: { minWidth: '11rem' }, text: f.name }),
+        FEATURES.map((f) => {
+          const off = f.needs && here.ready && here.capabilities[f.needs] &&
+            here.capabilities[f.needs].supported === false;
+          return h('div', {
+            class: 'aw-flex-row aw-gap-col-large aw-flex-wrap',
+            style: off ? { opacity: '0.45' } : null
+          },
+          h('div', { class: 'aw-font-body-1-bold', style: { minWidth: '11rem' } },
+            f.name, off ? ' ' : null, off ? h('span', { class: 'wru-tag', text: 'not here' }) : null),
           h('div', { class: 'aw-flex-col aw-gap-row-mini', style: { flex: '1 1 20rem' } },
             h('div', { class: 'aw-font-body-1', text: f.what }),
-            h('div', { class: 'aw-font-caption aw-text-tertiary', text: f.where }))))));
+            h('div', { class: 'aw-font-caption aw-text-tertiary',
+              text: off ? 'Not available on this switcher' : f.where })));
+        })));
   }
 
   /* -------------------------------------------------------------- planned */
@@ -227,6 +294,7 @@ export function createSettingsPanel({ session, onRefresh = () => {} }) {
     loadStatus();
     const body = h('div', { class: 'aw-flex-col aw-gap-row-large' },
       deviceSection(),
+      compatibilitySection(),
       proxySection(),
       featureSection(),
       plannedSection());

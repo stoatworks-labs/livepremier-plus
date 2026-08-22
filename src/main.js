@@ -15,7 +15,7 @@
 import { Session } from './core/session.js';
 import { CueStack } from './core/cuestack.js';
 import { PageSocketTransport } from './transports/page-socket.js';
-import { Shell } from './ui/shell.js';
+import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
 import { createVpuPanel } from './ui/vpu-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
 import { installMathFields } from './ui/math-fields.js';
@@ -23,6 +23,7 @@ import { TabHost, watchVendorTabs } from './ui/tabs.js';
 import { createConsolePanel } from './ui/console-panel.js';
 import { createMidiPanel } from './ui/midi-panel.js';
 import { createSettingsPanel } from './ui/settings-panel.js';
+import { detectPlatform, supports } from './core/platform.js';
 
 const TAG = '[LivePremier Plus]';
 
@@ -112,11 +113,22 @@ async function boot() {
   /* One repaint per frame, covering whichever of our surfaces is on screen. */
   const refresh = throttleFrame(() => { shell.refresh(); tabs.refresh(); });
 
-  const vpu = createVpuPanel({ session, onRefresh: refresh });
+  /*
+   * What kind of switcher is this, and what does it support?
+   *
+   * Re-read on every call rather than cached, because the answer changes once:
+   * the store is empty when the panels mount and hydrated a moment later, and
+   * `detectPlatform` deliberately returns "everything is on offer" until it
+   * has something to look at. See `core/platform.js`.
+   */
+  const platform = () => detectPlatform(session.store);
+  const can = (capability) => supports(platform(), capability);
+
+  const vpu = createVpuPanel({ session, platform, onRefresh: refresh });
   const timeline = createTimelinePanel({ session, stack, storage, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
   const midi = createMidiPanel({ session, onRefresh: refresh });
-  const settings = createSettingsPanel({ session, onRefresh: refresh });
+  const settings = createSettingsPanel({ session, platform, onRefresh: refresh });
 
   /*
    * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
@@ -132,15 +144,17 @@ async function boot() {
          and the vendor's own two tabs spend most of it. Both are what the
          panel actually is rather than a truncation, because "Cons" and "Time"
          read as neither one thing nor the other. */
-      { id: 'console', label: 'Console', short: 'Cmd', icon: 'mini-list-14', render: () => consolePanel.render() },
-      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', render: () => timeline.render() }
+      { id: 'console', label: 'Console', short: 'Cmd', icon: 'mini-list-14', enabled: () => can('console'), render: () => consolePanel.render() },
+      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', enabled: () => can('cueStack'), render: () => timeline.render() }
     ]
   });
 
   const shell = new Shell({
     title: 'PLUS',
     entries: [
-      { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', render: () => vpu.render() },
+      /* Midra 4K and Alta 4K have no VPU to map — their processing is fixed
+         rather than allocated — so on those the entry is simply not there. */
+      { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', enabled: () => can('vpuMap'), render: () => vpu.render() },
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
       { id: 'midi', label: 'MIDI Mapping', icon: 'gpio-18', after: 'Virtual RC400T', render: () => midi.render() },
@@ -160,10 +174,10 @@ async function boot() {
   /* The sidebar may not exist yet - the vendor app mounts React after its own
      bundle runs. Retry briefly rather than racing it. */
   const mount = () => { if (!shell.start.called) { shell.start(); shell.start.called = true; } };
-  if (document.querySelector('[class*="sidebar-module__c___"]')) mount();
+  if (document.querySelector(SIDEBAR_SELECTOR)) mount();
   else {
     const obs = new MutationObserver(() => {
-      if (document.querySelector('[class*="sidebar-module__c___"]')) { obs.disconnect(); mount(); }
+      if (document.querySelector(SIDEBAR_SELECTOR)) { obs.disconnect(); mount(); }
     });
     obs.observe(document.documentElement, { childList: true, subtree: true });
     setTimeout(() => obs.disconnect(), 60000);
@@ -173,8 +187,21 @@ async function boot() {
   watchVendorTabs(tabs);
 
   await session.start();
+
+  /*
+   * The store has arrived, so `enabled()` can finally answer honestly. Put the
+   * surfaces up again, dropping whatever this switcher turns out not to
+   * support. Until this moment everything is offered — a panel that flickers
+   * into existence is a smaller problem than one missing for good because a
+   * device was slow to answer.
+   */
+  const here = platform();
+  console.info(TAG, 'platform', here.name, here.model || '', here.firmware || '');
+  shell.remount();
+  tabs.remount();
+
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport };
+  window.__WRU = { session, stack, shell, tabs, transport, platform };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

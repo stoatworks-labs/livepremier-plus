@@ -177,6 +177,80 @@ full screen, and layer 2 does not exist. The preset says *where*; the screen's
 own `layerList/items/<n>/status/pp/capability` says *whether*. Drawing the
 preset alone covers every screen in stale full-frame layers.
 
+## There are two platforms, and only one of them is supported
+
+Read off the simulators' own `webapp-bundle/bundle.json` and confirmed against
+their running stores on 2026-08-22:
+
+| range | platform | bundle | firmware | identity lives at |
+|---|---|---|---|---|
+| LivePremier (Aquilon) | `nlc-platform` | 6.2.1 | 6.2.73 | `system/deviceList/items/<1-4>/pp` |
+| Midra 4K | `mng-platform` | 3.2.6 | 3.2.29 | `system/pp` |
+| Alta 4K | `mng-platform` | 1.3.1 | 1.3.7 | `system/pp` |
+
+**Midra 4K and Alta 4K are the same platform as each other**, on different
+version lines, and a different platform from LivePremier.
+
+**What carries over:** the whole proxy, the hook, the store mirror and the
+panel-mounting machinery. All three serve the same Web RCS architecture, the
+same `GET /api/stores/device`, the same socket and AWJ on 10606.
+
+**What does not:** the object model. `screenAuxGroupList`, `presetBank`,
+`masterPresetBank` and `vpuMixerList` do not exist on `mng-platform` at all.
+Screens are `1`..`4`, not `S1`..`S24`. Transitions live in a top-level
+`transition` node with one `takeTime` rather than the `takeUpTime` /
+`takeDownTime` pair. So every path in `core/paths.js`, and every command mynah
+compiles, is LivePremier-shaped.
+
+`core/platform.js` therefore **detects the platform and gates every feature**,
+and today that means the panels are LivePremier-only. Three rules in it are
+worth keeping:
+
+- **Identity is read from two different places** and `platformLabel` is the
+  discriminator. `system/pp` is `{ready:true}` on LivePremier and carries the
+  whole identity on the other family; getting that the wrong way round
+  identifies nothing.
+- **Capabilities are probed, not tabulated.** A feature is offered when the
+  part of the store it writes to is present — not when the model is on an
+  allowlist. An allowlist is a promise about hardware nobody here has, and it
+  goes stale the first time Analog Way ships a range this file has not met.
+- **Unknown is not the same as unsupported.** Before the store arrives every
+  capability is `null` and everything stays on offer, because a panel that
+  flickers into existence is a smaller problem than one missing for good
+  because a switcher was slow.
+
+### The UI differences, which are smaller than they look
+
+The `mng-platform` Web RCS spells its sidebar module `sidebar__c__…` where
+LivePremier spells it `sidebar-module__c__…`. **Every segment after `__c__` is
+identical.** `ui/shell.js` matches both, because the settings page has to mount
+on a Midra even though nothing else does — it is where an operator finds out
+*why* nothing else is there, and an app that silently does nothing is worse
+than one that explains itself.
+
+Two more, both fixed structurally rather than by platform-sniffing:
+
+- **The flyout items are not hashed on `mng-platform`** — they are plain
+  Semantic UI `<a class="item">`. The template falls back to the first anchor
+  in the list, and the active class falls back to Semantic's `active`.
+- **`.aw-app` wraps a row on LivePremier and *is* the row on Midra and Alta.**
+  Counting children of `.aw-app` therefore picked the main content instead of
+  the row and appended the panel inside it at zero width — rendered, correct,
+  and invisible. The row is now derived from the sidebar's parent.
+
+⚠️ Still un-ported, and known: the tab strip's pane-switcher test looks for an
+`h5` inside the anchor, and `mng-platform` puts the label straight in the
+anchor. It does not matter yet because the tabs are gated off there, but it is
+the next thing to trip over if the paths are ever ported.
+
+⚠️ Running the simulators: all three default to `PORT=3000` **and**
+`AWJ_EXT_PORT=10606`, so only one runs at a time out of the box. Edit the port
+block in `~/Library/Application Support/ANALOG WAY/<sim>/<session>/settings.ini`,
+copy it to `settings_0.ini`, and launch the inner binary directly —
+`cd <session dir> && <App>.app/Contents/MacOS/<RANGE>/bin/AW_APP_SIMULATOR.app/Contents/MacOS/AW_APP_SIMULATOR <session>/settings_0.ini`.
+**The working directory has to be the session directory**; without it the
+process starts and exits with only a couple of Qt warnings to show for it.
+
 ## MIDI: the constraint that used to decide the architecture, and does not now
 
 `navigator.requestMIDIAccess()` is secure-context-only. As an extension on an

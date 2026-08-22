@@ -82,8 +82,10 @@ export class TabHost {
   start() {
     this._mount();
     this._observer = new MutationObserver(() => {
-      /* Cheap guard: only look properly when our tabs are absent. */
-      if (!document.querySelector(`[${OURS}]`)) this._mount();
+      /* Cheap guard: only look properly when our tabs are absent — and only
+         when there is one we would actually mount. */
+      if (document.querySelector(`[${OURS}]`)) return;
+      if (this.tabs.some((t) => (t.enabled ? t.enabled() !== false : true))) this._mount();
     });
     const app = document.querySelector('.aw-app') || document.body;
     this._observer.observe(app, { childList: true, subtree: true });
@@ -143,7 +145,10 @@ export class TabHost {
     if (!template) return false;
 
     this.nodes.clear();
-    for (const tab of this.tabs) {
+    /* A tab can decline to be mounted, the same way a sidebar entry can: a
+       panel written against paths this switcher does not have belongs off the
+       strip rather than on it and broken. See `core/platform.js`. */
+    for (const tab of this.tabs.filter((t) => (t.enabled ? t.enabled() !== false : true))) {
       const node = this._cloneTab(template, tab);
       strip.append(node);
       this.nodes.set(tab.id, node);
@@ -273,6 +278,21 @@ export class TabHost {
     else strip.parentElement.append(pane);
     this._pane = pane;
     return pane;
+  }
+
+  /**
+   * Take our tabs off the strip and put back the ones that still apply.
+   *
+   * Called once the device store has arrived, which is the first moment
+   * `enabled()` can answer honestly.
+   */
+  remount() {
+    const strip = this._strip();
+    const tab = this.tabs.find((t) => t.id === this.active);
+    if (tab && tab.enabled && tab.enabled() === false) this.hide();
+    if (strip) for (const node of strip.querySelectorAll(`[${OURS}]`)) node.remove();
+    this.nodes.clear();
+    this._mount();
   }
 
   toggle(id) { this.active === id ? this.hide() : this.show(id); }

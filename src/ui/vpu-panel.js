@@ -20,6 +20,7 @@
 
 import { h, button, readout, sectionTitle } from './dom.js';
 import { panel } from './shell.js';
+import { whyNot } from '../core/platform.js';
 import { screenColour } from './theme.js';
 import {
   readSide, diffSides, inspectMapping, layerLabel, layerShort,
@@ -42,13 +43,36 @@ function s(tag, attrs = {}, ...children) {
   return el;
 }
 
-export function createVpuPanel({ session, onRefresh }) {
+export function createVpuPanel({ session, platform = null, onRefresh }) {
   const view = { which: 'current', device: null, detail: false };
 
   function render() {
     const store = session.store;
     if (!store.ready) {
       return panel({ toolbar: title(), body: h('div', { class: 'wru-empty', text: 'Waiting for the device store…' }) });
+    }
+
+    /*
+     * A switcher with no VPU at all is a different statement from a switcher
+     * whose VPU we cannot read. Midra 4K and Alta 4K allocate nothing — their
+     * processing is fixed — so say that, rather than reaching for one of the
+     * "we looked and the map was missing" explanations below, which would
+     * invite someone to go hunting for a path that was never there.
+     *
+     * The sidebar entry is normally gone by now anyway; this covers the moment
+     * before the store lands and any route that opens the panel directly.
+     */
+    const here = platform ? platform() : null;
+    const why = here ? whyNot(here, 'vpuMap') : null;
+    if (why) {
+      return panel({
+        toolbar: title(),
+        body: h('div', { class: 'wru-empty' },
+          h('div', { class: 'aw-font-subtitle-1 aw-margin-bottom-medium', text: 'No VPU on this switcher' }),
+          h('div', { style: { maxWidth: '46rem', margin: '0 auto' }, text: why }),
+          h('div', { class: 'aw-font-caption aw-text-tertiary aw-margin-top-medium',
+            text: `${here.name}${here.model ? ' · ' + here.model : ''}` }))
+      });
     }
 
     const side = readSide(store, view.which);

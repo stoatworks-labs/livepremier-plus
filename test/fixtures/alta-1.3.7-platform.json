@@ -1,0 +1,43 @@
+{
+ "device": {
+  "system": {
+   "pp": {
+    "dev": "ZEN200",
+    "platformId": 1552,
+    "platformLabel": "Alta 4K",
+    "label": "",
+    "ready": true
+   },
+   "version": {
+    "pp": {
+     "variable": 40,
+     "updater": "1.3.7"
+    }
+   },
+   "serial": {
+    "pp": {
+     "serialNumber": "ZZ9999",
+     "reference": 0,
+     "dateCode": 0
+    }
+   }
+  },
+  "inputList": {},
+  "inputLutResourceList": {},
+  "stillLibrary": {},
+  "outputList": {},
+  "customFormats": {},
+  "multiviewer": {},
+  "timerList": {},
+  "tallies": {},
+  "screenList": {},
+  "auxiliaryScreenList": {},
+  "preset": {},
+  "quickPreset": {},
+  "transition": {},
+  "preconfig": {},
+  "audio": {},
+  "streaming": {},
+  "lutLibraries": {}
+ }
+}

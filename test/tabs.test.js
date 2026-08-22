@@ -78,7 +78,14 @@ function stubDom() {
     removeAttribute(k) { this.attributes.delete(k); }
     hasAttribute(k) { return this.attributes.has(k); }
     append(...kids) { for (const k of kids) { if (k == null) continue; k.parentElement = this; this.children.push(k); } }
-    get isConnected() { return true; }
+    remove() {
+      const p = this.parentElement;
+      if (!p) return;
+      const i = p.children.indexOf(this);
+      if (i >= 0) p.children.splice(i, 1);
+      this.parentElement = null;
+    }
+    get isConnected() { return this.parentElement !== null || this.tagName === 'DOCUMENT'; }
     addEventListener(t, fn) { (this._handlers[t] ||= []).push(fn); }
     click() { for (const fn of this._handlers.click || []) fn({ preventDefault() {}, stopPropagation() {}, target: this }); }
     replaceWith(node) {

@@ -29,6 +29,7 @@ import { readIdentity, describe } from '../src/core/identity.js';
 import {
   listDestinations, readLayers, anchorToTopLeft, snapshotUrl, sourceLabel
 } from '../src/core/screens.js';
+import { detectPlatform, supports, whyNot, FAMILY } from '../src/core/platform.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));
@@ -539,4 +540,114 @@ test('sources are labelled the way an operator names them', () => {
   assert.equal(sourceLabel('STILL_1'), 'IMG1');
   assert.equal(sourceLabel('NONE'), '');
   assert.equal(sourceLabel('COLOR_BAR'), 'COLOR BAR');
+});
+
+/* ------------------------------------------------------------------ *
+ * Which platform, and what it can do.
+ *
+ * All three fixtures are real: cut from the running simulators on 2026-08-22,
+ * trimmed to the identity block and the shape the capability probes read.
+ * The point of having all three is that identity lives somewhere *different*
+ * on each family, and the two mng-platform ranges have to come out as
+ * different products despite sharing every structural key.
+ * ------------------------------------------------------------------ */
+
+const platformStore = (name) => {
+  const store = new DeviceStore();
+  store.hydrate(fixture(name));
+  return store;
+};
+
+const LP = 'livepremier-6.2.73-platform.json';
+const MIDRA = 'midra-3.2.29-platform.json';
+const ALTA = 'alta-1.3.7-platform.json';
+
+test('LivePremier is identified from its per-frame device list', () => {
+  const p = detectPlatform(platformStore(LP));
+  assert.equal(p.id, 'livepremier');
+  assert.equal(p.family, FAMILY.NLC);
+  assert.equal(p.name, 'AQUILON');
+  assert.equal(p.model, 'NLC_CMAX');
+  assert.equal(p.firmware, '6.2.73');
+  assert.equal(p.platformId, 1280);
+});
+
+/* `device/system/pp` is `{ready:true}` on LivePremier and carries the whole
+   identity on the other family. Getting that backwards identifies nothing. */
+test('Midra 4K is identified from the platform label the device supplies', () => {
+  const p = detectPlatform(platformStore(MIDRA));
+  assert.equal(p.id, 'midra4k');
+  assert.equal(p.family, FAMILY.MNG);
+  assert.equal(p.name, 'Midra 4K');
+  assert.equal(p.model, 'PULSE');
+  assert.equal(p.firmware, '3.2.29');
+  assert.deepEqual(p.frames, [], 'single frame, so no list of them');
+});
+
+test('Alta 4K is a different product from Midra despite the shared platform', () => {
+  const p = detectPlatform(platformStore(ALTA));
+  assert.equal(p.id, 'alta4k');
+  assert.equal(p.family, FAMILY.MNG, 'same code family as Midra');
+  assert.equal(p.name, 'Alta 4K');
+  assert.equal(p.model, 'ZEN200');
+  assert.equal(p.platformId, 1552);
+  assert.notEqual(p.platformId, detectPlatform(platformStore(MIDRA)).platformId);
+});
+
+/* The whole reason this file exists: offering a LivePremier command to a Midra
+   would send a switcher a write it has no property for. */
+test('the VPU map is offered on LivePremier and withheld from Midra and Alta', () => {
+  assert.equal(supports(detectPlatform(platformStore(LP)), 'vpuMap'), true);
+  for (const fx of [MIDRA, ALTA]) {
+    const p = detectPlatform(platformStore(fx));
+    assert.equal(supports(p, 'vpuMap'), false, fx);
+    assert.match(whyNot(p, 'vpuMap'), /no VPU/);
+  }
+});
+
+test('the cue stack and the command line are withheld from the other platform', () => {
+  const lp = detectPlatform(platformStore(LP));
+  const midra = detectPlatform(platformStore(MIDRA));
+  for (const cap of ['screens', 'cueStack', 'console']) {
+    assert.equal(supports(lp, cap), true, 'LivePremier ' + cap);
+    assert.equal(supports(midra, cap), false, 'Midra ' + cap);
+    assert.ok(whyNot(midra, cap), 'and says why: ' + cap);
+  }
+});
+
+/* Probing beats an allowlist precisely here: this is a range that does not
+   exist, and it still gets the right answer for the right reason. */
+test('an unmet platform is judged on what its store actually has', () => {
+  const store = new DeviceStore();
+  store.hydrate({
+    device: {
+      system: { pp: { dev: 'FUTURE', platformId: 9999, platformLabel: 'Something 8K' } },
+      screenAuxGroupList: { items: { S1: {} } }
+    }
+  });
+  const p = detectPlatform(store);
+  assert.equal(p.name, 'Something 8K', 'named by the device, not by a table');
+  assert.equal(p.id, 'mng-9999');
+  assert.equal(p.family, FAMILY.MNG);
+  assert.equal(supports(p, 'console'), true, 'it has the paths, so it gets the console');
+  assert.equal(supports(p, 'vpuMap'), false, 'it has no VPU map, so it does not');
+});
+
+/* "Not looked yet" and "cannot" must never render as the same thing. */
+test('nothing is claimed either way before the store arrives', () => {
+  const p = detectPlatform(new DeviceStore());
+  assert.equal(p.ready, false);
+  assert.equal(p.name, 'Not connected');
+  assert.equal(p.capabilities.vpuMap.supported, null);
+  assert.equal(supports(p, 'vpuMap'), true, 'and everything stays on offer meanwhile');
+  assert.equal(whyNot(p, 'vpuMap'), null);
+});
+
+test('a connected switcher we cannot identify is said to be unrecognised', () => {
+  const store = new DeviceStore();
+  store.hydrate({ device: { system: { pp: { ready: true } } } });
+  const p = detectPlatform(store);
+  assert.equal(p.id, 'unknown');
+  assert.equal(p.name, 'Unrecognised switcher');
+  assert.equal(p.family, null);
 });

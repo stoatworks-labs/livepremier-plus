@@ -26,15 +26,35 @@
 import { h, icon } from './dom.js';
 import { installStyles } from './theme.js';
 
-const SIDEBAR_SEL = '[class*="sidebar-module__c___"]';
-const MENU_SEL = '[class*="sidebar-module__c__menu___"]';
-const SEPARATOR_SEL = '[class*="sidebar-module__c__separator___"]';
-const LABEL_SEL = '[class*="sidebar-module__c__menu__title__label___"]';
-const TITLE_SEL = '[class*="sidebar-module__c__menu__title___"]';
+/*
+ * The sidebar, in both of Analog Way's spellings.
+ *
+ * LivePremier calls the module `sidebar-module`; Midra 4K and Alta 4K call it
+ * `sidebar`. Everything after `__c__` is identical on both — `menu`,
+ * `menu__title`, `menu__title--active`, `menu__title__label`, `separator`,
+ * `submenu__list` — so the only difference in the whole naming scheme is that
+ * one word, and matching both costs a comma.
+ *
+ * Worth doing even though the panels themselves are LivePremier-only today:
+ * without it the settings page cannot mount on a Midra, and the settings page
+ * is where an operator finds out *why* nothing else is on offer. An app that
+ * silently does nothing is worse than one that explains itself.
+ */
+const MODULES = ['sidebar-module', 'sidebar'];
+const sidebarSel = (part = '') => MODULES.map((m) => `[class*="${m}__c${part}___"]`).join(', ');
+
+const SIDEBAR_SEL = sidebarSel();
+/* Exported so `main.js` waits for the same sidebar this file mounts into,
+   rather than keeping its own copy of the selector to drift out of step. */
+export const SIDEBAR_SELECTOR = SIDEBAR_SEL;
+const MENU_SEL = sidebarSel('__menu');
+const SEPARATOR_SEL = sidebarSel('__separator');
+const LABEL_SEL = sidebarSel('__menu__title__label');
+const TITLE_SEL = sidebarSel('__menu__title');
 /* Preconfig is the one sidebar item with a flyout of its own: a list of
    `<a>` items, each a route under /preconfig. */
-const SUBLIST_SEL = '[class*="sidebar-module__c__submenu__list___"]';
-const SUBITEM_SEL = '[class*="sidebar-module__c__submenu__list__item___"]';
+const SUBLIST_SEL = sidebarSel('__submenu__list');
+const SUBITEM_SEL = sidebarSel('__submenu__list__item');
 /* Put on every link we create, so the "operator navigated away" listener can
    tell one of ours from the vendor's wherever it happens to sit. */
 const NAV_MARK = 'data-lpp-nav';
@@ -97,9 +117,12 @@ export class Shell {
        Both placements are checked — an anchored entry can be lost on its own
        when the vendor section it sits in re-renders. */
     this._observer = new MutationObserver(() => {
-      const sectioned = this.entries.some((e) => !e.after && !e.submenuOf);
-      if (sectioned && !document.getElementById('wru-nav-section')) return this._mount();
-      for (const entry of this.entries) {
+      /* Only entries that would actually be mounted count as missing. An
+         entry `enabled()` has turned down is *supposed* to be absent, and
+         chasing it would call `_mount` on every mutation for ever. */
+      const live = this.entries.filter((e) => (e.enabled ? e.enabled() !== false : true));
+      if (live.some((e) => !e.after && !e.submenuOf) && !document.getElementById('wru-nav-section')) return this._mount();
+      for (const entry of live) {
         if ((entry.after || entry.submenuOf) && !document.getElementById('wru-nav-' + entry.id)) return this._mount();
       }
     });
@@ -128,9 +151,17 @@ export class Shell {
 
     this._captureActiveClasses(sidebar);
 
-    const anchored = this.entries.filter((e) => e.after);
-    const nested = this.entries.filter((e) => e.submenuOf);
-    const sectioned = this.entries.filter((e) => !e.after && !e.submenuOf);
+    /*
+     * An entry can decline to be mounted. That is how a panel written against
+     * paths this switcher does not have stays off the sidebar entirely rather
+     * than sitting there and failing when opened — see `core/platform.js`.
+     * Evaluated at every mount, because the answer is not known until the
+     * device store has arrived and React re-mounts us constantly anyway.
+     */
+    const live = this.entries.filter((e) => (e.enabled ? e.enabled() !== false : true));
+    const anchored = live.filter((e) => e.after);
+    const nested = live.filter((e) => e.submenuOf);
+    const sectioned = live.filter((e) => !e.after && !e.submenuOf);
 
     for (const entry of anchored) {
       if (document.getElementById('wru-nav-' + entry.id)) continue;
@@ -149,7 +180,17 @@ export class Shell {
       /* No flyout means this build files that page differently; the entry is
          dropped rather than invented somewhere it does not belong. */
       if (!sublist) continue;
-      const template = sublist.querySelector(SUBITEM_SEL);
+      /*
+       * The flyout item to copy.
+       *
+       * LivePremier gives each one a hashed class; Midra and Alta build the
+       * flyout out of Semantic UI instead, so the items are plain
+       * `<a class="item">` with nothing hashed about them. Falling back to
+       * "the first anchor in the list" covers both, and is the same structural
+       * reasoning used everywhere else here — the shape is stable even when
+       * the names are not.
+       */
+      const template = sublist.querySelector(SUBITEM_SEL) || sublist.querySelector('a');
       if (!template) continue;
       const node = this._cloneSubItem(template, entry);
       node.id = 'wru-nav-' + entry.id;
@@ -213,7 +254,9 @@ export class Shell {
         this._activeClasses.sub = [...activeSub.classList].filter((c) => c.includes('--active___'));
       } else {
         const fromCss = classFromStylesheets('submenu__list__item--active___');
-        if (fromCss) this._activeClasses.sub = [fromCss];
+        /* No hashed class anywhere means this build's flyout is Semantic UI's,
+           where the selected item is simply `.active` — as on Midra and Alta. */
+        this._activeClasses.sub = fromCss ? [fromCss] : ['active'];
       }
     }
   }
@@ -281,6 +324,27 @@ export class Shell {
     return node;
   }
 
+  /**
+   * Take every entry down and put back the ones that still apply.
+   *
+   * Called once the device store has arrived, which is the first moment
+   * `enabled()` can answer honestly. Until then everything is on offer, on the
+   * principle that a panel briefly present is better than one missing for good
+   * because a switcher was slow.
+   */
+  remount() {
+    if (this.active != null) {
+      const entry = this.entries.find((e) => e.id === this.active);
+      if (entry && entry.enabled && entry.enabled() === false) this.hide();
+    }
+    for (const node of this.nav.values()) node.remove();
+    const section = document.getElementById('wru-nav-section');
+    if (section) section.remove();
+    this.nav.clear();
+    this._parents.clear();
+    this._mount();
+  }
+
   toggle(id) { this.active === id ? this.hide() : this.show(id); }
 
   show(id) {
@@ -344,22 +408,43 @@ export class Shell {
     }
   }
 
+  /**
+   * The flex row the sidebar sits in.
+   *
+   * Derived from the sidebar rather than by counting children of `.aw-app`,
+   * because the two platforms nest it differently: on LivePremier `.aw-app`
+   * wraps a row, and on Midra and Alta `.aw-app` **is** the row. Counting
+   * children got the main content instead of the row there, and the panel was
+   * appended inside it at zero width — rendered, correct, and invisible.
+   *
+   * Whatever else moves, the sidebar's parent is the row that holds it.
+   */
+  _row() {
+    const sidebar = document.querySelector(SIDEBAR_SEL);
+    return sidebar ? sidebar.parentElement : null;
+  }
+
+  /**
+   * The vendor's own content area: the row's flex child that is not the
+   * sidebar, not our overlay, and not the absolutely-positioned toast stack.
+   * `aw-flex-item` is the vendor's own marker for "this one takes the space",
+   * and it is a plain utility class rather than a hashed one, so it holds.
+   */
   _mainContent() {
-    const app = document.querySelector('.aw-app');
-    const row = app && app.children[1];
+    const row = this._row();
+    const sidebar = document.querySelector(SIDEBAR_SEL);
     if (!row) return null;
     return [...row.children].find(
-      (c) => c.id !== 'wru-overlay' && c.classList.contains('aw-flex-item')
+      (c) => c !== sidebar && c.id !== 'wru-overlay' && c.classList.contains('aw-flex-item')
     ) || null;
   }
 
   _overlay() {
     let overlay = document.getElementById('wru-overlay');
     if (overlay) return overlay;
-    const app = document.querySelector('.aw-app');
-    const row = app && app.children[1];
     overlay = h('div', { id: 'wru-overlay', class: 'wru-overlay aw-flex-item aw-min-width-0', hidden: 'hidden' });
     overlay.style.position = 'relative';
+    const row = this._row();
     if (row) row.append(overlay);
     return overlay;
   }
