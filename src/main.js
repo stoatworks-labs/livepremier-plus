@@ -127,8 +127,13 @@ async function boot() {
    */
   const tabs = new TabHost({
     tabs: [
-      { id: 'console', label: 'Console', icon: 'mini-list-14', render: () => consolePanel.render() },
-      { id: 'timeline', label: 'Timeline', icon: 'timer-14', render: () => timeline.render() }
+      /* `short` is what the tab falls back to when the strip runs out of room,
+         which it does at any ordinary window size — the panel is about 360px
+         and the vendor's own two tabs spend most of it. Both are what the
+         panel actually is rather than a truncation, because "Cons" and "Time"
+         read as neither one thing nor the other. */
+      { id: 'console', label: 'Console', short: 'Cmd', icon: 'mini-list-14', render: () => consolePanel.render() },
+      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', render: () => timeline.render() }
     ]
   });
 

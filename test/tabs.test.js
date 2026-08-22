@@ -41,6 +41,31 @@ function stubDom() {
     }
     get className() { return [...this._classes].join(' '); }
     set className(v) { this._classes = new Set(String(v).split(/\s+/).filter(Boolean)); }
+    /*
+     * Just enough layout to exercise the fit ladder.
+     *
+     * There is no layout engine here, so widths are modelled the way the real
+     * ones were measured on a running Web RCS at 1280px: a tab is 16px of
+     * padding, a 24px icon when one is shown, and 8px per character of label.
+     * `display: none` on a part removes it, which is exactly what `_applyMode`
+     * does. The numbers only have to be in proportion for the policy — pick
+     * the widest rung that fits — to be worth pinning.
+     */
+    get offsetWidth() {
+      if (this.tagName === 'I') return this.style.display === 'none' ? 0 : 24;
+      if (this.tagName === 'H5') return this.style.display === 'none' ? 0 : this.textContent.length * 8;
+      if (this.tagName === 'A') return 16 + this.children.reduce((n, c) => n + c.offsetWidth, 0);
+      return 0;
+    }
+    /* The strip is a nowrap flex row: its content width is its children plus a
+       1px gap between them, whatever its own box has been squeezed to. */
+    /* Set by a test to say how much room the panel has. */
+    get clientWidth() { return this._clientWidth || 0; }
+    set clientWidth(v) { this._clientWidth = v; }
+    get scrollWidth() {
+      const kids = this.children.filter((c) => c.tagName === 'A');
+      return kids.reduce((n, c) => n + c.offsetWidth, 0) + Math.max(0, kids.length - 1);
+    }
     get textContent() {
       return this._text || this.children.map((c) => c.textContent).join('');
     }
@@ -278,4 +303,110 @@ test('a page with only route links gets no tabs at all', async () => {
     assert.equal(host._mount(), false);
     assert.equal(nav.querySelectorAll('[data-lpp-tab]').length, 0);
   });
+});
+
+/*
+ * Fitting the strip.
+ *
+ * The panel these tabs live in is about 360px on a 1280px window and the
+ * vendor's own two tabs already spend most of it, so Console and Timeline ran
+ * out past the panel edge and under the Transition column beside it. Nothing
+ * clipped them and nothing scrolled: the strip is `nowrap` with
+ * `overflow: visible`.
+ *
+ * The widths below come from the stub's model, not from a browser, so what is
+ * pinned is the policy — take the widest rung that fits, never touch the
+ * vendor's tabs, and keep the tabs rather than drop them when nothing fits.
+ */
+const fitTabs = (doc) => [
+  { id: 'console', label: 'Console', short: 'Cmd', icon: 'mini-list-14', render: () => doc.createElement('div') },
+  { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', render: () => doc.createElement('div') }
+];
+
+const labelsOf = (strip) =>
+  strip.querySelectorAll('[data-lpp-tab]').map((a) => {
+    const h5 = a.querySelector('h5');
+    const glyph = a.querySelector('i.icon');
+    return {
+      text: h5 && h5.style.display !== 'none' ? h5.textContent : null,
+      icon: !!(glyph && glyph.style.display !== 'none')
+    };
+  });
+
+async function fitAt(room) {
+  return withDom(async (stub) => {
+    stub.container.clientWidth = room;
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({ tabs: fitTabs(stub.doc) });
+    host._mount();
+    return { host, labels: labelsOf(stub.strip), strip: stub.strip };
+  });
+}
+
+test('a wide panel keeps the full labels and the icons', async () => {
+  const { host, labels } = await fitAt(430);
+  assert.equal(host.mode, 'full');
+  assert.deepEqual(labels, [
+    { text: 'Console', icon: true },
+    { text: 'Timeline', icon: true }
+  ]);
+});
+
+/* The icon is the first thing to go: a word is worth more than a glyph in a
+   strip whose other tabs are words. */
+test('a little tight drops the icons before it touches the words', async () => {
+  const { host, labels } = await fitAt(380);
+  assert.equal(host.mode, 'label');
+  assert.deepEqual(labels, [
+    { text: 'Console', icon: false },
+    { text: 'Timeline', icon: false }
+  ]);
+});
+
+test('the real panel width falls back to the short names', async () => {
+  const { host, labels, strip } = await fitAt(360);
+  assert.equal(host.mode, 'short');
+  assert.deepEqual(labels, [
+    { text: 'Cmd', icon: false },
+    { text: 'Cues', icon: false }
+  ]);
+  assert.ok(strip.scrollWidth <= 360, 'and it actually fits: ' + strip.scrollWidth);
+});
+
+test('narrower still leaves the icons alone, with the name on hover', async () => {
+  const { host, labels, strip } = await fitAt(310);
+  assert.equal(host.mode, 'icon');
+  assert.deepEqual(labels, [
+    { text: null, icon: true },
+    { text: null, icon: true }
+  ]);
+  assert.equal(strip.querySelectorAll('[data-lpp-tab]')[0].getAttribute('title'), 'Console');
+});
+
+/* Squeezed past every rung, the tabs stay. A panel that is hard to read is
+   recoverable; a panel that has silently removed the cue stack is not. */
+test('a panel too narrow for any rung keeps the tabs rather than dropping them', async () => {
+  const { host, strip } = await fitAt(80);
+  assert.equal(host.mode, 'icon');
+  assert.equal(strip.querySelectorAll('[data-lpp-tab]').length, 2);
+});
+
+test("the vendor's own tabs are never shortened", async () => {
+  await withDom(async (stub) => {
+    stub.container.clientWidth = 200;
+    const { TabHost } = await import('../src/ui/tabs.js');
+    new TabHost({ tabs: fitTabs(stub.doc) })._mount();
+    const vendor = stub.strip.querySelectorAll('a').filter((a) => !a.hasAttribute('data-lpp-tab'));
+    assert.deepEqual(vendor.map((a) => a.querySelector('h5').textContent), ['Properties', 'Memories']);
+    assert.deepEqual(vendor.map((a) => a.querySelector('h5').style.display), [undefined, undefined]);
+  });
+});
+
+/* A zero-width panel is one that has not been laid out yet, not one with no
+   room. Treating it as tiny would send every tab to icon-only and leave it
+   there, because nothing measures again until the width changes. */
+test('an unlaid-out panel is left alone rather than collapsed', async () => {
+  const { host, labels } = await fitAt(0);
+  assert.equal(host.mode, 'full');
+  assert.equal(labels[0].text, 'Console');
 });
