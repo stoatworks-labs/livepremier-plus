@@ -238,6 +238,39 @@ point — and that port can be switched off in the Web RCS security settings.
 > not hold. It refuses those addresses with that reason rather than guessing.
 > The Console *can* resolve them, because the page has the device store.
 
+## Pitch Compensation
+
+Under Preconfig, beside the two fields it fills in.
+
+A screen spanning LED walls of different pixel pitches needs each output group
+told how much canvas its raster is worth, or a layer crossing the join changes
+physical size the instant it crosses. The device has the fields for it —
+Preconfig > Canvas > Pitch, **H Ratio** and **V Ratio** — and no help at all
+working out what to put in them.
+
+The device knows every number but one. It has the rasters, it knows which
+outputs are on the screen, and it will say what ratios are set. It has no idea
+how far apart the LEDs are, so the panel reads the first lot and asks you for
+the pitches — one per output, `2.6`, or `2.6 x 3.0` if the pixels really are
+not square.
+
+**The engine is [aquilon-pitch](https://github.com/stoatworks-labs/aquilon-pitch)'s,
+vendored** into `src/vendor/pitch-engine.js`. It carries four things that are
+easy to get backwards and still look right, each established there by driving a
+simulator rather than reading the manual:
+
+- the ratio **multiplies** a group's raster to give its canvas footprint, so a
+  **coarser** wall takes a ratio **above** 1.000
+- the field is an integer in thousandths, range 0.100 to 10.000
+- an out-of-range write is **discarded** by the device, not clamped — so a
+  ratio that will not fit is refused here rather than sent
+- the footprint **floors**, so 1080 × 1.234 is 1332 and not 1333
+
+Applying takes two presses. It is a preconfig change, it moves every output on
+the screen at once, and it is the only control in the panel that touches the
+device — so it should be hard to hit by accident. When the device already holds
+the computed ratios the button says so and does nothing.
+
 ## MIDI Mapping
 
 Under Virtual RC400T. Pick an input, an output for feedback, and a controller

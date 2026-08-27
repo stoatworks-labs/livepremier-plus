@@ -34,6 +34,7 @@ are the author's own, MIT licensed, and carry their provenance in-tree:
 | `src/vendor/vpu-model.js` | [aquilon-vpu-map](https://github.com/stoatworks-labs/aquilon-vpu-map) | the VPU mixer model |
 | `src/vendor/mynah-lang.mjs` | [mynah](https://github.com/stoatworks-labs/mynah) | the Console command language |
 | `src/vendor/surface/` | [awj-surface](https://github.com/stoatworks-labs/awj-surface) | the MIDI control-surface engine and profiles |
+| `src/vendor/pitch-engine.js` | [aquilon-pitch](https://github.com/stoatworks-labs/aquilon-pitch) | the pitch-compensation engine |
 
 `npm run sync:*` re-copies each from an upstream checkout; `test/vendor.test.js`
 fails if a copy has drifted.

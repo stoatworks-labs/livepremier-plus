@@ -221,6 +221,30 @@ model — one implementation, copied not re-derived:
   the Companion module vendors the same file). Don't hand-port the TS.
 - `src/vendor/surface/` ← awj-surface `core/` + stock profiles, **by MANIFEST**
   (per-file sha256) since it's a directory.
+- `src/vendor/pitch-engine.js` ← aquilon-pitch's own **`npm run build:lib`**
+  output (`dist-lib/aquilon-pitch-engine.js`, zero deps, built FOR outside
+  consumers). Same arrangement as mynah — don't hand-port the TS.
+
+**⚠️ The pitch ratio is easy to get backwards.** It **multiplies** a group's
+raster to give its canvas footprint, so a *coarser* wall (bigger mm pitch) takes
+a ratio *above* 1.000 and downsamples. Verified upstream by writing
+`pitchRatioH = 2000` to a running simulator and watching `pitchedWidth` go
+1920 → 3840. Three more things the manual does not say, all pinned by
+`test/vendor.test.js` so they cannot quietly drift here: the field is int
+thousandths 100–10000; an **out-of-range write is DISCARDED, not clamped**, and
+silently; and the footprint **floors** (1080 × 1.234 = 1332, not 1333). Full
+evidence in aquilon-pitch's `docs/NOTES.md` and in
+[livepremier pitch compensation](https://github.com/stoatworks-labs/fleet-notes/blob/main/notes/reference_livepremier_pitch_compensation.md).
+
+**`xUpdate` or nothing happens.** Writing a pitch ratio moves `canvas/cmd/pp`
+and leaves `canvas/status/pp/pitchedWidth` exactly where it was until
+`xUpdate` is written true on the same node. `core/pitch.js` emits it after every
+pair; a hand-rolled script that forgets it looks like it worked and changed
+nothing.
+
+**`usedInScreenAux` is the literal string `"NONE"`** when an output is on no
+screen, not an absent key. `if (!status.usedInScreenAux)` looks like it filters
+unassigned outputs and does not. A test pins it.
 
 **⚠️ STRONG CORROBORATION worth keeping:** mynah's compiler and this repo's
 `core/paths.js` `CMD` builder were derived INDEPENDENTLY (bundle vs live

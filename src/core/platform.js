@@ -109,6 +109,16 @@ export const CAPABILITIES = [
     absent: 'The command grammar is written against LivePremier paths, which this switcher does not have.'
   },
   {
+    id: 'pitchCompensation',
+    label: 'Pitch compensation',
+    probe: [ROOT, 'outputList', 'items'],
+    needs: 'outputList',
+    /* The per-output canvas node carrying pitchRatioH/V is nlc-platform's.
+       Midra 4K and Alta 4K describe their outputs differently, so the panel
+       would have nothing to read the rasters or the current ratios from. */
+    absent: 'This platform describes its outputs differently, so pitch compensation cannot be read yet.'
+  },
+  {
     id: 'audioPatch',
     label: 'Audio patching',
     probe: [ROOT, 'audio', 'control', 'deviceList'],

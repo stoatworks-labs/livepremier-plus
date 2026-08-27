@@ -6,6 +6,7 @@
  *   vpu-model.js      aquilon-vpu-map's VPU model
  *   mynah-lang.mjs    mynah's command language, as its own build output
  *   surface/          awj-surface's control-surface engine and profiles
+ *   pitch-engine.js   aquilon-pitch's pitch-compensation engine, ditto
  *
  * In every case the reason is the same, and it is not convenience: two
  * implementations of one grammar, one device model or one decode table will
@@ -30,6 +31,8 @@ const mynahVendored = join(here, '..', 'src', 'vendor', 'mynah-lang.mjs');
 const mynahUpstream = join(here, '..', '..', 'mynah', 'dist-lang', 'mynah-lang.mjs');
 const surfaceDir = join(here, '..', 'src', 'vendor', 'surface');
 const surfaceUpstream = join(here, '..', '..', 'awj-surface');
+const pitchVendored = join(here, '..', 'src', 'vendor', 'pitch-engine.js');
+const pitchUpstream = join(here, '..', '..', 'aquilon-pitch', 'dist-lib', 'aquilon-pitch-engine.js');
 
 const MARKER = ' * ------------------------------------------------------------------------- */';
 
@@ -164,4 +167,72 @@ test('the surface engine decodes MIDI and writes store paths', async () => {
     assert.equal(writes[0].path[0], 'device', 'rooted the way this repo roots paths');
     assert.ok(writes[0].path.includes('pp'), 'store spelling, not AWJ @props');
   }
+});
+
+
+test('the vendored pitch engine matches upstream', async (t) => {
+  let source;
+  try {
+    source = await readFile(pitchUpstream, 'utf8');
+  } catch {
+    t.skip('no aquilon-pitch checkout beside this repo (or dist-lib not built)');
+    return;
+  }
+  const copy = await readFile(pitchVendored, 'utf8');
+  assert.equal(body(copy), source.trim(),
+    'src/vendor/pitch-engine.js has drifted — run: npm run sync:pitch-engine');
+});
+
+test('the vendored pitch engine keeps the four facts that are easy to get wrong', async () => {
+  /*
+   * These are the whole reason the engine is borrowed rather than re-typed
+   * here. Each was established upstream by driving a LivePremier simulator,
+   * and each is one character away from being wrong and still looking right.
+   */
+  const eng = await import('../src/vendor/pitch-engine.js');
+
+  /* 1. The ratio MULTIPLIES: a coarser wall takes a ratio above 1.000. */
+  const result = eng.compensate({
+    name: 'S1', arrangement: 'row', referenceId: '',
+    groups: [
+      { id: '1', name: 'fine', outputKey: '1', pxWidth: 1920, pxHeight: 1080, entry: { mode: 'pitch', hMm: 2.6, vMm: 2.6 } },
+      { id: '2', name: 'coarse', outputKey: '2', pxWidth: 1920, pxHeight: 1080, entry: { mode: 'pitch', hMm: 5.2, vMm: 5.2 } }
+    ]
+  });
+  assert.equal(result.groups[0].h.ratio, 1, 'the finest pitch is the reference');
+  assert.equal(result.groups[1].h.ratio, 2, 'twice the pitch is twice the ratio, not half');
+  assert.equal(result.groups[1].h.footprint, 3840, 'the coarse output takes MORE canvas, not less');
+
+  /* 2. The field is thousandths, 100..10000. */
+  assert.equal(eng.PITCH_SCALE, 1000);
+  assert.equal(eng.PITCH_MIN, 100);
+  assert.equal(eng.PITCH_MAX, 10000);
+
+  /* 3. Out of range is refused, never clamped to the bound. */
+  const silly = eng.compensate({
+    name: 'S1', arrangement: 'row', referenceId: '',
+    groups: [
+      { id: '1', name: 'fine', outputKey: '1', pxWidth: 1920, pxHeight: 1080, entry: { mode: 'pitch', hMm: 2.6, vMm: 2.6 } },
+      { id: '2', name: 'silly', outputKey: '2', pxWidth: 512, pxHeight: 256, entry: { mode: 'pitch', hMm: 40, vMm: 40 } }
+    ]
+  });
+  assert.equal(silly.groups[1].h.outOfRange, true);
+  assert.notEqual(silly.groups[1].h.raw, eng.PITCH_MAX, 'refused, not clamped');
+
+  /* 4. The footprint floors. 1080 x 1.234 is 1332 on a real device. */
+  assert.equal(eng.footprint(1080, 1234), 1332);
+  assert.equal(eng.footprint(1920, 1001), 1921);
+});
+
+test('the vendored engine and core/paths.js agree on where the ratio lives', async () => {
+  /*
+   * Two independent derivations of the same AWJ path — aquilon-pitch read it
+   * off a simulator, this repo builds it from core/paths.js conventions. They
+   * must not part company quietly.
+   */
+  const eng = await import('../src/vendor/pitch-engine.js');
+  const { outputPitch, outputPitchCommit } = await import('../src/core/pitch.js');
+  assert.deepEqual(outputPitch('7', 'H'), eng.awjPath('7', 'H'));
+  assert.deepEqual(outputPitch('7', 'V'), eng.awjPath('7', 'V'));
+  assert.deepEqual(outputPitchCommit('7'), eng.awjCommitPath('7'));
 });

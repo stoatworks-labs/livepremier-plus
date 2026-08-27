@@ -17,6 +17,7 @@ import { CueStack } from './core/cuestack.js';
 import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
 import { createVpuPanel } from './ui/vpu-panel.js';
+import { createPitchPanel } from './ui/pitch-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
 import { installMathFields } from './ui/math-fields.js';
 import { TabHost, watchVendorTabs } from './ui/tabs.js';
@@ -150,6 +151,7 @@ async function boot() {
   const vpu = createVpuPanel({ session, platform, onRefresh: refresh });
   const timeline = createTimelinePanel({ session, stack, storage, timecode, chase, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
+  const pitch = createPitchPanel({ session, onRefresh: refresh });
   const midi = createMidiPanel({ session, onRefresh: refresh });
   const settings = createSettingsPanel({ session, platform, timecode, onRefresh: refresh });
 
@@ -181,6 +183,10 @@ async function boot() {
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
       { id: 'midi', label: 'MIDI Mapping', icon: 'gpio-18', after: 'Virtual RC400T', render: () => midi.render() },
+      /* Under Preconfig because that is literally where the two fields it
+         fills in live — Preconfig > Canvas > Pitch. A panel that computes a
+         number you then type in one flyout over belongs in the same flyout. */
+      { id: 'pitch', label: 'Pitch Compensation', submenuOf: 'Preconfig', enabled: () => can('pitchCompensation'), render: () => pitch.render() },
       /* Nor is this one: settings for the installation go where the device's
          own installation settings are, inside the Preconfig flyout. */
       { id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig', render: () => settings.render() }

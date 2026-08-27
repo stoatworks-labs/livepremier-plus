@@ -190,6 +190,26 @@ const CSS = `
 }
 .wru-tag--good { background: rgba(0,255,127,0.1); color: #00FF7F; }
 
+.wru-select {
+  background: rgba(0,0,0,0.3); border: 0.1rem solid #49535B; border-radius: 0.25rem;
+  color: #fff; font-family: inherit; font-size: 1rem; padding: 0.166667rem 0.333333rem;
+}
+
+/* Pitch compensation. Numbers in columns that have to line up to be compared,
+   so tabular figures throughout and the ratio columns right-aligned. */
+.wru-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.wru-table th {
+  text-align: left; font-size: 0.833333rem; color: #838B91; font-weight: 600;
+  padding: 0.25rem 0.5rem 0.25rem 0; border-bottom: 0.1rem solid rgba(255,255,255,0.08);
+  white-space: nowrap;
+}
+.wru-table td { padding: 0.25rem 0.5rem 0.25rem 0; border-bottom: 0.1rem solid rgba(255,255,255,0.04); }
+.wru-row--active { background: rgba(33,133,208,0.12); }
+.wru-pitch-table th:nth-child(n+4), .wru-pitch-table td:nth-child(n+4) { text-align: right; }
+
+.wru-warnings { margin: 0; padding: 0 0 0 1rem; font-size: 0.916667rem; line-height: 1.5; }
+.wru-warnings li { margin-bottom: 0.333333rem; }
+
 .wru-empty { color: #838B91; padding: 2rem; text-align: center; }
 .wru-warn { color: #F39910; }
 

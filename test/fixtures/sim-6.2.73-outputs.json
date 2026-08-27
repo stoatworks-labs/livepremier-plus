@@ -1,0 +1,8806 @@
+{
+ "device": {
+  "outputList": {
+   "items": {
+    "1": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_1",
+       "backend": "0",
+       "slot": 0,
+       "physical": "1",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": "",
+       "freeze": false
+      }
+     },
+     "hdr": {
+      "control": {
+       "pp": {
+        "mode": "AUTO",
+        "nitLevel": "AUTO"
+       },
+       "bbc": {
+        "pp": {
+         "reference": "DISPLAY",
+         "mapping": "DIRECT",
+         "oetf": "SQUARE"
+        }
+       }
+      },
+      "status": {
+       "pp": {
+        "mode": "SDR",
+        "modeValidity": [
+         "AUTO",
+         "SDR",
+         "HDR10",
+         "HLG"
+        ],
+        "nitLevel": "100_NITS",
+        "nitValidity": [],
+        "warning": "NONE"
+       },
+       "bbc": {
+        "pp": {
+         "referenceValidity": false,
+         "mappingValidity": false,
+         "oetfValidity": false
+        }
+       }
+      }
+     },
+     "conversionLut": {
+      "control": {
+       "pp": {
+        "mode": "AUTO",
+        "source": "1"
+       }
+      },
+      "status": {
+       "pp": {
+        "isEnabled": false,
+        "state": "INACTIVE",
+        "source": "1",
+        "sourceValidity": []
+       }
+      }
+     },
+     "format": {
+      "control": {
+       "pp": {
+        "mode": "FRAMELOCK",
+        "internalFormat": "HDTV_1080P",
+        "masterFormat": "HDTV_1080P",
+        "masterRate": "60HZ",
+        "xUpdate": false
+       }
+      },
+      "status": {
+       "pp": {
+        "mode": "FRAMELOCK",
+        "internalFormat": "HDTV_1080P",
+        "internalFormatValidity": [
+         "HDTV_720P",
+         "HDTV_1035I",
+         "HDTV_1080I",
+         "HDTV_1080SF",
+         "HDTV_1080P",
+         "CINEMA_2K",
+         "COMPUTER_VGA",
+         "COMPUTER_800_480",
+         "COMPUTER_SVGA",
+         "COMPUTER_WVGA",
+         "COMPUTER_XGA",
+         "COMPUTER_1088_817",
+         "COMPUTER_1152_864",
+         "COMPUTER_720P",
+         "COMPUTER_WXGA",
+         "COMPUTER_WXGA2",
+         "COMPUTER_1280_960",
+         "COMPUTER_SXGA",
+         "COMPUTER_1360_768",
+         "COMPUTER_1360_1024",
+         "COMPUTER_SWXGAPB",
+         "COMPUTER_SWXGAP",
+         "COMPUTER_SXGAP",
+         "COMPUTER_900P",
+         "COMPUTER_1440_1080",
+         "COMPUTER_1600_900",
+         "COMPUTER_UXGA",
+         "COMPUTER_WSXGAP",
+         "COMPUTER_1792_1344",
+         "COMPUTER_1856_1392",
+         "COMPUTER_1080P",
+         "COMPUTER_WUXGA",
+         "COMPUTER_1920_1440",
+         "COMPUTER_1920_2160",
+         "COMPUTER_2K",
+         "COMPUTER_2048_1152",
+         "COMPUTER_QXGA",
+         "COMPUTER_2048_2160",
+         "COMPUTER_2560_1080",
+         "COMPUTER_2560_1440",
+         "COMPUTER_WQXGA",
+         "COMPUTER_3840_1080",
+         "COMPUTER_4096_1080"
+        ],
+        "masterFormat": "HDTV_1080P",
+        "masterFormatValidity": [
+         "HDTV_720P",
+         "HDTV_1035I",
+         "HDTV_1080I",
+         "HDTV_1080SF",
+         "HDTV_1080P",
+         "CINEMA_2K",
+         "COMPUTER_VGA",
+         "COMPUTER_800_480",
+         "COMPUTER_SVGA",
+         "COMPUTER_WVGA",
+         "COMPUTER_XGA",
+         "COMPUTER_1088_817",
+         "COMPUTER_1152_864",
+         "COMPUTER_720P",
+         "COMPUTER_WXGA",
+         "COMPUTER_WXGA2",
+         "COMPUTER_1280_960",
+         "COMPUTER_SXGA",
+         "COMPUTER_1360_768",
+         "COMPUTER_1360_1024",
+         "COMPUTER_SWXGAPB",
+         "COMPUTER_SWXGAP",
+         "COMPUTER_SXGAP",
+         "COMPUTER_900P",
+         "COMPUTER_1440_1080",
+         "COMPUTER_1600_900",
+         "COMPUTER_UXGA",
+         "COMPUTER_WSXGAP",
+         "COMPUTER_1792_1344",
+         "COMPUTER_1856_1392",
+         "COMPUTER_1080P",
+         "COMPUTER_WUXGA",
+         "COMPUTER_1920_1440",
+         "COMPUTER_1920_2160",
+         "COMPUTER_2K",
+         "COMPUTER_2048_1152",
+         "COMPUTER_QXGA",
+         "COMPUTER_2048_2160",
+         "COMPUTER_2560_1080",
+         "COMPUTER_2560_1440",
+         "COMPUTER_WQXGA",
+         "COMPUTER_3840_1080",
+         "COMPUTER_4096_1080"
+        ],
+        "masterRate": "60HZ",
+        "masterRateValidity": [
+         "23_97HZ",
+         "24HZ",
+         "25HZ",
+         "29_97HZ",
+         "30HZ",
+         "47_95HZ",
+         "48HZ",
+         "50HZ",
+         "59_94HZ",
+         "60HZ",
+         "72HZ",
+         "95_90HZ",
+         "96HZ",
+         "100HZ",
+         "119_88HZ",
+         "120HZ"
+        ]
+       }
+      }
+     },
+     "phaseShift": {
+      "pp": {
+       "offsetH": 100000,
+       "offsetV": 100000
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "isBusy": false,
+       "isValid": "VALID",
+       "isEnabled": true,
+       "isDpBoxReady": false,
+       "mode": "FRAMELOCK",
+       "format": "HDTV_1080P",
+       "rate": 60000,
+       "framelockStatus": "NO_SIGNAL",
+       "formatKind": "HDTV",
+       "isFormatInterlaced": false,
+       "sizeH": 1920,
+       "sizeV": 1080,
+       "totalH": 2200,
+       "totalV": 1125,
+       "aspectRatio": "NATIVE",
+       "freeze": false
+      }
+     },
+     "snapshot": {
+      "pp": {
+       "enable": true,
+       "size": "256_256",
+       "highPriority": false
+      }
+     },
+     "canvas": {
+      "cmd": {
+       "pp": {
+        "pitchRatioH": 1000,
+        "pitchRatioV": 1000,
+        "rotation": "NONE",
+        "xUpdate": false
+       },
+       "slices": {
+        "free": {
+         "pp": {
+          "xUpdate": false
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "2": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "3": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "4": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         }
+        },
+        "grid": {
+         "pp": {
+          "xUpdate": false
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "2": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "3": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "4": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         },
+         "areaList": {
+          "items": {
+           "1": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "2": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "3": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3"
+          ]
+         },
+         "softedge": {
+          "areaList": {
+           "items": {
+            "1": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            },
+            "2": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            },
+            "3": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            }
+           },
+           "itemKeys": [
+            "1",
+            "2",
+            "3"
+           ]
+          }
+         }
+        },
+        "aoi": {
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "2": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "3": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "4": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         }
+        }
+       }
+      },
+      "status": {
+       "pp": {
+        "isEnabled": "USED",
+        "outputRef": "1",
+        "usedInScreenAux": "S1",
+        "usedInRegion": "1",
+        "dpBoxMode": "4X1",
+        "group": "1X1",
+        "capability": "DUAL",
+        "canRotate": false,
+        "rotation": "NONE",
+        "top": 0,
+        "left": 0,
+        "clampedWidth": 1920,
+        "clampedHeight": 1080,
+        "pitchedWidth": 1920,
+        "pitchedHeight": 1080,
+        "maxWidth": 1920,
+        "maxHeight": 1080
+       },
+       "slices": {
+        "pp": {
+         "mode": "FREE",
+         "count": 1
+        },
+        "aoi": {
+         "pp": {
+          "maxWidth": 1920,
+          "maxHeight": 1080
+         }
+        },
+        "boundingBox": {
+         "pp": {
+          "top": 0,
+          "left": 0,
+          "width": 1920,
+          "height": 1080
+         }
+        },
+        "grid": {
+         "size": {
+          "pp": {
+           "columnQty": "1",
+           "rowQty": "1"
+          }
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "2": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "3": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "4": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         },
+         "areaList": {
+          "items": {
+           "1": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "2": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "3": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3"
+          ]
+         },
+         "cell": {
+          "rowList": {
+           "items": {
+            "1": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "2": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "3": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "4": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            }
+           },
+           "itemKeys": [
+            "1",
+            "2",
+            "3",
+            "4"
+           ]
+          }
+         }
+        },
+        "sliceList": {
+         "items": {
+          "1": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "2": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "3": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "4": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          }
+         },
+         "itemKeys": [
+          "1",
+          "2",
+          "3",
+          "4"
+         ]
+        }
+       },
+       "areaList": {
+        "items": {
+         "LEFT": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "RIGHT": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "TOP": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "BOTTOM": {
+          "pp": {
+           "size": 0
+          }
+         }
+        },
+        "itemKeys": [
+         "LEFT",
+         "RIGHT",
+         "TOP",
+         "BOTTOM"
+        ]
+       }
+      }
+     },
+     "settings": {
+      "pp": {
+       "gamma": 10,
+       "brightness": 128,
+       "contrast": 128,
+       "saturation": 128,
+       "hue": 180,
+       "gainR": 128,
+       "gainG": 128,
+       "gainB": 128,
+       "offsetR": 128,
+       "offsetG": 128,
+       "offsetB": 128,
+       "enableColorTemperature": false,
+       "colorTemperature": 6500
+      },
+      "correctionLut": {
+       "control": {
+        "pp": {
+         "mode": "MANUAL",
+         "source": "1"
+        }
+       },
+       "status": {
+        "pp": {
+         "isEnabled": false,
+         "state": "INACTIVE",
+         "source": "1",
+         "sourceValidity": []
+        }
+       }
+      }
+     },
+     "pattern": {
+      "control": {
+       "pp": {
+        "inhibit": true,
+        "type": "NO_PATTERN",
+        "centering": [],
+        "fitArea": "FORMAT",
+        "disableColorimetry": true
+       }
+      },
+      "color": {
+       "pp": {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+       }
+      },
+      "grid": {
+       "pp": {
+        "sizeH": 64,
+        "sizeV": 64,
+        "backColor": "BLACK",
+        "thickness": 1,
+        "id": false
+       }
+      },
+      "cross": {
+       "pp": {
+        "sizeH": 256,
+        "sizeV": 256
+       }
+      },
+      "checker": {
+       "pp": {
+        "sizeH": 16,
+        "sizeV": 16,
+        "invert": false
+       }
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "pixelEncoding": "AUTO",
+          "colorSpace": "AUTO",
+          "enableHdcp": "AUTO",
+          "forceDviMode": false,
+          "sdi3GStandard": "LEVEL_A",
+          "sdiMapping": "AUTO",
+          "ddcClock": "FAST",
+          "xBlinkLed": false,
+          "xReset": false
+         },
+         "hdr": {
+          "infoFrame": {
+           "pp": {
+            "enable": false,
+            "mode": "AUTO",
+            "source": "1"
+           }
+          }
+         },
+         "dpBox": {
+          "pp": {
+           "showOsd": false,
+           "audioMode": "MIRROR"
+          }
+         },
+         "stereo3d": {
+          "pp": {
+           "mappingMode": "AUTO",
+           "invertEyes": false
+          }
+         }
+        },
+        "status": {
+         "pp": {
+          "isAvailable": true,
+          "type": "HDMI",
+          "pixelEncodingValidity": [
+           "AUTO",
+           "RGB_FULL_8B",
+           "RGB_FULL_10B",
+           "RGB_LIMITED_8B",
+           "RGB_LIMITED_10B",
+           "YCBCR_444_8B",
+           "YCBCR_444_10B",
+           "YCBCR_422_12B",
+           "YCBCR_420_8B",
+           "YCBCR_420_10B"
+          ],
+          "colorSpaceValidity": [
+           "AUTO",
+           "ITU_BT709",
+           "ITU_BT2020"
+          ],
+          "hdcpValidity": [
+           "DISABLE",
+           "AUTO",
+           "HDCP_1X",
+           "HDCP_2X"
+          ],
+          "isHdcp": "2X",
+          "hasHdcpWarning": false,
+          "isMonitorDetected": false,
+          "monitorName": "",
+          "isHdmiMode": true,
+          "colorSpace": "RGB_ITU2020_FULL_SCALE",
+          "colorDepth": "24_BITS",
+          "sdiStandard": "SD_SDI",
+          "sdi3GStandardValidity": [],
+          "sdiMappingValidity": [],
+          "dpLinkCount": "1_LANE",
+          "dpLinkRate": "RBR",
+          "ledColor": "RED",
+          "ledBlinking": false
+         },
+         "hdr": {
+          "pp": {
+           "signalType": "SDR",
+           "signalNitLevel": "100_NITS",
+           "displayValidity": []
+          },
+          "infoFrame": {
+           "pp": {
+            "isValid": true,
+            "eotfType": "SDR",
+            "minLuma": 0,
+            "maxLuma": 100,
+            "maxContentLightLevel": 100,
+            "maxFrameAverageLightLevel": 25
+           },
+           "chromaticity": {
+            "pp": {
+             "p0X": 64000,
+             "p0Y": 33000,
+             "p1X": 30000,
+             "p1Y": 60000,
+             "p2X": 15000,
+             "p2Y": 6000,
+             "whitePointX": 31270,
+             "whitePointY": 32900
+            }
+           }
+          }
+         },
+         "sfp": {
+          "pp": {
+           "isPlugged": false,
+           "isSupported": "UNSUPPORTED",
+           "id": 0,
+           "type": "UNKNOWN",
+           "vendorName": "",
+           "vendorPartNumber": "",
+           "nominalBitRate": 0
+          }
+         },
+         "optic": {
+          "pp": {
+           "revision": 0,
+           "version": ""
+          }
+         },
+         "sdvoe": {
+          "pp": {
+           "ready": false,
+           "version": "",
+           "macAddress": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ]
+          },
+          "ipv4": {
+           "pp": {
+            "ip": [
+             0,
+             0,
+             0,
+             0
+            ],
+            "gateway": [
+             0,
+             0,
+             0,
+             0
+            ],
+            "netmask": 24,
+            "isDhcp": false
+           }
+          }
+         },
+         "dpBox": {
+          "pp": {
+           "status": "NOT_DETECTED",
+           "version": "",
+           "minimumVersion": "",
+           "isVersionNotSupported": false
+          }
+         },
+         "stereo3d": {
+          "pp": {
+           "mapping": "NONE"
+          }
+         }
+        },
+        "st2110": {
+         "new": {
+          "control": {
+           "pp": {
+            "xCheck": false,
+            "xApply": false,
+            "xRecall": false
+           },
+           "connection": {
+            "primary": {
+             "pp": {
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 239,
+                 1,
+                 5,
+                 1
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            },
+            "secondary": {
+             "pp": {
+              "enable": true,
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 239,
+                 1,
+                 6,
+                 1
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            }
+           }
+          },
+          "status": {
+           "pp": {
+            "state": [],
+            "hasChanged": false
+           }
+          }
+         },
+         "current": {
+          "status": {
+           "pp": {
+            "state": []
+           },
+           "connection": {
+            "primary": {
+             "pp": {
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            },
+            "secondary": {
+             "pp": {
+              "enable": true,
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            }
+           }
+          }
+         },
+         "audio": {
+          "new": {
+           "control": {
+            "pp": {
+             "xCheck": false,
+             "xApply": false,
+             "xRecall": false
+            },
+            "connection": {
+             "primary": {
+              "pp": {
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  239,
+                  1,
+                  7,
+                  1
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             },
+             "secondary": {
+              "pp": {
+               "enable": true,
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  239,
+                  1,
+                  8,
+                  1
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             }
+            }
+           },
+           "status": {
+            "pp": {
+             "state": [],
+             "hasChanged": false
+            }
+           }
+          },
+          "current": {
+           "status": {
+            "pp": {
+             "state": []
+            },
+            "connection": {
+             "primary": {
+              "pp": {
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             },
+             "secondary": {
+              "pp": {
+               "enable": true,
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "mode": "AUTO"
+          }
+         },
+         "status": {
+          "pp": {
+           "mode": "2_CHANNELS",
+           "modeValidity": [
+            "DISABLE",
+            "AUTO",
+            "2_CHANNELS",
+            "4_CHANNELS",
+            "6_CHANNELS",
+            "8_CHANNELS"
+           ],
+           "sampleRate": "48K"
+          }
+         }
+        },
+        "edid": {
+         "status": {
+          "pp": {
+           "isAvailable": false,
+           "isValid": false,
+           "hashCode": 0,
+           "data": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           "dataSize": "256",
+           "hid": "",
+           "serialNumber": 0,
+           "productName": "",
+           "prefFormatName": "",
+           "extensionAvailable": [],
+           "extensionValidity": []
+          },
+          "extensionList": {
+           "items": {
+            "BLOCK_1": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            },
+            "BLOCK_2": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            },
+            "BLOCK_3": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            }
+           },
+           "itemKeys": [
+            "BLOCK_1",
+            "BLOCK_2",
+            "BLOCK_3"
+           ]
+          }
+         }
+        }
+       }
+      },
+      "itemKeys": [
+       "1"
+      ]
+     }
+    },
+    "2": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_1",
+       "backend": "0",
+       "slot": 0,
+       "physical": "1",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": "",
+       "freeze": false
+      }
+     },
+     "hdr": {
+      "control": {
+       "pp": {
+        "mode": "AUTO",
+        "nitLevel": "AUTO"
+       },
+       "bbc": {
+        "pp": {
+         "reference": "DISPLAY",
+         "mapping": "DIRECT",
+         "oetf": "SQUARE"
+        }
+       }
+      },
+      "status": {
+       "pp": {
+        "mode": "SDR",
+        "modeValidity": [
+         "AUTO",
+         "SDR",
+         "HDR10",
+         "HLG"
+        ],
+        "nitLevel": "100_NITS",
+        "nitValidity": [],
+        "warning": "NONE"
+       },
+       "bbc": {
+        "pp": {
+         "referenceValidity": false,
+         "mappingValidity": false,
+         "oetfValidity": false
+        }
+       }
+      }
+     },
+     "conversionLut": {
+      "control": {
+       "pp": {
+        "mode": "AUTO",
+        "source": "1"
+       }
+      },
+      "status": {
+       "pp": {
+        "isEnabled": false,
+        "state": "INACTIVE",
+        "source": "1",
+        "sourceValidity": []
+       }
+      }
+     },
+     "format": {
+      "control": {
+       "pp": {
+        "mode": "FRAMELOCK",
+        "internalFormat": "HDTV_1080P",
+        "masterFormat": "HDTV_1080P",
+        "masterRate": "60HZ",
+        "xUpdate": false
+       }
+      },
+      "status": {
+       "pp": {
+        "mode": "FRAMELOCK",
+        "internalFormat": "HDTV_1080P",
+        "internalFormatValidity": [
+         "HDTV_720P",
+         "HDTV_1035I",
+         "HDTV_1080I",
+         "HDTV_1080SF",
+         "HDTV_1080P",
+         "CINEMA_2K",
+         "COMPUTER_VGA",
+         "COMPUTER_800_480",
+         "COMPUTER_SVGA",
+         "COMPUTER_WVGA",
+         "COMPUTER_XGA",
+         "COMPUTER_1088_817",
+         "COMPUTER_1152_864",
+         "COMPUTER_720P",
+         "COMPUTER_WXGA",
+         "COMPUTER_WXGA2",
+         "COMPUTER_1280_960",
+         "COMPUTER_SXGA",
+         "COMPUTER_1360_768",
+         "COMPUTER_1360_1024",
+         "COMPUTER_SWXGAPB",
+         "COMPUTER_SWXGAP",
+         "COMPUTER_SXGAP",
+         "COMPUTER_900P",
+         "COMPUTER_1440_1080",
+         "COMPUTER_1600_900",
+         "COMPUTER_UXGA",
+         "COMPUTER_WSXGAP",
+         "COMPUTER_1792_1344",
+         "COMPUTER_1856_1392",
+         "COMPUTER_1080P",
+         "COMPUTER_WUXGA",
+         "COMPUTER_1920_1440",
+         "COMPUTER_1920_2160",
+         "COMPUTER_2K",
+         "COMPUTER_2048_1152",
+         "COMPUTER_QXGA",
+         "COMPUTER_2048_2160",
+         "COMPUTER_2560_1080",
+         "COMPUTER_2560_1440",
+         "COMPUTER_WQXGA",
+         "COMPUTER_3840_1080",
+         "COMPUTER_4096_1080"
+        ],
+        "masterFormat": "HDTV_1080P",
+        "masterFormatValidity": [
+         "HDTV_720P",
+         "HDTV_1035I",
+         "HDTV_1080I",
+         "HDTV_1080SF",
+         "HDTV_1080P",
+         "CINEMA_2K",
+         "COMPUTER_VGA",
+         "COMPUTER_800_480",
+         "COMPUTER_SVGA",
+         "COMPUTER_WVGA",
+         "COMPUTER_XGA",
+         "COMPUTER_1088_817",
+         "COMPUTER_1152_864",
+         "COMPUTER_720P",
+         "COMPUTER_WXGA",
+         "COMPUTER_WXGA2",
+         "COMPUTER_1280_960",
+         "COMPUTER_SXGA",
+         "COMPUTER_1360_768",
+         "COMPUTER_1360_1024",
+         "COMPUTER_SWXGAPB",
+         "COMPUTER_SWXGAP",
+         "COMPUTER_SXGAP",
+         "COMPUTER_900P",
+         "COMPUTER_1440_1080",
+         "COMPUTER_1600_900",
+         "COMPUTER_UXGA",
+         "COMPUTER_WSXGAP",
+         "COMPUTER_1792_1344",
+         "COMPUTER_1856_1392",
+         "COMPUTER_1080P",
+         "COMPUTER_WUXGA",
+         "COMPUTER_1920_1440",
+         "COMPUTER_1920_2160",
+         "COMPUTER_2K",
+         "COMPUTER_2048_1152",
+         "COMPUTER_QXGA",
+         "COMPUTER_2048_2160",
+         "COMPUTER_2560_1080",
+         "COMPUTER_2560_1440",
+         "COMPUTER_WQXGA",
+         "COMPUTER_3840_1080",
+         "COMPUTER_4096_1080"
+        ],
+        "masterRate": "60HZ",
+        "masterRateValidity": [
+         "23_97HZ",
+         "24HZ",
+         "25HZ",
+         "29_97HZ",
+         "30HZ",
+         "47_95HZ",
+         "48HZ",
+         "50HZ",
+         "59_94HZ",
+         "60HZ",
+         "72HZ",
+         "95_90HZ",
+         "96HZ",
+         "100HZ",
+         "119_88HZ",
+         "120HZ"
+        ]
+       }
+      }
+     },
+     "phaseShift": {
+      "pp": {
+       "offsetH": 100000,
+       "offsetV": 100000
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "isBusy": false,
+       "isValid": "VALID",
+       "isEnabled": true,
+       "isDpBoxReady": false,
+       "mode": "FRAMELOCK",
+       "format": "HDTV_1080P",
+       "rate": 60000,
+       "framelockStatus": "NO_SIGNAL",
+       "formatKind": "HDTV",
+       "isFormatInterlaced": false,
+       "sizeH": 1920,
+       "sizeV": 1080,
+       "totalH": 2200,
+       "totalV": 1125,
+       "aspectRatio": "NATIVE",
+       "freeze": false
+      }
+     },
+     "snapshot": {
+      "pp": {
+       "enable": true,
+       "size": "256_256",
+       "highPriority": false
+      }
+     },
+     "canvas": {
+      "cmd": {
+       "pp": {
+        "pitchRatioH": 1000,
+        "pitchRatioV": 1000,
+        "rotation": "NONE",
+        "xUpdate": false
+       },
+       "slices": {
+        "free": {
+         "pp": {
+          "xUpdate": false
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "2": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "3": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "4": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         }
+        },
+        "grid": {
+         "pp": {
+          "xUpdate": false
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "2": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "3": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "4": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         },
+         "areaList": {
+          "items": {
+           "1": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "2": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "3": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3"
+          ]
+         },
+         "softedge": {
+          "areaList": {
+           "items": {
+            "1": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            },
+            "2": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            },
+            "3": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            }
+           },
+           "itemKeys": [
+            "1",
+            "2",
+            "3"
+           ]
+          }
+         }
+        },
+        "aoi": {
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "2": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "3": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "4": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         }
+        }
+       }
+      },
+      "status": {
+       "pp": {
+        "isEnabled": "USED",
+        "outputRef": "1",
+        "usedInScreenAux": "S1",
+        "usedInRegion": "1",
+        "dpBoxMode": "4X1",
+        "group": "1X1",
+        "capability": "DUAL",
+        "canRotate": false,
+        "rotation": "NONE",
+        "top": 0,
+        "left": 1920,
+        "clampedWidth": 1920,
+        "clampedHeight": 1080,
+        "pitchedWidth": 1920,
+        "pitchedHeight": 1080,
+        "maxWidth": 1920,
+        "maxHeight": 1080
+       },
+       "slices": {
+        "pp": {
+         "mode": "FREE",
+         "count": 1
+        },
+        "aoi": {
+         "pp": {
+          "maxWidth": 1920,
+          "maxHeight": 1080
+         }
+        },
+        "boundingBox": {
+         "pp": {
+          "top": 0,
+          "left": 0,
+          "width": 1920,
+          "height": 1080
+         }
+        },
+        "grid": {
+         "size": {
+          "pp": {
+           "columnQty": "1",
+           "rowQty": "1"
+          }
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "2": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "3": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "4": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         },
+         "areaList": {
+          "items": {
+           "1": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "2": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "3": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3"
+          ]
+         },
+         "cell": {
+          "rowList": {
+           "items": {
+            "1": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "2": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "3": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "4": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            }
+           },
+           "itemKeys": [
+            "1",
+            "2",
+            "3",
+            "4"
+           ]
+          }
+         }
+        },
+        "sliceList": {
+         "items": {
+          "1": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "2": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "3": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "4": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          }
+         },
+         "itemKeys": [
+          "1",
+          "2",
+          "3",
+          "4"
+         ]
+        }
+       },
+       "areaList": {
+        "items": {
+         "LEFT": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "RIGHT": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "TOP": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "BOTTOM": {
+          "pp": {
+           "size": 0
+          }
+         }
+        },
+        "itemKeys": [
+         "LEFT",
+         "RIGHT",
+         "TOP",
+         "BOTTOM"
+        ]
+       }
+      }
+     },
+     "settings": {
+      "pp": {
+       "gamma": 10,
+       "brightness": 128,
+       "contrast": 128,
+       "saturation": 128,
+       "hue": 180,
+       "gainR": 128,
+       "gainG": 128,
+       "gainB": 128,
+       "offsetR": 128,
+       "offsetG": 128,
+       "offsetB": 128,
+       "enableColorTemperature": false,
+       "colorTemperature": 6500
+      },
+      "correctionLut": {
+       "control": {
+        "pp": {
+         "mode": "MANUAL",
+         "source": "1"
+        }
+       },
+       "status": {
+        "pp": {
+         "isEnabled": false,
+         "state": "INACTIVE",
+         "source": "1",
+         "sourceValidity": []
+        }
+       }
+      }
+     },
+     "pattern": {
+      "control": {
+       "pp": {
+        "inhibit": true,
+        "type": "NO_PATTERN",
+        "centering": [],
+        "fitArea": "FORMAT",
+        "disableColorimetry": true
+       }
+      },
+      "color": {
+       "pp": {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+       }
+      },
+      "grid": {
+       "pp": {
+        "sizeH": 64,
+        "sizeV": 64,
+        "backColor": "BLACK",
+        "thickness": 1,
+        "id": false
+       }
+      },
+      "cross": {
+       "pp": {
+        "sizeH": 256,
+        "sizeV": 256
+       }
+      },
+      "checker": {
+       "pp": {
+        "sizeH": 16,
+        "sizeV": 16,
+        "invert": false
+       }
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "pixelEncoding": "AUTO",
+          "colorSpace": "AUTO",
+          "enableHdcp": "AUTO",
+          "forceDviMode": false,
+          "sdi3GStandard": "LEVEL_A",
+          "sdiMapping": "AUTO",
+          "ddcClock": "FAST",
+          "xBlinkLed": false,
+          "xReset": false
+         },
+         "hdr": {
+          "infoFrame": {
+           "pp": {
+            "enable": false,
+            "mode": "AUTO",
+            "source": "1"
+           }
+          }
+         },
+         "dpBox": {
+          "pp": {
+           "showOsd": false,
+           "audioMode": "MIRROR"
+          }
+         },
+         "stereo3d": {
+          "pp": {
+           "mappingMode": "AUTO",
+           "invertEyes": false
+          }
+         }
+        },
+        "status": {
+         "pp": {
+          "isAvailable": true,
+          "type": "HDMI",
+          "pixelEncodingValidity": [
+           "AUTO",
+           "RGB_FULL_8B",
+           "RGB_FULL_10B",
+           "RGB_LIMITED_8B",
+           "RGB_LIMITED_10B",
+           "YCBCR_444_8B",
+           "YCBCR_444_10B",
+           "YCBCR_422_12B",
+           "YCBCR_420_8B",
+           "YCBCR_420_10B"
+          ],
+          "colorSpaceValidity": [
+           "AUTO",
+           "ITU_BT709",
+           "ITU_BT2020"
+          ],
+          "hdcpValidity": [
+           "DISABLE",
+           "AUTO",
+           "HDCP_1X",
+           "HDCP_2X"
+          ],
+          "isHdcp": "2X",
+          "hasHdcpWarning": false,
+          "isMonitorDetected": false,
+          "monitorName": "",
+          "isHdmiMode": true,
+          "colorSpace": "RGB_ITU2020_FULL_SCALE",
+          "colorDepth": "24_BITS",
+          "sdiStandard": "SD_SDI",
+          "sdi3GStandardValidity": [],
+          "sdiMappingValidity": [],
+          "dpLinkCount": "1_LANE",
+          "dpLinkRate": "RBR",
+          "ledColor": "RED",
+          "ledBlinking": false
+         },
+         "hdr": {
+          "pp": {
+           "signalType": "SDR",
+           "signalNitLevel": "100_NITS",
+           "displayValidity": []
+          },
+          "infoFrame": {
+           "pp": {
+            "isValid": true,
+            "eotfType": "SDR",
+            "minLuma": 0,
+            "maxLuma": 100,
+            "maxContentLightLevel": 100,
+            "maxFrameAverageLightLevel": 25
+           },
+           "chromaticity": {
+            "pp": {
+             "p0X": 64000,
+             "p0Y": 33000,
+             "p1X": 30000,
+             "p1Y": 60000,
+             "p2X": 15000,
+             "p2Y": 6000,
+             "whitePointX": 31270,
+             "whitePointY": 32900
+            }
+           }
+          }
+         },
+         "sfp": {
+          "pp": {
+           "isPlugged": false,
+           "isSupported": "UNSUPPORTED",
+           "id": 0,
+           "type": "UNKNOWN",
+           "vendorName": "",
+           "vendorPartNumber": "",
+           "nominalBitRate": 0
+          }
+         },
+         "optic": {
+          "pp": {
+           "revision": 0,
+           "version": ""
+          }
+         },
+         "sdvoe": {
+          "pp": {
+           "ready": false,
+           "version": "",
+           "macAddress": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ]
+          },
+          "ipv4": {
+           "pp": {
+            "ip": [
+             0,
+             0,
+             0,
+             0
+            ],
+            "gateway": [
+             0,
+             0,
+             0,
+             0
+            ],
+            "netmask": 24,
+            "isDhcp": false
+           }
+          }
+         },
+         "dpBox": {
+          "pp": {
+           "status": "NOT_DETECTED",
+           "version": "",
+           "minimumVersion": "",
+           "isVersionNotSupported": false
+          }
+         },
+         "stereo3d": {
+          "pp": {
+           "mapping": "NONE"
+          }
+         }
+        },
+        "st2110": {
+         "new": {
+          "control": {
+           "pp": {
+            "xCheck": false,
+            "xApply": false,
+            "xRecall": false
+           },
+           "connection": {
+            "primary": {
+             "pp": {
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 239,
+                 1,
+                 5,
+                 1
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            },
+            "secondary": {
+             "pp": {
+              "enable": true,
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 239,
+                 1,
+                 6,
+                 1
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            }
+           }
+          },
+          "status": {
+           "pp": {
+            "state": [],
+            "hasChanged": false
+           }
+          }
+         },
+         "current": {
+          "status": {
+           "pp": {
+            "state": []
+           },
+           "connection": {
+            "primary": {
+             "pp": {
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            },
+            "secondary": {
+             "pp": {
+              "enable": true,
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            }
+           }
+          }
+         },
+         "audio": {
+          "new": {
+           "control": {
+            "pp": {
+             "xCheck": false,
+             "xApply": false,
+             "xRecall": false
+            },
+            "connection": {
+             "primary": {
+              "pp": {
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  239,
+                  1,
+                  7,
+                  1
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             },
+             "secondary": {
+              "pp": {
+               "enable": true,
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  239,
+                  1,
+                  8,
+                  1
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             }
+            }
+           },
+           "status": {
+            "pp": {
+             "state": [],
+             "hasChanged": false
+            }
+           }
+          },
+          "current": {
+           "status": {
+            "pp": {
+             "state": []
+            },
+            "connection": {
+             "primary": {
+              "pp": {
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             },
+             "secondary": {
+              "pp": {
+               "enable": true,
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "mode": "AUTO"
+          }
+         },
+         "status": {
+          "pp": {
+           "mode": "2_CHANNELS",
+           "modeValidity": [
+            "DISABLE",
+            "AUTO",
+            "2_CHANNELS",
+            "4_CHANNELS",
+            "6_CHANNELS",
+            "8_CHANNELS"
+           ],
+           "sampleRate": "48K"
+          }
+         }
+        },
+        "edid": {
+         "status": {
+          "pp": {
+           "isAvailable": false,
+           "isValid": false,
+           "hashCode": 0,
+           "data": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           "dataSize": "256",
+           "hid": "",
+           "serialNumber": 0,
+           "productName": "",
+           "prefFormatName": "",
+           "extensionAvailable": [],
+           "extensionValidity": []
+          },
+          "extensionList": {
+           "items": {
+            "BLOCK_1": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            },
+            "BLOCK_2": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            },
+            "BLOCK_3": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            }
+           },
+           "itemKeys": [
+            "BLOCK_1",
+            "BLOCK_2",
+            "BLOCK_3"
+           ]
+          }
+         }
+        }
+       }
+      },
+      "itemKeys": [
+       "1"
+      ]
+     }
+    },
+    "3": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_1",
+       "backend": "0",
+       "slot": 0,
+       "physical": "1",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": "",
+       "freeze": false
+      }
+     },
+     "hdr": {
+      "control": {
+       "pp": {
+        "mode": "AUTO",
+        "nitLevel": "AUTO"
+       },
+       "bbc": {
+        "pp": {
+         "reference": "DISPLAY",
+         "mapping": "DIRECT",
+         "oetf": "SQUARE"
+        }
+       }
+      },
+      "status": {
+       "pp": {
+        "mode": "SDR",
+        "modeValidity": [
+         "AUTO",
+         "SDR",
+         "HDR10",
+         "HLG"
+        ],
+        "nitLevel": "100_NITS",
+        "nitValidity": [],
+        "warning": "NONE"
+       },
+       "bbc": {
+        "pp": {
+         "referenceValidity": false,
+         "mappingValidity": false,
+         "oetfValidity": false
+        }
+       }
+      }
+     },
+     "conversionLut": {
+      "control": {
+       "pp": {
+        "mode": "AUTO",
+        "source": "1"
+       }
+      },
+      "status": {
+       "pp": {
+        "isEnabled": false,
+        "state": "INACTIVE",
+        "source": "1",
+        "sourceValidity": []
+       }
+      }
+     },
+     "format": {
+      "control": {
+       "pp": {
+        "mode": "FRAMELOCK",
+        "internalFormat": "HDTV_1080P",
+        "masterFormat": "HDTV_1080P",
+        "masterRate": "60HZ",
+        "xUpdate": false
+       }
+      },
+      "status": {
+       "pp": {
+        "mode": "FRAMELOCK",
+        "internalFormat": "HDTV_1080P",
+        "internalFormatValidity": [
+         "HDTV_720P",
+         "HDTV_1035I",
+         "HDTV_1080I",
+         "HDTV_1080SF",
+         "HDTV_1080P",
+         "CINEMA_2K",
+         "COMPUTER_VGA",
+         "COMPUTER_800_480",
+         "COMPUTER_SVGA",
+         "COMPUTER_WVGA",
+         "COMPUTER_XGA",
+         "COMPUTER_1088_817",
+         "COMPUTER_1152_864",
+         "COMPUTER_720P",
+         "COMPUTER_WXGA",
+         "COMPUTER_WXGA2",
+         "COMPUTER_1280_960",
+         "COMPUTER_SXGA",
+         "COMPUTER_1360_768",
+         "COMPUTER_1360_1024",
+         "COMPUTER_SWXGAPB",
+         "COMPUTER_SWXGAP",
+         "COMPUTER_SXGAP",
+         "COMPUTER_900P",
+         "COMPUTER_1440_1080",
+         "COMPUTER_1600_900",
+         "COMPUTER_UXGA",
+         "COMPUTER_WSXGAP",
+         "COMPUTER_1792_1344",
+         "COMPUTER_1856_1392",
+         "COMPUTER_1080P",
+         "COMPUTER_WUXGA",
+         "COMPUTER_1920_1440",
+         "COMPUTER_1920_2160",
+         "COMPUTER_2K",
+         "COMPUTER_2048_1152",
+         "COMPUTER_QXGA",
+         "COMPUTER_2048_2160",
+         "COMPUTER_2560_1080",
+         "COMPUTER_2560_1440",
+         "COMPUTER_WQXGA",
+         "COMPUTER_3840_1080",
+         "COMPUTER_4096_1080"
+        ],
+        "masterFormat": "HDTV_1080P",
+        "masterFormatValidity": [
+         "HDTV_720P",
+         "HDTV_1035I",
+         "HDTV_1080I",
+         "HDTV_1080SF",
+         "HDTV_1080P",
+         "CINEMA_2K",
+         "COMPUTER_VGA",
+         "COMPUTER_800_480",
+         "COMPUTER_SVGA",
+         "COMPUTER_WVGA",
+         "COMPUTER_XGA",
+         "COMPUTER_1088_817",
+         "COMPUTER_1152_864",
+         "COMPUTER_720P",
+         "COMPUTER_WXGA",
+         "COMPUTER_WXGA2",
+         "COMPUTER_1280_960",
+         "COMPUTER_SXGA",
+         "COMPUTER_1360_768",
+         "COMPUTER_1360_1024",
+         "COMPUTER_SWXGAPB",
+         "COMPUTER_SWXGAP",
+         "COMPUTER_SXGAP",
+         "COMPUTER_900P",
+         "COMPUTER_1440_1080",
+         "COMPUTER_1600_900",
+         "COMPUTER_UXGA",
+         "COMPUTER_WSXGAP",
+         "COMPUTER_1792_1344",
+         "COMPUTER_1856_1392",
+         "COMPUTER_1080P",
+         "COMPUTER_WUXGA",
+         "COMPUTER_1920_1440",
+         "COMPUTER_1920_2160",
+         "COMPUTER_2K",
+         "COMPUTER_2048_1152",
+         "COMPUTER_QXGA",
+         "COMPUTER_2048_2160",
+         "COMPUTER_2560_1080",
+         "COMPUTER_2560_1440",
+         "COMPUTER_WQXGA",
+         "COMPUTER_3840_1080",
+         "COMPUTER_4096_1080"
+        ],
+        "masterRate": "60HZ",
+        "masterRateValidity": [
+         "23_97HZ",
+         "24HZ",
+         "25HZ",
+         "29_97HZ",
+         "30HZ",
+         "47_95HZ",
+         "48HZ",
+         "50HZ",
+         "59_94HZ",
+         "60HZ",
+         "72HZ",
+         "95_90HZ",
+         "96HZ",
+         "100HZ",
+         "119_88HZ",
+         "120HZ"
+        ]
+       }
+      }
+     },
+     "phaseShift": {
+      "pp": {
+       "offsetH": 100000,
+       "offsetV": 100000
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "isBusy": false,
+       "isValid": "VALID",
+       "isEnabled": true,
+       "isDpBoxReady": false,
+       "mode": "FRAMELOCK",
+       "format": "HDTV_1080P",
+       "rate": 60000,
+       "framelockStatus": "NO_SIGNAL",
+       "formatKind": "HDTV",
+       "isFormatInterlaced": false,
+       "sizeH": 1920,
+       "sizeV": 1080,
+       "totalH": 2200,
+       "totalV": 1125,
+       "aspectRatio": "NATIVE",
+       "freeze": false
+      }
+     },
+     "snapshot": {
+      "pp": {
+       "enable": true,
+       "size": "256_256",
+       "highPriority": false
+      }
+     },
+     "canvas": {
+      "cmd": {
+       "pp": {
+        "pitchRatioH": 2000,
+        "pitchRatioV": 2000,
+        "rotation": "NONE",
+        "xUpdate": false
+       },
+       "slices": {
+        "free": {
+         "pp": {
+          "xUpdate": false
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "2": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "3": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "4": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         }
+        },
+        "grid": {
+         "pp": {
+          "xUpdate": false
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "2": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "3": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "4": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         },
+         "areaList": {
+          "items": {
+           "1": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "2": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "3": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3"
+          ]
+         },
+         "softedge": {
+          "areaList": {
+           "items": {
+            "1": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            },
+            "2": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            },
+            "3": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            }
+           },
+           "itemKeys": [
+            "1",
+            "2",
+            "3"
+           ]
+          }
+         }
+        },
+        "aoi": {
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "2": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "3": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "4": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         }
+        }
+       }
+      },
+      "status": {
+       "pp": {
+        "isEnabled": "USED",
+        "outputRef": "1",
+        "usedInScreenAux": "S1",
+        "usedInRegion": "1",
+        "dpBoxMode": "4X1",
+        "group": "1X1",
+        "capability": "DUAL",
+        "canRotate": false,
+        "rotation": "NONE",
+        "top": 0,
+        "left": 3840,
+        "clampedWidth": 2560,
+        "clampedHeight": 1440,
+        "pitchedWidth": 2560,
+        "pitchedHeight": 1440,
+        "maxWidth": 1280,
+        "maxHeight": 720
+       },
+       "slices": {
+        "pp": {
+         "mode": "FREE",
+         "count": 1
+        },
+        "aoi": {
+         "pp": {
+          "maxWidth": 1920,
+          "maxHeight": 1080
+         }
+        },
+        "boundingBox": {
+         "pp": {
+          "top": 0,
+          "left": 0,
+          "width": 1920,
+          "height": 1080
+         }
+        },
+        "grid": {
+         "size": {
+          "pp": {
+           "columnQty": "1",
+           "rowQty": "1"
+          }
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "2": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "3": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "4": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         },
+         "areaList": {
+          "items": {
+           "1": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "2": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "3": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3"
+          ]
+         },
+         "cell": {
+          "rowList": {
+           "items": {
+            "1": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "2": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "3": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "4": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            }
+           },
+           "itemKeys": [
+            "1",
+            "2",
+            "3",
+            "4"
+           ]
+          }
+         }
+        },
+        "sliceList": {
+         "items": {
+          "1": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "2": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "3": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "4": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          }
+         },
+         "itemKeys": [
+          "1",
+          "2",
+          "3",
+          "4"
+         ]
+        }
+       },
+       "areaList": {
+        "items": {
+         "LEFT": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "RIGHT": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "TOP": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "BOTTOM": {
+          "pp": {
+           "size": 0
+          }
+         }
+        },
+        "itemKeys": [
+         "LEFT",
+         "RIGHT",
+         "TOP",
+         "BOTTOM"
+        ]
+       }
+      }
+     },
+     "settings": {
+      "pp": {
+       "gamma": 10,
+       "brightness": 128,
+       "contrast": 128,
+       "saturation": 128,
+       "hue": 180,
+       "gainR": 128,
+       "gainG": 128,
+       "gainB": 128,
+       "offsetR": 128,
+       "offsetG": 128,
+       "offsetB": 128,
+       "enableColorTemperature": false,
+       "colorTemperature": 6500
+      },
+      "correctionLut": {
+       "control": {
+        "pp": {
+         "mode": "MANUAL",
+         "source": "1"
+        }
+       },
+       "status": {
+        "pp": {
+         "isEnabled": false,
+         "state": "INACTIVE",
+         "source": "1",
+         "sourceValidity": []
+        }
+       }
+      }
+     },
+     "pattern": {
+      "control": {
+       "pp": {
+        "inhibit": true,
+        "type": "NO_PATTERN",
+        "centering": [],
+        "fitArea": "FORMAT",
+        "disableColorimetry": true
+       }
+      },
+      "color": {
+       "pp": {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+       }
+      },
+      "grid": {
+       "pp": {
+        "sizeH": 64,
+        "sizeV": 64,
+        "backColor": "BLACK",
+        "thickness": 1,
+        "id": false
+       }
+      },
+      "cross": {
+       "pp": {
+        "sizeH": 256,
+        "sizeV": 256
+       }
+      },
+      "checker": {
+       "pp": {
+        "sizeH": 16,
+        "sizeV": 16,
+        "invert": false
+       }
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "pixelEncoding": "AUTO",
+          "colorSpace": "AUTO",
+          "enableHdcp": "AUTO",
+          "forceDviMode": false,
+          "sdi3GStandard": "LEVEL_A",
+          "sdiMapping": "AUTO",
+          "ddcClock": "FAST",
+          "xBlinkLed": false,
+          "xReset": false
+         },
+         "hdr": {
+          "infoFrame": {
+           "pp": {
+            "enable": false,
+            "mode": "AUTO",
+            "source": "1"
+           }
+          }
+         },
+         "dpBox": {
+          "pp": {
+           "showOsd": false,
+           "audioMode": "MIRROR"
+          }
+         },
+         "stereo3d": {
+          "pp": {
+           "mappingMode": "AUTO",
+           "invertEyes": false
+          }
+         }
+        },
+        "status": {
+         "pp": {
+          "isAvailable": true,
+          "type": "HDMI",
+          "pixelEncodingValidity": [
+           "AUTO",
+           "RGB_FULL_8B",
+           "RGB_FULL_10B",
+           "RGB_LIMITED_8B",
+           "RGB_LIMITED_10B",
+           "YCBCR_444_8B",
+           "YCBCR_444_10B",
+           "YCBCR_422_12B",
+           "YCBCR_420_8B",
+           "YCBCR_420_10B"
+          ],
+          "colorSpaceValidity": [
+           "AUTO",
+           "ITU_BT709",
+           "ITU_BT2020"
+          ],
+          "hdcpValidity": [
+           "DISABLE",
+           "AUTO",
+           "HDCP_1X",
+           "HDCP_2X"
+          ],
+          "isHdcp": "2X",
+          "hasHdcpWarning": false,
+          "isMonitorDetected": false,
+          "monitorName": "",
+          "isHdmiMode": true,
+          "colorSpace": "RGB_ITU2020_FULL_SCALE",
+          "colorDepth": "24_BITS",
+          "sdiStandard": "SD_SDI",
+          "sdi3GStandardValidity": [],
+          "sdiMappingValidity": [],
+          "dpLinkCount": "1_LANE",
+          "dpLinkRate": "RBR",
+          "ledColor": "RED",
+          "ledBlinking": false
+         },
+         "hdr": {
+          "pp": {
+           "signalType": "SDR",
+           "signalNitLevel": "100_NITS",
+           "displayValidity": []
+          },
+          "infoFrame": {
+           "pp": {
+            "isValid": true,
+            "eotfType": "SDR",
+            "minLuma": 0,
+            "maxLuma": 100,
+            "maxContentLightLevel": 100,
+            "maxFrameAverageLightLevel": 25
+           },
+           "chromaticity": {
+            "pp": {
+             "p0X": 64000,
+             "p0Y": 33000,
+             "p1X": 30000,
+             "p1Y": 60000,
+             "p2X": 15000,
+             "p2Y": 6000,
+             "whitePointX": 31270,
+             "whitePointY": 32900
+            }
+           }
+          }
+         },
+         "sfp": {
+          "pp": {
+           "isPlugged": false,
+           "isSupported": "UNSUPPORTED",
+           "id": 0,
+           "type": "UNKNOWN",
+           "vendorName": "",
+           "vendorPartNumber": "",
+           "nominalBitRate": 0
+          }
+         },
+         "optic": {
+          "pp": {
+           "revision": 0,
+           "version": ""
+          }
+         },
+         "sdvoe": {
+          "pp": {
+           "ready": false,
+           "version": "",
+           "macAddress": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ]
+          },
+          "ipv4": {
+           "pp": {
+            "ip": [
+             0,
+             0,
+             0,
+             0
+            ],
+            "gateway": [
+             0,
+             0,
+             0,
+             0
+            ],
+            "netmask": 24,
+            "isDhcp": false
+           }
+          }
+         },
+         "dpBox": {
+          "pp": {
+           "status": "NOT_DETECTED",
+           "version": "",
+           "minimumVersion": "",
+           "isVersionNotSupported": false
+          }
+         },
+         "stereo3d": {
+          "pp": {
+           "mapping": "NONE"
+          }
+         }
+        },
+        "st2110": {
+         "new": {
+          "control": {
+           "pp": {
+            "xCheck": false,
+            "xApply": false,
+            "xRecall": false
+           },
+           "connection": {
+            "primary": {
+             "pp": {
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 239,
+                 1,
+                 5,
+                 1
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            },
+            "secondary": {
+             "pp": {
+              "enable": true,
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 239,
+                 1,
+                 6,
+                 1
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            }
+           }
+          },
+          "status": {
+           "pp": {
+            "state": [],
+            "hasChanged": false
+           }
+          }
+         },
+         "current": {
+          "status": {
+           "pp": {
+            "state": []
+           },
+           "connection": {
+            "primary": {
+             "pp": {
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            },
+            "secondary": {
+             "pp": {
+              "enable": true,
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            }
+           }
+          }
+         },
+         "audio": {
+          "new": {
+           "control": {
+            "pp": {
+             "xCheck": false,
+             "xApply": false,
+             "xRecall": false
+            },
+            "connection": {
+             "primary": {
+              "pp": {
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  239,
+                  1,
+                  7,
+                  1
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             },
+             "secondary": {
+              "pp": {
+               "enable": true,
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  239,
+                  1,
+                  8,
+                  1
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             }
+            }
+           },
+           "status": {
+            "pp": {
+             "state": [],
+             "hasChanged": false
+            }
+           }
+          },
+          "current": {
+           "status": {
+            "pp": {
+             "state": []
+            },
+            "connection": {
+             "primary": {
+              "pp": {
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             },
+             "secondary": {
+              "pp": {
+               "enable": true,
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "mode": "AUTO"
+          }
+         },
+         "status": {
+          "pp": {
+           "mode": "2_CHANNELS",
+           "modeValidity": [
+            "DISABLE",
+            "AUTO",
+            "2_CHANNELS",
+            "4_CHANNELS",
+            "6_CHANNELS",
+            "8_CHANNELS"
+           ],
+           "sampleRate": "48K"
+          }
+         }
+        },
+        "edid": {
+         "status": {
+          "pp": {
+           "isAvailable": false,
+           "isValid": false,
+           "hashCode": 0,
+           "data": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           "dataSize": "256",
+           "hid": "",
+           "serialNumber": 0,
+           "productName": "",
+           "prefFormatName": "",
+           "extensionAvailable": [],
+           "extensionValidity": []
+          },
+          "extensionList": {
+           "items": {
+            "BLOCK_1": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            },
+            "BLOCK_2": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            },
+            "BLOCK_3": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            }
+           },
+           "itemKeys": [
+            "BLOCK_1",
+            "BLOCK_2",
+            "BLOCK_3"
+           ]
+          }
+         }
+        }
+       }
+      },
+      "itemKeys": [
+       "1"
+      ]
+     }
+    },
+    "4": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_1",
+       "backend": "0",
+       "slot": 1,
+       "physical": "2",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": "",
+       "freeze": false
+      }
+     },
+     "hdr": {
+      "control": {
+       "pp": {
+        "mode": "AUTO",
+        "nitLevel": "AUTO"
+       },
+       "bbc": {
+        "pp": {
+         "reference": "DISPLAY",
+         "mapping": "DIRECT",
+         "oetf": "SQUARE"
+        }
+       }
+      },
+      "status": {
+       "pp": {
+        "mode": "SDR",
+        "modeValidity": [
+         "AUTO",
+         "SDR",
+         "HDR10",
+         "HLG"
+        ],
+        "nitLevel": "100_NITS",
+        "nitValidity": [],
+        "warning": "NONE"
+       },
+       "bbc": {
+        "pp": {
+         "referenceValidity": false,
+         "mappingValidity": false,
+         "oetfValidity": false
+        }
+       }
+      }
+     },
+     "conversionLut": {
+      "control": {
+       "pp": {
+        "mode": "AUTO",
+        "source": "1"
+       }
+      },
+      "status": {
+       "pp": {
+        "isEnabled": false,
+        "state": "INACTIVE",
+        "source": "1",
+        "sourceValidity": []
+       }
+      }
+     },
+     "format": {
+      "control": {
+       "pp": {
+        "mode": "FRAMELOCK",
+        "internalFormat": "HDTV_1080P",
+        "masterFormat": "HDTV_1080P",
+        "masterRate": "60HZ",
+        "xUpdate": false
+       }
+      },
+      "status": {
+       "pp": {
+        "mode": "FRAMELOCK",
+        "internalFormat": "HDTV_1080P",
+        "internalFormatValidity": [
+         "HDTV_720P",
+         "HDTV_1035I",
+         "HDTV_1080I",
+         "HDTV_1080SF",
+         "HDTV_1080P",
+         "CINEMA_2K",
+         "COMPUTER_VGA",
+         "COMPUTER_800_480",
+         "COMPUTER_SVGA",
+         "COMPUTER_WVGA",
+         "COMPUTER_XGA",
+         "COMPUTER_1088_817",
+         "COMPUTER_1152_864",
+         "COMPUTER_720P",
+         "COMPUTER_WXGA",
+         "COMPUTER_WXGA2",
+         "COMPUTER_1280_960",
+         "COMPUTER_SXGA",
+         "COMPUTER_1360_768",
+         "COMPUTER_1360_1024",
+         "COMPUTER_SWXGAPB",
+         "COMPUTER_SWXGAP",
+         "COMPUTER_SXGAP",
+         "COMPUTER_900P",
+         "COMPUTER_1440_1080",
+         "COMPUTER_1600_900",
+         "COMPUTER_UXGA",
+         "COMPUTER_WSXGAP",
+         "COMPUTER_1792_1344",
+         "COMPUTER_1856_1392",
+         "COMPUTER_1080P",
+         "COMPUTER_WUXGA",
+         "COMPUTER_1920_1440",
+         "COMPUTER_1920_2160",
+         "COMPUTER_2K",
+         "COMPUTER_2048_1152",
+         "COMPUTER_QXGA",
+         "COMPUTER_2048_2160",
+         "COMPUTER_2560_1080",
+         "COMPUTER_2560_1440",
+         "COMPUTER_WQXGA",
+         "COMPUTER_3840_1080",
+         "COMPUTER_4096_1080"
+        ],
+        "masterFormat": "HDTV_1080P",
+        "masterFormatValidity": [
+         "HDTV_720P",
+         "HDTV_1035I",
+         "HDTV_1080I",
+         "HDTV_1080SF",
+         "HDTV_1080P",
+         "CINEMA_2K",
+         "COMPUTER_VGA",
+         "COMPUTER_800_480",
+         "COMPUTER_SVGA",
+         "COMPUTER_WVGA",
+         "COMPUTER_XGA",
+         "COMPUTER_1088_817",
+         "COMPUTER_1152_864",
+         "COMPUTER_720P",
+         "COMPUTER_WXGA",
+         "COMPUTER_WXGA2",
+         "COMPUTER_1280_960",
+         "COMPUTER_SXGA",
+         "COMPUTER_1360_768",
+         "COMPUTER_1360_1024",
+         "COMPUTER_SWXGAPB",
+         "COMPUTER_SWXGAP",
+         "COMPUTER_SXGAP",
+         "COMPUTER_900P",
+         "COMPUTER_1440_1080",
+         "COMPUTER_1600_900",
+         "COMPUTER_UXGA",
+         "COMPUTER_WSXGAP",
+         "COMPUTER_1792_1344",
+         "COMPUTER_1856_1392",
+         "COMPUTER_1080P",
+         "COMPUTER_WUXGA",
+         "COMPUTER_1920_1440",
+         "COMPUTER_1920_2160",
+         "COMPUTER_2K",
+         "COMPUTER_2048_1152",
+         "COMPUTER_QXGA",
+         "COMPUTER_2048_2160",
+         "COMPUTER_2560_1080",
+         "COMPUTER_2560_1440",
+         "COMPUTER_WQXGA",
+         "COMPUTER_3840_1080",
+         "COMPUTER_4096_1080"
+        ],
+        "masterRate": "60HZ",
+        "masterRateValidity": [
+         "23_97HZ",
+         "24HZ",
+         "25HZ",
+         "29_97HZ",
+         "30HZ",
+         "47_95HZ",
+         "48HZ",
+         "50HZ",
+         "59_94HZ",
+         "60HZ",
+         "72HZ",
+         "95_90HZ",
+         "96HZ",
+         "100HZ",
+         "119_88HZ",
+         "120HZ"
+        ]
+       }
+      }
+     },
+     "phaseShift": {
+      "pp": {
+       "offsetH": 100000,
+       "offsetV": 100000
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "isBusy": false,
+       "isValid": "VALID",
+       "isEnabled": true,
+       "isDpBoxReady": false,
+       "mode": "FRAMELOCK",
+       "format": "HDTV_1080P",
+       "rate": 60000,
+       "framelockStatus": "NO_SIGNAL",
+       "formatKind": "HDTV",
+       "isFormatInterlaced": false,
+       "sizeH": 1920,
+       "sizeV": 1080,
+       "totalH": 2200,
+       "totalV": 1125,
+       "aspectRatio": "NATIVE",
+       "freeze": false
+      }
+     },
+     "snapshot": {
+      "pp": {
+       "enable": true,
+       "size": "256_256",
+       "highPriority": false
+      }
+     },
+     "canvas": {
+      "cmd": {
+       "pp": {
+        "pitchRatioH": 1000,
+        "pitchRatioV": 1000,
+        "rotation": "NONE",
+        "xUpdate": false
+       },
+       "slices": {
+        "free": {
+         "pp": {
+          "xUpdate": false
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "2": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "3": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           },
+           "4": {
+            "control": {
+             "pp": {
+              "top": 0,
+              "left": 0
+             }
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         }
+        },
+        "grid": {
+         "pp": {
+          "xUpdate": false
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "2": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "3": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "4": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         },
+         "areaList": {
+          "items": {
+           "1": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "2": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "3": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3"
+          ]
+         },
+         "softedge": {
+          "areaList": {
+           "items": {
+            "1": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            },
+            "2": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            },
+            "3": {
+             "dimensionList": {
+              "items": {
+               "ROW": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               },
+               "COLUMN": {
+                "curve": {
+                 "pp": {
+                  "enable": false,
+                  "type": "GAMMA",
+                  "gamma": 20
+                 },
+                 "pointList": {
+                  "items": {
+                   "POINT_1": {
+                    "pp": {
+                     "posX": 538,
+                     "posY": 641
+                    }
+                   },
+                   "POINT_2": {
+                    "pp": {
+                     "posX": 640,
+                     "posY": 764
+                    }
+                   }
+                  },
+                  "itemKeys": [
+                   "POINT_1",
+                   "POINT_2"
+                  ]
+                 }
+                },
+                "blackLevel": {
+                 "pp": {
+                  "offset": 0,
+                  "red": 0,
+                  "green": 0,
+                  "blue": 0
+                 }
+                }
+               }
+              },
+              "itemKeys": [
+               "ROW",
+               "COLUMN"
+              ]
+             }
+            }
+           },
+           "itemKeys": [
+            "1",
+            "2",
+            "3"
+           ]
+          }
+         }
+        },
+        "aoi": {
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "2": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "3": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           },
+           "4": {
+            "pp": {
+             "mode": "FIT_FORMAT",
+             "overscan": 0,
+             "top": 0,
+             "left": 0,
+             "width": 100000,
+             "height": 100000,
+             "xUpdate": false
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         }
+        }
+       }
+      },
+      "status": {
+       "pp": {
+        "isEnabled": "AVAILABLE",
+        "outputRef": "1",
+        "usedInScreenAux": "NONE",
+        "usedInRegion": "1",
+        "dpBoxMode": "4X1",
+        "group": "1X1",
+        "capability": "DUAL",
+        "canRotate": false,
+        "rotation": "NONE",
+        "top": 0,
+        "left": 0,
+        "clampedWidth": 1920,
+        "clampedHeight": 1080,
+        "pitchedWidth": 1920,
+        "pitchedHeight": 1080,
+        "maxWidth": 1920,
+        "maxHeight": 1080
+       },
+       "slices": {
+        "pp": {
+         "mode": "FREE",
+         "count": 1
+        },
+        "aoi": {
+         "pp": {
+          "maxWidth": 1920,
+          "maxHeight": 1080
+         }
+        },
+        "boundingBox": {
+         "pp": {
+          "top": 0,
+          "left": 0,
+          "width": 1920,
+          "height": 1080
+         }
+        },
+        "grid": {
+         "size": {
+          "pp": {
+           "columnQty": "1",
+           "rowQty": "1"
+          }
+         },
+         "sliceList": {
+          "items": {
+           "1": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "2": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "3": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           },
+           "4": {
+            "pp": {
+             "column": "1",
+             "row": "1"
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3",
+           "4"
+          ]
+         },
+         "areaList": {
+          "items": {
+           "1": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "2": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           },
+           "3": {
+            "pp": {
+             "columnSpacing": 0,
+             "rowSpacing": 0
+            }
+           }
+          },
+          "itemKeys": [
+           "1",
+           "2",
+           "3"
+          ]
+         },
+         "cell": {
+          "rowList": {
+           "items": {
+            "1": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "2": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "3": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            },
+            "4": {
+             "columnList": {
+              "items": {
+               "1": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "2": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "3": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               },
+               "4": {
+                "pp": {
+                 "top": 0,
+                 "left": 0,
+                 "width": 0,
+                 "height": 0
+                }
+               }
+              },
+              "itemKeys": [
+               "1",
+               "2",
+               "3",
+               "4"
+              ]
+             }
+            }
+           },
+           "itemKeys": [
+            "1",
+            "2",
+            "3",
+            "4"
+           ]
+          }
+         }
+        },
+        "sliceList": {
+         "items": {
+          "1": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "2": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "3": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          },
+          "4": {
+           "pp": {
+            "top": 0,
+            "left": 0
+           },
+           "aoi": {
+            "pp": {
+             "top": 0,
+             "left": 0,
+             "width": 1920,
+             "height": 1080
+            }
+           }
+          }
+         },
+         "itemKeys": [
+          "1",
+          "2",
+          "3",
+          "4"
+         ]
+        }
+       },
+       "areaList": {
+        "items": {
+         "LEFT": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "RIGHT": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "TOP": {
+          "pp": {
+           "size": 0
+          }
+         },
+         "BOTTOM": {
+          "pp": {
+           "size": 0
+          }
+         }
+        },
+        "itemKeys": [
+         "LEFT",
+         "RIGHT",
+         "TOP",
+         "BOTTOM"
+        ]
+       }
+      }
+     },
+     "settings": {
+      "pp": {
+       "gamma": 10,
+       "brightness": 128,
+       "contrast": 128,
+       "saturation": 128,
+       "hue": 180,
+       "gainR": 128,
+       "gainG": 128,
+       "gainB": 128,
+       "offsetR": 128,
+       "offsetG": 128,
+       "offsetB": 128,
+       "enableColorTemperature": false,
+       "colorTemperature": 6500
+      },
+      "correctionLut": {
+       "control": {
+        "pp": {
+         "mode": "MANUAL",
+         "source": "1"
+        }
+       },
+       "status": {
+        "pp": {
+         "isEnabled": false,
+         "state": "INACTIVE",
+         "source": "1",
+         "sourceValidity": []
+        }
+       }
+      }
+     },
+     "pattern": {
+      "control": {
+       "pp": {
+        "inhibit": true,
+        "type": "NO_PATTERN",
+        "centering": [],
+        "fitArea": "FORMAT",
+        "disableColorimetry": true
+       }
+      },
+      "color": {
+       "pp": {
+        "red": 0,
+        "green": 0,
+        "blue": 0
+       }
+      },
+      "grid": {
+       "pp": {
+        "sizeH": 64,
+        "sizeV": 64,
+        "backColor": "BLACK",
+        "thickness": 1,
+        "id": false
+       }
+      },
+      "cross": {
+       "pp": {
+        "sizeH": 256,
+        "sizeV": 256
+       }
+      },
+      "checker": {
+       "pp": {
+        "sizeH": 16,
+        "sizeV": 16,
+        "invert": false
+       }
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "pixelEncoding": "AUTO",
+          "colorSpace": "AUTO",
+          "enableHdcp": "AUTO",
+          "forceDviMode": false,
+          "sdi3GStandard": "LEVEL_A",
+          "sdiMapping": "AUTO",
+          "ddcClock": "FAST",
+          "xBlinkLed": false,
+          "xReset": false
+         },
+         "hdr": {
+          "infoFrame": {
+           "pp": {
+            "enable": false,
+            "mode": "AUTO",
+            "source": "1"
+           }
+          }
+         },
+         "dpBox": {
+          "pp": {
+           "showOsd": false,
+           "audioMode": "MIRROR"
+          }
+         },
+         "stereo3d": {
+          "pp": {
+           "mappingMode": "AUTO",
+           "invertEyes": false
+          }
+         }
+        },
+        "status": {
+         "pp": {
+          "isAvailable": true,
+          "type": "HDMI",
+          "pixelEncodingValidity": [
+           "AUTO",
+           "RGB_FULL_8B",
+           "RGB_FULL_10B",
+           "RGB_LIMITED_8B",
+           "RGB_LIMITED_10B",
+           "YCBCR_444_8B",
+           "YCBCR_444_10B",
+           "YCBCR_422_12B",
+           "YCBCR_420_8B",
+           "YCBCR_420_10B"
+          ],
+          "colorSpaceValidity": [
+           "AUTO",
+           "ITU_BT709",
+           "ITU_BT2020"
+          ],
+          "hdcpValidity": [
+           "DISABLE",
+           "AUTO",
+           "HDCP_1X",
+           "HDCP_2X"
+          ],
+          "isHdcp": "2X",
+          "hasHdcpWarning": false,
+          "isMonitorDetected": false,
+          "monitorName": "",
+          "isHdmiMode": true,
+          "colorSpace": "RGB_ITU2020_FULL_SCALE",
+          "colorDepth": "24_BITS",
+          "sdiStandard": "SD_SDI",
+          "sdi3GStandardValidity": [],
+          "sdiMappingValidity": [],
+          "dpLinkCount": "1_LANE",
+          "dpLinkRate": "RBR",
+          "ledColor": "OFF",
+          "ledBlinking": false
+         },
+         "hdr": {
+          "pp": {
+           "signalType": "SDR",
+           "signalNitLevel": "100_NITS",
+           "displayValidity": []
+          },
+          "infoFrame": {
+           "pp": {
+            "isValid": true,
+            "eotfType": "SDR",
+            "minLuma": 0,
+            "maxLuma": 100,
+            "maxContentLightLevel": 100,
+            "maxFrameAverageLightLevel": 25
+           },
+           "chromaticity": {
+            "pp": {
+             "p0X": 64000,
+             "p0Y": 33000,
+             "p1X": 30000,
+             "p1Y": 60000,
+             "p2X": 15000,
+             "p2Y": 6000,
+             "whitePointX": 31270,
+             "whitePointY": 32900
+            }
+           }
+          }
+         },
+         "sfp": {
+          "pp": {
+           "isPlugged": false,
+           "isSupported": "UNSUPPORTED",
+           "id": 0,
+           "type": "UNKNOWN",
+           "vendorName": "",
+           "vendorPartNumber": "",
+           "nominalBitRate": 0
+          }
+         },
+         "optic": {
+          "pp": {
+           "revision": 0,
+           "version": ""
+          }
+         },
+         "sdvoe": {
+          "pp": {
+           "ready": false,
+           "version": "",
+           "macAddress": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ]
+          },
+          "ipv4": {
+           "pp": {
+            "ip": [
+             0,
+             0,
+             0,
+             0
+            ],
+            "gateway": [
+             0,
+             0,
+             0,
+             0
+            ],
+            "netmask": 24,
+            "isDhcp": false
+           }
+          }
+         },
+         "dpBox": {
+          "pp": {
+           "status": "NOT_DETECTED",
+           "version": "",
+           "minimumVersion": "",
+           "isVersionNotSupported": false
+          }
+         },
+         "stereo3d": {
+          "pp": {
+           "mapping": "NONE"
+          }
+         }
+        },
+        "st2110": {
+         "new": {
+          "control": {
+           "pp": {
+            "xCheck": false,
+            "xApply": false,
+            "xRecall": false
+           },
+           "connection": {
+            "primary": {
+             "pp": {
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 239,
+                 1,
+                 5,
+                 2
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            },
+            "secondary": {
+             "pp": {
+              "enable": true,
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 239,
+                 1,
+                 6,
+                 2
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            }
+           }
+          },
+          "status": {
+           "pp": {
+            "state": [],
+            "hasChanged": false
+           }
+          }
+         },
+         "current": {
+          "status": {
+           "pp": {
+            "state": []
+           },
+           "connection": {
+            "primary": {
+             "pp": {
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            },
+            "secondary": {
+             "pp": {
+              "enable": true,
+              "vlan": 0
+             },
+             "ipv4": {
+              "dst": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 20000
+               }
+              },
+              "src": {
+               "pp": {
+                "ip": [
+                 0,
+                 0,
+                 0,
+                 0
+                ],
+                "port": 10000
+               }
+              }
+             }
+            }
+           }
+          }
+         },
+         "audio": {
+          "new": {
+           "control": {
+            "pp": {
+             "xCheck": false,
+             "xApply": false,
+             "xRecall": false
+            },
+            "connection": {
+             "primary": {
+              "pp": {
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  239,
+                  1,
+                  7,
+                  2
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             },
+             "secondary": {
+              "pp": {
+               "enable": true,
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  239,
+                  1,
+                  8,
+                  2
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             }
+            }
+           },
+           "status": {
+            "pp": {
+             "state": [],
+             "hasChanged": false
+            }
+           }
+          },
+          "current": {
+           "status": {
+            "pp": {
+             "state": []
+            },
+            "connection": {
+             "primary": {
+              "pp": {
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             },
+             "secondary": {
+              "pp": {
+               "enable": true,
+               "vlan": 0
+              },
+              "ipv4": {
+               "dst": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 20000
+                }
+               },
+               "src": {
+                "pp": {
+                 "ip": [
+                  0,
+                  0,
+                  0,
+                  0
+                 ],
+                 "port": 10000
+                }
+               }
+              }
+             }
+            }
+           }
+          }
+         }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "mode": "AUTO"
+          }
+         },
+         "status": {
+          "pp": {
+           "mode": "DISABLE_MONITOR_NO_SUPPORT",
+           "modeValidity": [
+            "DISABLE",
+            "AUTO",
+            "2_CHANNELS",
+            "4_CHANNELS",
+            "6_CHANNELS",
+            "8_CHANNELS"
+           ],
+           "sampleRate": "48K"
+          }
+         }
+        },
+        "edid": {
+         "status": {
+          "pp": {
+           "isAvailable": false,
+           "isValid": false,
+           "hashCode": 0,
+           "data": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+           ],
+           "dataSize": "256",
+           "hid": "",
+           "serialNumber": 0,
+           "productName": "",
+           "prefFormatName": "",
+           "extensionAvailable": [],
+           "extensionValidity": []
+          },
+          "extensionList": {
+           "items": {
+            "BLOCK_1": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            },
+            "BLOCK_2": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            },
+            "BLOCK_3": {
+             "pp": {
+              "isHdmiCompatible": false,
+              "isAudioCompatible": false,
+              "isHdrCompatible": false,
+              "extensionType": "UNKNOWN",
+              "prefFormatName": ""
+             }
+            }
+           },
+           "itemKeys": [
+            "BLOCK_1",
+            "BLOCK_2",
+            "BLOCK_3"
+           ]
+          }
+         }
+        }
+       }
+      },
+      "itemKeys": [
+       "1"
+      ]
+     }
+    }
+   },
+   "itemKeys": [
+    "1",
+    "2",
+    "3",
+    "4"
+   ]
+  }
+ }
+}
