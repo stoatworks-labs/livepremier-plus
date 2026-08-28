@@ -1,4 +1,9 @@
-> Built with AI assistance ([Claude Code](https://claude.com/claude-code)).
+> **AI-assisted project.** This codebase was created with [Claude Code](https://claude.com/claude-code).
+> The panels render inside a real Web RCS session and the device store mirrors live, both verified
+> through this proxy against **LivePremier Simulator 6.2.73**, and the VPU map is tested against a
+> capture read off a live **Aquilon C**. **Nothing has ever been written to that device**, the
+> timeline has only ever fired at a simulator, and no panel has been driven live against physical
+> hardware in a browser. The Status note below is specific about which is which.
 
 # LivePremier Plus
 
