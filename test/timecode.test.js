@@ -354,7 +354,8 @@ test('a jump is announced separately from ordinary running', () => {
 /* LTC cannot say its rate, so the clock supplies the one it was configured
    with rather than letting a null rate poison the arithmetic. */
 test('a reading with no rate takes the configured one', () => {
-  const clock = new TimecodeClock({ rate: 30 });
+  const time = fakeClock();
+  const clock = new TimecodeClock({ rate: 30, now: time.now });
   clock.update({ hours: 0, minutes: 0, seconds: 1, frames: 0, rate: null, dropFrame: false });
   assert.equal(clock.reading.rate, 30);
   assert.equal(clock.position(), 1);
