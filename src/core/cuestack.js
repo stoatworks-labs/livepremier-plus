@@ -17,10 +17,15 @@
  *    reported as "confirmed" - only as sent, with device status watched
  *    separately. No method here collapses those two ideas.
  *  - Transition times are a property of the screen, not of the take. A cue
- *    with its own fade has to write the time first and then trigger, and any
- *    other client that changes the time between those two writes wins. The
- *    engine writes times immediately before the trigger to keep that window
- *    as small as it can be, and does not pretend the race is closed.
+ *    with its own fade has to write the time and then trigger, and any other
+ *    client that changes the time between those two writes wins. The engine
+ *    writes the time immediately before the trigger to keep that window as
+ *    small as it can be, and does not pretend the race is closed.
+ *
+ *    The other client is usually the device itself: a PRESET RECALL overwrites
+ *    the screen's `takeUpTime` with whatever the preset was saved with. So the
+ *    write has to come AFTER the recall has landed, not before it — recall,
+ *    settle, fade, trigger. Measured on an Aquilon C, 2026-08-21.
  */
 
 import { CMD } from './paths.js';
@@ -238,9 +243,20 @@ export class CueStack extends EventTarget {
   /**
    * Execute one cue's actions now, regardless of the pointer.
    *
-   * Order matters: recalls go out before transition times, and times before
-   * triggers, so that a preset which itself carries a transition time cannot
-   * overwrite the cue's own.
+   * Order matters, and it is recall → SETTLE → fade → trigger.
+   *
+   * The fade write has to come after the settle, not before it. A preset
+   * recall OVERWRITES the screen's `takeUpTime` with whatever the preset was
+   * saved with, and that write lands whenever the recall finishes landing —
+   * measured on an Aquilon C, 2026-08-21. Sending the cue's fade first, as
+   * this used to, meant the recall's own value arrived on top of it: a cue
+   * sheet saying 1.0 s and a five-second fade on the screen, with nothing
+   * reporting the difference. "Any fade written BEFORE a recall is silently
+   * discarded."
+   *
+   * The settle is a floor, not a guarantee — see SETTLE_MS. It is the same
+   * gap that was already being waited before the trigger; this moves the fade
+   * write to the far side of it rather than lengthening anything.
    */
   fire(cue) {
     if (!cue || !cue.enabled) return { sent: 0, skipped: true };
@@ -269,14 +285,20 @@ export class CueStack extends EventTarget {
       }
     }
 
-    if (cue.fade != null) {
+    /* Writes the cue's own fade. Called after the settle when this cue
+       recalled anything, so the recall's stored transition time has already
+       landed and this goes on top of it rather than under it. */
+    const writeFade = () => {
+      if (cue.fade == null) return;
       const tenths = toTenths(cue.fade);
+      let written = 0;
       for (const entry of takeTargets) {
         const target = entry.split(' ')[0];
-        if (this._send(CMD.takeUpTime(target, tenths))) sent++;
-        if (this._send(CMD.takeDownTime(target, tenths))) sent++;
+        if (this._send(CMD.takeUpTime(target, tenths))) written++;
+        if (this._send(CMD.takeDownTime(target, tenths))) written++;
       }
-    }
+      if (written) record.sent += written;
+    };
 
     const trigger = () => {
       let fired = 0;
@@ -303,9 +325,18 @@ export class CueStack extends EventTarget {
     this._emit('fired', record);
 
     /* Only wait when this cue recalled something. A cut-only cue has nothing
-       in flight to overtake, and delaying it would just make it feel late. */
-    if (record.settled) this.clock.setTimeout(trigger, SETTLE_MS);
-    else trigger();
+       in flight to overtake, and delaying it would just make it feel late —
+       and with no recall there is nothing that can overwrite the fade, so it
+       can go out immediately. */
+    if (record.settled) {
+      this.clock.setTimeout(() => {
+        writeFade();
+        trigger();
+      }, SETTLE_MS);
+    } else {
+      writeFade();
+      trigger();
+    }
 
     return record;
   }

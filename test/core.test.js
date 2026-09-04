@@ -27,7 +27,7 @@ import {
 import { CueStack, ACTION_KINDS, toTenths, SETTLE_MS } from '../src/core/cuestack.js';
 import { readIdentity, describe } from '../src/core/identity.js';
 import {
-  listDestinations, readLayers, anchorToTopLeft, snapshotUrl, sourceLabel
+  listDestinations, readLayers, anchorToTopLeft, snapshotUrl, sourceLabel, presetBanks
 } from '../src/core/screens.js';
 import { detectPlatform, supports, whyNot, FAMILY } from '../src/core/platform.js';
 
@@ -261,7 +261,7 @@ function recordingStack() {
   return { stack, sent, advance };
 }
 
-test('a cue writes its transition time before it pulls the trigger', () => {
+test('a cue writes its transition time AFTER the recall has settled, and before the trigger', () => {
   const { stack, sent, advance } = recordingStack();
   stack.add({
     number: '1', fade: 2.5,
@@ -271,12 +271,45 @@ test('a cue writes its transition time before it pulls the trigger', () => {
     ]
   });
   stack.go();
+
+  /*
+   * The assertion that matters is this one, BEFORE the clock advances. A
+   * preset recall overwrites the screen's takeUpTime with whatever the preset
+   * was saved with, so a fade written before the recall lands is silently
+   * discarded and the take runs at the preset's time instead of the cue's.
+   * Asserting the whole sequence only after the settle — which is what this
+   * test used to do — cannot tell the two orders apart, and so pinned the
+   * wrong one.
+   */
+  assert.deepEqual(
+    sent.map((c) => c.path[c.path.length - 1]),
+    ['xRequest'],
+    'nothing but the recall may go out before the settle'
+  );
+
   advance(SETTLE_MS);
 
   const props = sent.map((c) => c.path[c.path.length - 1]);
   assert.deepEqual(props, ['xRequest', 'takeUpTime', 'takeDownTime', 'xTake']);
   assert.equal(sent[1].value, 25); // tenths of a second
   assert.equal(toTenths(2.5), 25);
+});
+
+test('a cue with no recall does not wait to write its fade', () => {
+  // Nothing in flight can overwrite the fade, so making the operator wait for
+  // a settle here would only make the cue feel late.
+  const { stack, sent } = recordingStack();
+  stack.add({
+    number: '2', fade: 1.0,
+    actions: [{ kind: ACTION_KINDS.TAKE, targets: ['S1'] }]
+  });
+  stack.go();
+
+  assert.deepEqual(
+    sent.map((c) => c.path[c.path.length - 1]),
+    ['takeUpTime', 'takeDownTime', 'xTake'],
+    'a cut-only cue goes out immediately, in order'
+  );
 });
 
 test('a TAKE never overtakes the recall in its own cue', () => {
@@ -486,6 +519,70 @@ test('the reverse end swaps the banks over', () => {
     { isUsed: true, transition: 'AT_DOWN', take: 'OFF', tbarPosition: 0 });
   const [s1] = listDestinations(store);
   assert.deepEqual(s1.banks, { program: 'A', preview: 'B' });
+});
+
+/*
+ * SCREENGROUP_STATUS has SIX members, and only two of them are resting. The
+ * four in-flight ones are what this file used to get backwards: it tested
+ * `transition !== 'AT_DOWN'`, so EFFECT_FROM_DOWN and COPY_FROM_DOWN read as
+ * "up" and reported presetUp as program while presetDown was the letter
+ * actually on air. Backwards for exactly as long as a transition lasts, which
+ * is when a Console command addressed to "preview" would land in the program
+ * buffer. Only AT_UP and AT_DOWN were ever tested, which is why it passed.
+ *
+ * The rule is the SUFFIX: every name states the end the T-bar is at or came
+ * from.
+ */
+const bankAt = (transition) => {
+  const store = destStore();
+  store.set([ROOT, 'screenAuxGroupList', 'items', 'S1', 'status', 'pp'],
+    { isUsed: true, transition, take: 'OFF', tbarPosition: 32768 });
+  return listDestinations(store)[0];
+};
+
+test('every in-flight transition state resolves by its suffix, not by AT_DOWN', () => {
+  for (const state of ['AT_DOWN', 'EFFECT_FROM_DOWN', 'COPY_FROM_DOWN']) {
+    assert.deepEqual(bankAt(state).banks, { program: 'A', preview: 'B' },
+      state + ' has presetDown on air');
+  }
+  for (const state of ['AT_UP', 'EFFECT_FROM_UP', 'COPY_FROM_UP']) {
+    assert.deepEqual(bankAt(state).banks, { program: 'B', preview: 'A' },
+      state + ' has presetUp on air');
+  }
+});
+
+test('only the two resting states are reported as settled', () => {
+  for (const state of ['AT_UP', 'AT_DOWN']) {
+    const store = destStore();
+    store.set([ROOT, 'screenAuxGroupList', 'items', 'S1', 'status', 'pp'],
+      { isUsed: true, transition: state, take: 'OFF', tbarPosition: 0 });
+    assert.equal(presetBanks(store, 'S1').settled, true, state + ' is a resting end');
+  }
+
+  for (const state of ['EFFECT_FROM_DOWN', 'EFFECT_FROM_UP', 'COPY_FROM_DOWN', 'COPY_FROM_UP']) {
+    const store = destStore();
+    store.set([ROOT, 'screenAuxGroupList', 'items', 'S1', 'status', 'pp'],
+      { isUsed: true, transition: state, take: 'TO_UP', tbarPosition: 32768 });
+    assert.equal(presetBanks(store, 'S1').settled, false,
+      state + ' is mid-transition, so there is no honest program letter');
+  }
+});
+
+/* `status/take` is an enum of OFF, TO_UP, TO_DOWN — catalogue.json, read off a
+   real device. The check used to be `=== 'ON'`, a value the device never
+   sends, so the TAKE tag was dead code and no fixture could tell. */
+test('a take in progress is reported, whichever way it is running', () => {
+  for (const take of ['TO_UP', 'TO_DOWN']) {
+    const store = destStore();
+    store.set([ROOT, 'screenAuxGroupList', 'items', 'S1', 'status', 'pp'],
+      { isUsed: true, transition: 'EFFECT_FROM_DOWN', take, tbarPosition: 32768 });
+    assert.equal(listDestinations(store)[0].isTransitioning, true, take);
+  }
+
+  const store = destStore();
+  store.set([ROOT, 'screenAuxGroupList', 'items', 'S1', 'status', 'pp'],
+    { isUsed: true, transition: 'AT_UP', take: 'OFF', tbarPosition: 65535 });
+  assert.equal(listDestinations(store)[0].isTransitioning, false, 'OFF is not a transition');
 });
 
 test('the canvas size is the one the device reports', () => {

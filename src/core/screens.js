@@ -26,11 +26,16 @@
  * ## Which bank is on air
  *
  * `screenAuxGroupList/items/<id>/control/pp` carries `presetUp` and
- * `presetDown`, and `status/pp/transition` says which end the screen is
- * currently at. `AT_UP` means the `presetUp` bank is live and the other is
- * preview; `AT_DOWN` is the reverse. There is no "program" flag to read — it
- * is this pair or nothing, and getting it backwards would put the preview
- * picture under a PGM label.
+ * `presetDown`, and `status/pp/transition` says which end the screen is at.
+ * There is no "program" flag to read — it is this pair or nothing, and getting
+ * it backwards would put the preview picture under a PGM label.
+ *
+ * `transition` has SIX values, not two: `AT_DOWN`, `AT_UP`, `EFFECT_FROM_DOWN`,
+ * `EFFECT_FROM_UP`, `COPY_FROM_DOWN`, `COPY_FROM_UP`. Every one names the end
+ * the T-bar is at or came from, so the rule is the **suffix** — a name ending
+ * DOWN means `presetDown` is the letter on air. Knowing only the two resting
+ * values is what made this file read the four in-flight ones backwards; see
+ * `presetBanks`.
  *
  * Auxiliaries are the same shape as screens in every respect that matters
  * here, so one reader serves both; they differ only in which list they live
@@ -38,6 +43,8 @@
  */
 
 import { ROOT } from './paths.js';
+// The program/preview rule lives here and nowhere else — see presetBanks().
+import { resolve } from '../vendor/surface/preset.js';
 
 /** Canvas size fallback, only ever used when the device reports none. */
 const DEFAULT_CANVAS = { width: 1920, height: 1080 };
@@ -84,14 +91,36 @@ export function presetBanks(store, id) {
   const group = store.get([ROOT, 'screenAuxGroupList', 'items', id]) || {};
   const gControl = pp(group.control);
   const gStatus = pp(group.status);
-  const atUp = gStatus.transition !== 'AT_DOWN';
+
+  /*
+   * The rule is the SUFFIX of the transition state, not a test against one
+   * value. SCREENGROUP_STATUS has six members — AT_DOWN, AT_UP,
+   * EFFECT_FROM_DOWN, EFFECT_FROM_UP, COPY_FROM_DOWN, COPY_FROM_UP — and each
+   * names the end the T-bar is at or came from. This used to read
+   * `transition !== 'AT_DOWN'`, which takes EFFECT_FROM_DOWN and
+   * COPY_FROM_DOWN for "up" and therefore reports presetUp as program while
+   * presetDown is the letter actually on air. Backwards for exactly as long as
+   * a transition lasts, which is when a Console command addressed to "preview"
+   * would land in the program buffer — the failure AGENTS.md says this design
+   * exists to prevent.
+   *
+   * resolve() in vendor/surface/preset.js already had this right, with a
+   * comment naming this precise mistake. One rule, one implementation.
+   */
+  const resolved = resolve(group);
+
   return {
-    program: (atUp ? gControl.presetUp : gControl.presetDown) || 'A',
-    preview: (atUp ? gControl.presetDown : gControl.presetUp) || 'B',
+    program: resolved?.program || 'A',
+    preview: resolved?.preview || 'B',
     /* Whether the device actually said, as against these being the fallbacks.
        A command that would put a layer in the wrong buffer must refuse rather
        than run on a guess, so the caller needs to be able to tell. */
-    reported: !!(gControl.presetUp && gControl.presetDown)
+    reported: !!(gControl.presetUp && gControl.presetDown),
+    /* False while the T-bar is between the ends. Mid-transition there is no
+       honest answer to "which one is program", so a caller that needs
+       certainty — anything about to WRITE to a bank — waits on this rather
+       than acting on the letter above. */
+    settled: resolved ? resolved.settled : !gStatus.transition
   };
 }
 
@@ -128,7 +157,12 @@ function readDestination(store, kind, listName, id, node) {
     transition: gStatus.transition || null,
     /* 0..65535 across the travel; the fader position mid-transition. */
     tbar: typeof gStatus.tbarPosition === 'number' ? gStatus.tbarPosition / 65535 : null,
-    isTransitioning: gStatus.take === 'ON'
+    /* `status/take` is an enum of OFF, TO_UP, TO_DOWN — catalogue.json, read
+       off a real device — and 'ON' is not one of them, so this was always
+       false and the TAKE tag on the screen card was dead. `!== 'OFF'` also
+       gives the completion edge a cue engine wants: the device goes TO_UP for
+       the length of the fade and back to OFF at the end. */
+    isTransitioning: !!gStatus.take && gStatus.take !== 'OFF'
   };
 }
 
