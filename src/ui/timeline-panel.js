@@ -79,8 +79,11 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
     return [
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-large' },
         h('div', { class: 'aw-font-subtitle-1', text: 'Timeline' }),
+        /* Flexible rather than a fixed 14rem: pinned, it was the single item
+           that pushed this row wider than the panel and out over the column
+           beside it. It still takes 14rem where there is 14rem to take. */
         h('input', {
-          class: 'wru-input', style: { width: '14rem' }, value: stack.name,
+          class: 'wru-input', style: { flex: '1 1 8rem', maxWidth: '14rem' }, value: stack.name,
           onInput: (ev) => { stack.name = ev.target.value; save(); }
         }),
         standby
@@ -110,33 +113,81 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
     return h('div', {},
       statusStrip(),
       cueTable(),
-      view.adding ? addForm() : h('div', { class: 'aw-margin-top-medium' },
-        button('Add cue', { onClick: () => { view.adding = true; onRefresh(); }, iconId: 'add-18' }),
-        ' ',
-        button('Export', { onClick: exportStack, variant: 'ghost' }),
-        ' ',
-        button('Import', { onClick: importStack, variant: 'ghost' })),
+      actions(),
       log());
   }
 
+  const addCue = () => button('Add cue', {
+    onClick: () => { view.adding = true; onRefresh(); }, iconId: 'add-18'
+  });
+
+  /*
+   * With no cues, Add and Import are the only two of these that do anything -
+   * Export of an empty stack writes an empty stack - and they read better
+   * beside the sentence explaining what a cue is than left-aligned below it.
+   * So when the list is empty the empty state carries them instead.
+   */
+  function actions() {
+    if (view.adding) return addForm();
+    if (!stack.cues.length) return null;
+    return h('div', { class: 'aw-margin-top-medium' },
+      addCue(),
+      ' ',
+      button('Export', { onClick: exportStack, variant: 'ghost' }),
+      ' ',
+      button('Import', { onClick: importStack, variant: 'ghost' }));
+  }
+
+  /**
+   * What the stack is doing, over what the device's screens are doing.
+   *
+   * Two different kinds of fact, so two blocks rather than one row. The screen
+   * ids used to be spelled out as a bold comma list *and* given a readout each,
+   * which said the same thing twice and made that list the widest thing in the
+   * row - the reason the whole strip wrapped where it did.
+   */
   function statusStrip() {
+    return h('div', { class: 'aw-margin-bottom-large' },
+      h('div', { class: 'aw-flex-row aw-gap-col-massive aw-flex-wrap' },
+        readout('Cues', stack.cues.length),
+        readout('Standby', stack.standby ? (stack.standby.number || '#' + (stack.pointer + 1)) : '—')),
+      screens());
+  }
+
+  /**
+   * One tile per screen the device has in use.
+   *
+   * Every one of them. This was capped at six with nothing to say the rest had
+   * been dropped, so a seven-screen show quietly lost its last screen while the
+   * line above it still named all seven.
+   *
+   * "In use" is the device's own flag, not a reading of this stack: it means
+   * the screen is enabled on the switcher, which is why a stack with no cues in
+   * it still lists them all.
+   */
+  function screens() {
     const used = targets();
-    return h('div', { class: 'aw-flex-row aw-gap-col-massive aw-margin-bottom-large aw-flex-wrap' },
-      readout('Cues', stack.cues.length),
-      readout('Standby', stack.standby ? (stack.standby.number || '#' + (stack.pointer + 1)) : '—'),
-      readout('Screens in use', used.length ? used.join(', ') : 'none'),
-      ...used.slice(0, 6).map((id) => {
-        const st = screenStatus(id);
-        return readout(id, st.take === 'OFF' ? (st.transition || 'idle') : st.take,
-          { tone: st.take !== 'OFF' ? 'green' : undefined });
-      }));
+    if (!used.length) return h('div', { class: 'wru-screens' }, readout('Screens in use', 'none'));
+    return h('div', { class: 'wru-screens' },
+      h('div', { class: 'wru-screens-title aw-font-overline aw-text-tertiary', text: 'Screens in use' }),
+      h('div', { class: 'wru-screen-grid' },
+        ...used.map((id) => {
+          const st = screenStatus(id);
+          const live = st.take !== 'OFF';
+          return h('div', { class: ['wru-screen', live ? 'wru-screen--live' : ''] },
+            h('span', { class: 'wru-screen-id', text: id }),
+            h('span', { class: 'wru-screen-state', text: live ? st.take : (st.transition || 'idle') }));
+        })));
   }
 
   function cueTable() {
     if (!stack.cues.length) {
       return h('div', { class: 'wru-empty' },
         h('div', { class: 'aw-font-subtitle-1 aw-margin-bottom-medium', text: 'No cues yet' }),
-        h('div', { text: 'A cue is one or more preset recalls plus an optional take, with its own fade and follow times.' }));
+        h('div', { class: 'wru-empty-copy', text: 'A cue is one or more preset recalls plus an optional take, with its own fade and follow times.' }),
+        h('div', { class: 'wru-empty-actions' },
+          addCue(),
+          button('Import', { onClick: importStack, variant: 'ghost' })));
     }
     const rows = stack.cues.map((cue, i) => cueRow(cue, i));
     return h('table', { class: 'wru-cuelist' },
@@ -194,10 +245,13 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
       h('td', { text: cue.fade == null ? '—' : cue.fade + 's' }),
       h('td', { text: cue.delay ? cue.delay + 's' : '—' }),
       h('td', { text: cue.follow ? '+' + (cue.followTime || 0) + 's' : '—' }),
-      h('td', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
+      /* The flex row goes on a div inside the cell, not on the cell. A `td`
+         told to be a flex container stops being a table cell, drops out of the
+         column algorithm, and no longer lines up with its own `th`. */
+      h('td', {}, h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
         button('Go', { onClick: () => { stack.gotoId(cue.id); stack.go(); onRefresh(); }, variant: 'ghost', title: 'Fire this cue now' }),
         button('Edit', { onClick: () => { view.editing = cue.id; onRefresh(); }, variant: 'ghost' }),
-        button('×', { onClick: () => { stack.remove(cue.id); save(); onRefresh(); }, variant: 'ghost', title: 'Delete cue' })));
+        button('×', { onClick: () => { stack.remove(cue.id); save(); onRefresh(); }, variant: 'ghost', title: 'Delete cue' }))));
   }
 
   function editRow(cue, cls) {
@@ -243,10 +297,10 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
       h('td', { class: 'wru-cue-actions', text: describe(cue) }),
       h('td', {}, fade),
       h('td', {}, delay),
-      h('td', { class: 'aw-flex-row-center-v aw-gap-col-mini' }, follow, followTime),
-      h('td', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
+      h('td', {}, h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' }, follow, followTime)),
+      h('td', {}, h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
         button('Save', { onClick: commit }),
-        button('Cancel', { onClick: () => { view.editing = null; onRefresh(); }, variant: 'ghost' })));
+        button('Cancel', { onClick: () => { view.editing = null; onRefresh(); }, variant: 'ghost' }))));
   }
 
   function describe(cue) {

@@ -63,12 +63,31 @@ const CSS = `
 }
 .wru-overlay[hidden] { display: none; }
 
+/*
+ * The dock these panels sit in is about 360px wide and every one of these
+ * toolbars is wider than that. With no wrap and nothing able to shrink, the row
+ * simply ran on: out past the panel and over the Transition column beside it,
+ * carrying Stop and GO off where no one could press them. That is the same
+ * spill the tab strip had to be taught to avoid, and it cost the two controls
+ * that actually fire cues.
+ *
+ * Wrapping costs a little height and keeps every control reachable at any
+ * width, with no breakpoint to maintain against a panel whose width we do not
+ * control. A min-width of zero on the groups is what lets them give: a flex
+ * item defaults to refusing to shrink past its content.
+ */
 .wru-topbar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 1rem; padding: 0.666667rem 1rem;
+  gap: 0.5rem 1rem; padding: 0.666667rem 1rem;
   background: #08141B; border-bottom: 0.1rem solid #283239;
-  flex: 0 0 auto;
+  flex: 0 0 auto; flex-wrap: wrap;
 }
+.wru-topbar > * { min-width: 0; flex-wrap: wrap; }
+/* Tighter than a button in the body. The five controls in this row came to 359px
+   against the 336px a 360px panel leaves, so GO wrapped onto a line of its own -
+   the one button that should never be hunted for. Four pixels a side either
+   side of each button buys back more than the 23px needed. */
+.wru-topbar .wru-button { padding-left: 0.5rem; padding-right: 0.5rem; }
 .wru-body { flex: 1 1 auto; overflow: auto; padding: 1rem; }
 
 .wru-button {
@@ -211,6 +230,48 @@ const CSS = `
 .wru-warnings li { margin-bottom: 0.333333rem; }
 
 .wru-empty { color: #838B91; padding: 2rem; text-align: center; }
+.wru-empty-copy { max-width: 28rem; margin: 0 auto; }
+/* The one thing worth doing about an empty list belongs beside the sentence
+   saying the list is empty, not left-aligned in a row underneath it. */
+.wru-empty-actions {
+  margin-top: 1.33333rem; display: flex; gap: 0.5rem;
+  justify-content: center; flex-wrap: wrap;
+}
+
+/*
+ * One tile per screen, on a grid that reflows to the panel.
+ *
+ * These were nine readouts in a single wrapping flex row - three stack facts
+ * and six screens, all drawn identically. In a 360px panel that wrapped three
+ * to a line and left S1'''s label sitting directly under the cue count's value,
+ * so the whole strip read as one column of unrelated numbers. A grid keeps
+ * every label with the value it belongs to at any width, and pairing the two
+ * side by side in a tile means a screen id can never be mistaken for a reading.
+ */
+.wru-screens { margin-top: 0.833333rem; }
+.wru-screens-title { margin-bottom: 0.333333rem; }
+.wru-screen-grid {
+  display: grid; gap: 0.5rem;
+  /* 7rem gives three columns in the dock, and a tile wide enough for the
+     longest state the device sends without clipping it. Four columns fit only
+     if AT_DOWN is allowed to become AT_DO..., which tells an operator nothing. */
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+}
+.wru-screen {
+  display: flex; align-items: baseline; gap: 0.416667rem; min-width: 0;
+  padding: 0.25rem 0.416667rem; background: rgba(255,255,255,0.04);
+  border-left: 0.166667rem solid #49535B;
+}
+.wru-screen--live { border-left-color: #00FF7F; }
+.wru-screen-id {
+  flex: 0 0 auto; font-size: 0.833333rem; letter-spacing: 0.0416667rem;
+  color: #838B91; font-variant-numeric: tabular-nums;
+}
+.wru-screen-state {
+  font-size: 0.916667rem; color: #C7CDD1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wru-screen--live .wru-screen-state { color: #00FF7F; }
 .wru-warn { color: #F39910; }
 
 /* ------------------------------------------------- popped-out console -- */
