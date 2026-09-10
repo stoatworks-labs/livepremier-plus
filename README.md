@@ -2,8 +2,9 @@
 > The panels render inside a real Web RCS session and the device store mirrors live, both verified
 > through this proxy against **LivePremier Simulator 6.2.73**. **In field testing:** every path this
 > app emits has now been checked against a physical **Aquilon C**, and the VPU map is tested against
-> a store read off one. **This app has still never written to a device**, the timeline has only ever
-> fired at a simulator, and no panel has been driven live against physical hardware in a browser.
+> a store read off one, and **the panels have now been opened against a live Aquilon C in an
+> ordinary browser** rather than only against the simulator. **This app has still never written
+> to a device** and the timeline has only ever fired at a simulator.
 > The Status note below is specific about which is which.
 
 # LivePremier Plus
@@ -36,7 +37,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.3.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.4.1.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -52,11 +53,17 @@ to install in the browser.
 > whole (124 MB) and the VPU model re-checked against it rather than against a
 > capture. Nothing disagreed with what the simulator had taught us.
 >
+> **Driven in a browser against the box (2026-09-10).** The sidebar entries and
+> the two Preconfig flyout pages have now been opened and navigated against a
+> live Aquilon C in an ordinary browser session, rather than only against the
+> simulator. That is what turned up the blank page fixed in 0.4.1: closing a
+> panel handed back a `display: none` the panel had written itself, and Web RCS
+> carried on routing and rendering into an element no wider than nothing.
+>
 > **Still untested on hardware, and this is the honest part:** this app has
 > **never written to a device** — every hardware write in that session was sent
 > by a separate test harness, not by these panels. The timeline has only ever
-> fired at a simulator, and **no panel has been driven live against physical
-> hardware in a browser.** That is still the first thing to try.
+> fired at a simulator. That is still the first thing to try.
 
 **[Watch it work (50s)](https://www.youtube.com/watch?v=mGjGiNO_tSo)** — the real
 application, driven through its own controls: the VPU map off a real Aquilon C
