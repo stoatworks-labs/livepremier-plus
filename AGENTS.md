@@ -217,16 +217,64 @@ point of the ids being structural.
   `Shell` entries take an optional `after: '<vendor label>'` for this. The
   anchor is matched on the visible **label**, because that is the only part of
   the sidebar markup the vendor has not hashed.
-- **Only the VPU map stays in PLUS** — it is a whole-device view, and the others
-  belong to parts of the app that already exist.
+- **The VPU map and the memory banks stay in PLUS** — both are whole-device
+  views, and everything else belongs to a part of the app that already exists.
+  The banks earn it: master memories cover every screen at once, and the screen
+  bank is one flat list of 1000 slots that any screen may recall from, so
+  filing them per-screen would be filing them wrongly.
 
-### The popped-out console (`ui/popout.js`, `server/console.html`)
+### Memories and layer properties (`ui/memories-panel.js`, `ui/properties-panel.js`)
 
-`/__lpp/console` is a document of **ours**, served from this process rather than
-proxied, opened by the Pop out button on the Console. It holds the screen and
-aux previews, a full-width command line and a Syntax/Macros shelf.
+Web RCS has a Memories tab and a Properties tab already, and these do not
+replace them. They exist because **a vendor pane cannot be popped out.** `#root`
+carries `__reactContainer$…` / `__reactEvents$…`: React 17+ delegation, with
+every listener bound to that one container. Move the pane's DOM into a second
+window and React keeps *updating* it — it holds node references and does not
+care which document they are in — but every click dies, because the native
+event bubbles to the popout's document and never reaches `#root`. Their `AwTab`
+is `renderActiveOnly` too, so the pane is unmounted the moment you switch tabs.
+Do not spend another afternoon looking for a way round this; there isn't one
+that does not mean patching React internals.
 
-Two things about it are load-bearing:
+So the banks and the properties are read from the mirror instead:
+
+- **`core/memories.js`** covers all three banks. They are not variations on one
+  idea — what separates them is what a recall has to *name*: master names only a
+  slot, screen names a destination too, layer names a destination and a layer.
+  ⚠️ **A save is not the mirror image of a recall.** On recall the slot comes
+  first (`…/load/slotList/items/<n>/screenList/…`); on save it comes **last**
+  (`…/save/screenList/items/S1/presetList/items/PROGRAM/slotList/items/<n>/…`).
+  Assuming symmetry produces a path the device accepts into nowhere: a write
+  that reports success and saves nothing.
+- **`core/properties.js`** renders nothing by hand. The sections, types, ranges
+  and enum members all come out of `vendor/surface/catalogue.json`, which the
+  MIDI mapper already generated from a device's own bundle — 67 layer
+  parameters in twelve groups. Regenerate the catalogue and the panel grows the
+  new properties on its own.
+
+⚠️ **Layer selection is not device state.** There is no `isSelected` anywhere in
+the store and nothing in the catalogue; the vendor's Properties tab follows a
+React selection we cannot read. So ours makes you name a destination, a buffer
+and a layer. That is also why the tab is called **Layer** and not Properties —
+two tabs with one name in the same strip is worse than a name that is only most
+of the truth.
+
+⚠️ **You address a LETTER, never PROGRAM or PREVIEW**, and which letter is on
+air changes on every take. `bankLetter()` is the only sanctioned conversion; it
+reports `settled: false` mid-take and the panel **refuses the write** rather
+than guessing, because the wrong choice during a transition lands on the
+output. A buffer that is on air gets a red banner saying so.
+
+### The popped-out panels (`ui/popout.js`, `server/*.html`)
+
+There are four: `/__lpp/console`, `/__lpp/timeline`, `/__lpp/memories` and
+`/__lpp/properties`. Each is a document of **ours**, served from this process
+rather than proxied, opened by a Pop out button on the panel it belongs to.
+Adding one is four edits — the document, a `mount…Popout` export, the proxy
+route and the button — and forgetting the route fails as a blank window rather
+than as anything anyone would notice, so `test/proxy.test.js` pins the list.
+
+Two things about all of them are load-bearing:
 
 - **It opens no socket and fetches no store.** It reaches back through
   `window.opener.__WRU` and drives the session already running in the Web RCS

@@ -151,8 +151,15 @@ export async function createProxy({
      on this origin, because it drives the Web RCS tab's own session through
      `window.opener` and that only works same-origin. */
   const consolePage = await readFile(join(root, 'server/console.html'), 'utf8');
-  /* And the timeline editor, on the same terms. */
-  const timelinePage = await readFile(join(root, 'server/timeline.html'), 'utf8');
+  /* And the timeline editor, the memory banks and the layer properties, all on
+     the same terms. Each is one route and one document; what makes them worth
+     having separately is that an operator puts different ones on different
+     monitors. */
+  const popoutPages = {
+    '/timeline': await readFile(join(root, 'server/timeline.html'), 'utf8'),
+    '/memories': await readFile(join(root, 'server/memories.html'), 'utf8'),
+    '/properties': await readFile(join(root, 'server/properties.html'), 'utf8')
+  };
 
   /*
    * Our own version, read off the manifest rather than duplicated in a
@@ -374,9 +381,9 @@ export async function createProxy({
       return undefined;   /* held open deliberately */
     }
 
-    if (rest === '/console' || rest === '/timeline') {
+    if (rest === '/console' || popoutPages[rest]) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-      return res.end(rest === '/console' ? consolePage : timelinePage);
+      return res.end(rest === '/console' ? consolePage : popoutPages[rest]);
     }
 
     if (rest === '/status') {

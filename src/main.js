@@ -24,6 +24,8 @@ import { TabHost, watchVendorTabs } from './ui/tabs.js';
 import { createConsolePanel } from './ui/console-panel.js';
 import { createMidiPanel } from './ui/midi-panel.js';
 import { createSettingsPanel } from './ui/settings-panel.js';
+import { createMemoriesPanel } from './ui/memories-panel.js';
+import { createPropertiesPanel } from './ui/properties-panel.js';
 import { detectPlatform, supports } from './core/platform.js';
 import { createTimecodeSource } from './ui/timecode-source.js';
 import { TimecodeChase } from './core/chase.js';
@@ -113,8 +115,26 @@ async function boot() {
   const saved = await storage.load();
   if (saved) stack.load(saved);
 
-  /* One repaint per frame, covering whichever of our surfaces is on screen. */
-  const refresh = throttleFrame(() => { shell.refresh(); tabs.refresh(); });
+  /*
+   * One repaint per frame, covering whichever of our surfaces is on screen.
+   *
+   * Held off while a panel has an uncommitted edit in a text field. Our panes
+   * are rebuilt wholesale, so a device frame arriving mid-keystroke would take
+   * the field, its contents and the caret with it — and the device store is
+   * chatty enough that timers alone produce a frame a second. Nothing is lost
+   * by waiting: the panel calls `refresh` itself the moment the edit commits.
+   */
+  /* Declared here rather than at their construction so `refresh` can close
+     over them: the panels are built further down, and a `const` referenced
+     before its declaration runs is a ReferenceError, not an undefined. */
+  let memories = null;
+  let properties = null;
+  const editing = () => [memories, properties].some((p) => p && p.busy && p.busy());
+  const refresh = throttleFrame(() => {
+    if (editing()) return;
+    shell.refresh();
+    tabs.refresh();
+  });
 
   /*
    * What kind of switcher is this, and what does it support?
@@ -154,6 +174,16 @@ async function boot() {
   const pitch = createPitchPanel({ session, onRefresh: refresh });
   const midi = createMidiPanel({ session, onRefresh: refresh });
   const settings = createSettingsPanel({ session, platform, timecode, onRefresh: refresh });
+  /*
+   * The two panels the vendor already has tabs for, rebuilt so they can leave
+   * the window. Web RCS's own Memories and Properties panes are React, and a
+   * React pane cannot be relocated — its listeners are delegated to the app's
+   * root container, so a copy moved into a second window paints and does
+   * nothing. These read the mirror instead. See the heads of
+   * `ui/memories-panel.js` and `ui/properties-panel.js`.
+   */
+  memories = createMemoriesPanel({ session, onRefresh: refresh });
+  properties = createPropertiesPanel({ session, onRefresh: refresh });
 
   /*
    * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
@@ -170,7 +200,21 @@ async function boot() {
          panel actually is rather than a truncation, because "Cons" and "Time"
          read as neither one thing nor the other. */
       { id: 'console', label: 'Console', short: 'Cmd', icon: 'mini-list-14', enabled: () => can('console'), render: () => consolePanel.render() },
-      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', enabled: () => can('cueStack'), render: () => timeline.render() }
+      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', enabled: () => can('cueStack'), render: () => timeline.render() },
+      /*
+       * "Layer" and not "Properties": the vendor's own Properties tab is two
+       * along in the same strip, and two tabs with one name is a worse problem
+       * than a name that is only most of the truth. It is also the honest
+       * difference between them — theirs follows the layer you have clicked,
+       * which is React state we cannot read, so ours makes you name one.
+       *
+       * There is deliberately no second tab for the memory banks. The strip is
+       * about 360px and the fit ladder is already down to short labels at four
+       * tabs; a fifth would push the lot to icons. The banks are a whole-device
+       * view anyway — 1000 screen slots and 500 master ones are not per-screen
+       * — so they sit in the sidebar beside the VPU map instead.
+       */
+      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', enabled: () => can('screens'), render: () => properties.render() }
     ]
   });
 
@@ -180,6 +224,11 @@ async function boot() {
       /* Midra 4K and Alta 4K have no VPU to map — their processing is fixed
          rather than allocated — so on those the entry is simply not there. */
       { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', enabled: () => can('vpuMap'), render: () => vpu.render() },
+      /* The three memory banks, which are a whole-device view like the VPU map
+         and unlike everything on the Screens / Aux. strip: master memories
+         cover every screen at once, and the screen bank is one flat list of
+         1000 slots that any screen can recall from. */
+      { id: 'memories', label: 'Memories', icon: 'shotbox-18', enabled: () => can('cueStack'), render: () => memories.render() },
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
       { id: 'midi', label: 'MIDI Mapping', icon: 'gpio-18', after: 'Virtual RC400T', render: () => midi.render() },

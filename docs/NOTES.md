@@ -624,3 +624,84 @@ Edit `PORT` + the four `*_PORT` values in
 **cwd MUST be the session dir** or it exits with two Qt warnings. Ports used
 here: LivePremier 3000, Midra 3010, Alta 3020. Backups left as
 `settings.ini.lpp-backup`.
+
+## Memories and Layer properties, and why they had to be rebuilt (2026-09-10)
+
+Asked for the vendor's Memories and Properties tabs to pop out to their own
+windows "like the command line and cue list". They can't be moved, so they had
+to be rebuilt.
+
+⚠️ **A vendor React pane cannot be relocated into a second window.** `#root`
+carries `__reactContainer$…` and `__reactEvents$…` — React 17+ delegation, every
+listener bound to that one container. Adopt the pane's DOM into a popout and
+React keeps *updating* it (it holds node references and does not care about the
+document) but every click dies: the native event bubbles to the popout's
+document and never reaches `#root`. Their `AwTab` is `renderActiveOnly` as well,
+so switching tabs unmounts the pane under you. I checked this on the live
+Aquilon before writing anything; there is no way round it short of patching
+React internals, which this project will not do.
+
+The vendor's two tabs are **Properties** and **Memories** — there is no tab
+called Settings, though the vendor's own i18n key for Properties is literally
+`aw.Settings.Properties`, which is presumably where the name came from.
+
+### What the banks actually look like (read off a live Aquilon C, 6.2.73)
+- `presetBank` 1000 slots, `masterPresetBank` 500, `layerBank` 50. On this box
+  85 / 13 / 0 were in use.
+- Screen memories are **one flat global bank**, not per-screen. Slot 2 is
+  "Keynote 1_S1" and slot 3 "Keynote 1_S2" — the `_S1` suffix is a naming habit
+  of whoever saved it, not structure. Any screen may recall any slot.
+- ⚠️ **Save is not the mirror image of recall.** Recall puts the slot first
+  (`…/load/slotList/items/<n>/screenList/items/S1/…`); save puts it **last**
+  (`…/save/screenList/items/S1/presetList/items/PROGRAM/slotList/items/<n>/…`).
+  Assuming symmetry gives a path the device accepts into nowhere — a write that
+  succeeds and saves nothing. Master is the exception and takes a slot directly,
+  having no single source to name.
+- Which slot is in a buffer: `presetBank/status/presetId/screenList/items/<S>/
+  presetList/items/<A|B|C>/pp/id`, keyed by **letter**, with `isNotModified`
+  beside it — the difference between "showing memory 44" and "showing something
+  that started as memory 44".
+- Save filters (`categoryFilter`, `layerFilter`, master's `mode`) are read and
+  displayed, never written. They belong to the vendor's tab; widening them from
+  here would make Save do more than the operator's last visible choice said.
+
+### Layer properties
+- `vendor/surface/catalogue.json` already had all of it: 67 layer parameters in
+  twelve groups with paths, types, ranges, enums and read-only flags, generated
+  for the MIDI mapper. The panel renders the catalogue and knows no parameter
+  names of its own.
+- ⚠️ **Layer selection is not device state.** No `isSelected` anywhere in the
+  123 MB store, nothing in the catalogue. The vendor's tab follows a React
+  selection, so a second window cannot track it; ours names the layer instead.
+- ⚠️ **NATIVE reported `capability: "OFF"` on this Aquilon**, so the fitted-layer
+  gate correctly excludes it. My first test expected it in the list and failed —
+  the code was right. NATIVE is a layer slot that costs mixers, not the
+  background plane.
+- Writes address a **letter**; `bankLetter()` refuses mid-take rather than
+  guessing, and a buffer that is on air gets a red banner.
+
+### Verified on the live Aquilon (192.168.2.140, via a worktree server on 8537)
+Session live, store mirrored, platform AQUILON NLC_C 6.2.73. 85 rows in the
+screen bank with real names. PROGRAM/PREVIEW resolution checked against
+`presetUp=B / presetDown=A / transition=AT_DOWN` → program A (live), preview B.
+Writes were exercised with `session.send` **stubbed** and restored in a
+`finally`, so nothing reached the switcher: opacity wrote
+`…/presetList/items/A/layerList/items/1/opacity/pp/opacity = 200`, and 99999
+clamped to 256 with the note shown. Recall produced the right `xRequest` path
+and defaulted to preview; Erase armed on the first press and only fired on the
+second. **This app still has not written to a device.**
+
+### Traps met
+- ⚠️ **A backtick inside the CSS comment block in `ui/theme.js` terminates the
+  template literal**, and the rest of the stylesheet is then parsed as JS. It
+  cost two rounds: the first failure was caught by `node --check`, the second
+  reached the browser as `ReferenceError: button is not defined` at theme.js and
+  took *all* of main.js down with it — no sidebar, no tabs, no panels.
+  `test/modules.test.js` catches it, because importing is the check. Never put a
+  backtick in that file's CSS.
+- The Browser pane opens `window.open` **in the same tab**, so `window.opener`
+  is null and you get the orphan page. The popout build path was verified
+  instead by importing `ui/popout.js` in the Web RCS page and mounting with
+  `opener: window` — same code, real live session.
+- ⚠️ **`rAF` never fires while the pane is hidden**, so a `javascript_tool` call
+  that awaits one times out at 45s. Read synchronously.

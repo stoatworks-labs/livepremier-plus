@@ -8,9 +8,9 @@
 
 # LivePremier Plus
 
-A local app that puts two things inside an Analog Way **LivePremier** Web RCS
-session, drawn in Web RCS's own design language so they read as part of the
-product rather than as a bolt-on:
+A local app that adds panels to an Analog Way **LivePremier** Web RCS session,
+drawn in Web RCS's own design language so they read as part of the product
+rather than as a bolt-on:
 
 - **VPU Map** — the device's mixing-resource allocation, drawn as a budget.
   Which units are fitted, who holds them, what is spare, and what a staged
@@ -20,6 +20,12 @@ product rather than as a bolt-on:
 - **Timeline** — a theatre-style cue stack. A numbered list that advances on
   one GO, with per-cue fade, delay and follow times, driving the switcher's
   preset recalls and TAKE.
+- **Memories** — all three banks in one list: master, screen and layer, with
+  search, renaming, and which buffer is holding each memory right now. Recall
+  names its target buffer every time and never defaults to program.
+- **Layer** — every one of a layer's 67 properties, generated from the device's
+  own parameter catalogue rather than transcribed, so a firmware that adds one
+  grows a field for it.
 - **MIDI Mapping** — a control surface driving the switcher, from the page
   itself. Faders to opacity, encoders to size and position, buttons to select.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
@@ -408,18 +414,27 @@ are cloned from real ones at runtime, so they inherit whatever per-build class
 hashes the firmware happens to use. The result is not a skin that approximates
 Web RCS; it is Web RCS's own CSS.
 
-Console and Timeline are **tabs in the vendor's own strip** on Screens / Aux.,
-beside Properties and Memories, because two per-screen tools belong where an
+Console, Timeline and Layer are **tabs in the vendor's own strip** on Screens /
+Aux., beside Properties and Memories, because per-screen tools belong where an
 operator already looks for per-screen tools:
 
 ```
-Properties | Memories | Console | Timeline
+Properties | Memories | Console | Timeline | Layer
 ```
+
+Layer is a properties editor, and it is called Layer rather than Properties
+because the vendor's own Properties tab is two along in the same strip — two
+tabs with one name is a worse problem than a name that is only most of the
+truth. It is also the honest difference between them: the vendor's tab follows
+the layer you have *clicked*, which is React state inside their bundle and
+therefore unreadable from here, so ours makes you name a destination, a buffer
+and a layer outright. On a second monitor that turns out to be the better
+behaviour anyway, because the window stays pointed where you left it.
 
 MIDI Mapping sits **under Virtual RC400T** in the vendor's own LIVE section —
 both are about control surfaces, and filing it in a section of ours would file
-it by who wrote it rather than by what it does. Only the VPU map, a
-whole-device view, gets a section of its own:
+it by who wrote it rather than by what it does. The two whole-device views get
+a section of their own:
 
 ```
 LIVE
@@ -431,7 +446,27 @@ SETUP
   …
 PLUS                 <- ours
   VPU Map
+  Memories
 ```
+
+The memory banks are in the sidebar rather than on the strip for two reasons.
+They are not per-screen — master memories cover every screen at once, and the
+screen bank is one flat list of 1000 slots any screen can recall from — and the
+strip is about 360px wide, where five tabs already fall back to icons.
+
+### Popping a panel out
+
+Console, Timeline, Memories and Layer each have a **Pop out** button that opens
+them in a window of their own, for a second monitor. A popped-out panel makes
+**no connection of its own**: it drives the session already running in the Web
+RCS tab, so the switcher still sees exactly one client per tab. Close that tab
+and the popout says so in a banner rather than quietly stopping.
+
+Popping out is the whole reason Memories and Layer exist as panels of ours at
+all. The vendor's equivalents are React panes whose event listeners are bound to
+the app's root container, so a copy moved into a second window repaints and
+stops responding — there is no way to relocate them. These read the device
+mirror instead.
 
 ## How it works
 

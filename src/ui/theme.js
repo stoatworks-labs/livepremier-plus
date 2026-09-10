@@ -420,6 +420,68 @@ const CSS = `
   font-size: 1.5rem; letter-spacing: 0.05rem; color: #616D75;
 }
 .lpp-clock--live { color: #00FF7F; }
+
+/* --------------------------------------- memories and layer properties -- */
+
+/* A popout that is one panel and nothing else. */
+.lpp-solo > .wru-overlay-inner { flex: 1 1 auto; min-height: 0; }
+
+/*
+ * The "your Web RCS window has closed" banner.
+ *
+ * Every popout root is position:absolute inset:0, so a banner appended
+ * beside it as a sibling was painted underneath it and never seen — the one
+ * message in this window that must not be missable. Lifting it out of the flow
+ * over the top costs a strip of the panel, at a moment when the panel is
+ * disabled anyway.
+ */
+body > .lpp-banner { position: absolute; top: 0; left: 0; right: 0; z-index: 50; }
+
+/* The other kind of banner: in the flow, inside a panel, saying that the
+   buffer being edited is the one on air. */
+.lpp-live-banner {
+  background: rgba(246,71,71,0.15); border: 0.1rem solid #F64747;
+  border-radius: 0.166667rem; color: #fff; padding: 0.5rem 0.833333rem;
+}
+
+/*
+ * A layer has 67 properties in twelve groups, which is far more than fits on
+ * one screen and far more than anyone wants at once. Collapsing by group is
+ * the only thing that makes the panel usable in the 360px dock as well as in
+ * a window, and the header is a button rather than a summary/details pair so
+ * the open set survives a repaint — the panel is rebuilt on every device
+ * frame, and a native <details> would snap shut each time.
+ */
+.lpp-section { border-top: 0.1rem solid #283239; }
+.lpp-section:first-child { border-top: 0; }
+.lpp-section-head {
+  display: flex; align-items: center; gap: 0.5rem; width: 100%;
+  background: none; border: 0; color: #fff; cursor: pointer;
+  padding: 0.666667rem 0; font-family: inherit; text-align: left;
+}
+.lpp-section-head:hover { color: #54C8FF; }
+.lpp-section-caret { color: #616D75; width: 0.833333rem; flex: 0 0 auto; }
+.lpp-section-head .aw-font-overline { margin-left: auto; }
+
+/* A memory's name, as the operator typed it. Clickable to rename, but not a
+   .wru-button: that style shouts in upper case, and these names are how you
+   find a memory under pressure. */
+.lpp-name {
+  background: none; border: 0; padding: 0.166667rem 0; margin: 0;
+  color: inherit; font: inherit; text-align: left; cursor: text;
+  border-bottom: 0.1rem dashed transparent; max-width: 100%;
+}
+.lpp-name:hover { border-bottom-color: #49535B; }
+
+/* A flag set is one parameter, so its checkboxes are one field, not several. */
+.lpp-flags { display: flex; flex-direction: column; gap: 0.166667rem; }
+
+/* What the device reports back, as against what it has been told. Dimmed
+   because it is evidence rather than a control. */
+.lpp-readonly {
+  color: #838B91; font-variant-numeric: tabular-nums;
+  padding: 0.333333rem 0; min-height: 1.5rem;
+}
 `;
 
 /**

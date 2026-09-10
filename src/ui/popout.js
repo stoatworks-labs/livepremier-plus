@@ -46,6 +46,8 @@ import { createConsolePanel } from './console-panel.js';
 import { createPreviewWall } from './preview.js';
 import { createSyntaxPanel, createMacroPanel } from './syntax-panel.js';
 import { buildTimelineEditor } from './timeline-editor.js';
+import { createMemoriesPanel } from './memories-panel.js';
+import { createPropertiesPanel } from './properties-panel.js';
 
 const SPRITE_ID = '__SVG_SPRITE_NODE__';
 
@@ -147,6 +149,102 @@ export function mountPopout({ doc = document, opener = window.opener } = {}) {
  */
 export function mountTimelinePopout({ doc = document, opener = window.opener } = {}) {
   return bootPopout({ doc, opener, build: ({ bridge }) => buildTimelineEditor(doc, bridge) });
+}
+
+/**
+ * Build the memory-bank popout: master, screen and layer memories in one list.
+ *
+ * @param {{doc: Document, opener: Window}} opts
+ */
+export function mountMemoriesPopout({ doc = document, opener = window.opener } = {}) {
+  return bootPopout({
+    doc, opener, build: ({ bridge }) => buildSolo(doc, bridge, createMemoriesPanel)
+  });
+}
+
+/**
+ * Build the layer-properties popout.
+ *
+ * @param {{doc: Document, opener: Window}} opts
+ */
+export function mountPropertiesPopout({ doc = document, opener = window.opener } = {}) {
+  return bootPopout({
+    doc, opener, build: ({ bridge }) => buildSolo(doc, bridge, createPropertiesPanel)
+  });
+}
+
+/**
+ * One panel, filling its own window, repainting on device traffic.
+ *
+ * Shared by the memories and properties popouts because neither has anything
+ * beside it — unlike the console, which is a wall and a shelf and a terminal.
+ * The interesting part is the repaint guard.
+ *
+ * ## Why device frames sometimes must not repaint
+ *
+ * The panels are rebuilt wholesale on every frame, which is the right thing
+ * for a table of numbers and destroys a field that is being typed into. The
+ * console solves this by never repainting on device traffic at all; these two
+ * have to repaint, so instead they say when they must not. `busy()` is true
+ * exactly while a text field holds an uncommitted edit, and the repaint is not
+ * dropped but deferred — the next frame after the edit lands redraws it, so
+ * the panel never sits stale.
+ */
+function buildSolo(doc, bridge, create) {
+  const { session } = bridge;
+  const host = h('div', { class: 'lpp-popout lpp-solo' });
+  doc.body.append(host);
+
+  /* No Pop out button in here — this is where it pops out to. */
+  const view = create({ session, onRefresh: () => paint(), popoutEnabled: false, doc });
+
+  function paint() {
+    /*
+     * Scroll position is the operator's, not ours. The device store is chatty
+     * and a repaint that jumped a 67-field property list back to the top
+     * mid-show would be its own bug.
+     */
+    const scroller = host.querySelector('.wru-body');
+    const top = scroller ? scroller.scrollTop : 0;
+    host.textContent = '';
+    host.append(view.render());
+    const again = host.querySelector('.wru-body');
+    if (again) again.scrollTop = top;
+  }
+
+  let queued = false;
+  let missed = false;
+  const onFrame = () => {
+    if (view.busy && view.busy()) { missed = true; return; }
+    if (queued) return;
+    queued = true;
+    (doc.defaultView || window).requestAnimationFrame(() => {
+      queued = false;
+      if (view.busy && view.busy()) { missed = true; return; }
+      missed = false;
+      paint();
+    });
+  };
+
+  /* The edit that suppressed a repaint ends without a device frame to
+     announce it, so a short clock catches up rather than leaving the panel
+     stale until the switcher next says something. */
+  const catchUp = setInterval(() => {
+    if (missed && !(view.busy && view.busy())) onFrame();
+  }, 500);
+
+  session.addEventListener('frame', onFrame);
+  session.addEventListener('state', onFrame);
+  paint();
+
+  return {
+    paint,
+    stop() {
+      clearInterval(catchUp);
+      session.removeEventListener('frame', onFrame);
+      session.removeEventListener('state', onFrame);
+    }
+  };
 }
 
 function buildConsole(doc, bridge) {
@@ -253,8 +351,12 @@ function mountOrphan(doc, reason) {
   installStyles(doc);
   doc.body.append(h('div', { class: 'lpp-orphan' },
     h('h1', { class: 'aw-font-subtitle-1', text: 'No Web RCS session' }),
+    /* Four different panels arrive here now, so the message names the rule
+       rather than the panel: it used to say "opened from the Console", which
+       was already only a quarter true and sent anyone who reached it from the
+       cue list looking in the wrong place. */
     h('p', { text: reason === 'no vendor page'
       ? 'This window was opened from a page that is not a LivePremier Plus session.'
-      : 'This window has to be opened from the Console inside Web RCS — it borrows that tab’s connection to the switcher rather than making one of its own.' })));
+      : 'A popped-out panel has to be opened by its Pop out button inside Web RCS — it borrows that tab’s connection to the switcher rather than making one of its own, so it cannot be opened from a bookmark or reloaded on its own.' })));
   return null;
 }

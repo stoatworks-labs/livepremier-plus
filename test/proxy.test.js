@@ -540,6 +540,30 @@ test('the popped-out console is served by us, on our own origin', async () => {
   }
 });
 
+/*
+ * Every popout is on those same terms, and the list is worth pinning as a
+ * list: adding one is four edits — the document, the mount, the route and the
+ * button — and forgetting the route is the one that fails as a blank window
+ * rather than as an error anyone would notice in a test.
+ */
+test('every popout route is served by us, before a switcher is chosen', async () => {
+  const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
+  const port = await listen(proxy);
+  try {
+    for (const route of ['/timeline', '/memories', '/properties']) {
+      const res = await fetch(`http://127.0.0.1:${port}${NS}${route}`);
+      assert.equal(res.status, 200, `${route} is served`);
+      assert.match(res.headers.get('content-type'), /text\/html/);
+      const body = await res.text();
+      assert.match(body, /popout\.js/, `${route} boots the popout module`);
+      assert.doesNotMatch(body, /\/styles\/(app|boot)\./,
+        `${route} hard-codes no vendor stylesheet`);
+    }
+  } finally {
+    await close(proxy);
+  }
+});
+
 test('our version is reported so the settings page need not guess it', async () => {
   const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
   const port = await listen(proxy);

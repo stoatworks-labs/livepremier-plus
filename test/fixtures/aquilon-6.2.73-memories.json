@@ -1,0 +1,2089 @@
+{
+ "device": {
+  "presetBank": {
+   "bankList": {
+    "itemKeys": [
+     "1",
+     "2",
+     "3",
+     "44",
+     "45"
+    ],
+    "items": {
+     "1": {
+      "control": {
+       "pp": {
+        "label": "",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "categoryFilter": [
+         "SOURCE",
+         "POS"
+        ],
+        "layerFilter": [
+         "NATIVE"
+        ],
+        "screenAuxWidth": 1928,
+        "screenAuxHeight": 960,
+        "transitionDuration": 10
+       }
+      }
+     },
+     "2": {
+      "control": {
+       "pp": {
+        "label": "Keynote 1_S1",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "categoryFilter": [
+         "SOURCE",
+         "POS",
+         "SIZE",
+         "OPACITY",
+         "CROPPING",
+         "BORDER",
+         "TRANSITIONS",
+         "EFFECTS",
+         "FLYING_CURVE",
+         "TIMING",
+         "SPEED",
+         "CUT_AND_FILL",
+         "MASK",
+         "KEYER"
+        ],
+        "layerFilter": [
+         "NATIVE",
+         "1",
+         "2"
+        ],
+        "screenAuxWidth": 1728,
+        "screenAuxHeight": 960,
+        "transitionDuration": 10
+       }
+      }
+     },
+     "3": {
+      "control": {
+       "pp": {
+        "label": "Keynote 1_S2",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "categoryFilter": [
+         "SOURCE",
+         "POS",
+         "SIZE",
+         "OPACITY",
+         "CROPPING",
+         "BORDER",
+         "TRANSITIONS",
+         "EFFECTS",
+         "FLYING_CURVE",
+         "TIMING",
+         "SPEED",
+         "CUT_AND_FILL",
+         "MASK",
+         "KEYER"
+        ],
+        "layerFilter": [
+         "NATIVE",
+         "1",
+         "2"
+        ],
+        "screenAuxWidth": 1728,
+        "screenAuxHeight": 960,
+        "transitionDuration": 10
+       }
+      }
+     },
+     "44": {
+      "control": {
+       "pp": {
+        "label": "Loops_S1",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "categoryFilter": [
+         "SOURCE",
+         "POS",
+         "SIZE",
+         "OPACITY",
+         "CROPPING",
+         "BORDER",
+         "TRANSITIONS",
+         "EFFECTS",
+         "FLYING_CURVE",
+         "TIMING",
+         "SPEED",
+         "CUT_AND_FILL",
+         "MASK",
+         "KEYER"
+        ],
+        "layerFilter": [
+         "NATIVE",
+         "1",
+         "2"
+        ],
+        "screenAuxWidth": 1728,
+        "screenAuxHeight": 960,
+        "transitionDuration": 10
+       }
+      }
+     },
+     "45": {
+      "control": {
+       "pp": {
+        "label": "Loops_S2",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "categoryFilter": [
+         "SOURCE",
+         "POS",
+         "SIZE",
+         "OPACITY",
+         "CROPPING",
+         "BORDER",
+         "TRANSITIONS",
+         "EFFECTS",
+         "FLYING_CURVE",
+         "TIMING",
+         "SPEED",
+         "CUT_AND_FILL",
+         "MASK",
+         "KEYER"
+        ],
+        "layerFilter": [
+         "NATIVE",
+         "1",
+         "2"
+        ],
+        "screenAuxWidth": 1728,
+        "screenAuxHeight": 960,
+        "transitionDuration": 10
+       }
+      }
+     }
+    }
+   },
+   "control": {
+    "pp": {
+     "xDelete": false
+    },
+    "save": {
+     "screenList": {
+      "itemKeys": [
+       "S1"
+      ],
+      "items": {
+       "S1": {
+        "pp": {
+         "categoryFilter": [
+          "SOURCE",
+          "POS",
+          "SIZE",
+          "OPACITY",
+          "CROPPING",
+          "BORDER",
+          "TRANSITIONS",
+          "EFFECTS",
+          "FLYING_CURVE",
+          "TIMING",
+          "SPEED",
+          "CUT_AND_FILL",
+          "MASK",
+          "KEYER"
+         ],
+         "layerFilter": [
+          "NATIVE",
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8",
+          "9",
+          "10",
+          "11",
+          "12",
+          "13",
+          "14",
+          "15",
+          "16",
+          "17",
+          "18",
+          "19",
+          "20",
+          "21",
+          "22",
+          "23",
+          "24",
+          "25",
+          "26",
+          "27",
+          "28",
+          "29",
+          "30",
+          "31",
+          "32",
+          "33",
+          "34",
+          "35",
+          "36",
+          "37",
+          "38",
+          "39",
+          "40",
+          "41",
+          "42",
+          "43",
+          "44",
+          "45",
+          "46",
+          "47",
+          "48",
+          "49",
+          "50",
+          "51",
+          "52",
+          "53",
+          "54",
+          "55",
+          "56",
+          "57",
+          "58",
+          "59",
+          "60",
+          "61",
+          "62",
+          "63",
+          "64",
+          "65",
+          "66",
+          "67",
+          "68",
+          "69",
+          "70",
+          "71",
+          "72",
+          "73",
+          "74",
+          "75",
+          "76",
+          "77",
+          "78",
+          "79",
+          "80",
+          "81",
+          "82",
+          "83",
+          "84",
+          "85",
+          "86",
+          "87",
+          "88",
+          "89",
+          "90",
+          "91",
+          "92",
+          "93",
+          "94",
+          "95",
+          "96",
+          "97",
+          "98",
+          "99",
+          "100",
+          "101",
+          "102",
+          "103",
+          "104",
+          "105",
+          "106",
+          "107",
+          "108",
+          "109",
+          "110",
+          "111",
+          "112",
+          "113",
+          "114",
+          "115",
+          "116",
+          "117",
+          "118",
+          "119",
+          "120",
+          "121",
+          "122",
+          "123",
+          "124",
+          "125",
+          "126",
+          "127",
+          "128"
+         ]
+        }
+       }
+      }
+     }
+    }
+   },
+   "status": {
+    "presetId": {
+     "screenList": {
+      "itemKeys": [
+       "S1",
+       "S2",
+       "S3"
+      ],
+      "items": {
+       "S1": {
+        "presetList": {
+         "items": {
+          "A": {
+           "pp": {
+            "id": 2,
+            "isNotModified": true
+           }
+          },
+          "B": {
+           "pp": {
+            "id": 44,
+            "isNotModified": true
+           }
+          },
+          "C": {
+           "pp": {
+            "id": 44,
+            "isNotModified": false
+           }
+          }
+         },
+         "itemKeys": [
+          "A",
+          "B",
+          "C"
+         ]
+        }
+       },
+       "S2": {
+        "presetList": {
+         "items": {
+          "A": {
+           "pp": {
+            "id": 45,
+            "isNotModified": true
+           }
+          },
+          "B": {
+           "pp": {
+            "id": 3,
+            "isNotModified": true
+           }
+          },
+          "C": {
+           "pp": {
+            "id": 45,
+            "isNotModified": false
+           }
+          }
+         },
+         "itemKeys": [
+          "A",
+          "B",
+          "C"
+         ]
+        }
+       },
+       "S3": {
+        "presetList": {
+         "items": {
+          "A": {
+           "pp": {
+            "id": 46,
+            "isNotModified": true
+           }
+          },
+          "B": {
+           "pp": {
+            "id": 4,
+            "isNotModified": true
+           }
+          },
+          "C": {
+           "pp": {
+            "id": 46,
+            "isNotModified": false
+           }
+          }
+         },
+         "itemKeys": [
+          "A",
+          "B",
+          "C"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "masterPresetBank": {
+   "bankList": {
+    "itemKeys": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ],
+    "items": {
+     "1": {
+      "control": {
+       "pp": {
+        "label": "Keynote 1",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "isShadow": false,
+        "screenFilter": [
+         "S1",
+         "S2",
+         "S3"
+        ],
+        "auxFilter": [
+         "A1",
+         "A2",
+         "A3",
+         "A4"
+        ]
+       }
+      }
+     },
+     "2": {
+      "control": {
+       "pp": {
+        "label": "Keynote Backup",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "isShadow": false,
+        "screenFilter": [
+         "S1",
+         "S2",
+         "S3"
+        ],
+        "auxFilter": [
+         "A2",
+         "A3"
+        ]
+       }
+      }
+     },
+     "3": {
+      "control": {
+       "pp": {
+        "label": "Stage",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "isShadow": false,
+        "screenFilter": [
+         "S1",
+         "S2",
+         "S3"
+        ],
+        "auxFilter": [
+         "A1",
+         "A2",
+         "A3",
+         "A4"
+        ]
+       }
+      }
+     },
+     "4": {
+      "control": {
+       "pp": {
+        "label": "VT 1",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": true,
+        "isShadow": false,
+        "screenFilter": [
+         "S1",
+         "S2",
+         "S3"
+        ],
+        "auxFilter": [
+         "A1",
+         "A2",
+         "A3",
+         "A4"
+        ]
+       }
+      }
+     }
+    }
+   },
+   "control": {
+    "pp": {
+     "xDelete": false
+    },
+    "save": {
+     "pp": {
+      "mode": "USE_EXISTING_MEMORIES",
+      "screenFilter": [
+       "S1",
+       "S2",
+       "S3"
+      ],
+      "auxFilter": [
+       "A2",
+       "A3"
+      ],
+      "layerFilter": [
+       "NATIVE",
+       "1",
+       "2"
+      ],
+      "categoryFilter": [
+       "SOURCE",
+       "POS",
+       "SIZE",
+       "OPACITY",
+       "CROPPING",
+       "BORDER",
+       "TRANSITIONS",
+       "EFFECTS",
+       "FLYING_CURVE",
+       "TIMING",
+       "SPEED",
+       "CUT_AND_FILL",
+       "MASK",
+       "KEYER"
+      ]
+     }
+    },
+    "startup": {
+     "pp": {
+      "mode": "BLANK",
+      "bankSlot": 1
+     }
+    }
+   },
+   "status": {
+    "lastUsed": {
+     "presetModeList": {
+      "items": {
+       "PROGRAM": {
+        "pp": {
+         "memoryId": 0,
+         "affectedScreen": [
+          "S1",
+          "S2",
+          "S3"
+         ],
+         "affectedAux": [
+          "A2",
+          "A3"
+         ]
+        }
+       },
+       "PREVIEW": {
+        "pp": {
+         "memoryId": 1,
+         "affectedScreen": [
+          "S1",
+          "S2",
+          "S3"
+         ],
+         "affectedAux": [
+          "A1",
+          "A2",
+          "A3",
+          "A4"
+         ]
+        }
+       }
+      },
+      "itemKeys": [
+       "PROGRAM",
+       "PREVIEW"
+      ]
+     }
+    }
+   }
+  },
+  "layerBank": {
+   "bankList": {
+    "itemKeys": [
+     "1",
+     "2"
+    ],
+    "items": {
+     "1": {
+      "control": {
+       "pp": {
+        "label": "",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": false,
+        "categoryFilter": [
+         "SOURCE",
+         "POS",
+         "SIZE",
+         "OPACITY",
+         "CROPPING",
+         "BORDER",
+         "TRANSITIONS",
+         "EFFECTS",
+         "FLYING_CURVE",
+         "TIMING",
+         "SPEED",
+         "CUT_AND_FILL",
+         "MASK",
+         "KEYER"
+        ],
+        "screenAuxWidth": 1920,
+        "screenAuxHeight": 1080
+       }
+      }
+     },
+     "2": {
+      "control": {
+       "pp": {
+        "label": "",
+        "xDelete": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isValid": false,
+        "categoryFilter": [
+         "SOURCE",
+         "POS",
+         "SIZE",
+         "OPACITY",
+         "CROPPING",
+         "BORDER",
+         "TRANSITIONS",
+         "EFFECTS",
+         "FLYING_CURVE",
+         "TIMING",
+         "SPEED",
+         "CUT_AND_FILL",
+         "MASK",
+         "KEYER"
+        ],
+        "screenAuxWidth": 1920,
+        "screenAuxHeight": 1080
+       }
+      }
+     }
+    }
+   },
+   "control": {
+    "pp": {
+     "xDelete": false
+    }
+   },
+   "status": null
+  },
+  "screenAuxGroupList": {
+   "itemKeys": [
+    "S1",
+    "S2",
+    "S3"
+   ],
+   "items": {
+    "S1": {
+     "control": {
+      "pp": {
+       "copyMode": true,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": true,
+       "xTakeUp": true,
+       "xTakeDown": true,
+       "xTakeAbort": false,
+       "xCut": true,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": true,
+       "transition": "AT_UP",
+       "take": "OFF",
+       "tbarPosition": 65535,
+       "isTbarPositionValid": true
+      }
+     }
+    },
+    "S2": {
+     "control": {
+      "pp": {
+       "copyMode": true,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": false,
+       "xTakeUp": true,
+       "xTakeDown": true,
+       "xTakeAbort": false,
+       "xCut": true,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": true,
+       "transition": "AT_DOWN",
+       "take": "OFF",
+       "tbarPosition": 0,
+       "isTbarPositionValid": true
+      }
+     }
+    },
+    "S3": {
+     "control": {
+      "pp": {
+       "copyMode": true,
+       "tbarPosition": 0,
+       "takeUpTime": 10,
+       "takeDownTime": 10,
+       "presetUp": "B",
+       "presetDown": "A",
+       "presetPrevious": "C",
+       "xTake": false,
+       "xTakeUp": true,
+       "xTakeDown": true,
+       "xTakeAbort": false,
+       "xCut": true,
+       "xStepBack": false,
+       "xCopyProgramToPreview": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isUsed": true,
+       "transition": "AT_DOWN",
+       "take": "OFF",
+       "tbarPosition": 0,
+       "isTbarPositionValid": true
+      }
+     }
+    }
+   }
+  },
+  "screenList": {
+   "itemKeys": [
+    "S1"
+   ],
+   "items": {
+    "S1": {
+     "control": {
+      "pp": {
+       "label": "LED 1",
+       "transitionGroup": "S1"
+      }
+     },
+     "status": {
+      "pp": {
+       "mode": "FREESTYLE",
+       "mixingMode": "MIXER_SEAMLESS",
+       "transitionGroup": "S1",
+       "isStacked": false,
+       "layerCount": 2,
+       "outputCount": 1,
+       "capabilities": 1,
+       "regionValidity": [
+        "1"
+       ],
+       "hasOverlapWarning": [],
+       "isStereo3d": false
+      },
+      "size": {
+       "pp": {
+        "sizeH": 1728,
+        "sizeV": 960
+       }
+      }
+     },
+     "layerList": {
+      "itemKeys": [
+       "1",
+       "2",
+       "NATIVE"
+      ],
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "4K",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": true,
+          "usedInRegions": [
+           "1"
+          ],
+          "up": "CROSS",
+          "down": "CROSS",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "4K",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": true,
+          "usedInRegions": [
+           "1"
+          ],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       },
+       "NATIVE": {
+        "control": {
+         "pp": {
+          "freeze": []
+         }
+        },
+        "status": {
+         "pp": {
+          "capability": "OFF",
+          "scope": "LOCAL",
+          "canUseMask": false,
+          "isMixerModeEnabled": false,
+          "usedInRegions": [
+           "1"
+          ],
+          "up": "OFF",
+          "down": "OFF",
+          "destinationUp": "NATIVE",
+          "destinationDown": "NATIVE"
+         }
+        }
+       }
+      }
+     },
+     "presetList": {
+      "itemKeys": [
+       "A",
+       "B"
+      ],
+      "items": {
+       "A": {
+        "layerList": {
+         "itemKeys": [
+          "1",
+          "2",
+          "NATIVE"
+         ],
+         "items": {
+          "1": {
+           "source": {
+            "pp": {
+             "inputNum": "LIVE_2"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "LIVE_2"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 864,
+             "posV": 480,
+             "sizeH": 1728,
+             "sizeV": 960
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           },
+           "effects": {
+            "pp": {
+             "flags": []
+            },
+            "strobe": {
+             "pp": {
+              "frames": 2
+             }
+            }
+           },
+           "cropping": {
+            "classic": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0,
+              "aspectOverride": "CROPPED"
+             }
+            },
+            "mask": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0
+             }
+            }
+           },
+           "border": {
+            "edge": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 10,
+              "sizeV": 10,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            },
+            "shadow": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 0,
+              "sizeV": 0,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            }
+           },
+           "transition": {
+            "pp": {
+             "flags": [
+              "FORCE_TRANSITION"
+             ]
+            },
+            "opening": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            },
+            "closing": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            }
+           },
+           "flying": {
+            "pp": {
+             "type": "LINEAR"
+            },
+            "point1": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            },
+            "point2": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            }
+           },
+           "timing": {
+            "pp": {
+             "ratio": 32768
+            },
+            "opening": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            },
+            "closing": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            }
+           },
+           "speed": {
+            "pp": {
+             "type": "SMOOTH_TRANSITION",
+             "point1": 0,
+             "point2": 255
+            }
+           },
+           "cutNFill": {
+            "pp": {
+             "type": "NONE"
+            },
+            "cut": {
+             "pp": {
+              "inputNum": "NONE",
+              "curve": 16711935,
+              "flags": []
+             },
+             "cropping": {
+              "pp": {
+               "top": 0,
+               "bottom": 0,
+               "left": 0,
+               "right": 0
+              }
+             }
+            }
+           },
+           "keying": {
+            "pp": {
+             "enable": false,
+             "source": "NONE"
+            }
+           }
+          },
+          "2": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           },
+           "effects": {
+            "pp": {
+             "flags": []
+            },
+            "strobe": {
+             "pp": {
+              "frames": 2
+             }
+            }
+           },
+           "cropping": {
+            "classic": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0,
+              "aspectOverride": "NONE"
+             }
+            },
+            "mask": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0
+             }
+            }
+           },
+           "border": {
+            "edge": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 10,
+              "sizeV": 10,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            },
+            "shadow": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 0,
+              "sizeV": 0,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            }
+           },
+           "transition": {
+            "pp": {
+             "flags": [
+              "FORCE_TRANSITION"
+             ]
+            },
+            "opening": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            },
+            "closing": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            }
+           },
+           "flying": {
+            "pp": {
+             "type": "LINEAR"
+            },
+            "point1": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            },
+            "point2": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            }
+           },
+           "timing": {
+            "pp": {
+             "ratio": 32768
+            },
+            "opening": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            },
+            "closing": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            }
+           },
+           "speed": {
+            "pp": {
+             "type": "SMOOTH_TRANSITION",
+             "point1": 0,
+             "point2": 255
+            }
+           },
+           "cutNFill": {
+            "pp": {
+             "type": "NONE"
+            },
+            "cut": {
+             "pp": {
+              "inputNum": "NONE",
+              "curve": 16711935,
+              "flags": []
+             },
+             "cropping": {
+              "pp": {
+               "top": 0,
+               "bottom": 0,
+               "left": 0,
+               "right": 0
+              }
+             }
+            }
+           },
+           "keying": {
+            "pp": {
+             "enable": false,
+             "source": "NONE"
+            }
+           }
+          },
+          "NATIVE": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           },
+           "effects": {
+            "pp": {
+             "flags": []
+            },
+            "strobe": {
+             "pp": {
+              "frames": 2
+             }
+            }
+           },
+           "cropping": {
+            "classic": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0,
+              "aspectOverride": "NONE"
+             }
+            },
+            "mask": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0
+             }
+            }
+           },
+           "border": {
+            "edge": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 10,
+              "sizeV": 10,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            },
+            "shadow": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 0,
+              "sizeV": 0,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            }
+           },
+           "transition": {
+            "pp": {
+             "flags": [
+              "FORCE_TRANSITION"
+             ]
+            },
+            "opening": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            },
+            "closing": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            }
+           },
+           "flying": {
+            "pp": {
+             "type": "LINEAR"
+            },
+            "point1": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            },
+            "point2": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            }
+           },
+           "timing": {
+            "pp": {
+             "ratio": 32768
+            },
+            "opening": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            },
+            "closing": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            }
+           },
+           "speed": {
+            "pp": {
+             "type": "SMOOTH_TRANSITION",
+             "point1": 0,
+             "point2": 255
+            }
+           },
+           "cutNFill": {
+            "pp": {
+             "type": "NONE"
+            },
+            "cut": {
+             "pp": {
+              "inputNum": "NONE",
+              "curve": 16711935,
+              "flags": []
+             },
+             "cropping": {
+              "pp": {
+               "top": 0,
+               "bottom": 0,
+               "left": 0,
+               "right": 0
+              }
+             }
+            }
+           },
+           "keying": {
+            "pp": {
+             "enable": false,
+             "source": "NONE"
+            }
+           }
+          }
+         }
+        }
+       },
+       "B": {
+        "layerList": {
+         "itemKeys": [
+          "1",
+          "2",
+          "NATIVE"
+         ],
+         "items": {
+          "1": {
+           "source": {
+            "pp": {
+             "inputNum": "LIVE_8"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "LIVE_8"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 864,
+             "posV": 480,
+             "sizeH": 1728,
+             "sizeV": 960
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           },
+           "effects": {
+            "pp": {
+             "flags": []
+            },
+            "strobe": {
+             "pp": {
+              "frames": 2
+             }
+            }
+           },
+           "cropping": {
+            "classic": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0,
+              "aspectOverride": "CROPPED"
+             }
+            },
+            "mask": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0
+             }
+            }
+           },
+           "border": {
+            "edge": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 10,
+              "sizeV": 10,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            },
+            "shadow": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 0,
+              "sizeV": 0,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            }
+           },
+           "transition": {
+            "pp": {
+             "flags": [
+              "FORCE_TRANSITION"
+             ]
+            },
+            "opening": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            },
+            "closing": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            }
+           },
+           "flying": {
+            "pp": {
+             "type": "LINEAR"
+            },
+            "point1": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            },
+            "point2": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            }
+           },
+           "timing": {
+            "pp": {
+             "ratio": 32768
+            },
+            "opening": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            },
+            "closing": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            }
+           },
+           "speed": {
+            "pp": {
+             "type": "SMOOTH_TRANSITION",
+             "point1": 0,
+             "point2": 255
+            }
+           },
+           "cutNFill": {
+            "pp": {
+             "type": "NONE"
+            },
+            "cut": {
+             "pp": {
+              "inputNum": "NONE",
+              "curve": 16711935,
+              "flags": []
+             },
+             "cropping": {
+              "pp": {
+               "top": 0,
+               "bottom": 0,
+               "left": 0,
+               "right": 0
+              }
+             }
+            }
+           },
+           "keying": {
+            "pp": {
+             "enable": false,
+             "source": "NONE"
+            }
+           }
+          },
+          "2": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           },
+           "effects": {
+            "pp": {
+             "flags": []
+            },
+            "strobe": {
+             "pp": {
+              "frames": 2
+             }
+            }
+           },
+           "cropping": {
+            "classic": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0,
+              "aspectOverride": "NONE"
+             }
+            },
+            "mask": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0
+             }
+            }
+           },
+           "border": {
+            "edge": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 10,
+              "sizeV": 10,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            },
+            "shadow": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 0,
+              "sizeV": 0,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            }
+           },
+           "transition": {
+            "pp": {
+             "flags": [
+              "FORCE_TRANSITION"
+             ]
+            },
+            "opening": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            },
+            "closing": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            }
+           },
+           "flying": {
+            "pp": {
+             "type": "LINEAR"
+            },
+            "point1": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            },
+            "point2": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            }
+           },
+           "timing": {
+            "pp": {
+             "ratio": 32768
+            },
+            "opening": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            },
+            "closing": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            }
+           },
+           "speed": {
+            "pp": {
+             "type": "SMOOTH_TRANSITION",
+             "point1": 0,
+             "point2": 255
+            }
+           },
+           "cutNFill": {
+            "pp": {
+             "type": "NONE"
+            },
+            "cut": {
+             "pp": {
+              "inputNum": "NONE",
+              "curve": 16711935,
+              "flags": []
+             },
+             "cropping": {
+              "pp": {
+               "top": 0,
+               "bottom": 0,
+               "left": 0,
+               "right": 0
+              }
+             }
+            }
+           },
+           "keying": {
+            "pp": {
+             "enable": false,
+             "source": "NONE"
+            }
+           }
+          },
+          "NATIVE": {
+           "source": {
+            "pp": {
+             "inputNum": "NONE"
+            },
+            "status": {
+             "pp": {
+              "inputNum": "NONE"
+             }
+            },
+            "color": {
+             "pp": {
+              "red": 0,
+              "green": 0,
+              "blue": 0
+             }
+            }
+           },
+           "position": {
+            "pp": {
+             "anchor": "MIDDLE_CENTER",
+             "posH": 960,
+             "posV": 540,
+             "sizeH": 1920,
+             "sizeV": 1080
+            },
+            "stereo3d": {
+             "pp": {
+              "posZ": 0
+             }
+            }
+           },
+           "opacity": {
+            "pp": {
+             "opacity": 256
+            }
+           },
+           "effects": {
+            "pp": {
+             "flags": []
+            },
+            "strobe": {
+             "pp": {
+              "frames": 2
+             }
+            }
+           },
+           "cropping": {
+            "classic": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0,
+              "aspectOverride": "NONE"
+             }
+            },
+            "mask": {
+             "pp": {
+              "top": 0,
+              "bottom": 0,
+              "left": 0,
+              "right": 0
+             }
+            }
+           },
+           "border": {
+            "edge": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 10,
+              "sizeV": 10,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            },
+            "shadow": {
+             "pp": {
+              "style": [],
+              "radius": 255,
+              "sizeH": 0,
+              "sizeV": 0,
+              "opacity": 255
+             },
+             "color": {
+              "pp": {
+               "red": 1,
+               "green": 56,
+               "blue": 136
+              }
+             }
+            }
+           },
+           "transition": {
+            "pp": {
+             "flags": [
+              "FORCE_TRANSITION"
+             ]
+            },
+            "opening": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            },
+            "closing": {
+             "pp": {
+              "type": "FADE",
+              "way": "LEFT_TO_RIGHT"
+             }
+            }
+           },
+           "flying": {
+            "pp": {
+             "type": "LINEAR"
+            },
+            "point1": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            },
+            "point2": {
+             "pp": {
+              "posH": 0,
+              "posV": 0
+             }
+            }
+           },
+           "timing": {
+            "pp": {
+             "ratio": 32768
+            },
+            "opening": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            },
+            "closing": {
+             "pp": {
+              "start": 0,
+              "end": 65535
+             }
+            }
+           },
+           "speed": {
+            "pp": {
+             "type": "SMOOTH_TRANSITION",
+             "point1": 0,
+             "point2": 255
+            }
+           },
+           "cutNFill": {
+            "pp": {
+             "type": "NONE"
+            },
+            "cut": {
+             "pp": {
+              "inputNum": "NONE",
+              "curve": 16711935,
+              "flags": []
+             },
+             "cropping": {
+              "pp": {
+               "top": 0,
+               "bottom": 0,
+               "left": 0,
+               "right": 0
+              }
+             }
+            }
+           },
+           "keying": {
+            "pp": {
+             "enable": false,
+             "source": "NONE"
+            }
+           }
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}
