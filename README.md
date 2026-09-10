@@ -95,17 +95,17 @@ between the markers and rewrites it wholesale at each release.
 
 ## Download
 
-**[v0.3.1](https://github.com/stoatworks-labs/livepremier-plus/releases/tag/v0.3.1)** — prebuilt for macOS, Windows and Linux. Pick your platform:
+**[v0.4.0](https://github.com/stoatworks-labs/livepremier-plus/releases/tag/v0.4.0)** — prebuilt for macOS, Windows and Linux. Pick your platform:
 
 <details>
 <summary><b>macOS</b> — Apple Silicon, Intel</summary>
 
 | Build | Download | Size |
 | --- | --- | --- |
-| Apple Silicon · .dmg disk image | [`livepremier-plus-0.3.1-macos-aarch64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-aarch64.dmg) | 40 MB |
-| Intel · .dmg disk image | [`livepremier-plus-0.3.1-macos-x86_64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-x86_64.dmg) | 42 MB |
-| Apple Silicon · .pkg installer | [`livepremier-plus-0.3.1-macos-aarch64.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-aarch64.pkg) | 40 MB |
-| Intel · .pkg installer | [`livepremier-plus-0.3.1-macos-x86_64.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/livepremier-plus-0.3.1-macos-x86_64.pkg) | 42 MB |
+| Apple Silicon · .dmg disk image | [`livepremier-plus-0.4.0-macos-aarch64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.4.0/livepremier-plus-0.4.0-macos-aarch64.dmg) | 40 MB |
+| Intel · .dmg disk image | [`livepremier-plus-0.4.0-macos-x86_64.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.4.0/livepremier-plus-0.4.0-macos-x86_64.dmg) | 42 MB |
+| Apple Silicon · .pkg installer | [`livepremier-plus-0.4.0-macos-aarch64.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.4.0/livepremier-plus-0.4.0-macos-aarch64.pkg) | 40 MB |
+| Intel · .pkg installer | [`livepremier-plus-0.4.0-macos-x86_64.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.4.0/livepremier-plus-0.4.0-macos-x86_64.pkg) | 42 MB |
 
 </details>
 
@@ -114,7 +114,7 @@ between the markers and rewrites it wholesale at each release.
 
 | Build | Download | Size |
 | --- | --- | --- |
-| x64 · .exe installer | [`LivePremier.Plus_0.3.1_x64-setup.exe`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/LivePremier.Plus_0.3.1_x64-setup.exe) | 25 MB |
+| x64 · .exe installer | [`LivePremier.Plus_0.4.0_x64-setup.exe`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.4.0/LivePremier.Plus_0.4.0_x64-setup.exe) | 25 MB |
 
 </details>
 
@@ -123,8 +123,8 @@ between the markers and rewrites it wholesale at each release.
 
 | Build | Download | Size |
 | --- | --- | --- |
-| x64 · .deb package (Debian/Ubuntu) | [`LivePremier.Plus_0.3.1_amd64.deb`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/LivePremier.Plus_0.3.1_amd64.deb) | 50 MB |
-| x64 · .rpm package (Fedora/RHEL) | [`LivePremier.Plus-0.3.1-1.x86_64.rpm`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.3.1/LivePremier.Plus-0.3.1-1.x86_64.rpm) | 50 MB |
+| x64 · .deb package (Debian/Ubuntu) | [`LivePremier.Plus_0.4.0_amd64.deb`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.4.0/LivePremier.Plus_0.4.0_amd64.deb) | 50 MB |
+| x64 · .rpm package (Fedora/RHEL) | [`LivePremier.Plus-0.4.0-1.x86_64.rpm`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.4.0/LivePremier.Plus-0.4.0-1.x86_64.rpm) | 50 MB |
 
 </details>
 
