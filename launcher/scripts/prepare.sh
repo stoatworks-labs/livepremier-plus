@@ -52,7 +52,35 @@ cp -R "$REPO/src" "$APP/src"
 cp "$REPO/package.json" "$APP/package.json"
 
 echo "==> fetching self-contained Node $NODE_VERSION ($PLATFORM)"
-if [[ "$PLATFORM" == win-* ]]; then
+# nodejs.org publishes no universal macOS build, so the single universal macOS
+# bundle needs both runtimes fetched and merged. The app binary being fat is not
+# enough on its own: a universal app around an arm64-only node would launch on
+# an Intel Mac and then fail the moment it started its server.
+if [[ "$PLATFORM" == darwin-universal ]]; then
+  for __a in arm64 x64; do
+    TARBALL="node-$NODE_VERSION-darwin-$__a"
+    curl -sL "https://nodejs.org/dist/$NODE_VERSION/$TARBALL.tar.gz" -o "$TAURI/node.tar.gz"
+    tar xzf "$TAURI/node.tar.gz" -C "$TAURI"
+    cp "$TAURI/$TARBALL/bin/node" "$TAURI/node.$__a"
+    rm -rf "$TAURI/$TARBALL" "$TAURI/node.tar.gz"
+  done
+  lipo -create "$TAURI/node.arm64" "$TAURI/node.x64" -output "$TAURI/node"
+  # tauri.conf.json globs its resources, so an intermediate left here would be
+  # shipped inside the app alongside the real one.
+  rm -f "$TAURI/node.arm64" "$TAURI/node.x64"
+  chmod +x "$TAURI/node"
+  __archs="$( lipo -archs "$TAURI/node" )"
+  echo "    embedded node: $__archs"
+  case "$__archs" in
+    *arm64*) ;;
+    *) echo "embedded node has no arm64 slice: $__archs" >&2; exit 1 ;;
+  esac
+  case "$__archs" in
+    *x86_64*) ;;
+    *) echo "embedded node has no x86_64 slice: $__archs" >&2; exit 1 ;;
+  esac
+  echo "prepared: $TAURI/node (universal) + $APP (server + panels)"
+elif [[ "$PLATFORM" == win-* ]]; then
   TARBALL="node-$NODE_VERSION-$PLATFORM"
   curl -sL "https://nodejs.org/dist/$NODE_VERSION/$TARBALL.zip" -o "$TAURI/node.zip"
   ( cd "$TAURI"

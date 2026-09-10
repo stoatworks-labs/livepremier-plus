@@ -31,8 +31,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: macos-aarch64,  os: macos-14,       node_platform: darwin-arm64, rust_target: aarch64-apple-darwin,  tauri_target: aarch64-apple-darwin }
-          - { name: macos-x86_64,   os: macos-14,       node_platform: darwin-x64,   rust_target: x86_64-apple-darwin,   tauri_target: x86_64-apple-darwin }
+          # ONE macOS build for both architectures. Tauri's
+          # universal-apple-darwin target lipos the app binary, and
+          # NODE_PLATFORM=darwin-universal makes prepare.sh lipo the embedded
+          # Node runtime to match — both halves have to be fat or the app
+          # launches on an Intel Mac and then cannot start its server.
+          #
+          # rust_target is what rustup installs: universal-apple-darwin is a
+          # Tauri bundling target and `rustup target add` on it fails.
+          - { name: macos-universal, os: macos-14,       node_platform: darwin-universal, rust_target: 'aarch64-apple-darwin,x86_64-apple-darwin', tauri_target: universal-apple-darwin }
           - { name: windows-x86_64, os: windows-latest, node_platform: win-x64,      rust_target: x86_64-pc-windows-msvc }
           - { name: linux-x86_64,   os: ubuntu-22.04,   node_platform: linux-x64,    rust_target: x86_64-unknown-linux-gnu }
     steps:
@@ -127,9 +134,51 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         shell: bash
         run: |
-          target="launcher/src-tauri/target/${{ matrix.tauri_target }}/release"
-          rm -rf "$target/build" "$target/deps" "$target/incremental" "$target/.fingerprint"
+          # The universal build compiles under the two REAL triples and lipos
+          # the result into target/universal-apple-darwin, so the intermediates
+          # worth deleting are the per-arch ones. Pointing this at
+          # matrix.tauri_target would clean the merged output's directory and
+          # leave both per-arch trees untouched -- the opposite of the point.
+          for t in aarch64-apple-darwin x86_64-apple-darwin; do
+            d="launcher/src-tauri/target/$t/release"
+            rm -rf "$d/build" "$d/deps" "$d/incremental" "$d/.fingerprint"
+          done
           df -h / | tail -1
+
+      # EVERY Mach-O in the bundle, not just Contents/MacOS/<exe>: this app
+      # embeds a Node runtime, and a fat wrapper around a thin runtime is still
+      # broken on half the Macs that download it. RFutils shipped exactly that.
+      #
+      # Captured and matched with `case`, never piped into grep: steps run as
+      # `bash -eo pipefail`, so grep exiting at its first match SIGPIPEs lipo
+      # and fails the step BECAUSE the match was found.
+      - name: Verify the macOS bundle is universal
+        if: startsWith(matrix.os, 'macos')
+        shell: bash
+        run: |
+          appdir="launcher/src-tauri/target/${{ matrix.tauri_target }}/release/bundle/macos"
+          app="$(find "$appdir" -maxdepth 1 -name '*.app' | head -1)"
+          [ -n "$app" ] || { echo "no .app produced in $appdir" >&2; exit 1; }
+          found=0
+          while IFS= read -r f; do
+            __archs="$( lipo -archs "$f" 2>/dev/null )" || continue
+            [ -n "$__archs" ] || continue
+            found=$((found+1))
+            echo "${f#$app/}: $__archs"
+            case "$__archs" in
+              *arm64*) ;;
+              *) echo "expected an arm64 slice in $f, got: $__archs" >&2; exit 1 ;;
+            esac
+            case "$__archs" in
+              *x86_64*) ;;
+              *) echo "expected an x86_64 slice in $f, got: $__archs" >&2; exit 1 ;;
+            esac
+          done < <(find "$app" -type f -perm -u+x)
+          # A find that matched nothing would pass every check above in silence.
+          if [ "$found" -lt 2 ]; then
+            echo "expected at least the app binary and the embedded node, found $found" >&2
+            exit 1
+          fi
 
       - name: Build the macOS .pkg
         if: startsWith(matrix.os, 'macos')
