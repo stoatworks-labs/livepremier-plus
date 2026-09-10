@@ -354,7 +354,23 @@ export class Shell {
     const overlay = this._overlay();
     overlay.hidden = false;
     const main = this._mainContent();
-    if (main) { main.dataset.wruPrevDisplay = main.style.display || ''; main.style.display = 'none'; }
+    if (main) {
+      /*
+       * Only the *first* open records what the vendor's display was. Going
+       * straight from one of our panels to another — Pitch Compensation to
+       * this page, both of which sit in the Preconfig flyout — calls `show`
+       * again with no `hide` in between, and without this guard the second
+       * one records the `none` the first one wrote. `hide` then faithfully
+       * restores `display: none`, the vendor's content area stays invisible
+       * with the whole app rendered inside it, and every route the operator
+       * clicks after that is a blank page until they reload. TabHost has
+       * carried the same guard since it hit this on the tab strip.
+       */
+      if (main.dataset.wruPrevDisplay === undefined) {
+        main.dataset.wruPrevDisplay = main.style.display || '';
+      }
+      main.style.display = 'none';
+    }
     overlay.textContent = '';
     overlay.append(entry.render());
     this._syncNav();
@@ -366,7 +382,15 @@ export class Shell {
     const overlay = document.getElementById('wru-overlay');
     if (overlay) { overlay.hidden = true; overlay.textContent = ''; }
     const main = this._mainContent();
-    if (main) { main.style.display = main.dataset.wruPrevDisplay || ''; delete main.dataset.wruPrevDisplay; }
+    if (main) {
+      /* `none` is never a value worth giving back: the vendor's content area
+         fills the row whenever the app is running, so a recorded `none` can
+         only be one of ours that leaked. Belt to the guard's braces — closing
+         a panel must not be able to blank the app whatever else went wrong. */
+      const prev = main.dataset.wruPrevDisplay;
+      main.style.display = !prev || prev === 'none' ? '' : prev;
+      delete main.dataset.wruPrevDisplay;
+    }
     this._syncNav();
   }
 

@@ -282,6 +282,52 @@ test('opening a panel hides the vendor content and gives it back on close', asyn
   });
 });
 
+/*
+ * The blank page of 2026-09-10, on a live Aquilon C.
+ *
+ * Pitch Compensation and LivePremier Plus are neighbours in the Preconfig
+ * flyout, so going from one to the other is one click and no `hide` at all.
+ * The second `show` used to record the `none` the first had written, `hide`
+ * gave it back, and the vendor's content area stayed invisible with the whole
+ * app still rendered and routed inside it — every page after that blank until
+ * a reload. What is pinned here is that only the first open reads the display.
+ */
+test('opening a second panel over an open one still gives the vendor content back', async () => {
+  await withDom(async ({ main }) => {
+    const { Shell } = await import('../src/ui/shell.js');
+    const shell = new Shell({
+      entries: [
+        entry({ id: 'pitch', label: 'Pitch', submenuOf: 'Preconfig' }),
+        entry({ id: 'settings', label: 'X', submenuOf: 'Preconfig' })
+      ]
+    });
+    shell._mount();
+    main.style.display = 'flex';   // the vendor had its own value
+
+    shell.show('pitch');
+    shell.show('settings');        // straight across, no hide in between
+    assert.equal(main.style.display, 'none');
+
+    shell.hide();
+    assert.equal(main.style.display, 'flex', 'restored, not left hidden');
+  });
+});
+
+/* And whatever else goes wrong, closing a panel may not blank the app: a
+   recorded `none` can only ever be one of ours that leaked. */
+test('a leaked none is never given back to the vendor content', async () => {
+  await withDom(async ({ main }) => {
+    const { Shell } = await import('../src/ui/shell.js');
+    const shell = new Shell({ entries: [entry({ id: 'settings', label: 'X', submenuOf: 'Preconfig' })] });
+    shell._mount();
+
+    shell.show('settings');
+    main.dataset.wruPrevDisplay = 'none';
+    shell.hide();
+    assert.equal(main.style.display, '');
+  });
+});
+
 test('clicking our flyout entry opens it, and clicking it again closes it', async () => {
   await withDom(async ({ sublist }) => {
     const { Shell } = await import('../src/ui/shell.js');
