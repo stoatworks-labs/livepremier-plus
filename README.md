@@ -1,9 +1,10 @@
 > **AI-assisted project.** This codebase was created with [Claude Code](https://claude.com/claude-code).
 > The panels render inside a real Web RCS session and the device store mirrors live, both verified
-> through this proxy against **LivePremier Simulator 6.2.73**, and the VPU map is tested against a
-> capture read off a live **Aquilon C**. **Nothing has ever been written to that device**, the
-> timeline has only ever fired at a simulator, and no panel has been driven live against physical
-> hardware in a browser. The Status note below is specific about which is which.
+> through this proxy against **LivePremier Simulator 6.2.73**. **In field testing:** every path this
+> app emits has now been checked against a physical **Aquilon C**, and the VPU map is tested against
+> a store read off one. **This app has still never written to a device**, the timeline has only ever
+> fired at a simulator, and no panel has been driven live against physical hardware in a browser.
+> The Status note below is specific about which is which.
 
 # LivePremier Plus
 
@@ -29,15 +30,27 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: v0.3.0, the first public release.** The panels render inside a real Web RCS
+> **Status: field testing — v0.3.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
 > is tested against that capture, including Optimized mode, interleaved output
 > links, and a staged preconfig that differs from the running one.
-> **Nothing has ever been written to that device**, the timeline has only ever
+>
+> **Verified against real hardware (Aquilon C `NLC_C`, firmware 6.2.73,
+> 2026-09-09).** Every path this app emits was checked against the box: the
+> command table resolved with no `E12`, the VPU collections answered, and the
+> pitch paths resolved — confirming `pitchedWidth`/`pitchedHeight` really do
+> live under `canvas/status`, and that the output collection key is numeric
+> (`1`), not `OUTPUT_1`, which the device refuses. The device store was pulled
+> whole (124 MB) and the VPU model re-checked against it rather than against a
+> capture. Nothing disagreed with what the simulator had taught us.
+>
+> **Still untested on hardware, and this is the honest part:** this app has
+> **never written to a device** — every hardware write in that session was sent
+> by a separate test harness, not by these panels. The timeline has only ever
 > fired at a simulator, and **no panel has been driven live against physical
-> hardware in a browser.** That is the first thing to try.
+> hardware in a browser.** That is still the first thing to try.
 
 **[Watch it work (50s)](https://www.youtube.com/watch?v=mGjGiNO_tSo)** — the real
 application, driven through its own controls: the VPU map off a real Aquilon C
