@@ -37,7 +37,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.4.1.** The panels render inside a real Web RCS
+> **Status: field testing — v0.5.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -59,6 +59,14 @@ to install in the browser.
 > simulator. That is what turned up the blank page fixed in 0.4.1: closing a
 > panel handed back a `display: none` the panel had written itself, and Web RCS
 > carried on routing and rendering into an element no wider than nothing.
+>
+> **The Memories and Layer panels (new in 0.5.0) were driven against the same
+> box** the day they were written: 85 screen memories listed under their real
+> names, and program/preview resolved and checked against the device's own
+> `presetUp`/`presetDown`/`transition`. Their writes — recall, save, erase,
+> rename, and a layer property with its clamp — were exercised with the socket
+> **stubbed**, so the paths and values are proven and the switcher received none
+> of them.
 >
 > **Still untested on hardware, and this is the honest part:** this app has
 > **never written to a device** — every hardware write in that session was sent
