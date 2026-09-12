@@ -255,14 +255,33 @@ export function createOscServer({
       return note({ from, address: msg.address, args: msg.args, error: 'no switcher configured' });
     }
 
+    /*
+     * A button release is recognised before the switcher is consulted. Rule 2
+     * of the dictionary — a trigger with a zero argument is the release half
+     * of a press — holds on both platforms, and a release that had to wait on
+     * an AWJ round trip, or failed because the box was unreachable, would be
+     * logged as an error for doing exactly the right thing. Resolving against
+     * LivePremier's spelling is enough to see it: a release is an empty op
+     * list either way, and anything that is not a release is resolved again
+     * below, for the platform that is really there.
+     */
+    let platform = known.host === host ? known.platform : null;
+    if (!platform) {
+      const probe = resolveOsc(msg, { params: paramsFor(LIVEPREMIER), platform: LIVEPREMIER });
+      if (probe.ok && probe.ops.length === 0) {
+        return note({ from, address: msg.address, args: msg.args, summary: probe.summary, writes: 0 });
+      }
+    }
+
     /* Spelled for the switcher that is actually there. The first packet after
        a start, or after re-pointing, pays one AWJ round trip to find out. */
-    let platform;
-    try {
-      platform = await platformFor(host);
-    } catch (err) {
-      state.failed++;
-      return note({ from, address: msg.address, args: msg.args, error: `could not identify ${host}: ${err.message}` });
+    if (!platform) {
+      try {
+        platform = await platformFor(host);
+      } catch (err) {
+        state.failed++;
+        return note({ from, address: msg.address, args: msg.args, error: `could not identify ${host}: ${err.message}` });
+      }
     }
 
     const resolved = resolveOsc(msg, { params: paramsFor(platform), platform });
