@@ -330,16 +330,15 @@ test('a cue fired before the store has arrived sends nothing, and says so', () =
 
 /* --------------------------------------------------------- capabilities */
 
-test('a real Pulse 4K store gets the cue stack and the banks, and not the rest', () => {
+test('a real Pulse 4K store gets the cue stack, the banks and the console, and not the rest', () => {
   const p = detectPlatform(pulse);
   assert.equal(p.id, 'midra4k');
   assert.equal(p.modelName, 'Pulse 4K');
-  for (const cap of ['screens', 'cueStack']) assert.equal(supports(p, cap), true, cap);
-  for (const cap of ['console', 'layerProperties', 'vpuMap', 'pitchCompensation', 'audioPatch']) {
+  for (const cap of ['screens', 'cueStack', 'console']) assert.equal(supports(p, cap), true, cap);
+  for (const cap of ['layerProperties', 'vpuMap', 'pitchCompensation', 'audioPatch']) {
     assert.equal(supports(p, cap), false, cap);
     assert.ok(whyNot(p, cap), 'and says why: ' + cap);
   }
-  assert.match(whyNot(p, 'console'), /LivePremier paths/);
   assert.match(whyNot(p, 'layerProperties'), /catalogue/);
 });
 

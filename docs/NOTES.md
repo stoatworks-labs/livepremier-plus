@@ -817,3 +817,27 @@ cut from the sim after the asserted writes had been made — 270 tests.
   not have; it is also catalogue-driven, so it belongs with the Layer work.
 - Drive it against a physical Midra / Alta when one is not mid-show.
 
+### The Console followed, the same day
+
+mynah `6272e77` (v1.4.0) gained `src/lang/platforms.ts` — `LIVEPREMIER` and
+`MIDRA` — and a `platform` in the run/compile/parse context; re-vendored here
+by `npm run sync:mynah-lang`. `ui/console-panel.js` passes
+`mynahPlatform(dialectFor(store))`; `server/osc.js` asks the switcher over AWJ
+(the nlc per-frame `dev` path vs the mng `platformLabel` path — a missing path
+answers `{path:"", value:null}` on both simulators) and caches per host.
+Driven at the Pulse 4K simulator's Console: `Recall Screen 2 Memory 2 Program`
+landed `DOWN.memoryId = 2`, `Take Screen 2` flipped it to `AT_UP`,
+`/lp/screen/2/group/control/takeTime 15` wrote 15, `Take Screen 7` was refused
+with "1 to 4". `docs/OSC.md` now carries the Midra tables (44 addresses).
+
+⚠️ **`SAVE_FROM_PVW` never existed.** mynah had written it for every
+`Store Master … Preview` since day one; the enum is `SAVE_FROM_PRW` on both
+platforms and the device keeps the previous mode when sent the wrong word.
+Proved on the LivePremier simulator by writing both and reading back. Fixed
+upstream; this vendored copy has the fix.
+
+- The Browser pane's `key: "Return"` sends an empty keydown; `"Enter"` is the
+  one that carries `key: 'Enter'`. Cost a round of "the console does not
+  submit".
+- The mng sprite has no `mini-list-14`; the Console tab falls back to `bars-14`.
+

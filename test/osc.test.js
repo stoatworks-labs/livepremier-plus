@@ -18,9 +18,9 @@ import { fileURLToPath } from 'node:url';
 
 import { decode, createOscServer } from '../server/osc.js';
 import { exchange } from '../server/awj.js';
-import { PARAMS, PROVENANCE } from '../src/core/osc-dictionary.js';
+import { PARAMS, PROVENANCE, paramsFor } from '../src/core/osc-dictionary.js';
 import { normalise, DEFAULT_SETTINGS, oscChanged } from '../src/core/settings.js';
-import { oscDictionary, resolveOsc, run } from '../src/vendor/mynah-lang.mjs';
+import { oscDictionary, resolveOsc, run, MIDRA } from '../src/vendor/mynah-lang.mjs';
 import { generate } from '../tools/gen-osc-docs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -76,7 +76,7 @@ async function until(cond, ms = 2000) {
  * and the thing most likely to be got wrong by anything waiting for an
  * acknowledgement that is never coming.
  */
-async function fakeAwj({ splitReplies = false, answer = 'NLC_RS4' } = {}) {
+async function fakeAwj({ splitReplies = false, answer = 'NLC_RS4', answers = null } = {}) {
   const received = [];
   const server = net.createServer((socket) => {
     let buffer = Buffer.alloc(0);
@@ -91,8 +91,12 @@ async function fakeAwj({ splitReplies = false, answer = 'NLC_RS4' } = {}) {
         received.push(msg);
         if (msg.op !== 'get') continue;
 
+        /* `answers(path)` says what this pretend device has. A path it does
+           not have is answered the way the real one answers: an empty path
+           and a null value — seen on both simulators on 2026-09-12. */
+        const value = answers ? answers(msg.path) : answer;
         const reply = Buffer.concat([
-          Buffer.from(JSON.stringify({ path: msg.path, value: answer }), 'utf8'),
+          Buffer.from(JSON.stringify(value === undefined ? { path: '', value: null } : { path: msg.path, value }), 'utf8'),
           Buffer.from([EOT]),
         ]);
         if (splitReplies) {
@@ -332,6 +336,76 @@ test('a UDP take reaches the switcher as an AWJ write', async () => {
   }
 });
 
+/*
+ * The listener holds no store, so it asks the switcher which platform it is
+ * before spelling anything for it: a LivePremier answers the per-frame `dev`,
+ * a Midra or Alta answers `platformLabel`, and each answers the other's path
+ * with a null frame. Two pretend devices, one per family.
+ */
+async function udpThrough(device, address) {
+  const entries = [];
+  let resolveDone;
+  const done = new Promise((r) => { resolveDone = r; });
+  const osc = createOscServer({
+    port: 0,
+    address: '127.0.0.1',
+    deviceHost: () => '127.0.0.1',
+    awjPort: device.port,
+    onActivity: (e) => { entries.push(e); resolveDone(e); },
+  });
+  await osc.start();
+  try {
+    const client = dgram.createSocket('udp4');
+    await new Promise((r) => client.send(omsg(address, 'i', oint(1)), osc.state.port, '127.0.0.1', () => { client.close(); r(); }));
+    await Promise.race([done, new Promise((_, rej) => setTimeout(() => rej(new Error('nothing heard')), 3000))]);
+    /* The write is flushed before the entry is logged, but the pretend device
+       reads it on its own socket a tick later. */
+    if (!entries[0].error) await until(() => device.received.some((m) => m.op === 'replace'), 1000).catch(() => {});
+    return { entry: entries[0], platform: osc.state.platform, writes: device.received.filter((m) => m.op === 'replace') };
+  } finally {
+    await osc.stop();
+  }
+}
+
+test('a switcher that names its platform gets Midra addresses', async () => {
+  const device = await fakeAwj({
+    answers: (path) => (path.endsWith('@props/platformLabel') ? 'Midra 4K' : undefined),
+  });
+  try {
+    const { entry, platform, writes } = await udpThrough(device, '/lp/screen/1/take');
+    assert.equal(entry.error, undefined, entry.error);
+    assert.equal(platform, 'Midra 4K / Alta 4K');
+    assert.deepEqual(writes.map((w) => w.path), ['DeviceObject/transition/$screen/@items/1/control/@props/xTake']);
+  } finally {
+    await device.close();
+  }
+});
+
+test('a switcher with a device list gets LivePremier addresses', async () => {
+  const device = await fakeAwj({
+    answers: (path) => (path.endsWith('$device/@items/1/@props/dev') ? 'NLC_C' : undefined),
+  });
+  try {
+    const { entry, platform, writes } = await udpThrough(device, '/lp/screen/1/take');
+    assert.equal(entry.error, undefined, entry.error);
+    assert.equal(platform, 'LivePremier');
+    assert.deepEqual(writes.map((w) => w.path), ['DeviceObject/$screenAuxGroup/@items/S1/control/@props/xTake']);
+  } finally {
+    await device.close();
+  }
+});
+
+test('a switcher that answers neither identity path gets nothing sent, with the reason', async () => {
+  const device = await fakeAwj({ answers: () => undefined });
+  try {
+    const { entry, writes } = await udpThrough(device, '/lp/screen/1/take');
+    assert.match(entry.error, /neither identity path/);
+    assert.equal(writes.length, 0);
+  } finally {
+    await device.close();
+  }
+});
+
 test('a button release is logged and sends nothing', async () => {
   let entry = null;
   let resolveEntry;
@@ -417,6 +491,12 @@ test('every documented address is one the resolver answers', () => {
     const line = `${fill(entry.address)} ${sampleArg(entry.args)}`.trim();
     const r = run(line, { language: 'osc', osc: { params: PARAMS } });
     assert.ok(r.ok, `${entry.address}: ${r.ok ? '' : r.errors[0].message}`);
+  }
+  /* And the Midra tables, resolved as a Midra. */
+  for (const entry of oscDictionary(paramsFor(MIDRA), MIDRA)) {
+    const line = `${fill(entry.address).replace('{preview|program|up|down}', 'up')} ${sampleArg(entry.args)}`.trim();
+    const r = run(line, { language: 'osc', platform: MIDRA, osc: { params: paramsFor(MIDRA) } });
+    assert.ok(r.ok, `Midra ${entry.address}: ${r.ok ? '' : r.errors[0].message}`);
   }
 });
 

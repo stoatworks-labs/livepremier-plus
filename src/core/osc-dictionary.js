@@ -42,7 +42,7 @@
  */
 
 import { layerParams, screenGroupParams, meta } from '../vendor/surface/catalogue.js';
-import { BUILTIN_PARAMS } from '../vendor/mynah-lang.mjs';
+import { BUILTIN_PARAMS, BUILTIN_MIDRA_PARAMS, LIVEPREMIER, MIDRA } from '../vendor/mynah-lang.mjs';
 
 /**
  * A human sentence for a parameter, where this repo has one worth adding.
@@ -119,3 +119,33 @@ export const PROVENANCE = {
   layerCount: PARAMS.layer.length,
   groupCount: PARAMS.screenGroup.length,
 };
+
+/**
+ * The table for a platform.
+ *
+ * The catalogue above was generated from a LivePremier bundle, so it widens
+ * LivePremier's space and nobody else's. Midra 4K / Alta 4K get mynah's own
+ * vouched-for Midra table — source, geometry, opacity and the take group —
+ * until a catalogue is generated from an mng bundle. Honest and small beats
+ * wide and wrong: an address the resolver answers with a LivePremier tail
+ * would be accepted by a Midra into nowhere.
+ *
+ * @param {object} platform  a mynah platform — `LIVEPREMIER` or `MIDRA`
+ */
+export function paramsFor(platform) {
+  return platform && platform.id === MIDRA.id ? BUILTIN_MIDRA_PARAMS : PARAMS;
+}
+
+/**
+ * The mynah platform for one of this app's dialects.
+ *
+ * `core/dialect.js` names the object model the store speaks; mynah names the
+ * platform its grammar compiles for. They are the same two things under two
+ * names, and this is the only place the names meet.
+ *
+ * @param {{id: string}|null} dialect
+ */
+export function mynahPlatform(dialect) {
+  return dialect && dialect.id === 'mng' ? MIDRA : LIVEPREMIER;
+}
+

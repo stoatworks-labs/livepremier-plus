@@ -302,6 +302,104 @@ Nothing is ever sent back. This listens; it does not answer.
 
 ---
 
+## Midra 4K / Alta 4K
+
+The same addresses on the other platform — QuickVu, Pulse, Eikos, QuickMatrix,
+Zenith 100 and 200 — spelled for its object model. The listener asks the
+switcher which platform it is before it resolves anything (one AWJ read of the
+device's own identity, remembered until the switcher changes), so a layout
+built from the tables above works on either box as far as the addresses are
+shared; what differs is below.
+
+- Screens and auxes are 1–4, layers 1–8, and there is no `native` layer.
+- Memory slots are 1–200 (screen and aux banks), 1–50 (master) and 1–20
+  (multiviewer). **There is no layer memory bank**, so the
+  `/layer/{l}/memory/…` addresses are absent here.
+- The preset buffers are `up` and `down`, not `a`/`b`/`c`. Which one is
+  program follows the take state; over UDP, name the buffer.
+- The layer table is mynah's own vouched-for set — source, geometry, opacity
+  — until a catalogue is generated from a Midra bundle. Note the spellings:
+  `source/input` takes `INPUT_1`–`INPUT_16`, and size is its own node,
+  `size/sizeH`. The take group has one `takeTime` for both directions.
+
+**44 addresses.**
+
+### Screens
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/lp/screen/{n}/take` | none, or 1 to fire | Transition preview to program. screen is 1–4. |
+| `/lp/screen/{n}/cut` | none, or 1 to fire | Swap preview and program with no transition. screen is 1–4. |
+| `/lp/screen/{n}/memory/{slot}/recall` | none, or 1 to fire | Recall a memory into preview. Slots 1–200. |
+| `/lp/screen/{n}/memory/{slot}/recall/{preview\|program}` | none, or 1 to fire | The same, saying which preset. Without it, preview — never program. |
+| `/lp/screen/{n}/memory/{slot}/store` | none, or 1 to fire | Store the program preset into a memory. |
+| `/lp/screen/{n}/memory/{slot}/store/{preview\|program}` | none, or 1 to fire | The same, saying which preset to take the look from. |
+| `/lp/screen/{n}/memory/{slot}/label` | string | Rename a memory. |
+| `/lp/screen/{n}/memory/{slot}/delete` | none, or 1 to fire | Empty a memory slot. |
+
+### Auxiliary screens
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/lp/aux/{n}/take` | none, or 1 to fire | Transition preview to program. aux is 1–4. |
+| `/lp/aux/{n}/cut` | none, or 1 to fire | Swap preview and program with no transition. aux is 1–4. |
+| `/lp/aux/{n}/memory/{slot}/recall` | none, or 1 to fire | Recall a memory into preview. Slots 1–200. |
+| `/lp/aux/{n}/memory/{slot}/recall/{preview\|program}` | none, or 1 to fire | The same, saying which preset. Without it, preview — never program. |
+| `/lp/aux/{n}/memory/{slot}/store` | none, or 1 to fire | Store the program preset into a memory. |
+| `/lp/aux/{n}/memory/{slot}/store/{preview\|program}` | none, or 1 to fire | The same, saying which preset to take the look from. |
+| `/lp/aux/{n}/memory/{slot}/label` | string | Rename a memory. |
+| `/lp/aux/{n}/memory/{slot}/delete` | none, or 1 to fire | Empty a memory slot. |
+
+### Master
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/lp/master/memory/{slot}/recall` | none, or 1 to fire | Recall a master memory into preview. Slots 1–50. |
+| `/lp/master/memory/{slot}/recall/{preview\|program}` | none, or 1 to fire | The same, saying which preset. |
+| `/lp/master/memory/{slot}/store` | none, or 1 to fire | Store a master memory with the bank’s own record mask. |
+| `/lp/master/memory/{slot}/label` | string | Rename a master memory. |
+| `/lp/master/memory/{slot}/delete` | none, or 1 to fire | Empty a master memory slot. |
+
+### Multiviewer
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/lp/multiviewer/{out}/memory/{slot}/recall` | none, or 1 to fire | Recall a multiviewer layout onto an output. Outputs 1–1, slots 1–20. |
+| `/lp/multiviewer/{out}/memory/{slot}/store` | none, or 1 to fire | Store a multiviewer layout. |
+
+### Layer parameters
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/source/input` | value name from LAYER_CONTENT, or an index | Which input the layer shows. INPUT_1 to INPUT_16, NONE or COLOR. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/source/input/norm` | float 0–1 | The same, as a fader position over 18 values. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/position/posH` | int -67268–67268 | Horizontal centre of the layer, in pixels. Negative is normal. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/position/posH/norm` | float 0–1 | The same, as a fader position over -67268 to 67268. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/position/posV` | int -67268–67268 | Vertical centre of the layer, in pixels. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/position/posV/norm` | float 0–1 | The same, as a fader position over -67268 to 67268. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/size/sizeH` | int 0–65535 | Layer width in pixels. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/size/sizeH/norm` | float 0–1 | The same, as a fader position over 0 to 65535. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/size/sizeV` | int 0–65535 | Layer height in pixels. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/size/sizeV/norm` | float 0–1 | The same, as a fader position over 0 to 65535. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/opacity/opacity` | int 0–256 | Layer opacity. The range is 0–256, not 0–100. |
+| `/lp/screen/{n}/preset/{preview\|program\|up\|down}/layer/{l}/opacity/opacity/norm` | float 0–1 | The same, as a fader position over 0 to 256. |
+
+### Screen group
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/lp/screen/{n}/group/control/xTake` | none, or 1 to fire | Transition preview to program. |
+| `/lp/screen/{n}/group/control/xCut` | none, or 1 to fire | Swap preview and program with no transition. |
+| `/lp/screen/{n}/group/control/xTakeAbort` | none, or 1 to fire | Stop a transition in progress. |
+| `/lp/screen/{n}/group/control/xStepBack` | none, or 1 to fire | Undo the last take. |
+| `/lp/screen/{n}/group/control/xCopyProgramToPreview` | none, or 1 to fire | Copy what is on air back into preview. |
+| `/lp/screen/{n}/group/control/takeTime` | int 0–3000 | Transition time, in tenths of a second. One value serves both directions. |
+| `/lp/screen/{n}/group/control/takeTime/norm` | float 0–1 | The same, as a fader position over 0 to 3000. |
+| `/lp/screen/{n}/group/control/tbarPosition` | int 0–65535 | T-bar position. Full throw completes the transition. |
+| `/lp/screen/{n}/group/control/tbarPosition/norm` | float 0–1 | The same, as a fader position over 0 to 65535. |
+
+---
+
 ## How a message reaches the switcher
 
 ```text

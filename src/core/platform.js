@@ -138,13 +138,14 @@ export const CAPABILITIES = [
   {
     id: 'console',
     label: 'Command line',
-    probes: { nlc: [ROOT, 'screenAuxGroupList', 'items'] },
-    needs: 'LivePremier paths',
-    /* Mynah — the grammar, and the OSC address space built on it — compiles
-       to LivePremier paths and knows no other spelling. Offering it here
-       would send a Midra writes it has no property for, silently. The port
-       belongs upstream in mynah, not in a table of exceptions here. */
-    absent: 'The command grammar is written against LivePremier paths, which this switcher does not have.'
+    /* Mynah compiles the grammar for both platforms (its `platform` context);
+       the console needs the same tree the Timeline does — somewhere to take. */
+    probes: {
+      nlc: [ROOT, 'screenAuxGroupList', 'items'],
+      mng: [ROOT, 'transition', 'screenList', 'items']
+    },
+    needs: 'the screen list',
+    absent: 'The command grammar has no spelling for this switcher\u2019s paths yet.'
   },
   {
     id: 'layerProperties',

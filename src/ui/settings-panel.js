@@ -504,7 +504,11 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
           { tone: live.listening ? null : 'tertiary' }),
         readout('Received', String(live.received)),
         readout('Writes sent', String(live.sent)),
-        readout('Refused', String(live.failed), { tone: live.failed ? null : 'tertiary' }))
+        readout('Refused', String(live.failed), { tone: live.failed ? null : 'tertiary' }),
+        /* Which platform the addresses are spelled for. The listener asks
+           the switcher on the first packet; until then it has not decided. */
+        readout('Spelled for', live.platform || 'asked on the first message',
+          { tone: live.platform ? null : 'tertiary' }))
       : null;
 
     const notes = [];

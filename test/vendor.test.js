@@ -102,6 +102,36 @@ test('the Mynah language is usable, and agrees with our own path builder', async
   assert.deepEqual(short.ops[0].path.toWs(), long.ops[0].path.toWs());
 });
 
+test('mynah\'s Midra platform and our mng dialect agree, path for path', async () => {
+  /* The same corroboration for the second platform. mynah's `MIDRA` and
+     `core/dialect.js`'s `MNG` were both written from the same Pulse 4K
+     capture and the same simulator sessions, separately; if either drifts,
+     the Console would compile a write the Timeline would spell differently. */
+  const lang = await import('../src/vendor/mynah-lang.mjs');
+  const { MNG } = await import('../src/core/dialect.js');
+  const { commandsFor } = await import('../src/core/commands.js');
+  const cmd = commandsFor(MNG);
+
+  const run = (text) => {
+    const r = lang.run(text, { platform: lang.MIDRA });
+    assert.ok(r.ok, `${text}: ${r.ok ? '' : r.errors[0].message}`);
+    return r.ops.map((op) => op.path.toWs());
+  };
+
+  assert.deepEqual(run('Take Screen 1'), [cmd.take('S1').path]);
+  assert.deepEqual(run('Take Aux 2'), [cmd.take('A2').path]);
+  assert.deepEqual(run('Recall Screen 2 Memory 10 Program'), [cmd.recallScreenPreset(10, 'S2', 'PROGRAM').path]);
+  assert.deepEqual(run('Recall Aux 1 Memory 7'), [cmd.recallScreenPreset(7, 'A1', 'PREVIEW').path]);
+  assert.deepEqual(run('Recall Master Memory 3'), [cmd.recallMasterPreset(3, 'PREVIEW').path]);
+  assert.deepEqual(run('Store Screen 1 Memory 4'), [MNG.save('screen', 4, { id: 'S1', mode: 'PROGRAM' }).path]);
+  assert.deepEqual(run('Store Aux 1 Memory 4'), [MNG.save('aux', 4, { id: 'A1', mode: 'PROGRAM' }).path]);
+  assert.deepEqual(run('Label Screen 1 Memory 4 "x"'), [MNG.label('screen', 4, 'x').path]);
+  assert.deepEqual(run('Delete Aux 1 Memory 4'), [MNG.delete('aux', 4).path]);
+  assert.deepEqual(run('/lp/screen/2/group/control/takeTime 25'), cmd.fade('S2', 25).map((w) => w.path));
+  /* And the same grammar, with no platform named, still spells LivePremier. */
+  assert.deepEqual(lang.run('Take Screen 1').ops[0].path.toWs(), ['device', 'screenAuxGroupList', 'items', 'S1', 'control', 'pp', 'xTake']);
+});
+
 test('the vendored surface engine matches upstream, file for file', async (t) => {
   const { createHash } = await import('node:crypto');
   const { readdir } = await import('node:fs/promises');

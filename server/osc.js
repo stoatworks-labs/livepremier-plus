@@ -51,8 +51,8 @@
 
 import dgram from 'node:dgram';
 
-import { resolveOsc } from '../src/vendor/mynah-lang.mjs';
-import { PARAMS } from '../src/core/osc-dictionary.js';
+import { resolveOsc, LIVEPREMIER, MIDRA } from '../src/vendor/mynah-lang.mjs';
+import { paramsFor } from '../src/core/osc-dictionary.js';
 import { exchange, AWJ_PORT } from './awj.js';
 
 export const DEFAULT_OSC_PORT = 8000;
@@ -153,9 +153,58 @@ export function createOscServer({
   deviceHost,
   onActivity = () => {},
   log = () => {},
+  /* The device's AWJ port. Fixed by the vendor; overridable so a test can
+     stand a fake device up on an ephemeral port. */
+  awjPort = AWJ_PORT,
 }) {
   const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
-  const state = { listening: false, port, address, received: 0, sent: 0, failed: 0, lastError: null };
+  const state = {
+    listening: false, port, address, received: 0, sent: 0, failed: 0, lastError: null,
+    /* Which platform addresses are being spelled for, once the switcher has
+       been asked — see `platformFor`. Shown on the settings page. */
+    platform: null
+  };
+
+  /*
+   * Which platform the switcher is, asked of the switcher.
+   *
+   * This process holds no store mirror, so it cannot tell a Pulse 4K from an
+   * Aquilon the way the page does. It can ask: `system/@props/platformLabel`
+   * is the vendor naming its own platform on Midra 4K / Alta 4K, and does
+   * not exist on LivePremier — the device answers a missing path with a null
+   * frame. One AWJ exchange, remembered per host, forgotten when the host
+   * changes (re-pointing at a backup frame mid-show must not keep the old
+   * answer). A failure to ask is a failure to send, reported as such; it is
+   * never resolved by assuming.
+   */
+  const known = { host: null, platform: null };
+  const IDENTITY = {
+    /* LivePremier keeps identity per frame; a Midra or Alta names its platform. */
+    nlc: 'DeviceObject/system/$device/@items/1/@props/dev',
+    mng: 'DeviceObject/system/@props/platformLabel'
+  };
+  async function platformFor(host) {
+    if (known.host === host && known.platform) return known.platform;
+    const replies = await exchange({
+      host,
+      port: awjPort,
+      messages: [{ op: 'get', path: IDENTITY.nlc }, { op: 'get', path: IDENTITY.mng }]
+    });
+    /* A path the device has answers with that path echoed and a value; one it
+       does not have answers with an empty path and null. Matching on the
+       echoed path is what makes this a fact about the device rather than a
+       guess about a string. */
+    const answered = (path) => replies.find((r) => r.path === path && typeof r.value === 'string' && r.value !== '');
+    const nlc = answered(IDENTITY.nlc);
+    const mng = answered(IDENTITY.mng);
+    if (!nlc && !mng) throw new Error('it answered neither identity path — is AWJ enabled on it?');
+    const platform = nlc ? LIVEPREMIER : MIDRA;
+    known.host = host;
+    known.platform = platform;
+    state.platform = platform.name;
+    log(`OSC: ${host} is ${platform.name} (${(nlc || mng).value}) — addresses resolve for it`);
+    return platform;
+  }
 
   socket.on('error', (err) => {
     state.lastError = err.message;
@@ -200,7 +249,23 @@ export function createOscServer({
      * be live would be the exact failure rule 5 exists to prevent. A sender
      * that wants a live layer addresses the buffer — /a, /b, /c.
      */
-    const resolved = resolveOsc(msg, { params: PARAMS });
+    const host = deviceHost();
+    if (!host) {
+      state.failed++;
+      return note({ from, address: msg.address, args: msg.args, error: 'no switcher configured' });
+    }
+
+    /* Spelled for the switcher that is actually there. The first packet after
+       a start, or after re-pointing, pays one AWJ round trip to find out. */
+    let platform;
+    try {
+      platform = await platformFor(host);
+    } catch (err) {
+      state.failed++;
+      return note({ from, address: msg.address, args: msg.args, error: `could not identify ${host}: ${err.message}` });
+    }
+
+    const resolved = resolveOsc(msg, { params: paramsFor(platform), platform });
 
     if (!resolved.ok) {
       state.failed++;
@@ -214,15 +279,10 @@ export function createOscServer({
       return note({ from, address: msg.address, args: msg.args, summary: resolved.summary, writes: 0 });
     }
 
-    const host = deviceHost();
-    if (!host) {
-      state.failed++;
-      return note({ from, address: msg.address, args: msg.args, error: 'no switcher configured' });
-    }
-
     try {
       await exchange({
         host,
+        port: awjPort,
         messages: resolved.ops.map((op) => ({ op: 'replace', path: op.path.toAwj(), value: op.value })),
       });
       state.sent += resolved.ops.length;

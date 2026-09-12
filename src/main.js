@@ -211,7 +211,9 @@ async function boot() {
          and the vendor's own two tabs spend most of it. Both are what the
          panel actually is rather than a truncation, because "Cons" and "Time"
          read as neither one thing nor the other. */
-      { id: 'console', label: 'Console', short: 'Cmd', icon: 'mini-list-14', enabled: () => can('console'), render: () => consolePanel.render() },
+      /* `mini-list-14` is LivePremier's sprite; Midra's has no list glyph and
+         `bars-14` is the nearest it draws. `icon()` takes the first the page has. */
+      { id: 'console', label: 'Console', short: 'Cmd', icon: ['mini-list-14', 'bars-14'], enabled: () => can('console'), render: () => consolePanel.render() },
       { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', enabled: () => can('cueStack'), render: () => timeline.render() },
       /*
        * "Layer" and not "Properties": the vendor's own Properties tab is two

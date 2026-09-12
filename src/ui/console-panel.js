@@ -31,7 +31,9 @@
  * paths for the commands both know — `Take Screen 1` and
  * `Recall Screen 1 Memory 5` agree segment for segment. Two independent
  * derivations agreeing is the strongest evidence either is right, and it is
- * only true while nobody re-types the grammar here.
+ * only true while nobody re-types the grammar here. The same holds on Midra
+ * 4K: mynah's `MIDRA` platform and this repo's `core/dialect.js` were written
+ * against the same captures and `test/vendor.test.js` pins that they agree.
  *
  * ## Where a compiled line goes
  *
@@ -60,8 +62,9 @@ import { panel } from './shell.js';
 import {
   run, declared, sniff, completions, shortestForm, KEYWORDS, LANGUAGE_LABELS
 } from '../vendor/mynah-lang.mjs';
-import { PARAMS } from '../core/osc-dictionary.js';
+import { PARAMS, paramsFor, mynahPlatform } from '../core/osc-dictionary.js';
 import { presetBanks } from '../core/screens.js';
+import { dialectFor } from '../core/dialect.js';
 import { DEFAULT_SETTINGS } from '../core/settings.js';
 
 const HISTORY_MAX = 100;
@@ -124,9 +127,19 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
     return mode === 'PROGRAM' ? banks.program : banks.preview;
   }
 
+  /*
+   * Which switcher the line is for. Mynah compiles the same grammar for
+   * LivePremier and for Midra 4K / Alta 4K; the store says which this is, and
+   * mynah is told rather than left to assume. Before the store has arrived
+   * the dialect is null and LivePremier is assumed — the only writes that can
+   * happen then are ones typed into a console with no device behind it.
+   */
+  const platform = () => mynahPlatform(dialectFor(session.store));
+
   const runContext = () => ({
     language: state.settings.consoleLanguage,
-    osc: { params: PARAMS, buffer: bufferForMode }
+    platform: platform(),
+    osc: { params: paramsFor(platform()), buffer: bufferForMode }
   });
 
   /**

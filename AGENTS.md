@@ -375,17 +375,29 @@ vendor's own bundle rather than inferred:
 ### What is offered on `mng-platform`, and what is not
 
 Probed per family in `core/platform.js`. On a Midra or Alta: the **Timeline**
-tab and the **Memories** entry (screen, aux and master banks). Withheld, each
-with its reason in the table: the **Console** (mynah compiles to LivePremier
-paths and knows no other — the port belongs upstream in mynah), the **Layer**
-tab (`vendor/surface/catalogue.json` was generated from a LivePremier bundle,
-and the mng bundle is minified where LivePremier's is not, so awj-surface's
+tab, the **Console** tab and the **Memories** entry (screen, aux and master
+banks). Withheld, each with its reason in the table: the **Layer** tab
+(`vendor/surface/catalogue.json` was generated from a LivePremier bundle, and
+the mng bundle is minified where LivePremier's is not, so awj-surface's
 generator has to learn it first), **VPU Map** (no VPU), **Pitch Compensation**
 (the ratios exist, under `canvas/pitch` rather than `canvas/cmd`, and screen
 membership is in the preconfig rather than on the output — portable, not yet
 ported) and **Audio patching**. The MIDI Mapping entry anchors after a
 `Virtual RC400T` label the mng sidebar does not have, so it does not mount
 there either.
+
+**The Console speaks Midra because mynah does.** mynah's language core has a
+`platform` context — `LIVEPREMIER` or `MIDRA`, `src/lang/platforms.ts`
+upstream — and `ui/console-panel.js` passes the one `core/dialect.js` names
+(`mynahPlatform()` in `core/osc-dictionary.js` is the only place the two
+namings meet). `test/vendor.test.js` pins that mynah's `MIDRA` and this repo's
+`MNG` agree path for path, the same corroboration the LivePremier pair has.
+The OSC listener in `server/osc.js` has no store, so it **asks the switcher**
+which platform it is on the first packet — one AWJ exchange for the two
+identity paths, remembered per host — and refuses to send until it has an
+answer rather than assuming one. Midra's OSC parameter table is mynah's
+vouched-for built-ins (`paramsFor()`), not the catalogue, which is
+LivePremier's.
 
 ### The UI differences, which are smaller than they look
 

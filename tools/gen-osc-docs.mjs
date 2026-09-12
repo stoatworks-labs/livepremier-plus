@@ -27,8 +27,8 @@ import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { oscDictionary, OSC_ROOT, VERIFIED_FIRMWARE } from '../src/vendor/mynah-lang.mjs';
-import { PARAMS, PROVENANCE } from '../src/core/osc-dictionary.js';
+import { oscDictionary, OSC_ROOT, VERIFIED_FIRMWARE, MIDRA } from '../src/vendor/mynah-lang.mjs';
+import { PARAMS, PROVENANCE, paramsFor } from '../src/core/osc-dictionary.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'docs', 'OSC.md');
@@ -36,18 +36,36 @@ const out = join(here, '..', 'docs', 'OSC.md');
 /** Escape a cell so a pipe in an address cannot break the table. */
 const cell = (s) => String(s).replace(/\|/g, '\\|');
 
-export function generate() {
-  const entries = oscDictionary(PARAMS);
-
-  /* Grouped in the order the generator emits them, not alphabetically: the
-     dictionary is meant to be read top to bottom the first time, and takes and
-     memories are what somebody wires up before they touch a layer parameter. */
+/** Group in the order the generator emits them, not alphabetically: the
+    dictionary is meant to be read top to bottom the first time, and takes and
+    memories are what somebody wires up before they touch a layer parameter. */
+function grouped(entries) {
   const groups = [];
   for (const e of entries) {
     let g = groups.find((x) => x.name === e.group);
     if (!g) groups.push((g = { name: e.group, rows: [] }));
     g.rows.push(e);
   }
+  return groups;
+}
+
+function tables(lines, groups, level = '##') {
+  for (const g of groups) {
+    lines.push(`${level} ${g.name}`);
+    lines.push('');
+    lines.push('| Address | Argument | What it does |');
+    lines.push('|---|---|---|');
+    for (const r of g.rows) {
+      lines.push(`| \`${cell(r.address)}\` | ${cell(r.args)} | ${cell(r.summary)} |`);
+    }
+    lines.push('');
+  }
+}
+
+export function generate() {
+  const entries = oscDictionary(PARAMS);
+  const groups = grouped(entries);
+  const midra = oscDictionary(paramsFor(MIDRA), MIDRA);
 
   const lines = [];
   lines.push(HEADER.trim());
@@ -61,16 +79,13 @@ export function generate() {
   lines.push(`**${entries.length} addresses.**`);
   lines.push('');
 
-  for (const g of groups) {
-    lines.push(`## ${g.name}`);
-    lines.push('');
-    lines.push('| Address | Argument | What it does |');
-    lines.push('|---|---|---|');
-    for (const r of g.rows) {
-      lines.push(`| \`${cell(r.address)}\` | ${cell(r.args)} | ${cell(r.summary)} |`);
-    }
-    lines.push('');
-  }
+  tables(lines, groups);
+
+  lines.push(MIDRA_HEADER.trim());
+  lines.push('');
+  lines.push(`**${midra.length} addresses.**`);
+  lines.push('');
+  tables(lines, grouped(midra), '###');
 
   lines.push(FOOTER.trim());
   lines.push('');
@@ -168,6 +183,30 @@ rounded to the nearest one.
 Nothing is ever sent back. This listens; it does not answer.
 
 ---
+`;
+
+const MIDRA_HEADER = `
+---
+
+## Midra 4K / Alta 4K
+
+The same addresses on the other platform — QuickVu, Pulse, Eikos, QuickMatrix,
+Zenith 100 and 200 — spelled for its object model. The listener asks the
+switcher which platform it is before it resolves anything (one AWJ read of the
+device's own identity, remembered until the switcher changes), so a layout
+built from the tables above works on either box as far as the addresses are
+shared; what differs is below.
+
+- Screens and auxes are 1–4, layers 1–8, and there is no \`native\` layer.
+- Memory slots are 1–200 (screen and aux banks), 1–50 (master) and 1–20
+  (multiviewer). **There is no layer memory bank**, so the
+  \`/layer/{l}/memory/…\` addresses are absent here.
+- The preset buffers are \`up\` and \`down\`, not \`a\`/\`b\`/\`c\`. Which one is
+  program follows the take state; over UDP, name the buffer.
+- The layer table is mynah's own vouched-for set — source, geometry, opacity
+  — until a catalogue is generated from a Midra bundle. Note the spellings:
+  \`source/input\` takes \`INPUT_1\`–\`INPUT_16\`, and size is its own node,
+  \`size/sizeH\`. The take group has one \`takeTime\` for both directions.
 `;
 
 const FOOTER = `
