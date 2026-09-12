@@ -17,8 +17,30 @@ import assert from 'node:assert/strict';
 /* A DOM small enough to reason about, large enough for the host to run on. */
 function stubDom() {
   const listeners = new Map();
+  /*
+   * A text node, because Midra's tabs carry their label as one — a bare
+   * string beside the icon — and `_cloneTab` has to find it to replace it.
+   */
+  class Text {
+    constructor(text) { this.nodeType = 3; this._text = text; this.parentElement = null; this.children = []; }
+    get textContent() { return this._text; }
+    set textContent(v) { this._text = String(v); }
+    get offsetWidth() { return this._text.length * 8; }
+    replaceWith(node) {
+      const i = this.parentElement.children.indexOf(this);
+      if (i >= 0) { this.parentElement.children[i] = node; node.parentElement = this.parentElement; }
+    }
+    remove() {
+      const p = this.parentElement;
+      const i = p ? p.children.indexOf(this) : -1;
+      if (i >= 0) p.children.splice(i, 1);
+    }
+    cloneNode() { return new Text(this._text); }
+    _all() { return []; }
+  }
   class El {
     constructor(tag) {
+      this.nodeType = 1;
       this.tagName = tag.toUpperCase();
       this.children = [];
       this.parentElement = null;
@@ -53,10 +75,11 @@ function stubDom() {
      */
     get offsetWidth() {
       if (this.tagName === 'I') return this.style.display === 'none' ? 0 : 24;
-      if (this.tagName === 'H5') return this.style.display === 'none' ? 0 : this.textContent.length * 8;
+      if (this.tagName === 'H5' || this.tagName === 'SPAN') return this.style.display === 'none' ? 0 : this.textContent.length * 8;
       if (this.tagName === 'A') return 16 + this.children.reduce((n, c) => n + c.offsetWidth, 0);
       return 0;
     }
+    get childNodes() { return this.children.slice(); }
     /* The strip is a nowrap flex row: its content width is its children plus a
        1px gap between them, whatever its own box has been squeezed to. */
     /* Set by a test to say how much room the panel has. */
@@ -100,7 +123,7 @@ function stubDom() {
       for (const kid of this.children) { const k2 = kid.cloneNode(true); k2.parentElement = c; c.children.push(k2); }
       return c;
     }
-    _all() { return this.children.flatMap((c) => [c, ...c._all()]); }
+    _all() { return this.children.filter((c) => c.nodeType === 1).flatMap((c) => [c, ...c._all()]); }
     querySelectorAll(sel) { return this._all().filter((e) => matches(e, sel)); }
     querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
   }
@@ -116,6 +139,7 @@ function stubDom() {
 
   const doc = new El('document');
   doc.createElement = (t) => new El(t);
+  doc.createTextNode = (t) => new Text(String(t));
   doc.createElementNS = () => new El('svg');
   doc.addEventListener = (t, fn) => (listeners.set(t, [...(listeners.get(t) || []), fn]));
   doc.removeEventListener = () => {};
@@ -137,7 +161,7 @@ function stubDom() {
   pane.append(Object.assign(new El('span'), { _text: 'vendor content' }));
   container.append(strip, pane);
   doc.append(container);
-  return { doc, strip, pane, container, El };
+  return { doc, strip, pane, container, El, Text };
 }
 
 async function withDom(fn) {
@@ -309,6 +333,72 @@ test('a page with only route links gets no tabs at all', async () => {
     });
     assert.equal(host._mount(), false);
     assert.equal(nav.querySelectorAll('[data-lpp-tab]').length, 0);
+  });
+});
+
+/*
+ * Midra 4K and Alta 4K build the same strip from the same Semantic UI
+ * `Menu.Item`, but hand it `content` as a string: the label is a bare text
+ * node beside the icon, and there is no `h5`. Read off a Pulse 4K's bundle on
+ * 2026-09-12. The first version of the pane-switcher test required the `h5`
+ * and so never found this strip at all.
+ */
+function asMidraStrip(stub) {
+  const { El, Text, strip } = stub;
+  strip.children = [];
+  for (const [label, active] of [['Properties', true], ['Memories', false]]) {
+    const a = new El('a');
+    a.className = 'item' + (active ? ' active' : '');
+    const i = new El('i'); i.className = 'medium icon';
+    a.append(i, new Text(label));
+    strip.append(a);
+  }
+  return strip;
+}
+
+test('a strip whose labels are bare text nodes is a pane switcher too', async () => {
+  await withDom(async (stub) => {
+    const strip = asMidraStrip(stub);
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({
+      tabs: [{ id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', render: () => stub.doc.createElement('div') }]
+    });
+    assert.equal(host._mount(), true);
+    const ours = strip.querySelectorAll('[data-lpp-tab]');
+    assert.equal(ours.length, 1);
+    /* The label went into an inline span, not a heading — an h5 here would
+       render larger than the vendor's own label and on its own line. */
+    assert.equal(ours[0].querySelector('h5'), null);
+    const label = ours[0].querySelector('[data-lpp-label]');
+    assert.equal(label.tagName, 'SPAN');
+    assert.equal(label.textContent, 'Timeline');
+    assert.equal(ours[0].textContent, 'Timeline', 'and the cloned vendor text is gone');
+    /* The fit ladder finds the same label element. */
+    host._applyMode('short');
+    assert.equal(label.textContent, 'Cues');
+    host._applyMode('icon');
+    assert.equal(label.style.display, 'none');
+  });
+});
+
+test('a page of one-tab strips gets no tabs — a lone tab is a heading', async () => {
+  await withDom(async (stub) => {
+    /* Midra's Preconfig page: each section is its own strip with one tab. */
+    const { El, Text, container, strip } = stub;
+    container.children = container.children.filter((c) => c !== strip);
+    for (const title of ['Resources', 'Screens', 'Summary']) {
+      const one = new El('div');
+      one.className = 'ui tabular menu';
+      const a = new El('a'); a.className = 'active item'; a.append(new Text(title));
+      one.append(a);
+      container.append(one);
+    }
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({
+      tabs: [{ id: 'timeline', label: 'Timeline', icon: 'timer-14', render: () => stub.doc.createElement('div') }]
+    });
+    assert.equal(host._mount(), false);
+    assert.equal(container.querySelectorAll('[data-lpp-tab]').length, 0);
   });
 });
 

@@ -20,9 +20,15 @@
  * `masterPresetBank` and `vpuMixerList` do not exist on `mng-platform` at all.
  * Screens are `1`..`4`, not `S1`..`S24`. Transitions live in a top-level
  * `transition` node with one `takeTime` instead of the `takeUpTime` /
- * `takeDownTime` pair. So every path in `core/paths.js` and every command mynah
- * compiles is LivePremier-shaped, and offering them on a Midra would send a
- * switcher writes it has no property for.
+ * `takeDownTime` pair; memories live under `preset/bank`, `preset/auxBank` and
+ * `preset/masterBank`. So every path in `core/paths.js` and every command
+ * mynah compiles is LivePremier-shaped, and offering them on a Midra would
+ * send a switcher writes it has no property for.
+ *
+ * `core/dialect.js` is the other half of this file: it spells both models, so
+ * the cue stack and the memory banks are offered on both families, and the
+ * table below says which features still only know one. Read off a live
+ * Pulse 4K (3.3.10, 2026-09-12) and the Midra 4K simulator (3.2.29).
  *
  * ## Identity lives somewhere different on each
  *
@@ -69,18 +75,40 @@ const PLATFORM_IDS = {
   1552: { id: 'alta4k', name: 'Alta 4K', family: FAMILY.MNG }
 };
 
+/*
+ * The `dev` codes the mng-platform simulators can be told to be, in the order
+ * their own binary lists them, with the product each stands for. Display only:
+ * the device's `platformLabel` names the range and these name the box. An
+ * unlisted code is shown as itself, which is still correct.
+ */
+const MNG_MODELS = {
+  QVU: 'QuickVu 4K',
+  PULSE: 'Pulse 4K',
+  EIKOS: 'Eikos 4K',
+  QMX: 'QuickMatrix 4K',
+  ZEN100: 'Zenith 100',
+  ZEN200: 'Zenith 200',
+  MNG_DEBUG: 'mng debug build'
+};
+
 /**
  * What each feature needs to exist in the store before it is worth offering.
  *
  * The probe is the path the feature actually reads or writes, not a proxy for
  * it — so a probe that passes is evidence, and one that fails names the thing
- * that is missing.
+ * that is missing. A feature that speaks both object models lists a probe per
+ * family (`core/dialect.js` has the spellings); one that lists only `nlc` is
+ * LivePremier-only, and `absent` says why in words for the operator.
+ *
+ * A `*` segment means "any item of this collection": the pitch panel writes
+ * under each output's `canvas/cmd`, and which outputs exist is the device's
+ * business.
  */
 export const CAPABILITIES = [
   {
     id: 'vpuMap',
     label: 'VPU map',
-    probe: [ROOT, 'preconfig', 'resources', 'current', 'status', 'mapping'],
+    probes: { nlc: [ROOT, 'preconfig', 'resources', 'current', 'status', 'mapping'] },
     needs: 'the VPU allocation map',
     /* Midra 4K and Alta 4K are fixed-architecture: there is no pool of mixers
        to allocate, so there is nothing for this panel to draw. That is not a
@@ -90,38 +118,61 @@ export const CAPABILITIES = [
   {
     id: 'screens',
     label: 'Screens and auxiliaries',
-    probe: [ROOT, 'screenAuxGroupList', 'items'],
-    needs: 'screenAuxGroupList',
+    probes: {
+      nlc: [ROOT, 'screenAuxGroupList', 'items'],
+      mng: [ROOT, 'transition', 'screenList', 'items']
+    },
+    needs: 'the screen list',
     absent: 'This platform groups screens differently, so the screen previews cannot be read yet.'
   },
   {
     id: 'cueStack',
     label: 'Cue stack',
-    probe: [ROOT, 'presetBank', 'control'],
-    needs: 'presetBank',
+    probes: {
+      nlc: [ROOT, 'presetBank', 'control'],
+      mng: [ROOT, 'preset', 'bank', 'control']
+    },
+    needs: 'the memory banks',
     absent: 'Preset recall is shaped differently on this platform, so cues cannot be fired yet.'
   },
   {
     id: 'console',
     label: 'Command line',
-    probe: [ROOT, 'screenAuxGroupList', 'items'],
-    needs: 'screenAuxGroupList',
+    probes: { nlc: [ROOT, 'screenAuxGroupList', 'items'] },
+    needs: 'LivePremier paths',
+    /* Mynah — the grammar, and the OSC address space built on it — compiles
+       to LivePremier paths and knows no other spelling. Offering it here
+       would send a Midra writes it has no property for, silently. The port
+       belongs upstream in mynah, not in a table of exceptions here. */
     absent: 'The command grammar is written against LivePremier paths, which this switcher does not have.'
+  },
+  {
+    id: 'layerProperties',
+    label: 'Layer properties',
+    probes: { nlc: [ROOT, 'screenAuxGroupList', 'items'] },
+    needs: 'a layer catalogue for this platform',
+    /* The panel renders `vendor/surface/catalogue.json`, generated from a
+       LivePremier bundle: 67 parameters, spelled `layerList/…/inputNum`. A
+       Midra layer is `liveLayerList/…/input` with size split from position,
+       and its bundle is minified where LivePremier's is not, so the generator
+       has to learn it before there is anything to render. */
+    absent: 'The layer catalogue was generated from a LivePremier, and this platform spells its layers differently.'
   },
   {
     id: 'pitchCompensation',
     label: 'Pitch compensation',
-    probe: [ROOT, 'outputList', 'items'],
-    needs: 'outputList',
-    /* The per-output canvas node carrying pitchRatioH/V is nlc-platform's.
-       Midra 4K and Alta 4K describe their outputs differently, so the panel
-       would have nothing to read the rasters or the current ratios from. */
+    probes: { nlc: [ROOT, 'outputList', 'items', '*', 'canvas', 'cmd'] },
+    needs: 'the per-output pitch command node',
+    /* Midra keeps its ratios under `canvas/pitch` and says which screen an
+       output belongs to in the preconfig rather than on the output. Close,
+       and not the same; until it is read from there the panel has nothing
+       honest to show. */
     absent: 'This platform describes its outputs differently, so pitch compensation cannot be read yet.'
   },
   {
     id: 'audioPatch',
     label: 'Audio patching',
-    probe: [ROOT, 'audio', 'control', 'deviceList'],
+    probes: { nlc: [ROOT, 'audio', 'control', 'deviceList'] },
     needs: 'the audio matrix',
     absent: 'This platform lays its audio matrix out differently.'
   }
@@ -171,6 +222,9 @@ function mng(head, system) {
     name: head.platformLabel,
     family: known ? known.family : FAMILY.MNG,
     model: str(head.dev),
+    /* The product behind the code, when the code is one the simulators
+       list — `PULSE` is a Pulse 4K. */
+    modelName: MNG_MODELS[head.dev] || str(head.dev),
     platformId: num(head.platformId),
     firmware: str(version.updater),
     serial: str(serial.serialNumber),
@@ -210,7 +264,7 @@ function nlc(store) {
 function probe(store, ready) {
   const out = {};
   for (const cap of CAPABILITIES) {
-    const found = ready && store.get(cap.probe) !== undefined;
+    const found = ready && Object.values(cap.probes).some((path) => present(store, path));
     out[cap.id] = {
       id: cap.id,
       label: cap.label,
@@ -220,6 +274,17 @@ function probe(store, ready) {
     };
   }
   return out;
+}
+
+/** Does the store have this path — with `*` standing for any item key? */
+function present(store, path) {
+  const star = path.indexOf('*');
+  if (star < 0) return store.get(path) !== undefined;
+  const head = path.slice(0, star);
+  const tail = path.slice(star + 1);
+  const items = store.get(head);
+  if (!items || typeof items !== 'object') return false;
+  return Object.keys(items).some((k) => present(store, [...head, k, ...tail]));
 }
 
 /**

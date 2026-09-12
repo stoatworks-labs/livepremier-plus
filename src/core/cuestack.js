@@ -28,7 +28,8 @@
  *    settle, fade, trigger. Measured on an Aquilon C, 2026-08-21.
  */
 
-import { CMD } from './paths.js';
+import { commandsFor } from './commands.js';
+import { NLC } from './dialect.js';
 
 let uid = 0;
 const nextId = () => 'c' + (++uid) + '-' + Math.random().toString(36).slice(2, 7);
@@ -91,10 +92,16 @@ export class CueStack extends EventTarget {
    * @param {object} opts
    * @param {(cmd:{path:string[],value:*}) => boolean} opts.send
    * @param {object} [opts.clock] injectable timers, for tests
+   * @param {object|Function} [opts.commands] the command table to spell cues
+   *   with — `commandsFor(dialect)` — or a function returning one. A function,
+   *   because which switcher is on the other end is only known once the store
+   *   has arrived, and may change when the operator re-points at a backup
+   *   frame. Defaults to the LivePremier table.
    */
-  constructor({ send, clock } = {}) {
+  constructor({ send, clock, commands } = {}) {
     super();
     this.send = send || (() => false);
+    this._commands = typeof commands === 'function' ? commands : () => (commands || commandsFor(NLC));
     this.clock = clock || {
       setTimeout: (...a) => setTimeout(...a),
       clearTimeout: (id) => clearTimeout(id),
@@ -201,7 +208,8 @@ export class CueStack extends EventTarget {
    * and the UI says so rather than implying otherwise.
    */
   deviceStepBack(targets) {
-    for (const t of targets) this._send(CMD.stepBack(t));
+    const cmd = this._commands();
+    for (const t of targets) this._send(cmd.stepBack(t));
   }
 
   /** Cancel any pending delay or follow. Fired cues are not undone. */
@@ -260,6 +268,9 @@ export class CueStack extends EventTarget {
    */
   fire(cue) {
     if (!cue || !cue.enabled) return { sent: 0, skipped: true };
+    /* Asked once per cue, so every write in it is spelled for one switcher
+       even if the operator re-points mid-fire. */
+    const cmd = this._commands();
     let sent = 0;
     let recalled = false;
     const takeTargets = new Set();
@@ -269,12 +280,12 @@ export class CueStack extends EventTarget {
         case ACTION_KINDS.SCREEN_PRESET:
           recalled = true;
           for (const target of a.targets || []) {
-            if (this._send(CMD.recallScreenPreset(a.slot, target, a.mode || 'PREVIEW'))) sent++;
+            if (this._send(cmd.recallScreenPreset(a.slot, target, a.mode || 'PREVIEW'))) sent++;
           }
           break;
         case ACTION_KINDS.MASTER_PRESET:
           recalled = true;
-          if (this._send(CMD.recallMasterPreset(a.slot, a.mode || 'PREVIEW'))) sent++;
+          if (this._send(cmd.recallMasterPreset(a.slot, a.mode || 'PREVIEW'))) sent++;
           break;
         case ACTION_KINDS.TAKE:
         case ACTION_KINDS.CUT:
@@ -294,8 +305,9 @@ export class CueStack extends EventTarget {
       let written = 0;
       for (const entry of takeTargets) {
         const target = entry.split(' ')[0];
-        if (this._send(CMD.takeUpTime(target, tenths))) written++;
-        if (this._send(CMD.takeDownTime(target, tenths))) written++;
+        /* One write per direction on LivePremier, one for both on Midra —
+           the table says how many, and each is counted. */
+        for (const write of cmd.fade(target, tenths)) if (this._send(write)) written++;
       }
       if (written) record.sent += written;
     };
@@ -304,7 +316,7 @@ export class CueStack extends EventTarget {
       let fired = 0;
       for (const entry of takeTargets) {
         const [target, kind] = entry.split(' ');
-        if (this._send(kind === ACTION_KINDS.CUT ? CMD.cut(target) : CMD.take(target))) fired++;
+        if (this._send(kind === ACTION_KINDS.CUT ? cmd.cut(target) : cmd.take(target))) fired++;
       }
       if (fired) {
         record.sent += fired;
@@ -344,7 +356,11 @@ export class CueStack extends EventTarget {
   get log() { return this._log.slice(); }
 
   _send(cmd) {
-    const ok = this.send(cmd);
+    /* A builder that returned null had no command to build — no platform yet,
+       or none this platform has. Reported as a failed send rather than sent
+       as `null`, because the transport would refuse it anyway and the panel
+       should say why nothing happened. */
+    const ok = !!cmd && this.send(cmd);
     if (!ok) this._emit('sendFailed', { cmd });
     return ok;
   }

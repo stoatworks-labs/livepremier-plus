@@ -30,8 +30,8 @@
  * transition lands on the output. See `vendor/surface/preset.js`.
  */
 
-import { ROOT } from './paths.js';
 import { presetBanks } from './screens.js';
+import { dialectFor } from './dialect.js';
 import { layerParams, enums } from '../vendor/surface/catalogue.js';
 import { layerParam, auxLayerParam } from '../vendor/surface/paths.js';
 
@@ -189,35 +189,29 @@ export function writeCmd(target, spec, raw) {
 /**
  * The layers a destination actually has.
  *
- * The gate is the screen's own layer list, not the preset's: a preset carries
- * geometry for all 128 slots whether or not the hardware has them, and drawing
- * from the preset alone invents layers. `core/screens.js` learned this the
- * hard way and the rule is repeated rather than shared only because that
- * function returns rendered geometry and this one wants keys.
+ * The gate is the platform's fitted-layer list, not the preset's: a preset
+ * carries geometry for every slot whether or not the hardware has them, and
+ * drawing from the preset alone invents layers. `core/screens.js` learned this
+ * the hard way; both now ask `core/dialect.js`, which knows where each
+ * platform keeps the answer.
  *
  * NATIVE sorts last. It is a real, addressable layer slot, but it is the
  * background plane rather than a layer someone put a source on, so it does not
  * belong at the top of a picker above layer 1.
  */
 export function fittedLayers(store, id) {
-  const listName = String(id).startsWith('A') ? 'auxiliaryList' : 'screenList';
-  const list = store.get([ROOT, listName, 'items', id, 'layerList']);
-  const items = (list && list.items) || {};
-  const keys = Array.isArray(list && list.itemKeys) && list.itemKeys.length
-    ? list.itemKeys.filter((k) => items[k])
-    : Object.keys(items);
-
-  const out = [];
-  for (const key of keys) {
-    const status = (items[key] && items[key].status && items[key].status.pp) || {};
-    if (!status.capability || status.capability === 'OFF') continue;
-    out.push({ key, capability: status.capability, scope: status.scope || null });
-  }
-  return out.sort((a, b) => {
-    if (a.key === 'NATIVE') return 1;
-    if (b.key === 'NATIVE') return -1;
-    return Number(a.key) - Number(b.key);
-  });
+  const dialect = dialectFor(store);
+  if (!dialect) return [];
+  /* The gate itself lives with the platform's other spellings: capability on
+     a LivePremier's layer list, the applied preconfig's layer mode on a
+     Midra. See `core/dialect.js`. */
+  return dialect.fittedLayers(store, id)
+    .map((l) => ({ key: l.key, capability: l.capability }))
+    .sort((a, b) => {
+      if (a.key === 'NATIVE') return 1;
+      if (b.key === 'NATIVE') return -1;
+      return Number(a.key) - Number(b.key);
+    });
 }
 
 /**

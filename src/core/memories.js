@@ -1,5 +1,5 @@
 /*
- * The three memory banks, as something you can list and fire.
+ * The memory banks, as something you can list and fire.
  *
  * LivePremier keeps memories in three separate banks, and they are not
  * variations on one idea — they differ in what they contain, how many there
@@ -13,8 +13,15 @@
  *   layer    layerBank           50 slots   one layer. Recall names the
  *                                           destination AND the layer key.
  *
- * All three were read off a live Aquilon rather than transcribed from the
- * protocol guide, the same rule the rest of `core/paths.js` follows.
+ * Midra 4K and Alta 4K keep three as well, but not the same three: a screen
+ * bank (200), an **aux bank** of its own (200) where LivePremier folds auxes
+ * into the screen bank, a master bank (50), and no layer bank at all. Which
+ * set applies, and how each is spelled, comes from `core/dialect.js`; this
+ * file states the operations once over whichever set the store has.
+ *
+ * All of it was read off live devices rather than transcribed from the
+ * protocol guide, the same rule the rest of `core/` follows — an Aquilon C
+ * (6.2.73) for LivePremier and a Pulse 4K (3.3.10) for Midra 4K.
  *
  * ## Why this file exists at all
  *
@@ -38,47 +45,38 @@
  * it goes.
  */
 
-import { ROOT } from './paths.js';
+import { NLC, dialectFor, dialectOrDefault, parseId } from './dialect.js';
 
 /**
- * Which store list a destination lives in.
+ * Which store list a destination lives in, on LivePremier.
  *
- * Auxiliaries are `A1`..`A96` and screens `S1`..`S24`, and the two are
- * addressed through different collections at every level of the bank tree.
- * One rule, stated once, because getting it wrong writes into a collection
- * the device does not have and fails silently.
+ * Kept for the callers that spell LivePremier paths directly. Anything that
+ * has a store should ask its dialect instead.
  */
-export const listNameFor = (id) => (String(id).startsWith('A') ? 'auxiliaryList' : 'screenList');
+export const listNameFor = (id) => NLC.listNameFor(id);
 
 /**
- * The three banks.
- *
- * `scope` is what a recall has to name beyond the slot, and it is the only
- * thing that really separates them:
+ * The LivePremier banks. `scope` is what a recall has to name beyond the
+ * slot, and it is the only thing that really separates them:
  *
  *   'device'      nothing        master memories
  *   'destination' a screen/aux   screen memories
  *   'layer'       both           layer memories
+ *
+ * `targets` says which destinations a bank serves: `all`, `screen`, `aux`
+ * or `none`. Slot counts are not hard-coded — see `slotCount()`; these are
+ * the fallback for a store that has not hydrated yet, so an empty panel says
+ * "500 empty" rather than "0 slots" and looks broken.
  */
-export const BANKS = [
-  {
-    kind: 'master',
-    label: 'Master',
-    root: 'masterPresetBank',
-    scope: 'device',
-    /* Slot counts are not hard-coded — see `slotCount()`. These are only the
-       fallback for a store that has not hydrated yet, so an empty panel says
-       "500 empty" rather than "0 slots" and looks broken. */
-    slots: 500
-  },
-  { kind: 'screen', label: 'Screen', root: 'presetBank', scope: 'destination', slots: 1000 },
-  { kind: 'layer', label: 'Layer', root: 'layerBank', scope: 'layer', slots: 50 }
-];
+export const BANKS = NLC.banks;
 
-const byKind = new Map(BANKS.map((b) => [b.kind, b]));
+/** The banks this store's platform actually has. */
+export const banksFor = (store) => dialectOrDefault(store).banks;
 
-/** The bank descriptor for a kind, or null. */
-export const bankFor = (kind) => byKind.get(kind) || null;
+/** The bank descriptor for a kind on a platform, or null. */
+export function bankFor(kind, store = null) {
+  return dialectOrDefault(store).banks.find((b) => b.kind === kind) || null;
+}
 
 const pp = (node) => (node && typeof node === 'object' ? node.pp : null) || {};
 
@@ -87,14 +85,15 @@ const pp = (node) => (node && typeof node === 'object' ? node.pp : null) || {};
 /**
  * How many slots this device's bank actually has.
  *
- * Read from the device rather than from the table above, because the counts
- * differ by model and a hard-coded 1000 would draw 950 phantom empty slots on
- * a switcher that has 50.
+ * Read from the device rather than from the table, because the counts differ
+ * by model and a hard-coded 1000 would draw 950 phantom empty slots on a
+ * switcher that has 50.
  */
 export function slotCount(store, kind) {
-  const bank = bankFor(kind);
+  const dialect = dialectOrDefault(store);
+  const bank = bankFor(kind, store);
   if (!bank) return 0;
-  const list = store.get([ROOT, bank.root, 'bankList']);
+  const list = store.get(dialect.slotList(bank));
   if (!list) return bank.slots;
   const keys = Array.isArray(list.itemKeys) && list.itemKeys.length
     ? list.itemKeys
@@ -115,13 +114,14 @@ export function slotCount(store, kind) {
  * quirk for an hour before you notice it is a sort.
  *
  * @param {{get: Function}} store
- * @param {string} kind  'master' | 'screen' | 'layer'
+ * @param {string} kind  'master' | 'screen' | 'layer' | 'aux'
  * @param {{onlyValid?: boolean}} [opts]
  */
 export function listSlots(store, kind, { onlyValid = false } = {}) {
-  const bank = bankFor(kind);
+  const dialect = dialectOrDefault(store);
+  const bank = bankFor(kind, store);
   if (!bank) return [];
-  const list = store.get([ROOT, bank.root, 'bankList']);
+  const list = store.get(dialect.slotList(bank));
   const items = (list && list.items) || {};
   const keys = Array.isArray(list && list.itemKeys) && list.itemKeys.length
     ? list.itemKeys.filter((k) => items[k])
@@ -130,44 +130,44 @@ export function listSlots(store, kind, { onlyValid = false } = {}) {
   const out = [];
   for (const key of keys.slice().sort((a, b) => Number(a) - Number(b))) {
     const node = items[key];
-    const status = pp(node && node.status);
+    const status = dialect.slotStatus(pp(node && node.status));
     const control = pp(node && node.control);
     if (onlyValid && !status.isValid) continue;
     out.push({
       slot: Number(key),
       label: typeof control.label === 'string' ? control.label : '',
-      isValid: !!status.isValid,
+      isValid: status.isValid,
       /* Master memories can be "self-contained": they carry their own screen
          memories rather than pointing at slots in the screen bank. Worth
          showing, because deleting a screen memory a shadow master depends on
          is safe and deleting one a plain master points at is not. */
-      isShadow: !!status.isShadow,
+      isShadow: status.isShadow,
       /* Which destinations this memory covers. Present on master slots only;
-         the other two banks answer the question through where you recall
-         them, not through what they contain. */
-      screens: Array.isArray(status.screenFilter) ? status.screenFilter : null,
-      auxes: Array.isArray(status.auxFilter) ? status.auxFilter : null,
+         the other banks answer the question through where you recall them,
+         not through what they contain. */
+      screens: status.screens,
+      auxes: status.auxes,
       /* Screen memories record the canvas they were saved from. Recalling one
          onto a differently-sized screen is legal and the device rescales it,
          but an operator hunting a layout that came back wrong wants to see
          this. */
-      width: status.screenAuxWidth ?? null,
-      height: status.screenAuxHeight ?? null
+      width: status.width,
+      height: status.height
     });
   }
   return out;
 }
 
 /**
- * Which screen memory sits in each of a destination's three preset buffers.
+ * Which memory sits in each of a destination's preset buffers.
  *
- * The device publishes this under `presetBank/status/presetId`, keyed by the
- * preset LETTER — A, B, C — not by PROGRAM/PREVIEW. Which letter is on air is
- * a separate question answered by `screens.presetBanks()`, and the two must be
+ * Keyed by the buffer's own name — the LETTER on LivePremier (A, B, C), `UP`
+ * or `DOWN` on Midra — never by PROGRAM/PREVIEW. Which buffer is on air is a
+ * separate question answered by `screens.presetBanks()`, and the two must be
  * combined by the caller rather than assumed here: this file has no business
  * knowing which end of a T-bar a screen is resting at.
  *
- * `isNotModified` is the device saying the buffer still matches the memory it
+ * `unmodified` is the device saying the buffer still matches the memory it
  * was loaded from. It goes false the moment anyone nudges a layer, which is
  * what makes it worth showing — it is the difference between "Screen 1 is
  * showing memory 44" and "Screen 1 is showing something that started life as
@@ -177,22 +177,20 @@ export function listSlots(store, kind, { onlyValid = false } = {}) {
  * @param {string} id  a screen or aux key — `S1`, `A2`
  */
 export function assignments(store, id) {
-  const node = store.get([
-    ROOT, 'presetBank', 'status', 'presetId', listNameFor(id), 'items', id, 'presetList'
-  ]);
-  const items = (node && node.items) || {};
-  const out = {};
-  for (const [letter, entry] of Object.entries(items)) {
-    const props = pp(entry);
-    out[letter] = {
-      slot: Number.isFinite(props.id) ? props.id : null,
-      unmodified: props.isNotModified !== false
-    };
-  }
-  return out;
+  const dialect = dialectFor(store);
+  return dialect ? dialect.assignments(store, id) : {};
 }
 
 /* --------------------------------------------------------------- commands */
+
+/*
+ * The builders take the dialect last and default it to LivePremier, so the
+ * paths they have always produced are unchanged for every existing caller
+ * and test. A caller with a store passes `dialectFor(store)` — and gets
+ * `null` back for everything while the store has not said which platform
+ * it is, because a command spelled for a guess is worse than no command.
+ */
+const pick = (dialect) => (dialect === undefined ? NLC : dialect);
 
 /**
  * Recall a memory.
@@ -203,29 +201,14 @@ export function assignments(store, id) {
  * accident is the worst thing this tool could do, and a required argument is
  * a stronger guarantee than a safe default that one caller forgets to pass.
  *
- * @param {string} kind    'master' | 'screen' | 'layer'
+ * @param {string} kind    'master' | 'screen' | 'layer' | 'aux'
  * @param {number} slot
  * @param {{mode: 'PROGRAM'|'PREVIEW', id?: string, layer?: string|number}} target
  * @returns {{path: string[], value: true}|null}
  */
-export function recallCmd(kind, slot, target = {}) {
-  const bank = bankFor(kind);
-  const { mode, id, layer } = target;
-  if (!bank || (mode !== 'PROGRAM' && mode !== 'PREVIEW')) return null;
-
-  const base = [ROOT, bank.root, 'control', 'load', 'slotList', 'items', String(slot)];
-
-  if (bank.scope === 'device') {
-    return { path: [...base, 'presetList', 'items', mode, 'pp', 'xRequest'], value: true };
-  }
-  if (!id) return null;
-
-  const dest = [...base, listNameFor(id), 'items', id, 'presetList', 'items', mode];
-  if (bank.scope === 'destination') {
-    return { path: [...dest, 'pp', 'xRequest'], value: true };
-  }
-  if (layer == null || layer === '') return null;
-  return { path: [...dest, 'layerList', 'items', String(layer), 'pp', 'xRequest'], value: true };
+export function recallCmd(kind, slot, target = {}, dialect) {
+  const d = pick(dialect);
+  return d ? d.recall(kind, slot, target) : null;
 }
 
 /**
@@ -235,7 +218,8 @@ export function recallCmd(kind, slot, target = {}) {
  * *last* segment rather than the first, because the device models it as "this
  * source, written to that slot" rather than "that slot, loaded from this
  * source". Assuming symmetry here produces a path the device accepts into
- * nowhere — a write that reports success and saves nothing.
+ * nowhere — a write that reports success and saves nothing. True on both
+ * platforms.
  *
  * Master memories are the exception and take a slot directly, because a master
  * memory has no single source to name: it is the whole device.
@@ -244,38 +228,15 @@ export function recallCmd(kind, slot, target = {}) {
  * @param {number} slot
  * @param {{mode: 'PROGRAM'|'PREVIEW', id?: string, layer?: string|number}} source
  */
-export function saveCmd(kind, slot, source = {}) {
-  const bank = bankFor(kind);
-  const { mode, id, layer } = source;
-  if (!bank) return null;
-
-  if (bank.scope === 'device') {
-    return {
-      path: [ROOT, bank.root, 'control', 'save', 'slotList', 'items', String(slot), 'pp', 'xRequest'],
-      value: true
-    };
-  }
-  if ((mode !== 'PROGRAM' && mode !== 'PREVIEW') || !id) return null;
-
-  const from = [
-    ROOT, bank.root, 'control', 'save', listNameFor(id), 'items', id,
-    'presetList', 'items', mode
-  ];
-  const tail = ['slotList', 'items', String(slot), 'pp', 'xRequest'];
-
-  if (bank.scope === 'destination') return { path: [...from, ...tail], value: true };
-  if (layer == null || layer === '') return null;
-  return { path: [...from, 'layerList', 'items', String(layer), ...tail], value: true };
+export function saveCmd(kind, slot, source = {}, dialect) {
+  const d = pick(dialect);
+  return d ? d.save(kind, slot, source) : null;
 }
 
 /** Rename a memory. The label is free text and the device stores it verbatim. */
-export function labelCmd(kind, slot, label) {
-  const bank = bankFor(kind);
-  if (!bank) return null;
-  return {
-    path: [ROOT, bank.root, 'bankList', 'items', String(slot), 'control', 'pp', 'label'],
-    value: String(label ?? '')
-  };
+export function labelCmd(kind, slot, label, dialect) {
+  const d = pick(dialect);
+  return d ? d.label(kind, slot, label) : null;
 }
 
 /**
@@ -285,13 +246,9 @@ export function labelCmd(kind, slot, label) {
  * write and reports nothing, so the only confirmation is `isValid` going false
  * on the next frame.
  */
-export function deleteCmd(kind, slot) {
-  const bank = bankFor(kind);
-  if (!bank) return null;
-  return {
-    path: [ROOT, bank.root, 'bankList', 'items', String(slot), 'control', 'pp', 'xDelete'],
-    value: true
-  };
+export function deleteCmd(kind, slot, dialect) {
+  const d = pick(dialect);
+  return d ? d.delete(kind, slot) : null;
 }
 
 /**
@@ -304,13 +261,9 @@ export function deleteCmd(kind, slot) {
  * say what is about to happen instead.
  */
 export function saveFilters(store, kind, { id } = {}) {
-  const bank = bankFor(kind);
-  if (!bank) return null;
-  const base = [ROOT, bank.root, 'control', 'save'];
-  const node = bank.scope === 'device'
-    ? store.get(base)
-    : (id ? store.get([...base, listNameFor(id), 'items', id]) : null);
-  const props = pp(node);
+  const dialect = dialectOrDefault(store);
+  if (!bankFor(kind, store)) return null;
+  const props = pp(dialect.saveFiltersNode(store, kind, id));
   return {
     categories: Array.isArray(props.categoryFilter) ? props.categoryFilter : [],
     layers: Array.isArray(props.layerFilter) ? props.layerFilter : [],
@@ -321,4 +274,18 @@ export function saveFilters(store, kind, { id } = {}) {
        panel shows it rather than firing blind. */
     mode: typeof props.mode === 'string' ? props.mode : null
   };
+}
+
+/**
+ * The destinations a bank can be recalled onto, out of a full list.
+ *
+ * LivePremier's screen bank serves screens and auxes alike; Midra's screen
+ * bank serves screens and its aux bank serves auxes. The bank says which, and
+ * a picker that offered an aux for a bank that cannot address one would build
+ * a command the dialect then refuses — a dead button, with no explanation.
+ */
+export function targetsFor(bank, destinations) {
+  if (!bank || bank.targets === 'none') return [];
+  if (bank.targets === 'all') return destinations;
+  return destinations.filter((d) => (parseId(d.id) || {}).kind === bank.targets);
 }

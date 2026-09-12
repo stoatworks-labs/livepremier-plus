@@ -68,10 +68,23 @@ to install in the browser.
 > **stubbed**, so the paths and values are proven and the switcher received none
 > of them.
 >
+> **Midra 4K and Alta 4K (2026-09-12).** The Timeline tab and the Memories
+> panel now work on the other Analog Way platform too — every model of it. The
+> object model was read off a **live Pulse 4K** (firmware 3.3.10, read-only,
+> mid-show) and the port was then driven against the **Midra 4K simulator as a
+> Pulse 4K and the Alta 4K simulator as a Zenith 200**: cues fired through the
+> panel's own GO (recall → fade → take, with the device echoing each step
+> back), memories saved, renamed and recalled through the Memories panel,
+> including the aux bank. QuickVu, Eikos, QuickMatrix and Zenith 100 stores
+> were captured and checked too; all six share one object model. See
+> [Platforms](#platforms) for what is and is not offered there.
+>
 > **Still untested on hardware, and this is the honest part:** this app has
-> **never written to a device** — every hardware write in that session was sent
-> by a separate test harness, not by these panels. The timeline has only ever
-> fired at a simulator. That is still the first thing to try.
+> **never written to a physical device**. Its panels have now written to two
+> *simulators* — the Midra 4K and Alta 4K ones above — but every hardware write
+> in the Aquilon session was sent by a separate test harness, not by these
+> panels, and no Midra or Alta hardware has been driven at all. That is still
+> the first thing to try.
 
 **[Watch it work (50s)](https://www.youtube.com/watch?v=mGjGiNO_tSo)** — the real
 application, driven through its own controls: the VPU map off a real Aquilon C
@@ -604,6 +617,28 @@ and permanently empty and no `vpuMixerList`; `$vpuLayer` answers `E12` on real
 hardware. That is an artefact of the simulator, not a second firmware
 generation, and the panel says so plainly rather than drawing an empty chassis
 or claiming the firmware is unsupported.
+
+## Platforms
+
+Analog Way ships two Web RCS code families, and this app tells them apart by
+what the device's store contains rather than by its model name:
+
+| | LivePremier (Aquilon RS / C / C+) | Midra 4K (QuickVu, Pulse, Eikos, QuickMatrix) · Alta 4K (Zenith 100 / 200) |
+|---|---|---|
+| Timeline (cue stack) | yes | **yes** — takes, cuts, fades and recalls spelled for the `transition` and `preset` trees |
+| Memories | master, screen and layer banks | **master, screen and aux banks** — the aux bank is separate on this platform, and there is no layer bank |
+| Console | yes | not yet — mynah's grammar compiles to LivePremier paths; the port belongs upstream |
+| Layer | yes | not yet — the parameter catalogue was generated from a LivePremier bundle |
+| VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
+| Pitch Compensation | yes | not yet — the ratios live under `canvas/pitch` rather than `canvas/cmd` |
+| Arithmetic in fields, Settings | yes | yes |
+
+Destinations keep one spelling everywhere — `S1`, `A2` — and only the last step
+onto the wire differs, so a cue stack reads the same on either. Which screens
+and auxes are offered comes from the switcher's *applied* preconfig, which is
+also where the models differ: a QuickVu has one screen, a Zenith 200 four
+screens and four auxes, and the app lists whatever the box says is in service.
+Everything a panel withholds is withheld with its reason, on the Settings page.
 
 ## Safety
 

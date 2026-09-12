@@ -29,9 +29,12 @@
 import { h, icon } from './dom.js';
 
 /* The strip is Semantic UI's `ui tabular menu`. Structure is the fallback:
-   a menu holding anchors that each contain a heading. */
+   a menu holding anchors that each carry a label and switch a pane. */
 const STRIP_SEL = '.ui.tabular.menu';
 const OURS = 'data-lpp-tab';
+/* Marks the label element inside one of our tabs when the vendor's own tab
+   has no heading element to clone — see `_labelOf`. */
+const LABEL = 'data-lpp-label';
 
 /*
  * How much of a tab to show, widest first.
@@ -100,28 +103,51 @@ export class TabHost {
    * The vendor strip, if this page has one *of the right kind*.
    *
    * `.ui.tabular.menu` is not unique to the per-screen panel: Preconfig heads
-   * its page with a strip built from the same Semantic UI classes. That one is
-   * **page navigation** — every anchor is an `href` to another route, and the
-   * items are icons with no text. Appending Console and Timeline to it put two
-   * words in a row of glyphs, on a page they have nothing to do with, and
-   * clicking one hid a pane belonging to a different screen.
+   * its page with a strip built from the same Semantic UI classes. On
+   * LivePremier that one is **page navigation** — every anchor is an `href`
+   * to another route, and the items are icons with no text. Appending Console
+   * and Timeline to it put two words in a row of glyphs, on a page they have
+   * nothing to do with, and clicking one hid a pane belonging to a different
+   * screen. On Midra 4K the same page is a column of one-tab strips, each a
+   * card *title* dressed as a tab.
    *
-   * So a strip qualifies only if it holds a **pane switcher**: an anchor with
-   * a heading and no `href`. That is the structural difference between "these
-   * tabs change what is shown here" and "these links go somewhere else", and
-   * it does not depend on a class name, a route or a label.
+   * So a strip qualifies only if it holds a **pane switcher**: at least two
+   * anchors that each carry a label and have no `href`. Two, because a strip
+   * with one tab switches nothing — it is a heading. That is the structural
+   * difference between "these tabs change what is shown here" and "these
+   * links go somewhere else", and it does not depend on a class name, a route
+   * or a label.
    */
   _strip() {
     for (const strip of document.querySelectorAll(STRIP_SEL)) {
-      if (this._switchers(strip).length) return strip;
+      if (this._switchers(strip).length >= 2) return strip;
     }
     return null;
   }
 
-  /** The vendor's own pane-switching tabs in a strip, ours excluded. */
+  /**
+   * The vendor's own pane-switching tabs in a strip, ours excluded.
+   *
+   * A tab's label is an `h5` inside the anchor on LivePremier and a bare text
+   * node beside the icon on Midra 4K and Alta 4K — the same Semantic UI
+   * `Menu.Item`, given `content` as a string. Either counts; what does not is
+   * an anchor with no words at all, which is an icon link.
+   */
   _switchers(strip) {
     return [...strip.querySelectorAll('a')].filter(
-      (a) => !a.hasAttribute(OURS) && !a.hasAttribute('href') && a.querySelector('h5'));
+      (a) => !a.hasAttribute(OURS) && !a.hasAttribute('href') && (a.textContent || '').trim() !== '');
+  }
+
+  /**
+   * The element that carries a tab's words.
+   *
+   * The vendor's own heading when it has one, else the span we put in its
+   * place. Never the anchor itself: `_applyMode` shows and hides the label
+   * independently of the icon, and writing text straight onto the anchor
+   * would take the icon with it.
+   */
+  _labelOf(node) {
+    return node.querySelector('h5') || node.querySelector(`[${LABEL}]`);
   }
 
   /** The vendor's content pane: the strip's sibling that is not the strip. */
@@ -197,7 +223,7 @@ export class TabHost {
       const node = this.nodes.get(tab.id);
       if (!node) continue;
       const glyph = node.querySelector('i.icon');
-      const label = node.querySelector('h5');
+      const label = this._labelOf(node);
       if (glyph) glyph.style.display = mode === 'full' || mode === 'icon' ? '' : 'none';
       if (label) {
         label.style.display = mode === 'icon' ? 'none' : '';
@@ -240,14 +266,23 @@ export class TabHost {
     node.removeAttribute('href');
     node.style.cursor = 'pointer';
 
-    /* The label has to be its own element, because `_applyMode` shows and
-       hides it independently of the icon. A template without a heading would
-       otherwise mean writing the label onto the anchor itself, wiping the icon
-       out and leaving nothing for the fit ladder to shrink. */
+    /*
+     * The label has to be its own element, because `_applyMode` shows and
+     * hides it independently of the icon. LivePremier's tab carries an `h5`,
+     * which is cloned and rewritten. Midra's carries a bare text node, and
+     * an `h5` in its place would render as a heading — larger than the
+     * vendor's own label and on its own line — so there the text nodes are
+     * replaced by an inline span, which inherits whatever the anchor's text
+     * was getting.
+     */
     let label = node.querySelector('h5');
     if (!label) {
-      label = h('h5');
-      node.replaceChildren(...[node.querySelector('i.icon'), label].filter(Boolean));
+      label = h('span', { [LABEL]: '' });
+      const texts = [...node.childNodes].filter((n) => n.nodeType === 3 /* TEXT_NODE */);
+      if (texts.length) {
+        texts[0].replaceWith(label);
+        for (const t of texts.slice(1)) t.remove();
+      } else node.append(label);
     }
     label.textContent = tab.label;
 

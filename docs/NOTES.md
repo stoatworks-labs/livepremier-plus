@@ -569,9 +569,8 @@ not apply. Verified live on all three sims.
 3. **`.aw-app` WRAPS a row on LivePremier and IS the row on Midra/Alta.**
    Counting its children picked the main content and the panel rendered at zero
    width — correct, and invisible. The row now comes from the sidebar's parent.
-4. Still un-ported: the tab strip's pane-switcher test needs an `h5`, and
-   mng puts the label straight in the anchor. Gated off there, so it does not
-   bite yet.
+4. ~~Still un-ported: the tab strip's pane-switcher test needs an `h5`, and
+   mng puts the label straight in the anchor.~~ Ported 2026-09-12 — see below.
 
 ### Audio patching — grammar is MYNAH's (`be4cf9e`), re-vendored here
 `device/audio/control/deviceList/items/<frame>/`:
@@ -705,3 +704,116 @@ second. **This app still has not written to a device.**
   `opener: window` — same code, real live session.
 - ⚠️ **`rAF` never fires while the pane is hidden**, so a `javascript_tool` call
   that awaits one times out at 45s. Read synchronously.
+
+## Midra 4K / Alta 4K: the Timeline and the Memories panel (2026-09-12)
+
+Asked, from a live event with a **Pulse 4K** on the desk, why the extra tabs on
+Screens / Aux. did not appear the way they do on the Aquilon. They were gated
+off on purpose (see 2026-08-22 above) because every path was LivePremier-shaped.
+The work was strictly read-only against the live box: `GET /` , the bundle and
+one `GET /api/stores/device` (1.9 MB — this platform's store is tiny). All
+writes went to the simulators. **This app has still never written to physical
+hardware; it has now written to two simulators through its own panels.**
+
+### What the box said
+- `system/pp = { dev: 'PULSE', platformId: 1536, platformLabel: 'Midra 4K' }`,
+  firmware 3.3.10, bundle built 2025-07-04 — the same build date as the Alta
+  1.3.1 bundle in the Alta simulator. Midra 3.3.x and Alta 1.3.x are one
+  generation of `mng-platform`.
+- Takes: `transition/screenList/items/<1-4>/control/pp/{xTake,xCut,xStepBack,
+  xTakeAbort,xCopyProgramToPreview,takeTime,tbarPosition,enablePresetToggle}`,
+  `status/pp/{transition,tbarPosition,isTbarPositionValid}`; auxes the same
+  under `transition/auxiliaryScreenList`. One `takeTime`, tenths. No `take`
+  field (TO_UP/TO_DOWN) — the in-flight transition states are the only signal.
+- Banks: `preset/bank` (200, screens), `preset/auxBank` (200, auxes),
+  `preset/masterBank` (50). Slot metadata under `<bank>/slotList/items/<n>/
+  {control/pp/label, control/pp/xDelete, status/pp/isValid}`; screen slots
+  carry `screenWidth/screenHeight/transitionDuration`, master slots
+  `isShadow/screenFilter/auxFilter`. Load: `<bank>/control/load/slotList/
+  items/<n>/screenList/items/<s>/presetList/items/<PROGRAM|PREVIEW>/pp/xRequest`
+  (+ `isLoading`). Save: slot LAST, as on LivePremier. Master load/save take
+  the slot directly.
+- Buffers are `presetList/items/{UP,DOWN}`; which memory each holds is on the
+  screen — `.../presetList/items/UP/status/pp/{memoryId,isModified}` (0 = none).
+- **Which is program** (read out of the vendor's minified bundle, function
+  `SS(mode, takeStatus)`): PROGRAM → UP for `AT_UP|EFFECT_FROM_UP|COPY_FROM_UP`,
+  else DOWN; PREVIEW the opposite. Same suffix rule as the nlc letters. Then
+  **confirmed by behaviour** on the sim: recall→PROGRAM on an `AT_DOWN` screen
+  landed in DOWN, recall→PREVIEW in UP.
+- Layers: `presetList/items/<b>/liveLayerList/items/<1-8>/{source/pp/input,
+  position/pp/{posH,posV}, size/pp/{sizeH,sizeV}, opacity, crop, mask, border,
+  transition, flying, timing, speed, effects, color, status/pp/state}`. Eight
+  slots on every screen; the fitted ones are `preconfig/status/stateList/items/
+  CURRENT/screenList/items/<n>/liveLayerList/items/<k>/pp/mode !== 'DISABLE'`.
+  No anchor — position is the centre. Inputs are `INPUT_<n>`.
+- In service: `.../CURRENT/screenList/items/<n>/pp/{enable,layerCount,
+  outputList}` and `.../auxiliaryScreenList/items/<n>/pp/mode` (`DISABLE` /
+  `ENABLE`). `preconfig/status/pp/{screenValidity,auxValidity,templateValidity}`
+  is what the *model* allows — QVU `['1']`, Pulse/Eikos/QMX `['1','2']`,
+  ZEN100 three, ZEN200 four; QMX no auxes at all, `templateValidity ['MATRIX']`.
+- Pitch exists here too: `outputList/items/<n>/canvas/pitch/pp/{pitchRatioH,
+  pitchRatioV,xUpdate}` (nlc: `canvas/cmd`), and screen membership is
+  `.../CURRENT/outputList/items/<n>/pp/usedOnScreen`, not on the output. Not
+  ported; the probe is now honest so the entry is withheld rather than offered
+  and dead.
+
+### What was built
+`src/core/dialect.js` (both spellings, chosen by tree), `src/core/commands.js`
+(`CMD` over a dialect; the cue stack takes `commands: () => …` and asks at fire
+time), `core/screens.js` / `core/memories.js` / `core/properties.fittedLayers`
+routed through it, `core/platform.js` probes per family with `layerProperties`
+split out of `screens`, `ui/tabs.js` pane-switcher rule + span labels,
+`dom.icon()` candidate lists. Identifiers stay `S<n>`/`A<n>` on both platforms.
+`test/dialect.test.js` (21) against `test/fixtures/midra-3.2.29-pulse4k.json`,
+cut from the sim after the asserted writes had been made — 270 tests.
+
+### Verified live, on the simulators, through the panels
+- Midra sim as Pulse 4K (3.2.29 — store shape diffed identical to the live
+  3.3.10 box for every subtree touched): Cues tab on the strip, Memories in
+  PLUS, VPU/Console/Layer absent with reasons. A cue built in the tab and fired
+  with its GO: `…/load/slotList/items/2/screenList/items/1/…/PREVIEW/pp/xRequest`,
+  +152 ms `takeTime = 20`, `xTake`; the box echoed `DOWN.memoryId = 2` then
+  `AT_DOWN`. Memories panel: rename, save into an empty slot, recall (landed in
+  UP = preview while AT_DOWN), the Aux chip refusing with "pick a destination
+  first" when no aux is in service.
+- Alta sim as Zenith 200 (1.3.7): S1–S4 and A1–A2 listed, a take on `A1 + S4`
+  with a 0.5 s fade flipped both to `AT_UP`; aux bank save → `UP.memoryId = 7`
+  (program while AT_UP), recall → DOWN.
+- QVU, EIKOS, QMX (Midra sim) and ZEN100 (Alta sim) stores captured: **zero
+  structural difference** between the six; only the applied preconfig differs.
+
+### Traps met
+- ⚠️ **A master save writes every screen's memory into `bankSlot`**, which
+  defaults to 1 for all four screens and all four auxes
+  (`preset/masterBank/control/save/screenList/items/<n>/pp/bankSlot`). My seed
+  saved screen memory 1 and then a master memory; the master save re-wrote
+  slot 1 four times, last from disabled screen 4, leaving a memory with
+  `screenWidth 0` whose every recall sits at `isLoading: true` forever. Not a
+  dialect bug — the vendor UI would do the same — but pick master slots away
+  from screen slots you care about, and read `screenWidth` before trusting one.
+- **A recall overwrites `takeTime`** with the memory's `transitionDuration`:
+  wrote 25, recalled two memories, read 10. Same as LivePremier's
+  `takeUpTime`; the cue engine's ordering already handles it.
+- The simulators read the port block from **both** `settings.ini` and
+  `settings_0.ini` (the engine one, its web child the other): editing only
+  `settings_0.ini` boots on the old ports. `DEVICE_TYPE` 1–6 = QVU, PULSE,
+  EIKOS, QMX, ZEN100, ZEN200 in both simulators; run copies of the session dir.
+- The Browser pane's hidden-tab rAF freeze again: `view.armed` expires after
+  4 s, so arm-and-fire has to happen in one `javascript_tool` call, with
+  `__WRU.shell.refresh()` between the clicks.
+- Midra's Sources strip is four **icon-only anchors with no href** — a shape
+  the old href-only Preconfig rule would have accepted. Words are now required.
+
+### Still to do
+- **Console on mng** — a Midra target in mynah (`src/lang/paths.ts` is
+  LivePremier-only; a `target` per family, plus the OSC dictionary). Until
+  then the tab is withheld with that reason.
+- **Layer tab on mng** — teach `awj-surface/tools/gen-catalogue.mjs` the
+  minified bundle (`n.d(t,"OUTPUT_ATTRIBUTES",…)` instead of `const
+  X_ATTRIBUTES = {`, enums as `{key,items,order}`), generate a second
+  catalogue, and give `core/properties.js` a per-dialect layer root.
+- **Pitch on mng** — `canvas/pitch` + preconfig membership; small.
+- **MIDI Mapping** anchors after `Virtual RC400T`, which the mng sidebar does
+  not have; it is also catalogue-driven, so it belongs with the Layer work.
+- Drive it against a physical Midra / Alta when one is not mid-show.
+

@@ -27,6 +27,8 @@ import { createSettingsPanel } from './ui/settings-panel.js';
 import { createMemoriesPanel } from './ui/memories-panel.js';
 import { createPropertiesPanel } from './ui/properties-panel.js';
 import { detectPlatform, supports } from './core/platform.js';
+import { dialectFor } from './core/dialect.js';
+import { commandsFor } from './core/commands.js';
 import { createTimecodeSource } from './ui/timecode-source.js';
 import { TimecodeChase } from './core/chase.js';
 
@@ -110,7 +112,17 @@ async function boot() {
 
   const session = new Session(transport);
   const storage = makeStorage();
-  const stack = new CueStack({ send: (cmd) => session.send(cmd) });
+  /*
+   * The cue engine spells its writes for whichever platform the store turns
+   * out to be — LivePremier or Midra 4K / Alta 4K — and asks at fire time,
+   * because the store is empty when this runs and may be re-pointed at a
+   * different frame mid-show. Before the store has said, every command
+   * declines to be built and a GO sends nothing. See `core/commands.js`.
+   */
+  const stack = new CueStack({
+    send: (cmd) => session.send(cmd),
+    commands: () => commandsFor(dialectFor(session.store))
+  });
 
   const saved = await storage.load();
   if (saved) stack.load(saved);
@@ -214,7 +226,7 @@ async function boot() {
        * view anyway — 1000 screen slots and 500 master ones are not per-screen
        * — so they sit in the sidebar beside the VPU map instead.
        */
-      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', enabled: () => can('screens'), render: () => properties.render() }
+      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', enabled: () => can('layerProperties'), render: () => properties.render() }
     ]
   });
 
@@ -231,7 +243,7 @@ async function boot() {
       { id: 'memories', label: 'Memories', icon: 'shotbox-18', enabled: () => can('cueStack'), render: () => memories.render() },
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
-      { id: 'midi', label: 'MIDI Mapping', icon: 'gpio-18', after: 'Virtual RC400T', render: () => midi.render() },
+      { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', render: () => midi.render() },
       /* Under Preconfig because that is literally where the two fields it
          fills in live — Preconfig > Canvas > Pitch. A panel that computes a
          number you then type in one flyout over belongs in the same flyout. */
@@ -274,7 +286,8 @@ async function boot() {
    * device was slow to answer.
    */
   const here = platform();
-  console.info(TAG, 'platform', here.name, here.model || '', here.firmware || '');
+  console.info(TAG, 'platform', here.name, here.modelName || here.model || '', here.firmware || '',
+    '- dialect', (dialectFor(session.store) || {}).id || 'none');
   shell.remount();
   tabs.remount();
 

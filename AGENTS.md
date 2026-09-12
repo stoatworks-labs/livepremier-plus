@@ -194,9 +194,11 @@ point of the ids being structural.
   page with a strip built from the same Semantic UI classes, and Console and
   Timeline were appended to it for a release — two words in a row of glyphs, on
   a page they have nothing to do with. A strip only qualifies if it holds a
-  **pane switcher**: an anchor with a heading and no `href`. That is the
-  difference between "these tabs change what is shown here" and "these links go
-  somewhere else", and it needs no class, route or label.
+  **pane switcher**: at least two anchors that carry words and have no `href`.
+  That is the difference between "these tabs change what is shown here" and
+  "these links go somewhere else", and it needs no class, route or label. The
+  label is an `h5` on LivePremier and a bare text node on Midra — see the
+  platform section.
 - **Settings are in the Preconfig flyout** (`ui/settings-panel.js`), beneath the
   device's own System page, because Preconfig is where Web RCS files things
   about the installation as a whole. Two groups of them are real settings now —
@@ -238,9 +240,11 @@ that does not mean patching React internals.
 
 So the banks and the properties are read from the mirror instead:
 
-- **`core/memories.js`** covers all three banks. They are not variations on one
-  idea — what separates them is what a recall has to *name*: master names only a
-  slot, screen names a destination too, layer names a destination and a layer.
+- **`core/memories.js`** covers all the banks — three on either platform, not
+  the same three (Midra has an aux bank and no layer bank). They are not
+  variations on one idea — what separates them is what a recall has to *name*:
+  master names only a slot, screen names a destination too, layer names a
+  destination and a layer. The set and the spellings come from `core/dialect.js`.
   ⚠️ **A save is not the mirror image of a recall.** On recall the slot comes
   first (`…/load/slotList/items/<n>/screenList/…`); on save it comes **last**
   (`…/save/screenList/items/S1/presetList/items/PROGRAM/slotList/items/<n>/…`).
@@ -299,19 +303,22 @@ full screen, and layer 2 does not exist. The preset says *where*; the screen's
 own `layerList/items/<n>/status/pp/capability` says *whether*. Drawing the
 preset alone covers every screen in stale full-frame layers.
 
-## There are two platforms, and only one of them is supported
+## There are two platforms, and the panels now speak both
 
 Read off the simulators' own `webapp-bundle/bundle.json` and confirmed against
-their running stores on 2026-08-22:
+their running stores on 2026-08-22, then against a live Pulse 4K and all six
+mng-platform models on 2026-09-12:
 
 | range | platform | bundle | firmware | identity lives at |
 |---|---|---|---|---|
 | LivePremier (Aquilon) | `nlc-platform` | 6.2.1 | 6.2.73 | `system/deviceList/items/<1-4>/pp` |
-| Midra 4K | `mng-platform` | 3.2.6 | 3.2.29 | `system/pp` |
-| Alta 4K | `mng-platform` | 1.3.1 | 1.3.7 | `system/pp` |
+| Midra 4K (QuickVu, Pulse, Eikos, QuickMatrix) | `mng-platform` | 3.2.6 / 3.3.x | 3.2.29 / 3.3.10 | `system/pp` |
+| Alta 4K (Zenith 100, Zenith 200) | `mng-platform` | 1.3.1 | 1.3.7 | `system/pp` |
 
 **Midra 4K and Alta 4K are the same platform as each other**, on different
-version lines, and a different platform from LivePremier.
+version lines, and a different platform from LivePremier. `platformId` 1536 is
+Midra 4K and 1552 is Alta 4K; `dev` names the box (`PULSE`, `QVU`, `EIKOS`,
+`QMX`, `ZEN100`, `ZEN200` — the simulators' own enum, in that order).
 
 **What carries over:** the whole proxy, the hook, the store mirror and the
 panel-mounting machinery. All three serve the same Web RCS architecture, the
@@ -321,36 +328,72 @@ same `GET /api/stores/device`, the same socket and AWJ on 10606.
 `masterPresetBank` and `vpuMixerList` do not exist on `mng-platform` at all.
 Screens are `1`..`4`, not `S1`..`S24`. Transitions live in a top-level
 `transition` node with one `takeTime` rather than the `takeUpTime` /
-`takeDownTime` pair. So every path in `core/paths.js`, and every command mynah
-compiles, is LivePremier-shaped.
+`takeDownTime` pair. Memories live under `preset/bank` (screens, 200),
+`preset/auxBank` (auxes, 200 — a bank of its own) and `preset/masterBank`
+(50); there is no layer bank. The preset buffers are literally `UP` and
+`DOWN`, not lettered.
 
-`core/platform.js` therefore **detects the platform and gates every feature**,
-and today that means the panels are LivePremier-only. Three rules in it are
-worth keeping:
+### `core/dialect.js` — one interface, two spellings
 
-- **Identity is read from two different places** and `platformLabel` is the
-  discriminator. `system/pp` is `{ready:true}` on LivePremier and carries the
-  whole identity on the other family; getting that the wrong way round
-  identifies nothing.
-- **Capabilities are probed, not tabulated.** A feature is offered when the
-  part of the store it writes to is present — not when the model is on an
-  allowlist. An allowlist is a promise about hardware nobody here has, and it
-  goes stale the first time Analog Way ships a range this file has not met.
-- **Unknown is not the same as unsupported.** Before the store arrives every
-  capability is `null` and everything stays on offer, because a panel that
-  flickers into existence is a smaller problem than one missing for good
-  because a switcher was slow.
+Every path a panel reads or writes goes through the store's **dialect**, chosen
+by which tree the store contains (`screenAuxGroupList` → `NLC`,
+`transition/screenList` → `MNG`, neither → `null`, and `null` builds no
+command). The `nlc` half reproduces `core/paths.js` and the old memory paths
+byte for byte — the tests pin it — so nothing verified on the Aquilon moved.
+`core/commands.js` is the `CMD` table over a dialect; the cue stack asks for it
+at fire time, because the store is empty at boot and can be re-pointed mid-show.
+
+**The identifiers do not change; only the paths do.** A destination is `S1` /
+`A1` everywhere above the dialect, on both families. `S1` on a Midra means
+"screen 1" and never appears on the wire — screen 1 and aux 1 are both keyed
+`1` in their own lists there, which is exactly why the kind lives in the
+identifier. Cue stacks, pickers and the console keep one spelling.
+
+Four things about the mng half are load-bearing, each read off a device or the
+vendor's own bundle rather than inferred:
+
+- **Which of `UP`/`DOWN` is program is the transition suffix.** The vendor's
+  bundle resolves `PROGRAM` to `UP` for `AT_UP` / `EFFECT_FROM_UP` /
+  `COPY_FROM_UP` and `DOWN` otherwise; `PREVIEW` is the opposite. Confirmed by
+  behaviour on the simulator: a recall to PROGRAM on an `AT_DOWN` screen landed
+  in `DOWN`, one to PREVIEW landed in `UP`. Same suffix rule as the nlc letters.
+- **"In service" is the applied preconfig**,
+  `preconfig/status/stateList/items/CURRENT/screenList/items/<n>/pp/enable`
+  and `.../auxiliaryScreenList/items/<n>/pp/mode !== 'DISABLE'` — never
+  `preconfig/control`, which is what the operator has *staged*. Every Midra
+  and Alta reports four screens and four auxes whether or not any has an
+  output; a QuickVu has one screen valid, a Zenith 200 four screens and four
+  auxes, and the difference between the models is entirely in this state.
+- **Fitted layers are gated the same way**: eight slots on every screen, and
+  `.../CURRENT/screenList/items/<n>/liveLayerList/items/<k>/pp/mode` reads
+  `DISABLE` for the ones with no scaler. The preset carries geometry for all
+  eight regardless — the same trap `core/screens.js` describes for nlc.
+- **A recall overwrites `takeTime`** with the memory's `transitionDuration`,
+  exactly as a LivePremier recall overwrites `takeUpTime`. The cue engine's
+  recall → settle → fade → trigger order is therefore right on both.
+
+### What is offered on `mng-platform`, and what is not
+
+Probed per family in `core/platform.js`. On a Midra or Alta: the **Timeline**
+tab and the **Memories** entry (screen, aux and master banks). Withheld, each
+with its reason in the table: the **Console** (mynah compiles to LivePremier
+paths and knows no other — the port belongs upstream in mynah), the **Layer**
+tab (`vendor/surface/catalogue.json` was generated from a LivePremier bundle,
+and the mng bundle is minified where LivePremier's is not, so awj-surface's
+generator has to learn it first), **VPU Map** (no VPU), **Pitch Compensation**
+(the ratios exist, under `canvas/pitch` rather than `canvas/cmd`, and screen
+membership is in the preconfig rather than on the output — portable, not yet
+ported) and **Audio patching**. The MIDI Mapping entry anchors after a
+`Virtual RC400T` label the mng sidebar does not have, so it does not mount
+there either.
 
 ### The UI differences, which are smaller than they look
 
 The `mng-platform` Web RCS spells its sidebar module `sidebar__c__…` where
 LivePremier spells it `sidebar-module__c__…`. **Every segment after `__c__` is
-identical.** `ui/shell.js` matches both, because the settings page has to mount
-on a Midra even though nothing else does — it is where an operator finds out
-*why* nothing else is there, and an app that silently does nothing is worse
-than one that explains itself.
+identical.** `ui/shell.js` matches both.
 
-Two more, both fixed structurally rather than by platform-sniffing:
+Fixed structurally rather than by platform-sniffing:
 
 - **The flyout items are not hashed on `mng-platform`** — they are plain
   Semantic UI `<a class="item">`. The template falls back to the first anchor
@@ -359,19 +402,27 @@ Two more, both fixed structurally rather than by platform-sniffing:
   Counting children of `.aw-app` therefore picked the main content instead of
   the row and appended the panel inside it at zero width — rendered, correct,
   and invisible. The row is now derived from the sidebar's parent.
-
-⚠️ Still un-ported, and known: the tab strip's pane-switcher test looks for an
-`h5` inside the anchor, and `mng-platform` puts the label straight in the
-anchor. It does not matter yet because the tabs are gated off there, but it is
-the next thing to trip over if the paths are ever ported.
+- **The tab strip's labels are bare text nodes on mng**, not an `h5`: the same
+  Semantic `Menu.Item`, given `content` as a string. A pane switcher is now
+  "at least two anchors with words and no `href`" — two, because a one-tab
+  strip is a heading (Midra's Preconfig page is a column of them), and words,
+  because Midra's Sources strip is four icon-only anchors with no `href`
+  either. Our label goes into an inline `span` there; an `h5` would render as
+  a heading, larger than the vendor's and on its own line.
+- **The sprites differ.** `gpio-18`, `hardware-18` and `mini-list-14` do not
+  exist on mng; `icon()` takes a list of candidates and uses the first the
+  page's sprite defines.
 
 ⚠️ Running the simulators: all three default to `PORT=3000` **and**
 `AWJ_EXT_PORT=10606`, so only one runs at a time out of the box. Edit the port
-block in `~/Library/Application Support/ANALOG WAY/<sim>/<session>/settings.ini`,
-copy it to `settings_0.ini`, and launch the inner binary directly —
+block in **both** `settings.ini` and `settings_0.ini` (the engine reads one and
+its web child the other), and launch the inner binary directly —
 `cd <session dir> && <App>.app/Contents/MacOS/<RANGE>/bin/AW_APP_SIMULATOR.app/Contents/MacOS/AW_APP_SIMULATOR <session>/settings_0.ini`.
 **The working directory has to be the session directory**; without it the
 process starts and exits with only a couple of Qt warnings to show for it.
+`DEVICE_TYPE` in the same file picks the model: `1` QVU, `2` PULSE, `3` EIKOS,
+`4` QMX, `5` ZEN100, `6` ZEN200, in both the Midra and the Alta simulator. Run
+a **copy** of the session directory per model; the engine writes into it.
 
 ## MIDI: the constraint that used to decide the architecture, and does not now
 
@@ -516,10 +567,13 @@ no benefit. Read `wru` as "the panels".
 
 ## Testing
 
-`npm test` — 88 tests, no network, no browser. Seven run against a real Aquilon
+`npm test` — 270 tests, no network, no browser. Seven run against a real Aquilon
 C capture (`aquilon-c-live-resources.json`, read 2026-08-21) and are the only
 coverage of fitted mixers, output links and Optimized mode, none of which a
-simulator produces.
+simulator produces. `test/dialect.test.js` runs both object models against real
+stores — the Aquilon's memories capture and `midra-3.2.29-pulse4k.json`, cut
+from the Midra 4K simulator after the writes it asserts had been made through
+the mng dialect's own paths, so every mng path in it is one a switcher accepted.
 
 Twenty-two cover the proxy, against a stand-in Web RCS on a **real socket**
 rather than a mock — deliberately, because every bug worth catching there lives

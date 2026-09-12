@@ -181,7 +181,7 @@ export function createPreviewWall({ session, onRefresh = () => {}, doc = documen
       box.append(img);
     }
 
-    const name = sourceLabel(layer.source);
+    const name = sourceLabel(layer.source, session.store);
     box.append(h('span', { class: 'lpp-layer-tag', text: name ? `${layer.label} ${name}` : layer.label }));
     return box;
   }

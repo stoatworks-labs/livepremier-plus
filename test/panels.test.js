@@ -48,7 +48,7 @@ const store = (() => {
 test('the three banks are distinguished by what a recall has to name', () => {
   assert.deepEqual(BANKS.map((b) => b.kind), ['master', 'screen', 'layer']);
   assert.deepEqual(BANKS.map((b) => b.scope), ['device', 'destination', 'layer']);
-  assert.equal(bankFor('screen').root, 'presetBank');
+  assert.deepEqual(bankFor('screen').root, ['presetBank']);
   assert.equal(bankFor('nonsense'), null);
 });
 

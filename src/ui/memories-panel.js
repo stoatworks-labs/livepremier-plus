@@ -11,10 +11,12 @@
  *
  * ## Three deliberate differences from the vendor's tab
  *
- * **All three banks in one place.** Master, Screen and Layer are separate
- * trees on the device and separate sub-tabs in Web RCS. On a second monitor
- * they are one list you switch between, because the question an operator has
- * mid-show is "where is that memory" and not "which bank did I file it in".
+ * **All the banks in one place.** Master, Screen and Layer on a LivePremier —
+ * Master, Screen and Aux on a Midra 4K — are separate trees on the device and
+ * separate sub-tabs in Web RCS. On a second monitor they are one list you
+ * switch between, because the question an operator has mid-show is "where is
+ * that memory" and not "which bank did I file it in". Which set this switcher
+ * has comes from `core/dialect.js`; nothing here names a bank.
  *
  * **The destination is explicit.** The vendor's tab follows the screen you
  * have selected. That selection is React state we cannot read, so this asks
@@ -33,10 +35,11 @@ import { h, button, isEnter } from './dom.js';
 import { panel } from './shell.js';
 import { listDestinations } from '../core/screens.js';
 import {
-  BANKS, bankFor, listSlots, slotCount, assignments, recallCmd, saveCmd,
+  banksFor, bankFor, targetsFor, listSlots, slotCount, assignments, recallCmd, saveCmd,
   labelCmd, deleteCmd, saveFilters
 } from '../core/memories.js';
 import { fittedLayers } from '../core/properties.js';
+import { dialectFor } from '../core/dialect.js';
 
 /** How long a destructive button stays armed before it goes back to safe. */
 const ARM_MS = 4000;
@@ -74,11 +77,22 @@ export function createMemoriesPanel({
   const busy = () => view.editing != null;
 
   const store = () => session.store;
-  const bank = () => bankFor(view.kind);
+  const banks = () => banksFor(store());
+  /*
+   * The chosen bank, or the platform's first when the choice does not exist
+   * here — a remembered `layer` on a switcher that has no layer bank, which
+   * happens the moment the store arrives and the platform turns out not to be
+   * the one the default assumed.
+   */
+  const bank = () => bankFor(view.kind, store()) || banks()[0];
 
-  /** Destinations, and a remembered choice that is still valid. */
+  /**
+   * Destinations this bank can address, and a remembered choice that is
+   * still valid. A Midra's screen bank serves screens only and its aux bank
+   * auxes only; a LivePremier's screen bank serves both. The bank says.
+   */
   function destinations() {
-    return store().ready ? listDestinations(store()) : [];
+    return store().ready ? targetsFor(bank(), listDestinations(store())) : [];
   }
 
   function currentDest() {
@@ -116,6 +130,10 @@ export function createMemoriesPanel({
     return { mode: view.mode, id: dest.id, layer };
   }
 
+  /* Every command is spelled for the platform the store says this is, and is
+     refused while the store has not said. */
+  const dialect = () => dialectFor(store());
+
   function fire(cmd, description) {
     if (!cmd) { note('err', 'nothing to send — pick a destination first'); return; }
     const ok = session.send(cmd);
@@ -124,18 +142,18 @@ export function createMemoriesPanel({
 
   const recall = (slot) => {
     const t = target();
-    fire(t && recallCmd(view.kind, slot, t),
-      `recalled ${view.kind} memory ${slot} to ${view.mode.toLowerCase()}${t && t.id ? ' on ' + t.id : ''}`);
+    fire(t && recallCmd(bank().kind, slot, t, dialect()),
+      `recalled ${bank().kind} memory ${slot} to ${view.mode.toLowerCase()}${t && t.id ? ' on ' + t.id : ''}`);
   };
 
   const save = (slot) => {
     const t = target();
-    fire(t && saveCmd(view.kind, slot, t),
-      `saved ${view.mode.toLowerCase()}${t && t.id ? ' of ' + t.id : ''} into ${view.kind} memory ${slot}`);
+    fire(t && saveCmd(bank().kind, slot, t, dialect()),
+      `saved ${view.mode.toLowerCase()}${t && t.id ? ' of ' + t.id : ''} into ${bank().kind} memory ${slot}`);
   };
 
   const erase = (slot) => {
-    fire(deleteCmd(view.kind, slot), `erased ${view.kind} memory ${slot}`);
+    fire(deleteCmd(bank().kind, slot, dialect()), `erased ${bank().kind} memory ${slot}`);
   };
 
   /**
@@ -188,7 +206,7 @@ export function createMemoriesPanel({
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-large lpp-controls aw-flex-wrap' },
         h('div', { class: 'aw-font-subtitle-1', text: 'Memories' }),
         h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
-          ...BANKS.map((b) => chip(b.label, view.kind === b.kind, () => {
+          ...banks().map((b) => chip(b.label, bank().kind === b.kind, () => {
             view.kind = b.kind;
             view.armed = null;
             onRefresh();
@@ -259,7 +277,7 @@ export function createMemoriesPanel({
    */
   function saveLine() {
     const dest = currentDest();
-    const filters = saveFilters(store(), view.kind, { id: dest && dest.id });
+    const filters = saveFilters(store(), bank().kind, { id: dest && dest.id });
     if (!filters) return null;
     const bits = [];
     if (filters.mode) bits.push(filters.mode.replace(/_/g, ' ').toLowerCase());
@@ -278,10 +296,10 @@ export function createMemoriesPanel({
     }, h('span', { text: view.note.text }));
   }
 
-  /** Slot → the preset letters currently holding it, for the screen bank. */
+  /** Slot → the preset buffers currently holding it, for a per-destination bank. */
   function heldBy() {
     const dest = currentDest();
-    if (view.kind !== 'screen' || !dest) return new Map();
+    if (bank().scope !== 'destination' || !dest) return new Map();
     const out = new Map();
     for (const [letter, entry] of Object.entries(assignments(store(), dest.id))) {
       if (entry.slot == null) continue;
@@ -292,7 +310,7 @@ export function createMemoriesPanel({
   }
 
   function rows() {
-    const all = listSlots(store(), view.kind, { onlyValid: !view.showEmpty });
+    const all = listSlots(store(), bank().kind, { onlyValid: !view.showEmpty });
     const needle = view.filter.trim().toLowerCase();
     if (!needle) return all;
     return all.filter((s) =>
@@ -317,7 +335,7 @@ export function createMemoriesPanel({
       h('div', { class: 'aw-flex-row-center-v-space-between aw-margin-bottom-small' },
         h('span', {
           class: 'aw-font-overline aw-text-tertiary',
-          text: `${list.length} shown of ${slotCount(store(), view.kind)} ${bank().label.toLowerCase()} slots`
+          text: `${list.length} shown of ${slotCount(store(), bank().kind)} ${bank().label.toLowerCase()} slots`
         }),
         emptyToggle()),
       h('table', { class: 'wru-table' },
@@ -370,7 +388,7 @@ export function createMemoriesPanel({
       const text = view.editing ? view.editing.text : slot.label;
       view.editing = null;
       if (send && text !== slot.label) {
-        fire(labelCmd(view.kind, slot.slot, text), `renamed memory ${slot.slot}`);
+        fire(labelCmd(bank().kind, slot.slot, text, dialect()), `renamed memory ${slot.slot}`);
       } else onRefresh();
     };
     return h('input', {

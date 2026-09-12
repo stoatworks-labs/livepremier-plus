@@ -36,8 +36,18 @@ function append(el, children) {
   }
 }
 
-/** An icon from the host page's sprite, e.g. icon('timer-18'). */
+/**
+ * An icon from the host page's sprite, e.g. icon('timer-18').
+ *
+ * `id` may be a list of candidates, first choice first: the two platforms'
+ * sprites do not carry the same set — LivePremier has `gpio-18` where Midra
+ * has `connector-gpio-18` — and a `<use>` of an id the sprite lacks draws
+ * nothing, silently. The first id the page actually has wins; with none
+ * present the first choice is used anyway, so a wrong list still degrades to
+ * the same blank glyph it always would have rather than to an exception.
+ */
 export function icon(id, cls = 'aw-block-huge') {
+  id = spriteId(id);
   const i = h('i', { class: 'icon ' + cls, 'aria-hidden': 'true' });
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 1800 1800');
@@ -47,6 +57,13 @@ export function icon(id, cls = 'aw-block-huge') {
   svg.append(use);
   i.append(svg);
   return i;
+}
+
+/** The first of some candidate sprite ids that the page's sprite defines. */
+export function spriteId(ids) {
+  const list = Array.isArray(ids) ? ids : [ids];
+  const has = (id) => id && typeof document.getElementById === 'function' && document.getElementById(id);
+  return list.find(has) || list[0];
 }
 
 /** Clear and refill an element in one step. */

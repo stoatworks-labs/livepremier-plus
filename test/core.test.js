@@ -702,7 +702,15 @@ test('the VPU map is offered on LivePremier and withheld from Midra and Alta', (
   }
 });
 
-test('the cue stack and the command line are withheld from the other platform', () => {
+/*
+ * These fixtures are trimmed to identity — no transition tree, no banks — so
+ * the probes fail, and that is the point: a Midra is judged on what its store
+ * has, not on being a Midra. `test/dialect.test.js` runs the same probes on a
+ * full Pulse 4K store and gets the cue stack and the banks. The console is
+ * withheld from the full store as well, because mynah's grammar compiles to
+ * LivePremier paths.
+ */
+test('an identity-only store gets nothing it cannot prove it has', () => {
   const lp = detectPlatform(platformStore(LP));
   const midra = detectPlatform(platformStore(MIDRA));
   for (const cap of ['screens', 'cueStack', 'console']) {

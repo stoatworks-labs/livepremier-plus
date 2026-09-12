@@ -74,6 +74,18 @@ const FEATURES = [
     needs: 'cueStack'
   },
   {
+    name: 'Memories',
+    where: 'Sidebar, under PLUS',
+    what: 'Every memory bank in one list, with recall, save, rename and erase — and a window of its own.',
+    needs: 'cueStack'
+  },
+  {
+    name: 'Layer',
+    where: 'Screens / Aux., beside Properties',
+    what: 'Every property of a named layer, generated from the device\u2019s own parameter catalogue.',
+    needs: 'layerProperties'
+  },
+  {
     name: 'MIDI Mapping',
     where: 'Sidebar, under Virtual RC400T',
     what: 'A MIDI control surface driving the switcher from this page.',
@@ -191,7 +203,9 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
 
     const rows = h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
       readout('Platform', here.name),
-      readout('Model', here.model || 'unknown', { tone: here.model ? null : 'tertiary' }),
+      /* The product name when the code is one we have met — `PULSE` is a
+         Pulse 4K — and the code itself when it is not. */
+      readout('Model', here.modelName || here.model || 'unknown', { tone: here.model ? null : 'tertiary' }),
       readout('Firmware', here.firmware || '—'),
       here.chassis ? readout('Chassis', here.chassis) : null,
       readout('Serial', here.serial || '—'));

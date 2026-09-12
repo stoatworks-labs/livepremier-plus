@@ -26,7 +26,8 @@ import { panel } from './shell.js';
 import { parseTimecodeString } from '../core/chase.js';
 import { formatTimecode } from '../core/timecode.js';
 import { ACTION_KINDS } from '../core/cuestack.js';
-import { ROOT } from '../core/paths.js';
+import { listDestinations } from '../core/screens.js';
+import { dialectFor } from '../core/dialect.js';
 
 export function createTimelinePanel({ session, stack, storage, timecode = null, chase = null, onRefresh }) {
   const view = { editing: null, adding: false, armedUntil: null, lastFired: null };
@@ -41,17 +42,20 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
 
   /** Screens and auxiliaries the device says are actually in use. */
   function targets() {
-    const store = session.store;
-    const base = [ROOT, 'screenAuxGroupList'];
-    const keys = store.itemKeys(base);
-    return keys.filter((k) => store.get([...base, 'items', k, 'status', 'pp', 'isUsed']) === true);
+    return listDestinations(session.store).map((d) => d.id);
   }
 
+  /**
+   * Where a destination's T-bar is. `take` (OFF / TO_UP / TO_DOWN) is
+   * LivePremier's; Midra has only the six-valued `transition`, which the
+   * dialect reports through the same key.
+   */
   function screenStatus(id) {
-    const store = session.store;
+    const dialect = dialectFor(session.store);
+    if (!dialect) return { transition: undefined, take: undefined };
     return {
-      transition: store.get([ROOT, 'screenAuxGroupList', 'items', id, 'status', 'pp', 'transition']),
-      take: store.get([ROOT, 'screenAuxGroupList', 'items', id, 'status', 'pp', 'take'])
+      transition: session.store.get(dialect.takeStatus(id, 'transition')),
+      take: session.store.get(dialect.takeStatus(id, 'take'))
     };
   }
 
@@ -173,10 +177,15 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
       h('div', { class: 'wru-screen-grid' },
         ...used.map((id) => {
           const st = screenStatus(id);
-          const live = st.take !== 'OFF';
+          /* LivePremier says TO_UP / TO_DOWN in `take` for the length of a
+             fade; Midra has no `take`, so the in-flight transition states
+             (anything but AT_UP / AT_DOWN) are the signal there. */
+          const live = st.take
+            ? st.take !== 'OFF'
+            : typeof st.transition === 'string' && !st.transition.startsWith('AT_');
           return h('div', { class: ['wru-screen', live ? 'wru-screen--live' : ''] },
             h('span', { class: 'wru-screen-id', text: id }),
-            h('span', { class: 'wru-screen-state', text: live ? st.take : (st.transition || 'idle') }));
+            h('span', { class: 'wru-screen-state', text: live ? (st.take || st.transition) : (st.transition || 'idle') }));
         })));
   }
 
