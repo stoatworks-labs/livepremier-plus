@@ -841,3 +841,22 @@ upstream; this vendored copy has the fix.
   submit".
 - The mng sprite has no `mini-list-14`; the Console tab falls back to `bars-14`.
 
+### Layer and Pitch followed too
+
+awj-surface `171ed53` taught `tools/gen-catalogue.mjs` the minified mng bundle
+(`n.d(t,"X_ATTRIBUTES",…)`, `readOnly:!0`, scattered `NAME:{key:"NAME",…}` enums,
+`3e3`) and both store layouts, plus `--bundle`/`--store` for captures. The Midra
+catalogue was cut from this morning's read-only capture of the live Pulse 4K:
+57 layer parameters, 11 take-group ones, zero inferred; the LivePremier one
+regenerates byte-identically. Vendored as `vendor/surface/catalogue-mng.json`;
+`core/dialect.js` carries the catalogue, the layer root and the pitch node per
+platform. Driven on the Pulse sim through the Layer tab: source → `INPUT_3`
+echoed, opacity 999 clamped to 256 and echoed; pitch 1004/998 written under
+`canvas/pitch` and read back, output 1 on S1 and 2 on S2. The MIDI mapper stays
+LivePremier's (engine paths, RC400T anchor).
+
+### Still to do
+- Drive it against the physical Pulse 4K when the show is over — a field test
+  suite for that is the next thing.
+- MIDI Mapping on mng: the vendored surface engine's `paths.js`/`preset.js`.
+

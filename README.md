@@ -68,9 +68,9 @@ to install in the browser.
 > **stubbed**, so the paths and values are proven and the switcher received none
 > of them.
 >
-> **Midra 4K and Alta 4K (2026-09-12).** The Timeline tab, the Console and
-> the Memories panel now work on the other Analog Way platform too — every
-> model of it. The
+> **Midra 4K and Alta 4K (2026-09-12).** The Timeline, Console and Layer
+> tabs, the Memories panel and Pitch Compensation now work on the other
+> Analog Way platform too — every model of it. The
 > object model was read off a **live Pulse 4K** (firmware 3.3.10, read-only,
 > mid-show) and the port was then driven against the **Midra 4K simulator as a
 > Pulse 4K and the Alta 4K simulator as a Zenith 200**: cues fired through the
@@ -629,9 +629,9 @@ what the device's store contains rather than by its model name:
 | Timeline (cue stack) | yes | **yes** — takes, cuts, fades and recalls spelled for the `transition` and `preset` trees |
 | Memories | master, screen and layer banks | **master, screen and aux banks** — the aux bank is separate on this platform, and there is no layer bank |
 | Console | yes | **yes** — mynah compiles the same grammar for this platform (`Take Screen 1`, `Recall Aux 1 Memory 7`, `Set Aux 1 Source 4`); no layer memories, no stills on a layer, no audio matrix, and it says so |
-| Layer | yes | not yet — the parameter catalogue was generated from a LivePremier bundle |
+| Layer | yes | **yes** — from a catalogue generated from a Pulse 4K's own bundle: 57 properties, `UP`/`DOWN` buffers |
 | VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
-| Pitch Compensation | yes | not yet — the ratios live under `canvas/pitch` rather than `canvas/cmd` |
+| Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |
 | Arithmetic in fields, Settings | yes | yes |
 
 Destinations keep one spelling everywhere — `S1`, `A2` — and only the last step

@@ -5,7 +5,7 @@ the control-surface engine. Same reasoning as `../vpu-model.js` and
 `../mynah-lang.mjs`: one implementation, copied rather than re-derived, so two
 tools cannot reach different conclusions about the same device.
 
-Upstream commit `41fbfcd2d039985b5312224f380b70c00b1e56e5`, synced 2026-08-21 — 12 core files
+Upstream commit `171ed5366e999b1bdc992f5f4065972755ba2bc6`, synced 2026-09-12 — 13 core files
 and 6 stock controller profiles.
 
 `npm run sync:surface-core` re-copies it and rewrites `MANIFEST.json`;

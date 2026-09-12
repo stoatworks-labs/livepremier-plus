@@ -150,24 +150,28 @@ export const CAPABILITIES = [
   {
     id: 'layerProperties',
     label: 'Layer properties',
-    probes: { nlc: [ROOT, 'screenAuxGroupList', 'items'] },
-    needs: 'a layer catalogue for this platform',
-    /* The panel renders `vendor/surface/catalogue.json`, generated from a
-       LivePremier bundle: 67 parameters, spelled `layerList/…/inputNum`. A
-       Midra layer is `liveLayerList/…/input` with size split from position,
-       and its bundle is minified where LivePremier's is not, so the generator
-       has to learn it before there is anything to render. */
-    absent: 'The layer catalogue was generated from a LivePremier, and this platform spells its layers differently.'
+    /* The panel renders a catalogue generated from each platform's own
+       bundle — `vendor/surface/catalogue.json` for LivePremier and
+       `catalogue-mng.json` for Midra 4K / Alta 4K — and addresses layers
+       through `core/dialect.js`, so it needs the same tree the Timeline does. */
+    probes: {
+      nlc: [ROOT, 'screenAuxGroupList', 'items'],
+      mng: [ROOT, 'transition', 'screenList', 'items']
+    },
+    needs: 'the screen list',
+    absent: 'This platform spells its layers in a way no catalogue here describes yet.'
   },
   {
     id: 'pitchCompensation',
     label: 'Pitch compensation',
-    probes: { nlc: [ROOT, 'outputList', 'items', '*', 'canvas', 'cmd'] },
-    needs: 'the per-output pitch command node',
-    /* Midra keeps its ratios under `canvas/pitch` and says which screen an
-       output belongs to in the preconfig rather than on the output. Close,
-       and not the same; until it is read from there the panel has nothing
-       honest to show. */
+    /* The ratio trio lives under `canvas/cmd` on LivePremier and `canvas/pitch`
+       on Midra; `core/dialect.js` knows both and where each says which
+       screen an output feeds. */
+    probes: {
+      nlc: [ROOT, 'outputList', 'items', '*', 'canvas', 'cmd'],
+      mng: [ROOT, 'outputList', 'items', '*', 'canvas', 'pitch']
+    },
+    needs: 'the per-output pitch node',
     absent: 'This platform describes its outputs differently, so pitch compensation cannot be read yet.'
   },
   {

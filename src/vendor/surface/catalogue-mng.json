@@ -1,0 +1,1143 @@
+{
+  "generatedFrom": "file:/private/tmp/claude-501/-Users-allansargeant-dev/6393fe07-27b6-4a8c-ab98-f96eb9ac81ed/scratchpad/pulse/store.json",
+  "platform": "midra",
+  "device": "PULSE",
+  "firmware": "3.3.10",
+  "presetKeys": [
+    "DOWN",
+    "UP"
+  ],
+  "layerKeys": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8"
+  ],
+  "layerRoot": [
+    "presetList",
+    "items",
+    "<preset>",
+    "liveLayerList",
+    "items",
+    "<layer>"
+  ],
+  "groupRoot": [
+    "transition",
+    "screenList",
+    "items",
+    "<destination>"
+  ],
+  "layer": [
+    {
+      "id": "source.input",
+      "path": [
+        "source",
+        "pp",
+        "input"
+      ],
+      "type": "enum",
+      "readOnly": false,
+      "enum": "LAYER_CONTENT",
+      "values": [
+        "NONE",
+        "INPUT_1",
+        "INPUT_2",
+        "INPUT_3",
+        "INPUT_4",
+        "INPUT_5",
+        "INPUT_6",
+        "INPUT_7",
+        "INPUT_8",
+        "INPUT_9",
+        "INPUT_10",
+        "INPUT_11",
+        "INPUT_12",
+        "INPUT_13",
+        "INPUT_14",
+        "INPUT_15",
+        "INPUT_16",
+        "COLOR"
+      ],
+      "def": "NONE"
+    },
+    {
+      "id": "position.posH",
+      "path": [
+        "position",
+        "pp",
+        "posH"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": -67268,
+      "max": 67268,
+      "def": 960
+    },
+    {
+      "id": "position.posV",
+      "path": [
+        "position",
+        "pp",
+        "posV"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": -67268,
+      "max": 67268,
+      "def": 540
+    },
+    {
+      "id": "size.sizeH",
+      "path": [
+        "size",
+        "pp",
+        "sizeH"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 1920
+    },
+    {
+      "id": "size.sizeV",
+      "path": [
+        "size",
+        "pp",
+        "sizeV"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 1080
+    },
+    {
+      "id": "opacity.opacity",
+      "path": [
+        "opacity",
+        "pp",
+        "opacity"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 256,
+      "def": 256
+    },
+    {
+      "id": "opacity.inhibitKeying",
+      "path": [
+        "opacity",
+        "pp",
+        "inhibitKeying"
+      ],
+      "type": "bool",
+      "readOnly": false
+    },
+    {
+      "id": "effects.flags",
+      "path": [
+        "effects",
+        "pp",
+        "flags"
+      ],
+      "type": "map",
+      "readOnly": false,
+      "subType": "enum",
+      "capacity": 6,
+      "enum": "PRESET_EFFECT_FLAGS",
+      "values": [
+        "FLIP_H",
+        "FLIP_V",
+        "BLACK_N_WHITE",
+        "NEGATIVE",
+        "SEPIA",
+        "SOLAR"
+      ]
+    },
+    {
+      "id": "color.red",
+      "path": [
+        "color",
+        "pp",
+        "red"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "color.green",
+      "path": [
+        "color",
+        "pp",
+        "green"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "color.blue",
+      "path": [
+        "color",
+        "pp",
+        "blue"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "crop.top",
+      "path": [
+        "crop",
+        "pp",
+        "top"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "crop.bottom",
+      "path": [
+        "crop",
+        "pp",
+        "bottom"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "crop.left",
+      "path": [
+        "crop",
+        "pp",
+        "left"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "crop.right",
+      "path": [
+        "crop",
+        "pp",
+        "right"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "crop.aspectOverride",
+      "path": [
+        "crop",
+        "pp",
+        "aspectOverride"
+      ],
+      "type": "enum",
+      "readOnly": false,
+      "enum": "LAYER_ASPECT",
+      "values": [
+        "GLOBAL_SETTING",
+        "1_1",
+        "CENTERED",
+        "FULLSCREEN",
+        "CROPPED",
+        "INPUT_SETTING"
+      ],
+      "def": "GLOBAL_SETTING"
+    },
+    {
+      "id": "mask.top",
+      "path": [
+        "mask",
+        "pp",
+        "top"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "mask.bottom",
+      "path": [
+        "mask",
+        "pp",
+        "bottom"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "mask.left",
+      "path": [
+        "mask",
+        "pp",
+        "left"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "mask.right",
+      "path": [
+        "mask",
+        "pp",
+        "right"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "border.edge.style",
+      "path": [
+        "border",
+        "edge",
+        "pp",
+        "style"
+      ],
+      "type": "map",
+      "readOnly": false,
+      "subType": "enum",
+      "capacity": 3,
+      "enum": "LAYER_BORDER_FLAGS",
+      "values": [
+        "EDGE",
+        "SMOOTH",
+        "ROUNDED"
+      ]
+    },
+    {
+      "id": "border.edge.radius",
+      "path": [
+        "border",
+        "edge",
+        "pp",
+        "radius"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "border.edge.sizeH",
+      "path": [
+        "border",
+        "edge",
+        "pp",
+        "sizeH"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 10
+    },
+    {
+      "id": "border.edge.sizeV",
+      "path": [
+        "border",
+        "edge",
+        "pp",
+        "sizeV"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 10
+    },
+    {
+      "id": "border.edge.opacity",
+      "path": [
+        "border",
+        "edge",
+        "pp",
+        "opacity"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 255
+    },
+    {
+      "id": "border.edge.color.red",
+      "path": [
+        "border",
+        "edge",
+        "color",
+        "pp",
+        "red"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "border.edge.color.green",
+      "path": [
+        "border",
+        "edge",
+        "color",
+        "pp",
+        "green"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "border.edge.color.blue",
+      "path": [
+        "border",
+        "edge",
+        "color",
+        "pp",
+        "blue"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "border.shadow.style",
+      "path": [
+        "border",
+        "shadow",
+        "pp",
+        "style"
+      ],
+      "type": "map",
+      "readOnly": false,
+      "subType": "enum",
+      "capacity": 3,
+      "enum": "LAYER_BORDER_FLAGS",
+      "values": [
+        "EDGE",
+        "SMOOTH",
+        "ROUNDED"
+      ]
+    },
+    {
+      "id": "border.shadow.radius",
+      "path": [
+        "border",
+        "shadow",
+        "pp",
+        "radius"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "border.shadow.sizeH",
+      "path": [
+        "border",
+        "shadow",
+        "pp",
+        "sizeH"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": -512,
+      "max": 512,
+      "def": 10
+    },
+    {
+      "id": "border.shadow.sizeV",
+      "path": [
+        "border",
+        "shadow",
+        "pp",
+        "sizeV"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": -512,
+      "max": 512,
+      "def": 10
+    },
+    {
+      "id": "border.shadow.opacity",
+      "path": [
+        "border",
+        "shadow",
+        "pp",
+        "opacity"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 255
+    },
+    {
+      "id": "border.shadow.color.red",
+      "path": [
+        "border",
+        "shadow",
+        "color",
+        "pp",
+        "red"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "border.shadow.color.green",
+      "path": [
+        "border",
+        "shadow",
+        "color",
+        "pp",
+        "green"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "border.shadow.color.blue",
+      "path": [
+        "border",
+        "shadow",
+        "color",
+        "pp",
+        "blue"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "transition.flags",
+      "path": [
+        "transition",
+        "pp",
+        "flags"
+      ],
+      "type": "map",
+      "readOnly": false,
+      "subType": "enum",
+      "capacity": 2,
+      "enum": "PRESET_TRANSITION_FLAGS",
+      "values": [
+        "DISABLE_CROSS_EFFECT",
+        "DISABLE_CROSS_DEPTH"
+      ],
+      "def": "DISABLE_CROSS_EFFECT"
+    },
+    {
+      "id": "transition.opening.type",
+      "path": [
+        "transition",
+        "opening",
+        "pp",
+        "type"
+      ],
+      "type": "enum",
+      "readOnly": false,
+      "enum": "LAYER_TRANSITION",
+      "values": [
+        "CUT",
+        "FADE",
+        "SLIDE",
+        "WIPE",
+        "CIRCLE",
+        "STRETCH"
+      ],
+      "def": "FADE"
+    },
+    {
+      "id": "transition.opening.way",
+      "path": [
+        "transition",
+        "opening",
+        "pp",
+        "way"
+      ],
+      "type": "enum",
+      "readOnly": false,
+      "enum": "LAYER_TRANSITION_WAY",
+      "values": [
+        "LEFT_TO_RIGHT",
+        "RIGHT_TO_LEFT",
+        "BOTTOM_TO_UP",
+        "UP_TO_BOTTOM",
+        "V_FROM_TO_CENTER",
+        "H_FROM_TO_CENTER",
+        "HV_FROM_TO_CENTER",
+        "SW_TO_NE",
+        "SE_TO_NW",
+        "NW_TO_SE",
+        "NE_TO_SW"
+      ],
+      "def": "LEFT_TO_RIGHT"
+    },
+    {
+      "id": "transition.closing.type",
+      "path": [
+        "transition",
+        "closing",
+        "pp",
+        "type"
+      ],
+      "type": "enum",
+      "readOnly": false,
+      "enum": "LAYER_TRANSITION",
+      "values": [
+        "CUT",
+        "FADE",
+        "SLIDE",
+        "WIPE",
+        "CIRCLE",
+        "STRETCH"
+      ],
+      "def": "FADE"
+    },
+    {
+      "id": "transition.closing.way",
+      "path": [
+        "transition",
+        "closing",
+        "pp",
+        "way"
+      ],
+      "type": "enum",
+      "readOnly": false,
+      "enum": "LAYER_TRANSITION_WAY",
+      "values": [
+        "LEFT_TO_RIGHT",
+        "RIGHT_TO_LEFT",
+        "BOTTOM_TO_UP",
+        "UP_TO_BOTTOM",
+        "V_FROM_TO_CENTER",
+        "H_FROM_TO_CENTER",
+        "HV_FROM_TO_CENTER",
+        "SW_TO_NE",
+        "SE_TO_NW",
+        "NW_TO_SE",
+        "NE_TO_SW"
+      ],
+      "def": "LEFT_TO_RIGHT"
+    },
+    {
+      "id": "flying.type",
+      "path": [
+        "flying",
+        "pp",
+        "type"
+      ],
+      "type": "enum",
+      "readOnly": false,
+      "enum": "PRESET_FLYING_TYPE",
+      "values": [
+        "LINEAR",
+        "BEZIER_1PT",
+        "BEZIER_2PT",
+        "DEVIANT_CLOCKWISE",
+        "DEVIANT_ANTICLOCKWISE"
+      ],
+      "def": "LINEAR"
+    },
+    {
+      "id": "flying.point1.posH",
+      "path": [
+        "flying",
+        "point1",
+        "pp",
+        "posH"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": -32768,
+      "max": 32767,
+      "def": 0
+    },
+    {
+      "id": "flying.point1.posV",
+      "path": [
+        "flying",
+        "point1",
+        "pp",
+        "posV"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": -32768,
+      "max": 32767,
+      "def": 0
+    },
+    {
+      "id": "flying.point2.posH",
+      "path": [
+        "flying",
+        "point2",
+        "pp",
+        "posH"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": -32768,
+      "max": 32767,
+      "def": 0
+    },
+    {
+      "id": "flying.point2.posV",
+      "path": [
+        "flying",
+        "point2",
+        "pp",
+        "posV"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": -32768,
+      "max": 32767,
+      "def": 0
+    },
+    {
+      "id": "timing.ratio",
+      "path": [
+        "timing",
+        "pp",
+        "ratio"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 32768
+    },
+    {
+      "id": "timing.opening.start",
+      "path": [
+        "timing",
+        "opening",
+        "pp",
+        "start"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "timing.opening.end",
+      "path": [
+        "timing",
+        "opening",
+        "pp",
+        "end"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 65535
+    },
+    {
+      "id": "timing.closing.start",
+      "path": [
+        "timing",
+        "closing",
+        "pp",
+        "start"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "timing.closing.end",
+      "path": [
+        "timing",
+        "closing",
+        "pp",
+        "end"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 65535
+    },
+    {
+      "id": "speed.type",
+      "path": [
+        "speed",
+        "pp",
+        "type"
+      ],
+      "type": "enum",
+      "readOnly": false,
+      "enum": "PRESET_TRANSITION_SPEED",
+      "values": [
+        "LINEAR",
+        "SMOOTH"
+      ],
+      "def": "SMOOTH"
+    },
+    {
+      "id": "speed.point1",
+      "path": [
+        "speed",
+        "pp",
+        "point1"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 0
+    },
+    {
+      "id": "speed.point2",
+      "path": [
+        "speed",
+        "pp",
+        "point2"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 255,
+      "def": 255
+    },
+    {
+      "id": "status.state",
+      "path": [
+        "status",
+        "pp",
+        "state"
+      ],
+      "type": "enum",
+      "readOnly": true,
+      "enum": "LAYER_STATUS",
+      "values": [
+        "OFF",
+        "OPEN",
+        "CLOSE",
+        "CROSS",
+        "FLYING",
+        "FLYING_DEPTH",
+        "SLAVE",
+        "MASK",
+        "OUT_OF_CAPACITY"
+      ],
+      "def": "OFF"
+    },
+    {
+      "id": "status.contentWidth",
+      "path": [
+        "status",
+        "pp",
+        "contentWidth"
+      ],
+      "type": "int",
+      "readOnly": true,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "status.contentHeight",
+      "path": [
+        "status",
+        "pp",
+        "contentHeight"
+      ],
+      "type": "int",
+      "readOnly": true,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    }
+  ],
+  "screenGroup": [
+    {
+      "id": "control.enablePresetToggle",
+      "path": [
+        "control",
+        "pp",
+        "enablePresetToggle"
+      ],
+      "type": "bool",
+      "readOnly": false
+    },
+    {
+      "id": "control.tbarPosition",
+      "path": [
+        "control",
+        "pp",
+        "tbarPosition"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "control.takeTime",
+      "path": [
+        "control",
+        "pp",
+        "takeTime"
+      ],
+      "type": "int",
+      "readOnly": false,
+      "min": 0,
+      "max": 3000,
+      "def": 10
+    },
+    {
+      "id": "control.xTake",
+      "path": [
+        "control",
+        "pp",
+        "xTake"
+      ],
+      "type": "bool",
+      "readOnly": false
+    },
+    {
+      "id": "control.xTakeAbort",
+      "path": [
+        "control",
+        "pp",
+        "xTakeAbort"
+      ],
+      "type": "bool",
+      "readOnly": false
+    },
+    {
+      "id": "control.xCut",
+      "path": [
+        "control",
+        "pp",
+        "xCut"
+      ],
+      "type": "bool",
+      "readOnly": false
+    },
+    {
+      "id": "control.xStepBack",
+      "path": [
+        "control",
+        "pp",
+        "xStepBack"
+      ],
+      "type": "bool",
+      "readOnly": false
+    },
+    {
+      "id": "control.xCopyProgramToPreview",
+      "path": [
+        "control",
+        "pp",
+        "xCopyProgramToPreview"
+      ],
+      "type": "bool",
+      "readOnly": false
+    },
+    {
+      "id": "status.transition",
+      "path": [
+        "status",
+        "pp",
+        "transition"
+      ],
+      "type": "enum",
+      "readOnly": true,
+      "enum": "TAKE_STATUS",
+      "values": [
+        "AT_DOWN",
+        "AT_UP",
+        "EFFECT_FROM_DOWN",
+        "EFFECT_FROM_UP",
+        "COPY_FROM_DOWN",
+        "COPY_FROM_UP"
+      ],
+      "def": "AT_DOWN"
+    },
+    {
+      "id": "status.tbarPosition",
+      "path": [
+        "status",
+        "pp",
+        "tbarPosition"
+      ],
+      "type": "int",
+      "readOnly": true,
+      "min": 0,
+      "max": 65535,
+      "def": 0
+    },
+    {
+      "id": "status.isTbarPositionValid",
+      "path": [
+        "status",
+        "pp",
+        "isTbarPositionValid"
+      ],
+      "type": "bool",
+      "readOnly": true
+    }
+  ],
+  "enums": {
+    "LAYER_CONTENT": [
+      "NONE",
+      "INPUT_1",
+      "INPUT_2",
+      "INPUT_3",
+      "INPUT_4",
+      "INPUT_5",
+      "INPUT_6",
+      "INPUT_7",
+      "INPUT_8",
+      "INPUT_9",
+      "INPUT_10",
+      "INPUT_11",
+      "INPUT_12",
+      "INPUT_13",
+      "INPUT_14",
+      "INPUT_15",
+      "INPUT_16",
+      "COLOR"
+    ],
+    "PRESET_EFFECT_FLAGS": [
+      "FLIP_H",
+      "FLIP_V",
+      "BLACK_N_WHITE",
+      "NEGATIVE",
+      "SEPIA",
+      "SOLAR"
+    ],
+    "LAYER_ASPECT": [
+      "GLOBAL_SETTING",
+      "1_1",
+      "CENTERED",
+      "FULLSCREEN",
+      "CROPPED",
+      "INPUT_SETTING"
+    ],
+    "LAYER_BORDER_FLAGS": [
+      "EDGE",
+      "SMOOTH",
+      "ROUNDED"
+    ],
+    "PRESET_TRANSITION_FLAGS": [
+      "DISABLE_CROSS_EFFECT",
+      "DISABLE_CROSS_DEPTH"
+    ],
+    "LAYER_TRANSITION": [
+      "CUT",
+      "FADE",
+      "SLIDE",
+      "WIPE",
+      "CIRCLE",
+      "STRETCH"
+    ],
+    "LAYER_TRANSITION_WAY": [
+      "LEFT_TO_RIGHT",
+      "RIGHT_TO_LEFT",
+      "BOTTOM_TO_UP",
+      "UP_TO_BOTTOM",
+      "V_FROM_TO_CENTER",
+      "H_FROM_TO_CENTER",
+      "HV_FROM_TO_CENTER",
+      "SW_TO_NE",
+      "SE_TO_NW",
+      "NW_TO_SE",
+      "NE_TO_SW"
+    ],
+    "PRESET_FLYING_TYPE": [
+      "LINEAR",
+      "BEZIER_1PT",
+      "BEZIER_2PT",
+      "DEVIANT_CLOCKWISE",
+      "DEVIANT_ANTICLOCKWISE"
+    ],
+    "PRESET_TRANSITION_SPEED": [
+      "LINEAR",
+      "SMOOTH"
+    ],
+    "LAYER_STATUS": [
+      "OFF",
+      "OPEN",
+      "CLOSE",
+      "CROSS",
+      "FLYING",
+      "FLYING_DEPTH",
+      "SLAVE",
+      "MASK",
+      "OUT_OF_CAPACITY"
+    ],
+    "TAKE_STATUS": [
+      "AT_DOWN",
+      "AT_UP",
+      "EFFECT_FROM_DOWN",
+      "EFFECT_FROM_UP",
+      "COPY_FROM_DOWN",
+      "COPY_FROM_UP"
+    ]
+  }
+}

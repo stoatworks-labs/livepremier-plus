@@ -1,5 +1,6 @@
 {
   "generatedFrom": "http://127.0.0.1:3000",
+  "platform": "livepremier",
   "device": "NLC_CMAX",
   "firmware": null,
   "presetKeys": [
@@ -13,6 +14,19 @@
     "3",
     "4",
     "…"
+  ],
+  "layerRoot": [
+    "presetList",
+    "items",
+    "<preset>",
+    "layerList",
+    "items",
+    "<layer>"
+  ],
+  "groupRoot": [
+    "screenAuxGroupList",
+    "items",
+    "<destination>"
   ],
   "layer": [
     {

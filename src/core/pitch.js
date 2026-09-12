@@ -14,6 +14,7 @@
  */
 
 import { ROOT } from './paths.js';
+import { NLC, dialectFor } from './dialect.js';
 
 const pp = (node) => (node && typeof node === 'object' ? node.pp : null) || {};
 
@@ -25,14 +26,17 @@ const pp = (node) => (node && typeof node === 'object' ? node.pp : null) || {};
  * writes go through `core/paths.js` conventions. They agree today; if they ever
  * stopped, the test in `test/vendor.test.js` says so rather than one silently
  * winning.
+ *
+ * The node differs by platform — `canvas/cmd` on LivePremier, `canvas/pitch`
+ * on Midra 4K / Alta 4K — and the dialect says which. Omitted, LivePremier.
  */
-export const outputPitch = (outputKey, axis) =>
-  [ROOT, 'outputList', 'items', outputKey, 'canvas', 'cmd', 'pp',
+export const outputPitch = (outputKey, axis, dialect = NLC) =>
+  [ROOT, 'outputList', 'items', outputKey, 'canvas', dialect.pitch.node, 'pp',
     axis === 'H' ? 'pitchRatioH' : 'pitchRatioV'];
 
-/** The commit. Writing a ratio without this moves `cmd` and nothing else. */
-export const outputPitchCommit = (outputKey) =>
-  [ROOT, 'outputList', 'items', outputKey, 'canvas', 'cmd', 'pp', 'xUpdate'];
+/** The commit. Writing a ratio without this moves the node and nothing else. */
+export const outputPitchCommit = (outputKey, dialect = NLC) =>
+  [ROOT, 'outputList', 'items', outputKey, 'canvas', dialect.pitch.node, 'pp', 'xUpdate'];
 
 /**
  * Every output the device has assigned to one screen, with what it can tell us.
@@ -47,6 +51,8 @@ export const outputPitchCommit = (outputKey) =>
  * @param {string} screenId  a screen key — `S1`
  */
 export function screenOutputs(store, screenId) {
+  const dialect = dialectFor(store);
+  if (!dialect) return [];
   const list = store.get([ROOT, 'outputList']);
   const items = (list && list.items) || {};
   const keys = Array.isArray(list && list.itemKeys) && list.itemKeys.length
@@ -58,9 +64,11 @@ export function screenOutputs(store, screenId) {
     const canvas = items[key] && items[key].canvas;
     if (!canvas) continue;
     const status = pp(canvas.status);
-    if (status.usedInScreenAux !== screenId) continue;
+    /* Membership is the platform's to say: on the output on LivePremier, in
+       the applied preconfig on Midra. */
+    if (dialect.pitch.screenOf(store, key) !== screenId) continue;
 
-    const cmd = pp(canvas.cmd);
+    const cmd = pp(canvas[dialect.pitch.node]);
     out.push({
       key,
       /* The raster the output actually drives. */
@@ -127,15 +135,15 @@ export function toProject(outputs, pitches, opts = {}) {
  *
  * @param {{groups: Array}} result  a `compensate()` result
  */
-export function pitchWrites(result) {
+export function pitchWrites(result, dialect = NLC) {
   const writes = [];
   for (const g of result.groups) {
     const key = g.group.outputKey;
     if (!key) continue;
     if (g.h.outOfRange || g.v.outOfRange) continue;
-    writes.push({ path: outputPitch(key, 'H'), value: g.h.raw });
-    writes.push({ path: outputPitch(key, 'V'), value: g.v.raw });
-    writes.push({ path: outputPitchCommit(key), value: true });
+    writes.push({ path: outputPitch(key, 'H', dialect), value: g.h.raw });
+    writes.push({ path: outputPitch(key, 'V', dialect), value: g.v.raw });
+    writes.push({ path: outputPitchCommit(key, dialect), value: true });
   }
   return writes;
 }

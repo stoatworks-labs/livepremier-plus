@@ -1,11 +1,12 @@
 {
   "upstream": "stoatworks-labs/awj-surface",
   "path": "core",
-  "commit": "41fbfcd2d039985b5312224f380b70c00b1e56e5",
-  "synced": "2026-08-21",
+  "commit": "171ed5366e999b1bdc992f5f4065972755ba2bc6",
+  "synced": "2026-09-12",
   "files": {
+    "catalogue-mng.json": "a36c0ea7c248a677d77cbb803b3980f28357c2c270a78f71c0d49d03cb3527f7",
     "catalogue.js": "5c0a3ea6672ea274094b4ffc612658f4ca87889e20ad3a00cc503f37f65e4d95",
-    "catalogue.json": "549e245d124e1da584f38f30e3fff1bb2d894a05cbf247c28af801bf7f0e0f15",
+    "catalogue.json": "7653fd6ff0fdb6714ca89586a0ac48376a761e7d4a1dd6f62415a220eb1addcc",
     "coverage.js": "0abfef5b2700eb8dfcaa9037fe7c2bffeabb0d6fd799ce2e9b7645f350213373",
     "engine.js": "9edbf781a6db0ec12e0509aec7126b59c7c7f733efa40750d89b4cdbbeedbca8",
     "midi/encoders.js": "c0b8a69d98a58cfc515411426290f8e77ef1377a62a12f0cecab5293a7dbc944",

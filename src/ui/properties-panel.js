@@ -30,6 +30,7 @@
 import { h, button, isEnter } from './dom.js';
 import { panel } from './shell.js';
 import { listDestinations, sourceLabel } from '../core/screens.js';
+import { dialectFor, dialectOrDefault } from '../core/dialect.js';
 import {
   layerSections, valuesFor, readValue, writeCmd, coerce, fittedLayers, bankLetter
 } from '../core/properties.js';
@@ -45,7 +46,12 @@ const OPEN_BY_DEFAULT = new Set(['source', 'position', 'opacity']);
 export function createPropertiesPanel({
   session, onRefresh = () => {}, popoutEnabled = true, doc = document
 } = {}) {
-  const sections = layerSections();
+  /*
+   * Rebuilt per render rather than once: the catalogue is the platform's, and
+   * the platform is only known once the store has arrived — and changes if
+   * the operator re-points at a different frame.
+   */
+  const sections = () => layerSections(store());
 
   const view = {
     dest: null,
@@ -111,9 +117,9 @@ export function createPropertiesPanel({
       note('warn', 'a take is in flight — preview and program do not name a buffer until it lands');
       return;
     }
-    const cmd = writeCmd(target, spec, raw);
+    const cmd = writeCmd(target, spec, raw, store());
     if (!cmd) {
-      note('err', `${paramLabel(spec.id)}: ${coerce(spec, raw).note || 'refused'}`);
+      note('err', `${paramLabel(spec.id)}: ${coerce(spec, raw, store()).note || 'refused'}`);
       return;
     }
     const ok = session.send(cmd);
@@ -186,18 +192,23 @@ export function createPropertiesPanel({
    * PRW / PGM, then the three letters.
    *
    * Both spellings are offered because they answer different questions.
-   * PRW and PGM are roles and follow the take; A, B and C are buffers and stay
-   * put, which is what you want when you are building a memory that is
-   * neither on air nor cued. The resolved letter is shown next to the roles so
-   * there is never any doubt which one a write is about to land in.
+   * PRW and PGM are roles and follow the take; the literal buffers — A, B and
+   * C on LivePremier, UP and DOWN on Midra — stay put, which is what you want
+   * when you are building a memory that is neither on air nor cued. The
+   * resolved buffer is shown next to the roles so there is never any doubt
+   * which one a write is about to land in. The platform says which literals
+   * there are; a remembered literal from the other platform falls back to
+   * preview rather than addressing a buffer that does not exist here.
    */
   function bufferChips(target) {
     const letter = target ? target.bank : null;
+    const literals = dialectOrDefault(store()).bufferKeys;
+    if (view.mode !== 'PREVIEW' && view.mode !== 'PROGRAM' && !literals.includes(view.mode)) view.mode = 'PREVIEW';
     return h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
       h('span', { class: 'aw-font-overline aw-text-tertiary', text: 'Buffer' }),
       chip('PRW', view.mode === 'PREVIEW', () => { view.mode = 'PREVIEW'; onRefresh(); }, 'lpp-chip--prw'),
       chip('PGM', view.mode === 'PROGRAM', () => { view.mode = 'PROGRAM'; onRefresh(); }, 'lpp-chip--pgm'),
-      ...['A', 'B', 'C'].map((l) => chip(l, view.mode === l, () => { view.mode = l; onRefresh(); })),
+      ...literals.map((l) => chip(l, view.mode === l, () => { view.mode = l; onRefresh(); })),
       letter
         ? h('span', {
           class: ['wru-tag', target.live ? 'wru-warn' : 'wru-tag--good'],
@@ -225,7 +236,7 @@ export function createPropertiesPanel({
       liveBanner(target),
       noteLine(),
       summary(target),
-      ...sections.map((section) => sectionBlock(section, target)),
+      ...sections().map((section) => sectionBlock(section, target)),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-margin-top-large' },
         h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
           h('input', {
@@ -256,8 +267,9 @@ export function createPropertiesPanel({
 
   /** What the layer is showing, in one line, before the fields start. */
   function summary(target) {
-    const source = readValue(store(), target, specById('source.inputNum'));
-    const reported = readValue(store(), target, specById('source.status.inputNum'));
+    const dialect = dialectFor(store());
+    const source = readValue(store(), target, specById(dialect && dialect.sourceParam));
+    const reported = readValue(store(), target, specById(dialect && dialect.reportedSourceParam));
     const bits = [`${target.id} · buffer ${target.bank} · layer ${target.layer === 'NATIVE' ? 'Native' : target.layer}`];
     if (source) bits.push(sourceLabel(source) || String(source));
     return h('div', { class: 'aw-font-body-2 aw-text-tertiary aw-margin-bottom-large' },
@@ -269,9 +281,8 @@ export function createPropertiesPanel({
         : null);
   }
 
-  const specIndex = new Map(
-    sections.flatMap((s) => s.params).map((spec) => [spec.id, spec]));
-  const specById = (id) => specIndex.get(id) || null;
+  const specById = (id) =>
+    (id && sections().flatMap((s) => s.params).find((spec) => spec.id === id)) || null;
 
   function sectionBlock(section, target) {
     const open = view.open.has(section.id);
@@ -329,7 +340,7 @@ export function createPropertiesPanel({
     h('span', { class: 'aw-font-body-2', text: value === true ? 'On' : 'Off' }));
 
   function enumControl(spec, value) {
-    const values = valuesFor(spec);
+    const values = valuesFor(spec, store());
     return h('select', {
       class: 'wru-select', onChange: (ev) => write(spec, ev.target.value)
     }, ...values.map((v) => h('option', {
@@ -344,7 +355,7 @@ export function createPropertiesPanel({
    */
   function mapControl(spec, value) {
     const current = Array.isArray(value) ? value : [];
-    const values = valuesFor(spec);
+    const values = valuesFor(spec, store());
     return h('div', { class: 'lpp-flags' }, ...values.map((flag) =>
       h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
         h('input', {

@@ -24,6 +24,7 @@ import { h, button, readout, sectionTitle } from './dom.js';
 import { panel } from './shell.js';
 import { listDestinations } from '../core/screens.js';
 import { screenOutputs, toProject, pitchWrites, alreadyApplied } from '../core/pitch.js';
+import { dialectFor } from '../core/dialect.js';
 import { compensate, PITCH_UNITY, UI_LOCATION } from '../vendor/pitch-engine.js';
 
 export function createPitchPanel({ session, onRefresh }) {
@@ -171,7 +172,9 @@ export function createPitchPanel({ session, onRefresh }) {
   }
 
   function controls(outputs, result) {
-    const writes = pitchWrites(result);
+    /* Spelled for the platform the store says this is; before it has said,
+       there are no outputs to have computed anything for. */
+    const writes = pitchWrites(result, dialectFor(session.store) || undefined);
     const applied = alreadyApplied(result, outputs);
     const blocked = result.warnings.filter((w) => w.level === 'error').length;
     const ready = writes.length > 0 && result.reference;
