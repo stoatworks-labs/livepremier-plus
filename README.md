@@ -1,11 +1,10 @@
 > **AI-assisted project.** This codebase was created with [Claude Code](https://claude.com/claude-code).
 > The panels render inside a real Web RCS session and the device store mirrors live, both verified
 > through this proxy against **LivePremier Simulator 6.2.73**. **In field testing:** every path this
-> app emits has now been checked against a physical **Aquilon C**, and the VPU map is tested against
-> a store read off one, and **the panels have now been opened against a live Aquilon C in an
-> ordinary browser** rather than only against the simulator. **This app has still never written
-> to a device** and the timeline has only ever fired at a simulator.
-> The Status note below is specific about which is which.
+> app emits has been checked against a physical **Aquilon C** and, since 0.6.0, a physical
+> **Pulse 4K**, where the Midra port's writes were proven over AWJ and **the Console panel made this
+> app's first writes to a real device**, typed by the operator. The timeline has still only ever
+> fired at a simulator. The Status note below is specific about which is which.
 
 # LivePremier Plus
 
@@ -37,7 +36,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.5.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.6.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -80,12 +79,26 @@ to install in the browser.
 > were captured and checked too; all six share one object model. See
 > [Platforms](#platforms) for what is and is not offered there.
 >
-> **Still untested on hardware, and this is the honest part:** this app has
-> **never written to a physical device**. Its panels have now written to two
-> *simulators* — the Midra 4K and Alta 4K ones above — but every hardware write
-> in the Aquilon session was sent by a separate test harness, not by these
-> panels, and no Midra or Alta hardware has been driven at all. That is still
-> the first thing to try.
+> **Proven on the live Pulse 4K (2026-09-12/13).** With the show's screens
+> frozen, a test harness ran the port's whole write vocabulary against the box
+> — `takeTime`, store, label, recall into the buffer the `UP`/`DOWN` rule
+> names, a recall of an empty slot (silence, as documented), two TAKEs with
+> preview holding program, restore and delete, a layer opacity on preview, a
+> multiviewer layout, a pitch ratio — **39 checks, none failed**, the baseline
+> re-read identical apart from the device's own bookkeeping. The next morning
+> the operator typed the Console's lines at the real box: the four offline
+> refusals, then a backup, a recall to preview, an opacity, a `takeTime` over
+> the OSC spelling, and the restore — **the first writes this app's own panels
+> have made to a physical device**, all as expected. Two things only hardware
+> could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
+> effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
+> 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **Still untested on hardware, and this is the honest part:** on LivePremier
+> the panels have written only to the simulator and, with the socket stubbed,
+> proven their paths against an Aquilon; on Midra the Timeline's GO, the Layer
+> tab's edits and the Memories panel's own buttons have written to the
+> simulators only. The Console is the one panel to have written to a real box.
 
 **[Watch it work (50s)](https://www.youtube.com/watch?v=mGjGiNO_tSo)** — the real
 application, driven through its own controls: the VPU map off a real Aquilon C
@@ -632,6 +645,8 @@ what the device's store contains rather than by its model name:
 | Layer | yes | **yes** — from a catalogue generated from a Pulse 4K's own bundle: 57 properties, `UP`/`DOWN` buffers |
 | VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
 | Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |
+| OSC input | yes — 173 addresses, widened by the device's own catalogue | **yes** — 44 addresses, mynah's vouched-for table; the Midra catalogue is vendored for the Layer tab but not yet merged into the dictionary |
+| MIDI Mapping | yes | not yet — the surface engine still spells LivePremier |
 | Arithmetic in fields, Settings | yes | yes |
 
 Destinations keep one spelling everywhere — `S1`, `A2` — and only the last step

@@ -307,7 +307,11 @@ preset alone covers every screen in stale full-frame layers.
 
 Read off the simulators' own `webapp-bundle/bundle.json` and confirmed against
 their running stores on 2026-08-22, then against a live Pulse 4K and all six
-mng-platform models on 2026-09-12:
+mng-platform models on 2026-09-12 — and, on the evening of the 12th, **written
+to that Pulse 4K** by the field-test harness (39 checks, none failed) and, the
+next morning, by the Console panel itself at the operator's keyboard. The
+mng-platform port is hardware-proven for takes, memories, layer properties,
+the multiviewer bank and pitch; `docs/NOTES.md` (2026-09-12/13) has the run.
 
 | range | platform | bundle | firmware | identity lives at |
 |---|---|---|---|---|
@@ -585,6 +589,18 @@ no benefit. Read `wru` as "the panels".
   forever. Adoption happens on the first Analog Way frame instead.
 - **React owns the sidebar and re-renders it.** A MutationObserver puts the
   section back rather than fighting reconciliation.
+- **A Midra take with *preset toggle* off settles late.** The device passes
+  `EFFECT_FROM_x` and then `COPY_FROM_x` before `AT_y`, so fire → settled is
+  takeTime + ~250 ms on real hardware (the simulator, toggle on, sends only
+  `EFFECT_` and lands on time). Wait for the `AT_` state, never for the clock.
+- **A Midra multiviewer recall touches widgets the model does not have.**
+  Recalling a layout re-syncs `widgetList/items/17..27/control/pp/size*` to
+  their status on a Pulse 4K (`widgetValidity` is 1–16). Invisible, and not a
+  fault of ours — but a store diff after a recall will show it.
+- **Never re-recall an operator's modified preview to tidy a header.** A buffer
+  whose `isModified` is true holds unsaved work; restoring it means saving it
+  to a spare slot and recalling that, not recalling its `memoryId`. The header
+  then reads `M --`, which is the honest price.
 
 ## Testing
 

@@ -22,9 +22,13 @@ and nothing to install in the browser.**
 > C** and is tested against that capture, including Optimized mode, interleaved output links, and a
 > staged preconfig differing from the running one.
 >
-> **Nothing has ever been written to that device**, the timeline has only ever fired at a
-> simulator, and **no panel has been driven live against physical hardware in a browser.** That is
-> the first thing to try.
+> **Midra 4K and Alta 4K (QuickVu, Pulse, Eikos, QuickMatrix, Zenith 100/200) are supported
+> since 0.6.0** — Timeline, Console, Memories, Layer and Pitch Compensation; there is no VPU to map
+> on those and MIDI Mapping is not offered there yet. The port was proven on a **live Pulse 4K**:
+> every write over the device protocol by a test harness, and the Console panel's own lines typed
+> by the operator — the first writes this app's panels have made to real hardware. On LivePremier,
+> nothing has been written to a physical device yet and the timeline has only ever fired at a
+> simulator.
 >
 > Built with AI assistance, directed and reviewed by a human author.
 

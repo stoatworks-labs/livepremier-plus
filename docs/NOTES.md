@@ -860,3 +860,73 @@ LivePremier's (engine paths, RC400T anchor).
   suite for that is the next thing.
 - MIDI Mapping on mng: the vendored surface engine's `paths.js`/`preset.js`.
 
+
+## Proven on the live Pulse 4K (2026-09-12 evening, 2026-09-13 morning)
+
+The suite in `~/dev/pulse-field-test` (sibling of the Aquilon one) ran against
+the box itself, `192.168.2.140`, firmware 3.3.10, serial IB0174. Read-only
+phases mid-show in the morning; the write phase in the evening once the
+operator had **frozen both screens** (`screenList/items/<n>/control/pp/freeze`
+— this platform freezes screens, backgrounds, layers and inputs, and has no
+output-level freeze); the Console lines the next morning, typed by the
+operator, before the show went live again. **Nothing this app or its harness
+sent unfroze anything; 0 of 60 freeze flags moved.**
+
+### The write phase: 39 PASS, 0 FAIL, 0 CHANGED (S2, slot 190/191, multiviewer 20, output 2)
+- `takeTime` round-trips in ~40 ms and is broadcast on the WebSocket in the
+  same breath; an AWJ `Subscriptions` on a second socket receives the push in
+  ~37 ms. The dialect's fade is the single `takeTime` write, as designed.
+- Store from PROGRAM validates a slot in ~185 ms; `transitionDuration` captures
+  the screen's `takeTime`; the buffer it came from then says `memoryId = 190`.
+  A label write echoes as a string. A recall into PREVIEW lands in the buffer
+  the `UP`/`DOWN` suffix rule names (`AT_UP` → preview is `DOWN`), with
+  `isLoading` true for **~32 ms** (the simulator says 0). A recall of an
+  **empty** slot is total silence — no `isLoading`, no error, the buffer keeps
+  what it had — exactly the trap documented on 2026-09-12.
+- **Takes, with preset toggle off.** Both screens on this show run
+  `enablePresetToggle = false`, and the transition then passes through
+  `EFFECT_FROM_UP` *and* `COPY_FROM_UP` before `AT_DOWN`: fire → `AT_x` took
+  1242–1260 ms on a 1.0 s take. The simulator (toggle on) sends only the
+  `EFFECT_` state and lands in ~1035 ms. Anything that waits for a take to
+  settle should allow takeTime + ~300 ms, and should key on the `AT_` state,
+  never on elapsed time. Program and preview still swap ends; the suffix rule
+  held on every step.
+- Layer opacity on the preview buffer: 30 ms round trip, broadcast, program
+  untouched, and mynah's `Set Screen 2 Layer 1 Opacity` for MIDRA names the
+  same leaf.
+- Multiviewer: `Store Multiviewer 1 Memory 20` validates, labels, recalls and
+  deletes through the paths mynah spells. **One finding:** the recall re-synced
+  `widgetList/items/17..27/control/pp/{sizeH,sizeV}` from 480×270 to 320×180.
+  Those eleven widgets are outside this model's `widgetValidity` (1–16),
+  disabled, sourced `NONE`, and their *status* already read 320×180 — so the
+  device was reconciling control with status, invisibly. Widgets 1–16 were
+  byte-identical. Recorded, not "fixed".
+- Pitch: `pitchRatioH 1000 → 1001`, `xUpdate`, read back, restored — on output
+  2, the operator's nominated display. `pitchedWidth` still read 1920 straight
+  after the commit; the status may lag the ratio.
+- Residue after the whole run, from a leaf-by-leaf diff of the store: the
+  platform's `x…` triggers stay `true` after firing; S2's two buffers' `memoryId`
+  went 1 → 0 (the Web RCS header reads `M --`), because the store/delete of
+  slot 190 re-labelled the program buffer and deleting the slot cleared it. The
+  operator's *modified* preview was kept by restoring from the backup slot
+  rather than re-recalling memory 1 — a recall would have discarded the
+  changes for the sake of a header label, and the harness now refuses to.
+
+### The Console at the real box (operator-typed, S2)
+`Take Screen 7`, `Recall Screen 1 Layer 1 Memory 3`, `Set Audio Mute Output 1`
+and `Store Master 1 If Category Keyer` were all refused offline with the
+platform's reasons; `Store Screen 2 Memory 191 Preview`, `Recall Screen 2
+Memory 1` (header `M 1`, log `1/1 write sent`), `Set Screen 2 Layer 1 Opacity
+50%` and back, `/lp/screen/2/group/control/takeTime 15` and back (the vendor's
+Transition field followed), then `Recall Screen 2 Memory 191` and `Delete
+Screen 2 Memory 191` — the box read back restored afterwards. These are the
+first writes any panel of this app has made to physical hardware. The
+Timeline's GO, the Layer tab and the Memories panel's own buttons remain
+simulator-proven only on this platform.
+
+### Two facts about the box worth keeping
+- `SAVE_FROM_PRW` is the master save-from-preview value on this platform too
+  (mynah 1.4.0 corrected it from the never-existed `SAVE_FROM_PVW`).
+- A missing AWJ path answers `{"path":"","value":null}`; the seven LivePremier
+  spellings the suite probes (e.g. `screenAuxGroupList`) all answered that, and
+  all 439 paths the port emits — dialect, mynah, catalogue — answered a value.
