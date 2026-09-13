@@ -36,7 +36,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.6.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.7.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -87,12 +87,30 @@ to install in the browser.
 > multiviewer layout, a pitch ratio — **39 checks, none failed**, the baseline
 > re-read identical apart from the device's own bookkeeping. The next morning
 > the operator typed the Console's lines at the real box: the four offline
-> refusals, then a backup, a recall to preview, an opacity, a `takeTime` over
-> the OSC spelling, and the restore — **the first writes this app's own panels
-> have made to a physical device**, all as expected. Two things only hardware
+> refusals, then a backup, a recall to preview, a `takeTime` over the OSC
+> spelling, and the restore — **the first writes this app's own panels have
+> made to a physical device**, all as expected. (The `Set … Opacity` typed in
+> the same run was refused by that build's Console, which handed the compiler
+> no device facts — the bug 0.7.0 fixes; the opacity write itself is the
+> harness's W7.) Two things only hardware
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.7.0 (2026-09-13).** Three things, all proven on the simulators and not
+> yet on hardware. **Audio routing on Midra 4K / Alta 4K**, at the Console:
+> `Set Audio Patch Input 3 To Screen 1` writes the preset's audio layer,
+> `Follow Layer 2 On Screen 1` or `Follow Screen 2 On Line Output 1` what a
+> point follows, `Mute Output 1 Channel 3 Thru 4` where the device keeps it —
+> mynah 1.5.0, vendored; the vendor's own header dropdown changed to "Input 3"
+> when the line was typed at the Pulse simulator. **A loopback door for a
+> LAN-bound server**: bind to an interface and it still answers on
+> `127.0.0.1`, a browser on the same machine arriving by the LAN address is
+> sent there, and the secure-context note names the page that is actually
+> open. **And the Console now hands mynah the device facts it asks for** —
+> every `Set` typed at it since the Console existed had been refused with
+> "needs a live connection" beside a live connection; the panel is now tested
+> by typing at it, over both platforms' store captures.
 >
 > **Still untested on hardware, and this is the honest part:** on LivePremier
 > the panels have written only to the simulator and, with the socket stubbed,
@@ -362,7 +380,7 @@ normal page just asks.
 The corollary: **a plain-http page on any address but loopback has no Web
 MIDI and no audio input** — the switcher's own address, and equally this
 app's own when the launcher binds it to a LAN interface and opens
-`http://192.168.2.69:8534/`. Until 0.6.1 the note on the Settings page only
+`http://192.168.2.69:8534/`. Until 0.7.0 the note on the Settings page only
 knew the first case and told an operator already inside LivePremier Plus to
 open LivePremier Plus. Now: a LAN-bound server always answers on `127.0.0.1`
 as well, a browser on the same machine that arrives by the LAN address is

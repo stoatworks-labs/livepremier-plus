@@ -5,7 +5,7 @@
  * `getUserMedia` — the LTC timecode source — need a secure context, and a
  * browser grants that to https and to loopback (`localhost`, `127.0.0.1`,
  * `[::1]`) and to nothing else. There are two ways to land on a
- * plain-http LAN origin, and until 0.6.1 the note on the Settings page only
+ * plain-http LAN origin, and until 0.7.0 the note on the Settings page only
  * knew about one of them: the switcher's own address. The other is
  * LivePremier Plus itself, bound to a LAN interface by the launcher and opened
  * at `http://192.168.2.69:8534/` — served by us, on this very machine, and

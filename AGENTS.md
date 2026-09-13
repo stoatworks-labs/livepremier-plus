@@ -594,7 +594,7 @@ no benefit. Read `wru` as "the panels".
   section back rather than fighting reconciliation.
 - **The Console must hand mynah `facts`, not only `osc.buffer`.** mynah's
   `Set` — a layer parameter, a Midra audio layer — asks `facts.buffer` and
-  `facts.canvas`; the OSC resolver asks `osc.buffer`. Until 0.6.1 the Console
+  `facts.canvas`; the OSC resolver asks `osc.buffer`. Until 0.7.0 the Console
   supplied only the second, so every mynah `Set` typed at it was refused with
   "needs a live connection" beside a live connection. `runContext()` now
   supplies both from the store mirror.

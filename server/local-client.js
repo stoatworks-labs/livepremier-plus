@@ -11,7 +11,7 @@
  * context and everything works; but the launcher can bind the server to a LAN
  * interface so other machines can reach it, and then it prints and opens
  * `http://192.168.2.69:8534/`. That page is served by us, on this very
- * machine, and is not a secure context — and until 0.6.1 the only thing on
+ * machine, and is not a secure context — and until 0.7.0 the only thing on
  * screen said "open Web RCS through LivePremier Plus rather than at the
  * switcher's own address", which the operator had already done.
  *

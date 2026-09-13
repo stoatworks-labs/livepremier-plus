@@ -152,7 +152,7 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
   /*
    * Both device facts go to both dialects. The OSC resolver reads
    * `osc.buffer`; mynah's `Set` — a layer parameter, or on a Midra a screen's
-   * audio layer — reads `facts.buffer` and `facts.canvas`. Until 0.6.1 only
+   * audio layer — reads `facts.buffer` and `facts.canvas`. Until 0.7.0 only
    * the first was supplied, so every mynah `Set` typed here was refused with
    * "needs a live connection" while the connection was live beside it.
    */
