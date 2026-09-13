@@ -63,7 +63,7 @@ import {
   run, declared, sniff, completions, shortestForm, KEYWORDS, LANGUAGE_LABELS
 } from '../vendor/mynah-lang.mjs';
 import { PARAMS, paramsFor, mynahPlatform } from '../core/osc-dictionary.js';
-import { presetBanks } from '../core/screens.js';
+import { presetBanks, listDestinations } from '../core/screens.js';
 import { dialectFor } from '../core/dialect.js';
 import { DEFAULT_SETTINGS } from '../core/settings.js';
 
@@ -136,9 +136,30 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
    */
   const platform = () => mynahPlatform(dialectFor(session.store));
 
+  /**
+   * A screen's canvas in pixels, for `Size 50%` and friends.
+   *
+   * The second device fact the compiler asks for. From the store's own
+   * destination list, which already falls back to 1920×1080 where a screen
+   * has not reported a size — undefined only when the store has nothing.
+   */
+  function canvasFor(target) {
+    const id = target.kind === 'screen' ? `S${target.n}` : `A${target.n}`;
+    const dest = listDestinations(session.store, { includeUnused: true }).find((d) => d.id === id);
+    return dest && dest.canvas ? { w: dest.canvas.width, h: dest.canvas.height } : undefined;
+  }
+
+  /*
+   * Both device facts go to both dialects. The OSC resolver reads
+   * `osc.buffer`; mynah's `Set` — a layer parameter, or on a Midra a screen's
+   * audio layer — reads `facts.buffer` and `facts.canvas`. Until 0.6.1 only
+   * the first was supplied, so every mynah `Set` typed here was refused with
+   * "needs a live connection" while the connection was live beside it.
+   */
   const runContext = () => ({
     language: state.settings.consoleLanguage,
     platform: platform(),
+    facts: { buffer: bufferForMode, canvas: canvasFor },
     osc: { params: paramsFor(platform()), buffer: bufferForMode }
   });
 

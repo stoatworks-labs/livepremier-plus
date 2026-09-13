@@ -652,7 +652,8 @@ what the device's store contains rather than by its model name:
 |---|---|---|
 | Timeline (cue stack) | yes | **yes** — takes, cuts, fades and recalls spelled for the `transition` and `preset` trees |
 | Memories | master, screen and layer banks | **master, screen and aux banks** — the aux bank is separate on this platform, and there is no layer bank |
-| Console | yes | **yes** — mynah compiles the same grammar for this platform (`Take Screen 1`, `Recall Aux 1 Memory 7`, `Set Aux 1 Source 4`); no layer memories, no stills on a layer, no audio matrix, and it says so |
+| Console | yes | **yes** — mynah compiles the same grammar for this platform (`Take Screen 1`, `Recall Aux 1 Memory 7`, `Set Aux 1 Source 4`); no layer memories, no stills on a layer, and it says so |
+| Audio | `Set Audio Patch … To …` on the channel matrix | **yes** — routed, not patched: `Set Audio Patch Input 3 To Screen 1` writes the preset's audio layer, `Follow Layer 2 On Screen 1` / `Follow Screen 2 On Line Output 1` set what a point follows, mutes land where the device keeps them |
 | Layer | yes | **yes** — from a catalogue generated from a Pulse 4K's own bundle: 57 properties, `UP`/`DOWN` buffers |
 | VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
 | Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |

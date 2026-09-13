@@ -176,10 +176,17 @@ export const CAPABILITIES = [
   },
   {
     id: 'audioPatch',
-    label: 'Audio patching',
-    probes: { nlc: [ROOT, 'audio', 'control', 'deviceList'] },
-    needs: 'the audio matrix',
-    absent: 'This platform lays its audio matrix out differently.'
+    label: 'Audio routing',
+    /* LivePremier has a channel matrix (`audio/control/deviceList`); Midra 4K
+       and Alta 4K route eight-channel sources to points instead — the
+       `audio/sourceList` says which sources this box has, and the Console's
+       `Set Audio …` speaks either shape (mynah's `platform.audio`). */
+    probes: {
+      nlc: [ROOT, 'audio', 'control', 'deviceList'],
+      mng: [ROOT, 'audio', 'sourceList', 'items']
+    },
+    needs: 'its audio routing tree',
+    absent: 'This switcher reports no audio routing this app knows how to address.'
   }
 ];
 

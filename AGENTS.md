@@ -380,9 +380,12 @@ vendor's own bundle rather than inferred:
 
 Probed per family in `core/platform.js`. On a Midra or Alta: the **Timeline**,
 **Console** and **Layer** tabs, the **Memories** entry (screen, aux and master
-banks) and **Pitch Compensation**. Withheld, each with its reason in the
-table: **VPU Map** (no VPU) and **Audio patching** (no matrix of the
-LivePremier shape). The MIDI Mapping entry anchors after a `Virtual RC400T`
+banks), **Pitch Compensation** and, at the Console, **audio routing** — mynah's
+`platform.audio` is `'routing'` there, and `Set Audio Patch Input 3 To Screen
+1` writes the preview preset's audio layer (`$preset/@items/UP/audio/control/
+@props/source`), `Follow …` the mode of a point, mutes where the device keeps
+them; the vendored mynah's `docs/PATHS.md` has the table. Withheld, with its
+reason in the table: **VPU Map** (no VPU). The MIDI Mapping entry anchors after a `Virtual RC400T`
 label the mng sidebar does not have, so it does not mount there either — and
 its engine (`vendor/surface/`) is still LivePremier's, so that is right for now.
 
@@ -589,6 +592,12 @@ no benefit. Read `wru` as "the panels".
   forever. Adoption happens on the first Analog Way frame instead.
 - **React owns the sidebar and re-renders it.** A MutationObserver puts the
   section back rather than fighting reconciliation.
+- **The Console must hand mynah `facts`, not only `osc.buffer`.** mynah's
+  `Set` — a layer parameter, a Midra audio layer — asks `facts.buffer` and
+  `facts.canvas`; the OSC resolver asks `osc.buffer`. Until 0.6.1 the Console
+  supplied only the second, so every mynah `Set` typed at it was refused with
+  "needs a live connection" beside a live connection. `runContext()` now
+  supplies both from the store mirror.
 - **"Not a secure context" has two causes, and the second is us.** Web MIDI
   and `getUserMedia` exist only on https and loopback. The launcher can bind
   the server to a LAN interface and then opens `http://<lan-ip>:<port>/` —

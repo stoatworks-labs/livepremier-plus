@@ -45,6 +45,7 @@ import {
 } from '../src/core/properties.js';
 import { detectPlatform, supports, whyNot } from '../src/core/platform.js';
 import { screenOutputs, outputPitch, outputPitchCommit, pitchWrites } from '../src/core/pitch.js';
+import * as lang from '../src/vendor/mynah-lang.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));
@@ -333,15 +334,44 @@ test('a cue fired before the store has arrived sends nothing, and says so', () =
 
 /* --------------------------------------------------------- capabilities */
 
-test('a real Pulse 4K store gets everything but the VPU map and audio patching', () => {
+test('a real Pulse 4K store gets everything but the VPU map', () => {
   const p = detectPlatform(pulse);
   assert.equal(p.id, 'midra4k');
   assert.equal(p.modelName, 'Pulse 4K');
-  for (const cap of ['screens', 'cueStack', 'console', 'layerProperties', 'pitchCompensation']) assert.equal(supports(p, cap), true, cap);
-  for (const cap of ['vpuMap', 'audioPatch']) {
+  for (const cap of ['screens', 'cueStack', 'console', 'layerProperties', 'pitchCompensation', 'audioPatch']) assert.equal(supports(p, cap), true, cap);
+  for (const cap of ['vpuMap']) {
     assert.equal(supports(p, cap), false, cap);
     assert.ok(whyNot(p, cap), 'and says why: ' + cap);
   }
+});
+
+test('the Console routes audio on a Midra: the preset audio layer, a point, a follow, a mute', () => {
+  /* The vendored mynah, on the fixture's own take state. Screen 1 is
+     AT_DOWN in the capture, so its preview is UP. */
+  const facts = { buffer: (t, mode) => (mode === 'PROGRAM' ? 'DOWN' : 'UP'), canvas: () => ({ w: 1920, h: 1080 }) };
+  const one = (line) => {
+    const r = lang.run(line, { platform: lang.MIDRA, facts });
+    assert.ok(r.ok, line + ': ' + (r.errors || []).map((e) => e.message).join('; '));
+    return r.ops.map((o) => o.path.toAwj() + ' = ' + JSON.stringify(o.value));
+  };
+  assert.deepEqual(one('Set Audio Patch Input 3 To Screen 1'), ['DeviceObject/$screen/@items/1/$preset/@items/UP/audio/control/@props/source = "IN3"']);
+  assert.deepEqual(one('Set Audio Patch Input 4 To Output 1'), [
+    'DeviceObject/$output/@items/1/audio/control/@props/mode = "DIRECT_ROUTING"',
+    'DeviceObject/$output/@items/1/audio/control/directRouting/@props/source = "IN4"'
+  ]);
+  assert.deepEqual(one('Set Audio Follow Layer 2 On Screen 1'), [
+    'DeviceObject/$screen/@items/1/audio/control/@props/mode = "FOLLOW_LIVE_LAYER_CONTENT"',
+    'DeviceObject/$screen/@items/1/audio/control/followLiveLayer/@props/layer = "2"'
+  ]);
+  assert.deepEqual(one('Set Audio Mute Screen 1'), ['DeviceObject/audio/$screen/@items/1/control/@props/mute = true']);
+  /* Every leaf those name exists in the real Pulse's store. */
+  const store = pulse;
+  for (const p of [
+    ['device', 'screenList', 'items', '1', 'presetList', 'items', 'UP', 'audio', 'control', 'pp', 'source'],
+    ['device', 'outputList', 'items', '1', 'audio', 'control', 'directRouting', 'pp', 'source'],
+    ['device', 'screenList', 'items', '1', 'audio', 'control', 'followLiveLayer', 'pp', 'layer'],
+    ['device', 'audio', 'screenList', 'items', '1', 'control', 'pp', 'mute']
+  ]) assert.notEqual(store.get(p), undefined, p.join('/'));
 });
 
 /* ----------------------------------------------------------------- pitch */

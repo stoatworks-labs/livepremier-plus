@@ -930,3 +930,28 @@ simulator-proven only on this platform.
 - A missing AWJ path answers `{"path":"","value":null}`; the seven LivePremier
   spellings the suite probes (e.g. `screenAuxGroupList`) all answered that, and
   all 439 paths the port emits — dialect, mynah, catalogue — answered a value.
+
+## Audio on Midra 4K / Alta 4K, and a Console bug it exposed (2026-09-13)
+
+mynah d51392a routes audio on `MIDRA` — no matrix there; thirty-four
+eight-channel sources and a set of points that carry one or follow something,
+the preset's **audio layer** being the part an operator programs (it takes with
+the preset, like the layers). Re-vendored here; the `audioPatch` capability now
+probes `audio/sourceList` on mng and reads "Audio routing — yes" on the
+Pulse. The Pulse fixture gained the audio subtrees from the same simulator
+store so the paths the Console names are proven to exist in a real shape.
+
+Driving it at the Console against the Pulse simulator found that **no mynah
+`Set` had ever compiled at the Console**: `runContext()` passed `osc.buffer`
+for the OSC dialect and nothing under `facts`, which is what mynah's `Set`
+reads — so `Set Screen 1 Layer 1 Opacity 128` was refused with "Set needs a
+live connection" while the store was live beside it. Fixed: `facts.buffer`
+and `facts.canvas` come from the mirror. (The ledger of 2026-09-13 records the
+operator's `Set Screen 2 Layer 1 Opacity 50%` at the real box as "as
+expected"; on this code that line can only have been refused, so treat that
+row as the operator's recollection rather than a proof — the AWJ-level
+opacity write was proven the evening before by the harness.) After the fix,
+eight lines through the Console on the simulator — the opacity, a patch to the
+audio layer (the vendor's own header dropdown changed to "Input 3"), a patch
+to output 1, a mute, and their undoing — all `n/n writes sent`.
+

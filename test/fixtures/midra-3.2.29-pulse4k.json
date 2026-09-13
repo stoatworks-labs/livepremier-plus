@@ -2515,6 +2515,18 @@
            "set": "1"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        },
        "UP": {
@@ -2800,6 +2812,18 @@
            "set": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        }
       }
@@ -2870,6 +2894,23 @@
          "pp": {
           "freeze": false
          }
+        }
+       }
+      }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "FOLLOW_AUDIO_LAYER"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
+        }
+       },
+       "followLiveLayer": {
+        "pp": {
+         "layer": "1"
         }
        }
       }
@@ -3193,6 +3234,18 @@
            "set": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        },
        "UP": {
@@ -3478,6 +3531,18 @@
            "set": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        }
       }
@@ -3548,6 +3613,23 @@
          "pp": {
           "freeze": false
          }
+        }
+       }
+      }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "FOLLOW_AUDIO_LAYER"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
+        }
+       },
+       "followLiveLayer": {
+        "pp": {
+         "layer": "1"
         }
        }
       }
@@ -3871,6 +3953,18 @@
            "set": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        },
        "UP": {
@@ -4156,6 +4250,18 @@
            "set": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        }
       }
@@ -4226,6 +4332,23 @@
          "pp": {
           "freeze": false
          }
+        }
+       }
+      }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "FOLLOW_AUDIO_LAYER"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
+        }
+       },
+       "followLiveLayer": {
+        "pp": {
+         "layer": "1"
         }
        }
       }
@@ -4549,6 +4672,18 @@
            "set": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        },
        "UP": {
@@ -4834,6 +4969,18 @@
            "set": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        }
       }
@@ -4904,6 +5051,23 @@
          "pp": {
           "freeze": false
          }
+        }
+       }
+      }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "FOLLOW_AUDIO_LAYER"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
+        }
+       },
+       "followLiveLayer": {
+        "pp": {
+         "layer": "1"
         }
        }
       }
@@ -4951,6 +5115,18 @@
            "content": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        },
        "UP": {
@@ -4967,6 +5143,30 @@
            "content": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
+        }
+       }
+      }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "FOLLOW_AUDIO_LAYER"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
         }
        }
       }
@@ -4999,6 +5199,18 @@
            "content": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        },
        "UP": {
@@ -5015,6 +5227,30 @@
            "content": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
+        }
+       }
+      }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "FOLLOW_AUDIO_LAYER"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
         }
        }
       }
@@ -5047,6 +5283,18 @@
            "content": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        },
        "UP": {
@@ -5063,6 +5311,30 @@
            "content": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
+        }
+       }
+      }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "FOLLOW_AUDIO_LAYER"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
         }
        }
       }
@@ -5095,6 +5367,18 @@
            "content": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
         }
        },
        "UP": {
@@ -5111,6 +5395,30 @@
            "content": "NONE"
           }
          }
+        },
+        "audio": {
+         "control": {
+          "pp": {
+           "source": "NONE"
+          }
+         },
+         "status": {
+          "pp": {
+           "source": "NONE"
+          }
+         }
+        }
+       }
+      }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "FOLLOW_AUDIO_LAYER"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
         }
        }
       }
@@ -5929,6 +6237,18 @@
         "maxHeight": 1080
        }
       }
+     },
+     "audio": {
+      "control": {
+       "pp": {
+        "mode": "AUTO"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
+        }
+       }
+      }
      }
     }
    }
@@ -5939,6 +6259,781 @@
      "mode": "MASTER",
      "masterRate": "48K",
      "transitionDelay": 2
+    }
+   },
+   "sourceList": {
+    "items": {
+     "NONE": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN1": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN2": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN3": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN4": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN5": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN6": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN7": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN8": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN9": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN10": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "IN11": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN12": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN13": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN14": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN15": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN16": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN_DANTE_CH1_8": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN_DANTE_CH9_16": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN_DANTE_CH17_24": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN_DANTE_CH25_32": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN_ANALOG_1": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN_ANALOG_2": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "IN_MEDIA_PLAYER": {
+      "status": {
+       "pp": {
+        "isAvailable": false
+       }
+      }
+     },
+     "CUSTOM_1": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_2": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_3": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_4": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_5": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_6": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_7": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_8": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_9": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     },
+     "CUSTOM_10": {
+      "status": {
+       "pp": {
+        "isAvailable": true
+       }
+      }
+     }
+    },
+    "itemKeys": [
+     "NONE",
+     "IN1",
+     "IN2",
+     "IN3",
+     "IN4",
+     "IN5",
+     "IN6",
+     "IN7",
+     "IN8",
+     "IN9",
+     "IN10",
+     "IN11",
+     "IN12",
+     "IN13",
+     "IN14",
+     "IN15",
+     "IN16",
+     "IN_DANTE_CH1_8",
+     "IN_DANTE_CH9_16",
+     "IN_DANTE_CH17_24",
+     "IN_DANTE_CH25_32",
+     "IN_ANALOG_1",
+     "IN_ANALOG_2",
+     "IN_MEDIA_PLAYER",
+     "CUSTOM_1",
+     "CUSTOM_2",
+     "CUSTOM_3",
+     "CUSTOM_4",
+     "CUSTOM_5",
+     "CUSTOM_6",
+     "CUSTOM_7",
+     "CUSTOM_8",
+     "CUSTOM_9",
+     "CUSTOM_10"
+    ]
+   },
+   "screenList": {
+    "items": {
+     "1": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      }
+     },
+     "2": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      }
+     },
+     "3": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      }
+     },
+     "4": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      }
+     }
+    },
+    "itemKeys": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ]
+   },
+   "auxiliaryScreenList": {
+    "items": {
+     "1": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      }
+     },
+     "2": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      }
+     },
+     "3": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      }
+     },
+     "4": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      }
+     }
+    },
+    "itemKeys": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ]
+   },
+   "outputList": {
+    "items": {
+     "VIDEO_OUT_1": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isAvailable": true,
+        "source": "NONE"
+       }
+      },
+      "channelList": {
+       "items": {
+        "1": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        },
+        "2": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        },
+        "3": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        },
+        "4": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        }
+       }
+      }
+     },
+     "VIDEO_MULTIVIEWER": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isAvailable": true,
+        "source": "NONE"
+       }
+      },
+      "channelList": {
+       "items": {
+        "1": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        },
+        "2": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        },
+        "3": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        },
+        "4": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        }
+       }
+      }
+     },
+     "DANTE_CH9_16": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isAvailable": false,
+        "source": "NONE"
+       }
+      },
+      "channelList": {
+       "items": {
+        "1": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        },
+        "2": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        },
+        "3": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        },
+        "4": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        }
+       }
+      }
+     },
+     "ANALOG_2": {
+      "control": {
+       "pp": {
+        "mute": false
+       }
+      },
+      "status": {
+       "pp": {
+        "isAvailable": false,
+        "source": "NONE"
+       }
+      },
+      "channelList": {
+       "items": {
+        "1": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        },
+        "2": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        },
+        "3": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        },
+        "4": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "inputList": {
+    "items": {
+     "IN6_HDMI_EMBEDDED": {
+      "status": {
+       "pp": {
+        "isAvailable": true,
+        "isAudioDetected": false,
+        "channelCount": 8
+       }
+      },
+      "channelList": {
+       "items": {
+        "1": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": true
+          }
+         }
+        }
+       }
+      }
+     },
+     "IN6_RJ45_EMBEDDED": {
+      "status": {
+       "pp": {
+        "isAvailable": true,
+        "isAudioDetected": false,
+        "channelCount": 8
+       }
+      },
+      "channelList": {
+       "items": {
+        "1": {
+         "control": {
+          "pp": {
+           "mute": false
+          }
+         },
+         "status": {
+          "pp": {
+           "isAvailable": false
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "lineOutList": {
+    "items": {
+     "1": {
+      "control": {
+       "pp": {
+        "mode": "DIRECT_ROUTING",
+        "selectedAudioPair": "CHANNEL_1_2"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
+        }
+       },
+       "followScreen": {
+        "pp": {
+         "screen": "1"
+        }
+       }
+      }
+     },
+     "2": {
+      "control": {
+       "pp": {
+        "mode": "DIRECT_ROUTING",
+        "selectedAudioPair": "CHANNEL_1_2"
+       },
+       "directRouting": {
+        "pp": {
+         "source": "NONE"
+        }
+       },
+       "followScreen": {
+        "pp": {
+         "screen": "1"
+        }
+       }
+      }
+     }
+    },
+    "itemKeys": [
+     "1",
+     "2"
+    ]
+   },
+   "dante": {
+    "outputGroupList": {
+     "items": {
+      "1": {
+       "control": {
+        "pp": {
+         "mode": "DIRECT_ROUTING"
+        },
+        "directRouting": {
+         "pp": {
+          "source": "NONE"
+         }
+        },
+        "followScreen": {
+         "pp": {
+          "screen": "1"
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "multiviewer": {
+   "audio": {
+    "control": {
+     "pp": {
+      "mode": "DIRECT_ROUTING"
+     },
+     "directRouting": {
+      "pp": {
+       "source": "NONE"
+      }
+     },
+     "vuMeters": {
+      "pp": {
+       "widget": "NONE"
+      }
+     },
+     "followWidget": {
+      "pp": {
+       "widget": "1"
+      }
+     }
+    },
+    "status": {
+     "pp": {
+      "source": "NONE"
+     },
+     "vuMeters": {
+      "pp": {
+       "widgetValidity": [
+        "NONE"
+       ]
+      }
+     }
     }
    }
   }
