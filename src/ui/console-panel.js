@@ -513,14 +513,20 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
     if (ev && ev.detail) { state.settings = ev.detail; onRefresh(); }
     else void loadSettings();
   };
-  window.addEventListener('lpp:settings', onSettings);
-  try {
-    if (window.opener && window.opener !== window) {
-      window.opener.addEventListener('lpp:settings', onSettings);
-    }
-  } catch { /* a cross-origin opener is not ours to listen to */ }
+  /* No window under test: the panel is then only ever typed at. */
+  if (typeof window !== 'undefined') {
+    window.addEventListener('lpp:settings', onSettings);
+    try {
+      if (window.opener && window.opener !== window) {
+        window.opener.addEventListener('lpp:settings', onSettings);
+      }
+    } catch { /* a cross-origin opener is not ours to listen to */ }
+  }
 
-  return { render, state, popOut, reloadSettings: loadSettings };
+  /* `execute` and `runContext` are exposed so a test can type a line at the
+     panel and see what it sends, without a DOM: the facts the compiler is
+     handed are the part that went unexercised for a year. */
+  return { render, state, popOut, reloadSettings: loadSettings, execute, runContext };
 }
 
 /** The keyword table, for a help view. Exposed so tests can assert on it. */

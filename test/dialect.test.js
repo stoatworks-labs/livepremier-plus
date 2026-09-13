@@ -346,8 +346,8 @@ test('a real Pulse 4K store gets everything but the VPU map', () => {
 });
 
 test('the Console routes audio on a Midra: the preset audio layer, a point, a follow, a mute', () => {
-  /* The vendored mynah, on the fixture's own take state. Screen 1 is
-     AT_DOWN in the capture, so its preview is UP. */
+  /* The vendored mynah, with synthetic facts naming UP as preview; the
+     Console's own facts, read from a store, are tested in console.test.js. */
   const facts = { buffer: (t, mode) => (mode === 'PROGRAM' ? 'DOWN' : 'UP'), canvas: () => ({ w: 1920, h: 1080 }) };
   const one = (line) => {
     const r = lang.run(line, { platform: lang.MIDRA, facts });
