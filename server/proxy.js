@@ -37,6 +37,7 @@ import { join, extname, normalize } from 'node:path';
 import { normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged } from '../src/core/settings.js';
 import { exchange as awjExchange } from './awj.js';
 import { createOscServer } from './osc.js';
+import { loopbackRedirect } from './local-client.js';
 
 /** Where our own routes live. Namespaced so it cannot collide with a vendor path. */
 export const NS = '/__lpp';
@@ -118,7 +119,10 @@ function decode(buf, encoding) {
  */
 export async function createProxy({
   device = null, devicePort = 80, root, storage = null,
-  extraModules = [], extraFiles = {}, log = () => {}
+  extraModules = [], extraFiles = {}, log = () => {},
+  /* The port a loopback listener answers on, when this server is also bound
+     to a LAN address — see local-client.js. Null means never redirect. */
+  loopbackPort = null
 }) {
   /*
    * The switcher is chosen at runtime, not baked in at startup.
@@ -535,10 +539,21 @@ export async function createProxy({
     req.pipe(upstream);
   }
 
-  const server = http.createServer((req, res) => {
+  const onRequest = (req, res) => {
     let url;
     try { url = new URL(req.url, 'http://localhost'); }
     catch { res.writeHead(400); return res.end('bad request'); }
+
+    /* A browser on this machine looking at us through the LAN address is one
+       redirect away from a secure context, and Web MIDI with it. */
+    const better = loopbackRedirect(
+      { method: req.method, url: req.url, headers: req.headers,
+        remoteAddress: req.socket?.remoteAddress, localAddress: req.socket?.localAddress },
+      { port: loopbackPort });
+    if (better) {
+      res.writeHead(302, { location: better, 'cache-control': 'no-store' });
+      return res.end(`Opening LivePremier Plus at ${better} — a secure context, so Web MIDI works there.`);
+    }
 
     if (url.pathname === NS || url.pathname.startsWith(NS + '/')) {
       serveOwn(req, res, url).catch((err) => {
@@ -558,7 +573,8 @@ export async function createProxy({
     }
 
     proxyHttp(req, res, url);
-  });
+  };
+  const server = http.createServer(onRequest);
 
   /*
    * The socket.
@@ -568,7 +584,7 @@ export async function createProxy({
    * means exactly one connection reaches the device per browser tab, so the
    * client count in the Web RCS header stays honest.
    */
-  server.on('upgrade', (req, socket, head) => {
+  const onUpgrade = (req, socket, head) => {
     if (!target) { socket.destroy(); return; }
     const here = target;
     const upstream = net.connect(here.port, here.host, () => {
@@ -600,9 +616,26 @@ export async function createProxy({
     socket.on('error', done);
     upstream.on('close', done);
     socket.on('close', done);
-  });
+  };
+  server.on('upgrade', onUpgrade);
 
   server.lppState = state;
+
+  /**
+   * Serve the same thing on a second listener.
+   *
+   * The launcher can bind this server to a LAN interface so other machines
+   * can reach it; index.js then opens a loopback listener beside it, because
+   * loopback is the one plain-http origin a browser treats as a secure
+   * context. Both listeners share every handler and every piece of state —
+   * the relays, the client count, the OSC listener — so the switcher still
+   * sees one connection per tab whichever door the tab came in by.
+   */
+  server.mirrorTo = (other) => {
+    other.on('request', onRequest);
+    other.on('upgrade', onUpgrade);
+    return other;
+  };
 
   /**
    * Stop, for real.

@@ -39,6 +39,7 @@ import { panel } from './shell.js';
 import { Engine } from '../vendor/surface/engine.js';
 import { MidiSurface } from '../vendor/surface/surface.js';
 import { validate } from '../vendor/surface/profile.js';
+import { insecureContextAdvice } from '../core/secure-context.js';
 
 const PROFILE_BASE = '/__lpp/src/vendor/surface/profiles/';
 const STOCK = [
@@ -80,7 +81,7 @@ export function createMidiPanel({ session, onRefresh = () => {} }) {
     if (!state.support) {
       state.error = state.secure
         ? 'This browser has no Web MIDI support.'
-        : 'Web MIDI needs a secure context. Open this through LivePremier Plus on localhost, not the device address.';
+        : insecureContextAdvice(window.location);
       return onRefresh();
     }
     try {
@@ -240,7 +241,7 @@ export function createMidiPanel({ session, onRefresh = () => {} }) {
       h('span', {
         text: state.secure
           ? 'This browser does not support Web MIDI.'
-          : 'Not a secure context — MIDI is unavailable. Open Web RCS through LivePremier Plus (a localhost address), not the switcher\'s own address.'
+          : insecureContextAdvice(window.location)
       }));
   }
 

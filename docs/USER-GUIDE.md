@@ -52,7 +52,7 @@ npm start -- --device 192.168.2.142
 | --- | --- |
 | `--device <host[:port]>` | the switcher. Port defaults to 80 (a simulator is usually `:3000`). |
 | `--port <n>` | local port to listen on (default 8535) |
-| `--host <addr>` | local address to bind (default `127.0.0.1`) |
+| `--host <addr>` | local address to bind (default `127.0.0.1`). Bind a LAN address or `0.0.0.0` to reach it from other machines. On the machine running it, keep using `http://127.0.0.1:<port>/` — that is the address browsers treat as secure, which MIDI Mapping and the timecode sources need; a local browser that arrives by the LAN address is sent there automatically. Other machines get everything except those. |
 | `--data <dir>` | where cue stacks are kept |
 
 There is a desktop app too — a tray launcher with an interface and port picker.

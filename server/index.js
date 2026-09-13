@@ -12,6 +12,7 @@
  * build: what the app ships is this process with a window in front of it.
  */
 
+import http from 'node:http';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +57,23 @@ const port = Number(args.port || process.env.LPP_PORT || 8535);
  * operator makes deliberately, not the default they get by accident.
  */
 const host = args.host || process.env.LPP_HOST || '127.0.0.1';
+const LOOPBACK = new Set(['127.0.0.1', 'localhost', '::1']);
+const WILDCARD = new Set(['0.0.0.0', '::']);
+/*
+ * Bound to a LAN address, this server also answers on loopback — and a
+ * browser on this machine that arrives by the LAN address is sent there
+ * (server/local-client.js). Loopback is the one plain-http origin a browser
+ * treats as a secure context, and Web MIDI — the MIDI Mapping panel, the MTC
+ * timecode source — and audio input for LTC need one. Other machines still
+ * need HTTPS for those, which this app does not serve yet; they get
+ * everything else.
+ *
+ * A wildcard bind already includes loopback, so it gets the redirect and no
+ * second listener: binding 127.0.0.1:port beside 0.0.0.0:port is refused on
+ * Linux and merely redundant elsewhere.
+ */
+const redirectLocal = !LOOPBACK.has(host);
+const loopbackToo = redirectLocal && !WILDCARD.has(host);
 const dataDir = args.data || process.env.LPP_DATA || join(homedir(), '.livepremier-plus');
 const storage = new StackStore(dataDir);
 
@@ -71,7 +89,8 @@ const server = await createProxy({
   device,
   root: ROOT,
   storage,
-  log: (msg) => console.log(`[lpp] ${msg}`)
+  log: (msg) => console.log(`[lpp] ${msg}`),
+  loopbackPort: redirectLocal ? port : null
 });
 
 server.on('error', (err) => {
@@ -82,8 +101,23 @@ server.on('error', (err) => {
 server.listen(port, host, () => {
   const dest = server.lppState.device || 'no switcher yet — the page will ask';
   console.log(`[lpp] LivePremier Plus on http://${host}:${port}/  ->  ${dest}`);
-  if (host === '0.0.0.0') console.log('[lpp] bound to all interfaces — anyone on this network can drive the switcher');
+  if (WILDCARD.has(host)) {
+    console.log('[lpp] bound to all interfaces — anyone on this network can drive the switcher');
+    console.log(`[lpp] on this machine use http://127.0.0.1:${port}/ — the secure context Web MIDI needs; a local browser arriving by a LAN address is sent there`);
+  }
 });
+
+const local = loopbackToo ? server.mirrorTo(http.createServer()) : null;
+if (local) {
+  local.on('error', (err) => {
+    /* Not fatal: the LAN listener is up and everything but Web MIDI works
+       there. Say so, rather than dying over the convenience door. */
+    console.error(`[lpp] loopback listener: ${err.code === 'EADDRINUSE' ? `127.0.0.1:${port} is already in use` : err.message} — Web MIDI on this machine needs it`);
+  });
+  local.listen(port, '127.0.0.1', () => {
+    console.log(`[lpp] also on http://127.0.0.1:${port}/ for this machine — the secure context Web MIDI needs; local browsers are sent there`);
+  });
+}
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
@@ -93,6 +127,8 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
        which, under the launcher, reads as a Stop button that does nothing. */
     server.closeRelays();
     server.closeAllConnections?.();
+    local?.closeAllConnections?.();
+    local?.close();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 1000).unref();
   });

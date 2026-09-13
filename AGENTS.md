@@ -589,6 +589,19 @@ no benefit. Read `wru` as "the panels".
   forever. Adoption happens on the first Analog Way frame instead.
 - **React owns the sidebar and re-renders it.** A MutationObserver puts the
   section back rather than fighting reconciliation.
+- **"Not a secure context" has two causes, and the second is us.** Web MIDI
+  and `getUserMedia` exist only on https and loopback. The launcher can bind
+  the server to a LAN interface and then opens `http://<lan-ip>:<port>/` —
+  served by this app, on this machine, insecure. `server/local-client.js`
+  answers it: a LAN-bound server also listens on `127.0.0.1` (not on a
+  wildcard bind, which already includes it — a second bind there fails on
+  Linux), and a top-level navigation whose TCP source address equals its
+  destination address is 302'd to loopback. Same-address-at-both-ends is the
+  test, not "one of our addresses": a NAT'd VM's traffic arrives from a
+  gateway address we own and would be sent to its own 127.0.0.1. Never
+  redirect a fetch or an upgrade; the Web RCS's own requests must land where
+  they were sent. `src/core/secure-context.js` is the one sentence the three
+  panels show, and it names the page that is open, not the switcher.
 - **A Midra take with *preset toggle* off settles late.** The device passes
   `EFFECT_FROM_x` and then `COPY_FROM_x` before `AT_y`, so fire → settled is
   takeTime + ~250 ms on real hardware (the simulator, toggle on, sends only

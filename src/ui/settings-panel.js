@@ -43,6 +43,7 @@ import {
   AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES, OSC_BIND_CHOICES
 } from '../core/settings.js';
 import { OSC_ROOT } from '../vendor/mynah-lang.mjs';
+import { insecureContextAdvice } from '../core/secure-context.js';
 
 /*
  * What is installed, and where to find it.
@@ -257,8 +258,7 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
      * missing with nothing on screen to say why.
      */
     if (typeof window !== 'undefined' && !window.isSecureContext) {
-      notes.push(note('warn', 'This page is not a secure context, so Web MIDI is unavailable. ' +
-        'Open Web RCS through LivePremier Plus rather than at the switcher\'s own address.'));
+      notes.push(note('warn', insecureContextAdvice(window.location)));
     }
 
     return card('LivePremier Plus', rows, ...notes);

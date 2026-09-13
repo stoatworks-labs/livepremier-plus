@@ -128,7 +128,7 @@ npm start -- --device 192.168.2.142
 | --- | --- |
 | `--device <host[:port]>` | the switcher. Port defaults to 80 (a simulator is usually `:3000`). |
 | `--port <n>` | local port to listen on (default 8535) |
-| `--host <addr>` | local address to bind (default `127.0.0.1`) |
+| `--host <addr>` | local address to bind (default `127.0.0.1`). Bind a LAN address or `0.0.0.0` to reach it from other machines; this machine should still open it at `127.0.0.1` — see [secure contexts](#why-this-needs-no-offscreen-document) — and a local browser that arrives by the LAN address is sent there. |
 | `--data <dir>` | where cue stacks are kept (default `~/.livepremier-plus`) |
 
 There is a desktop app too — a tray launcher with an interface and port picker,
@@ -359,9 +359,20 @@ the SysEx problem: an invisible offscreen document cannot show a permission
 prompt, so Mackie scribble strips needed granting from a separate page. A
 normal page just asks.
 
-The corollary: **open the switcher's own address directly and MIDI will not
-work**, because that origin is not secure. The panel says so rather than
-failing silently.
+The corollary: **a plain-http page on any address but loopback has no Web
+MIDI and no audio input** — the switcher's own address, and equally this
+app's own when the launcher binds it to a LAN interface and opens
+`http://192.168.2.69:8534/`. Until 0.6.1 the note on the Settings page only
+knew the first case and told an operator already inside LivePremier Plus to
+open LivePremier Plus. Now: a LAN-bound server always answers on `127.0.0.1`
+as well, a browser on the same machine that arrives by the LAN address is
+redirected there (the server can tell — a connection whose source address is
+the very address it connected to was made on this host, and nothing else
+qualifies, not even a VM behind a NAT bridge), and the note names the page
+that is actually open, the loopback door with its port, and the fact that
+another machine would need HTTPS, which this app does not serve yet. Only
+top-level navigations are redirected; the vendor app's fetches and its socket
+stay where they are.
 
 ## The demo environment
 

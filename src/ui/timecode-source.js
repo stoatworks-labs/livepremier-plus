@@ -32,6 +32,7 @@
  */
 
 import { MtcReader, LtcReader, TimecodeClock } from '../core/timecode.js';
+import { insecureContextAdvice } from '../core/secure-context.js';
 
 export const SOURCE_KINDS = [
   { id: 'none', label: 'None' },
@@ -81,7 +82,9 @@ export function createTimecodeSource({ rate = 25, staleAfterMs = 250 } = {}) {
 
   async function useMidi(deviceId) {
     if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) {
-      throw new Error('This browser has no Web MIDI. Open Web RCS through LivePremier Plus, not the switcher’s own address.');
+      throw new Error(typeof window !== 'undefined' && !window.isSecureContext
+        ? insecureContextAdvice(window.location)
+        : 'This browser has no Web MIDI.');
     }
     /* No SysEx here even though full-frame MTC is a SysEx message: asking for
        it prompts, and quarter-frames are what a running generator sends. A
@@ -112,7 +115,11 @@ export function createTimecodeSource({ rate = 25, staleAfterMs = 250 } = {}) {
 
   async function useAudio(deviceId) {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices) {
-      throw new Error('This browser will not open an audio input here');
+      /* `mediaDevices` is simply absent on an insecure origin — the same
+         rule as Web MIDI, and the same remedy. */
+      throw new Error(typeof window !== 'undefined' && !window.isSecureContext
+        ? insecureContextAdvice(window.location)
+        : 'This browser will not open an audio input here');
     }
     /*
      * Every bit of processing off. Echo cancellation and noise suppression are
