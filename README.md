@@ -52,6 +52,17 @@ to install in the browser.
 > whole (124 MB) and the VPU model re-checked against it rather than against a
 > capture. Nothing disagreed with what the simulator had taught us.
 >
+> **The VPU map's header is part-verified from that same pull (2026-09-15).**
+> The header over the grid's columns names each link's region and output plug
+> from `outputList` — `usedInScreenAux`, `usedInRegion`, `capability`, the
+> mapping and the plug type — and every one of those fields is in the store
+> the box gave us, with each screen's outputs adding up to its own figures
+> (`test/fixtures/aquilon-c-dual-outputs.json`). **Not yet verified on a box:
+> the order in which a screen's links run over several outputs** — every screen
+> on that pull had one — so a screen whose outputs do not add up gets no header,
+> and the next time an Aquilon is reachable, aquilon-vpu-map's
+> `scripts/probe-hardware.mjs` step 6 and its capture guide say what to check.
+>
 > **Driven in a browser against the box (2026-09-10).** The sidebar entries and
 > the two Preconfig flyout pages have now been opened and navigated against a
 > live Aquilon C in an ordinary browser session, rather than only against the

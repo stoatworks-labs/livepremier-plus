@@ -225,6 +225,37 @@ test('the outputs come off the store in the shape the header reads', () => {
   assert.deepEqual(readOutputs(storeFrom({ device: {} })), {});
 });
 
+test('the header holds on the real Aquilon C outputs of 2026-09-09', () => {
+  // The dual-outputs fixture is trimmed from the whole-store pull of the box —
+  // the one hardware reading of outputList there is. Three screens on one
+  // dual-link HDMI output each (S1 on 7, S2 on 8, S3 on 5), auxes on the SDI
+  // card, and the device's own figures agree with the accounting. One output
+  // per screen, so it settles the paths and the sums, not the order of several.
+  const store = storeFrom(fixture('aquilon-c-dual-outputs.json'));
+  const outputs = readOutputs(store);
+  assert.equal(Object.keys(outputs).length, 24);
+  assert.deepEqual(outputs['7'], { screen: 'S1', region: '1', capability: 'DUAL', card: 'OUT_2', physical: '7', type: 'HDMI' });
+  assert.deepEqual(outputs['1'], { screen: 'A1' }, 'an aux is named and nothing more');
+  assert.deepEqual(outputs['13'], { screen: 'NONE' }, 'an unfitted slot answers NONE, not E12');
+
+  for (const which of ['current', 'new']) {
+    const side = readSide(store, which);
+    const links = screenOutputLinks(side.outputs, side.screenStatus);
+    assert.deepEqual(
+      [...links.entries()].map(([s, v]) => [s, v.consistent, v.runs.map((r) => r.output)]).sort(),
+      [['S1', true, ['7']], ['S2', true, ['8']], ['S3', true, ['5']]],
+      which,
+    );
+    const grids = side.devices[0].grids;
+    assert.deepEqual(grids.filter((g) => g.fitted).map((g) => g.rowsUsed), [4, 2]);
+    assert.deepEqual(stackVpus(grids), [[1], [2], [3], [4]]);
+  }
+  // Every fitted mixer is enabled on a screen or spare; the auxes hold none.
+  const sum = readSide(store, 'current').devices[0].summary;
+  assert.deepEqual([sum.fitted, sum.enabled, sum.spare], [32, 24, 8]);
+  assert.ok(sum.allocations.every((a) => /^S\d+$/.test(a.screen)));
+});
+
 test('optimized mode is resolved from screen status onto whole VPUs', () => {
   const capture = fixture('aquilon-c-6output-5k.json');
   const status = { S1: { mode: 'FREESTYLE', isOptimized: true, outputCount: 6 },

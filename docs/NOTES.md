@@ -981,3 +981,17 @@ from each screen's figures, since no capture carries real ones. The vendor test
 skips here (no sibling checkout in a worktree); it bites in the shared checkouts
 once both are pulled, and they agree.
 
+**Later the same day — the header is part-verified after all.** The 09-09 field
+test's whole-store pull (`~/dev/aquilon-field-test/results/store-device-2026-09-09T19-56-34.json`)
+holds `outputList` with every field `readOutputs` reads — 96 slots, 1-12 fitted,
+unfitted ones answering `NONE` with `isAvailable:false`. Trimmed into
+`test/fixtures/aquilon-c-dual-outputs.json` (S1 on Out 7, S2 on 8, S3 on 5, one DUAL
+output each under 4K layers; auxes A1-A4 on the SDI card; labels dropped) and pinned
+in core.test.js: the adapter's record shape, each screen adding up, `[4, 2]` rows, no
+stack. The preview harness offers it — real outputs, no need to synthesise. **Still
+open on a box: the order of a screen's links over several outputs**, and the `mapping`
+/ `control` / `$plug` AWJ spellings (the store objects exist; only the
+`canvas/status/@props` prefix was asked over AWJ that day). The note for the next
+box lives in aquilon-vpu-map: `docs/CAPTURE-GUIDE.md` → "Validate on real hardware",
+`scripts/probe-hardware.mjs` step 6.
+

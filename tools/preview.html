@@ -31,7 +31,7 @@
   <label>Capture <select id="pick"></select></label>
   <label>Side <select id="side"><option value="current">current</option><option value="new">new</option></select></label>
   <label><input type="checkbox" id="outputs"> synthesise outputs</label>
-  <span class="note">Recorded captures only — no device is contacted. The outputs are invented from each screen's own figures: the captures never read them.</span>
+  <span class="note">Recorded captures only — no device is contacted. Synthesised outputs are invented from each screen's own figures; only the 2026-09-09 capture carries real ones.</span>
 </div>
 <div id="mount"></div>
 
@@ -43,6 +43,7 @@
   const CAPTURES = [
     ['aquilon-c-6output-5k.json', 'Six-output screen + a 5K layer'],
     ['aquilon-c-live-resources.json', 'Live resources capture'],
+    ['aquilon-c-dual-outputs.json', 'Single-output screens, with the real outputs (2026-09-09)'],
   ];
 
   installStyles(document);
