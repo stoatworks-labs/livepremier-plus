@@ -955,3 +955,29 @@ eight lines through the Console on the simulator — the opacity, a patch to the
 audio layer (the vendor's own header dropdown changed to "Input 3"), a patch
 to output 1, a mute, and their undoing — all `n/n writes sent`.
 
+## VPU map: natives above, continuing screens stacked, a header per link (2026-09-15)
+
+Synced the model from aquilon-vpu-map `5936339` (see that repo's NOTES for the
+account) and ported its three changes to `vpu-panel.js`: the native band is drawn
+ABOVE the field because an output link runs down through a VPU and the native is
+the bottom of the stack; a screen whose next layer landed on another VPU on the same
+links (`screens[].from`/`to`, `stackVpus`) has the two cards stacked in a
+`.wru-vpu-stack` with the arrows at both ends in the screen's colour and "↓ VPU 2"
+under the leaving ones; and two header rows under the screen bar name each link's
+region and output plug. `core/vpu.js` gained `readOutputs`, lifting
+`outputList/items/<n>/{canvas/status,control,mapping,plugList}` into the flat
+`{screen, region, capability, label, card, physical, type}` record
+`screenOutputLinks` reads, and `readSide` carries it as `outputs` — the RUNNING
+assignment, so on the staged side a screen the staging changes fails the
+outputCount / usedOutputCapabilities check and gets no header, by design.
+
+The live-resources capture (S2 NAT+L1 on VPU 1, L2 on VPU 2) is the cascade in
+this repo's fixtures; `test/core.test.js` pins its stack and the sim outputs'
+adapter shape. **`tools/preview.html` had been building an EMPTY store for that
+capture** — it only knew the `{current, new}` shape, so the live-resources option
+hydrated nothing and reported "No VPU fitted" — fixed to hydrate a store-shaped
+capture as it is, and given a "synthesise outputs" box that invents an outputList
+from each screen's figures, since no capture carries real ones. The vendor test
+skips here (no sibling checkout in a worktree); it bites in the shared checkouts
+once both are pulled, and they agree.
+

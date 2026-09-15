@@ -5,7 +5,11 @@ session**, drawn in Web RCS's own design language so they read as part of the pr
 as a bolt-on.
 
 - **VPU Map** — the device's mixing-resource allocation, drawn as a budget. Which units are fitted,
-  who holds them, what is spare, and what a staged preconfig would change.
+  who holds them, what is spare, and what a staged preconfig would change. The link grid reads top
+  to bottom the way an output link runs: a screen's native layer in a band above the eight layer
+  links, the layers down the field, and — when a screen ran out of mixers and its next layer is on
+  another VPU — on into that VPU's card, stacked underneath. The header over the columns names each
+  link's screen, and its region and output plug where the outputs add up to the screen's own figures.
 - **Console** — a lighting-desk command grammar for a video switcher.
 - **Timeline** — a theatre-style cue stack that advances on one GO, with per-cue fade, delay and
   follow times.
