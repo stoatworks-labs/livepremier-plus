@@ -110,14 +110,20 @@ const CSS = `
   background: #08141B; border: 0.1rem solid #283239; border-radius: 0.333333rem;
   padding: 0.833333rem;
 }
+/* VPUs a screen continues across, stacked so its output links run out of the
+   bottom of one card and into the top of the next. */
+.wru-vpu-stack { display: flex; flex-direction: column; gap: 1rem; }
+.wru-tag--cont { border-style: dashed; }
 /* The link grid, drawn the way the manual draws a VPU: an 8x8 field of links,
-   layer links in from the left, output links out top and bottom. */
+   layer links in from the left, output links in at the top and out at the
+   bottom. */
 .wru-vpu-svg { width: 26rem; height: auto; display: block; }
 .wru-vpu-svg--unfitted { opacity: 0.3; }
 
 .wru-field { fill: rgba(0,0,0,0.3); stroke: #49535B; stroke-width: 1; }
-/* The native layers, laid out below the eight layer-capacity links because they
-   spend output capacity and not layer capacity. */
+/* The native layers, laid out above the eight layer-capacity links: they spend
+   output capacity and not layer capacity, and a native is the bottom of the
+   stack — the first thing on the output link. */
 .wru-band { stroke-dasharray: 4 3; stroke-opacity: 0.75; }
 .wru-band-label {
   fill: #838B91; font-size: 7px; text-anchor: end; fill-opacity: 0.8;
@@ -130,9 +136,26 @@ const CSS = `
   fill: #08141B; font-size: 8px; font-weight: 700; text-anchor: middle;
   font-family: OpenSans, Helvetica, sans-serif; pointer-events: none;
 }
+/* A screen continuing from an earlier VPU: the same links, arriving from above. */
+.wru-screen-bar--cont rect { stroke-dasharray: 4 2; fill-opacity: 0.35; }
+/* The header under the screen bar: which region, then which output plug, each
+   link is — drawn only when the store's outputs add up to what the screen
+   itself reports. */
+.wru-hdr rect { fill: rgba(0,0,0,0.3); stroke: currentColor; stroke-width: 1; }
+.wru-hdr text {
+  fill: currentColor; font-size: 6.5px; text-anchor: middle;
+  font-family: OpenSans, Helvetica, sans-serif; pointer-events: none;
+}
 .wru-lattice { stroke: rgba(255,255,255,0.08); stroke-width: 1; }
 .wru-link-in { stroke: #616D75; stroke-width: 1.5; }
 .wru-link-out { stroke: #616D75; stroke-width: 1.5; }
+/* An output link running on from one VPU into the next takes its screen's
+   colour at both ends, and the leaving end says where it goes. */
+.wru-link-out--cascade { stroke: currentColor; stroke-width: 2.5; }
+.wru-cascade-label {
+  fill: currentColor; font-size: 7px; font-weight: 700; text-anchor: middle;
+  font-family: OpenSans, Helvetica, sans-serif;
+}
 .wru-link-no {
   fill: #838B91; font-size: 7px; text-anchor: middle;
   font-family: OpenSans, Helvetica, sans-serif;

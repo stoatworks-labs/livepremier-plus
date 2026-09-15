@@ -30,7 +30,8 @@
 <div class="bar">
   <label>Capture <select id="pick"></select></label>
   <label>Side <select id="side"><option value="current">current</option><option value="new">new</option></select></label>
-  <span class="note">Recorded captures only — no device is contacted.</span>
+  <label><input type="checkbox" id="outputs"> synthesise outputs</label>
+  <span class="note">Recorded captures only — no device is contacted. The outputs are invented from each screen's own figures: the captures never read them.</span>
 </div>
 <div id="mount"></div>
 
@@ -83,9 +84,14 @@
     };
 
     // The panel reads through DeviceStore's own accessors, not a plain object, so
-    // hydrate a real one — the same thing test/core.test.js does.
-    const status = capture.screenStatus || {};
+    // hydrate a real one — the same thing test/core.test.js does. A capture that
+    // is already store-shaped (the live-resources one) hydrates as it is.
     const store = new DeviceStore();
+    if (capture.device) {
+      store.hydrate(capture);
+      return store;
+    }
+    const status = capture.screenStatus || {};
     store.hydrate({
       device: { preconfig: { resources: {
         current: withScreens(side(capture.current), status.current),
@@ -95,8 +101,37 @@
     return store;
   }
 
+  /*
+   * An outputList invented from the screens' own figures, so the header over
+   * the grid has something to draw: each configured screen gets outputCount
+   * outputs, 4K when its usedOutputCapabilities is two per output and DUAL
+   * otherwise, numbered on from 1, all in region 1. Nothing about it is real
+   * but the sums, which is exactly what screenOutputLinks checks.
+   */
+  function synthesiseOutputs(store, which) {
+    const base = ['device', 'preconfig', 'resources', which, 'screenList', 'items'];
+    const screens = store.get(base) || {};
+    const items = {};
+    let n = 1;
+    for (const [id, node] of Object.entries(screens)) {
+      const st = (node.status || {}).pp || {};
+      if (!st.mode || st.mode === 'DISABLED' || !st.outputCount) continue;
+      const capability = st.usedOutputCapabilities === 2 * st.outputCount ? '4K' : 'DUAL';
+      for (let i = 0; i < st.outputCount; i++, n++) {
+        items[n] = {
+          canvas: { status: { pp: { usedInScreenAux: id, usedInRegion: '1', capability } } },
+          control: { pp: { label: '' } },
+          mapping: { pp: { card: 'OUT_' + (Math.floor((n - 1) / 4) + 1), physical: String(((n - 1) % 4) + 1) } },
+          plugList: { itemKeys: ['1'], items: { 1: { status: { pp: { type: 'HDMI' } } } } },
+        };
+      }
+    }
+    store.set(['device', 'outputList'], { itemKeys: Object.keys(items), items });
+  }
+
   const pick = document.getElementById('pick');
   const sideSel = document.getElementById('side');
+  const outputsBox = document.getElementById('outputs');
   const mount = document.getElementById('mount');
   pick.replaceChildren(...CAPTURES.map(([file, label]) =>
     Object.assign(document.createElement('option'), { value: file, textContent: label })));
@@ -105,6 +140,7 @@
     const res = await fetch(`../test/fixtures/${pick.value}`);
     const capture = await res.json();
     const store = storeFromCapture(capture);
+    if (outputsBox.checked) synthesiseOutputs(store, sideSel.value);
     // createVpuPanel returns { render, view } — `view` is the panel's own state,
     // which is how the real shell drives it too.
     const panel = createVpuPanel({ session: { store }, onRefresh: () => paint() });
@@ -115,5 +151,6 @@
 
   pick.addEventListener('change', show);
   sideSel.addEventListener('change', show);
+  outputsBox.addEventListener('change', show);
   show();
 </script>

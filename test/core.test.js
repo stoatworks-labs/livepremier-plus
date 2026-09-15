@@ -21,8 +21,8 @@ import { dirname, join } from 'node:path';
 import { toAwj, CMD, screenAuxControl, ROOT } from '../src/core/paths.js';
 import { DeviceStore } from '../src/core/device-store.js';
 import {
-  readMixers, readSide, diffSides, inspectMapping, layerLabel, layerShort,
-  summarise, parseMixerId, MIXER_PROPS, LINKS_PER_VPU
+  readMixers, readSide, diffSides, inspectMapping, layerLabel, layerShort, readOutputs,
+  summarise, parseMixerId, stackVpus, screenOutputLinks, MIXER_PROPS, LINKS_PER_VPU
 } from '../src/core/vpu.js';
 import { CueStack, ACTION_KINDS, toTenths, SETTLE_MS } from '../src/core/cuestack.js';
 import { readIdentity, describe } from '../src/core/identity.js';
@@ -174,7 +174,8 @@ test('the link grid takes its columns from the output links the device reports',
     assert.ok(!g.overflow, `VPU ${g.vpu} must fit in ${LINKS_PER_VPU} link rows`);
     for (const b of g.blocks) {
       assert.ok(b.cols.length > 0, `${b.mixer} must sit on at least one output link`);
-      // Natives are laid out in the band below the field, rows LINKS_PER_VPU up.
+      // Natives are laid out in a band of their own, rows LINKS_PER_VPU up
+      // (the panel draws it above the field: a native is the bottom of the stack).
       if (b.section === 'background') assert.ok(b.row >= LINKS_PER_VPU, `${b.mixer} in the band`);
       else assert.ok(b.row >= 0 && b.row < LINKS_PER_VPU, `${b.mixer} row in range`);
       // The columns the device reports are the screen's own links, contiguous.
@@ -183,6 +184,45 @@ test('the link grid takes its columns from the output links the device reports',
       }
     }
   }
+});
+
+test('a screen that ran out of mixers continues on the next VPU, and the two stack', () => {
+  // The live capture: S2's native and layer 1 are on VPU 1's links 7-8, its
+  // layer 2 on VPU 2 — the same output links, running down from one into the
+  // other. The model records the continuation and keeps S2 on the same columns;
+  // the panel stacks the two cards.
+  const store = storeFrom(fixture('aquilon-c-live-resources.json'));
+  const side = readSide(store, 'current');
+  const grids = side.devices[0].grids;
+  const s2on1 = grids.find((g) => g.vpu === 1).screens.find((sc) => sc.screen === 'S2');
+  const s2on2 = grids.find((g) => g.vpu === 2).screens.find((sc) => sc.screen === 'S2');
+  assert.deepEqual([s2on1.col, s2on1.width, s2on1.to], [6, 2, 2]);
+  assert.deepEqual([s2on2.col, s2on2.width, s2on2.from], [6, 2, 1]);
+  assert.deepEqual(stackVpus(grids), [[1, 2], [3], [4]]);
+});
+
+test('the outputs come off the store in the shape the header reads', () => {
+  // The simulator's outputList: outputs 1-3 in S1 region 1 at DUAL, output 4
+  // unassigned. Blank labels are left out, the plug type comes from plug 1.
+  const store = storeFrom(fixture('sim-6.2.73-outputs.json'));
+  const outputs = readOutputs(store);
+  assert.deepEqual(Object.keys(outputs), ['1', '2', '3', '4']);
+  assert.deepEqual(outputs['1'], {
+    screen: 'S1', region: '1', capability: 'DUAL', card: 'OUT_1', physical: '1', type: 'HDMI'
+  });
+  assert.deepEqual(outputs['4'], { screen: 'NONE' }, 'an unassigned output is nobody’s');
+
+  /* Dealt out over S1's links: three dual outputs, one link each, and the
+     device's own figures agree, so the header may draw. */
+  const links = screenOutputLinks(outputs, { S1: { outputCount: 3, usedOutputCapabilities: 3 } });
+  assert.deepEqual(links.get('S1').runs.map((r) => [r.output, r.first, r.last]), [['1', 1, 1], ['2', 2, 2], ['3', 3, 3]]);
+  assert.equal(links.get('S1').consistent, true);
+  /* Against a screen that says otherwise, it may not. */
+  assert.equal(screenOutputLinks(outputs, { S1: { outputCount: 3, usedOutputCapabilities: 6 } }).get('S1').consistent, false);
+
+  /* readSide carries them, and a store with no outputList yields none. */
+  assert.equal(readSide(storeFrom(fixture('aquilon-c-live-resources.json')), 'current').outputs !== undefined, true);
+  assert.deepEqual(readOutputs(storeFrom({ device: {} })), {});
 });
 
 test('optimized mode is resolved from screen status onto whole VPUs', () => {

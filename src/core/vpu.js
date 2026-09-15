@@ -25,13 +25,13 @@
 import { ROOT, resourceMapping } from './paths.js';
 import {
   MIXER_IDS, MIXER_PROPS, SCALERS, OUT_PIPES, parseMixerId,
-  summarise, buildLinkGrid, optimizedVpus, diff,
+  summarise, buildLinkGrid, optimizedVpus, diff, stackVpus, screenOutputLinks,
   LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY, LAYER_CAPABILITIES, capacityToLinks
 } from '../vendor/vpu-model.js';
 
 export {
   MIXER_IDS, MIXER_PROPS, SCALERS, OUT_PIPES, parseMixerId,
-  summarise, buildLinkGrid, optimizedVpus, diff,
+  summarise, buildLinkGrid, optimizedVpus, diff, stackVpus, screenOutputLinks,
   LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY, LAYER_CAPABILITIES, capacityToLinks
 };
 
@@ -113,6 +113,52 @@ export function readScreenStatus(store, { which = 'current' } = {}) {
 }
 
 /**
+ * Every output, and which screen, region and plug it is — the header over the
+ * grid's columns, in the shape `screenOutputLinks` reads.
+ *
+ *   outputList/items/<n>/canvas/status/pp/{usedInScreenAux,usedInRegion,capability}
+ *   outputList/items/<n>/control/pp/label
+ *   outputList/items/<n>/mapping/pp/{card,physical}
+ *   outputList/items/<n>/plugList/items/1/status/pp/type
+ *
+ * The same fields the standalone tool reads over AWJ, and here they are the
+ * store's own — the 6.2.73 simulator capture in test/fixtures carries them.
+ * Which screen an output is in is the platform's to say (see `dialect.pitch`),
+ * but this panel is withheld from Midra and Alta before it gets here, so the
+ * LivePremier spelling is the only one needed.
+ */
+export function readOutputs(store) {
+  const list = store.get([ROOT, 'outputList']);
+  const items = (list && list.items) || {};
+  const out = {};
+  for (const key of Object.keys(items)) {
+    const node = items[key];
+    const canvas = ((node && node.canvas) || {}).status;
+    const status = (canvas && canvas.pp) || {};
+    if (status.usedInScreenAux === undefined) continue;
+    const rec = { screen: status.usedInScreenAux };
+    if (/^S\d+$/.test(String(rec.screen))) {
+      const label = ((node.control || {}).pp || {}).label;
+      const mapping = (node.mapping || {}).pp || {};
+      const plug = (((node.plugList || {}).items || {})['1'] || {}).status;
+      const fields = {
+        region: status.usedInRegion,
+        capability: status.capability,
+        label,
+        card: mapping.card,
+        physical: mapping.physical,
+        type: (plug && plug.pp || {}).type
+      };
+      for (const [k, v] of Object.entries(fields)) {
+        if (v !== undefined && v !== null && v !== '') rec[k] = v;
+      }
+    }
+    out[key] = rec;
+  }
+  return out;
+}
+
+/**
  * Is there a VPU mapping to draw at all, and if not, why not.
  *
  * Worth distinguishing carefully. A simulator carries a `vpuLayerList`
@@ -150,6 +196,13 @@ export function readSide(store, which = 'current') {
   const info = inspectMapping(store, which);
   if (!info.present) return null;
   const screenStatus = readScreenStatus(store, { which });
+  // The outputs come from the device's own outputList, which reports the
+  // RUNNING assignment: on the staged side the header can only be as right as
+  // the running one, and a staged move of an output to another screen shows
+  // once it is applied. `screenOutputLinks` checks each screen's outputs
+  // against that side's figures, so a screen the staging changes gets no
+  // header rather than a wrong one.
+  const outputs = readOutputs(store);
   const devices = info.devices.map((key) => {
     const mixers = readMixers(store, { which, device: key });
     // Optimized mode decides whether a layer's bar may cross the centre line, so
@@ -165,7 +218,7 @@ export function readSide(store, which = 'current') {
       optimized
     };
   });
-  return { which, devices, screenStatus, fitted: info.fitted };
+  return { which, devices, screenStatus, outputs, fitted: info.fitted };
 }
 
 /**

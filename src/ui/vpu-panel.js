@@ -7,11 +7,18 @@
  *
  * The main view is the **link grid**, which is how Analog Way's own manual
  * draws a VPU (§5.5): an 8x8 field of links, layer links in from the left,
- * output links out through the top and bottom. A layer occupies a block; the
- * columns are the output links the device itself reports, and the rows are
- * packed, because nothing in the object model names the layer link. The
- * vertical rule at four columns is the scaling-engine boundary — and it is
- * deliberately not drawn on a VPU in Optimized mode, which removes it.
+ * output links in through the top and out through the bottom. A layer occupies
+ * a block; the columns are the output links the device itself reports, and the
+ * rows are packed, because nothing in the object model names the layer link.
+ * The vertical rule at four columns is the scaling-engine boundary — drawn
+ * quieter on a VPU in Optimized mode, which lifts it for capacity-2 layers.
+ *
+ * It reads top to bottom the way an output link runs: the native layers first,
+ * in a band above the field (a native is the bottom of the stack), then the
+ * eight layer links, then — when a screen ran out of mixers and its next layer
+ * sits on another VPU on the same links — on into that VPU's card, which is
+ * stacked underneath. The header over the columns names each link's screen,
+ * and its region and output plug when the store's outputs add up.
  *
  * All of the derivation is the shared model in `core/vpu.js`; this file only
  * draws. Nothing here writes to the device — every property involved is
@@ -23,7 +30,7 @@ import { panel } from './shell.js';
 import { whyNot } from '../core/platform.js';
 import { screenColour } from './theme.js';
 import {
-  readSide, diffSides, inspectMapping, layerLabel, layerShort,
+  readSide, diffSides, inspectMapping, layerLabel, layerShort, stackVpus, screenOutputLinks,
   LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY
 } from '../core/vpu.js';
 
@@ -34,7 +41,9 @@ const FIELD = LINKS_PER_VPU * CELL;
 const PAD_L = 30;
 const PAD_T = 20;
 const HEAD = 13;      // the screen bar over the output links
-const BAND_GAP = 10;  // between the field and the native-layer band
+const HDR = 11;       // one header row under it: the region, then the output
+const TAIL = 10;      // room under the leaving arrows for "↓ VPU n"
+const BAND_GAP = 10;  // between the native-layer band and the field
 
 function s(tag, attrs = {}, ...children) {
   const el = document.createElementNS(SVG_NS, tag);
@@ -91,7 +100,7 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
       toolbar: title(side, diffs),
       body: h('div', {},
         summary(device, side),
-        grids(device, changed),
+        grids(device, changed, side),
         screenTable(store, side),
         diffs.length ? changeList(diffs) : null,
         view.detail ? detail(device) : null)
@@ -190,27 +199,42 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
         h('span', { class: 'aw-font-body-2 aw-text-tertiary', text: '· hatched block = an added layer, not the native one' })));
   }
 
-  function grids(device, changed) {
+  function grids(device, changed, side) {
     const drawn = device.grids.filter((g) => g.fitted || g.blocks.length);
     if (!drawn.length) {
       return h('div', { class: 'wru-empty', text: 'No VPU fitted on ' + device.role + '.' });
     }
+    const outputLinks = screenOutputLinks(side.outputs, side.screenStatus);
+    const headed = drawn.some((g) => (g.screens || []).some((sc) => outputLinks.get(sc.screen)?.consistent));
+
+    /* A screen that continues onto another VPU has its output links running
+       out of the bottom of one card and into the top of the next, so those
+       cards are stacked in signal order; the rest sit beside them. */
+    const byVpu = new Map(drawn.map((g) => [g.vpu, g]));
+    const stacks = stackVpus(drawn).map((members) => members.filter((v) => byVpu.has(v))).filter((m) => m.length);
+
     return h('div', { class: 'aw-margin-bottom-large' },
       sectionTitle('Link grid',
         h('span', {
           class: 'aw-font-body-2 aw-text-tertiary',
           text: drawn[0].placement === 'derived'
             ? 'columns derived — this capture reports no output links'
-            : 'a row is one layer link, carrying one layer; columns are each screen’s own output links'
+            : 'a row is one layer link, carrying one layer; columns are each screen’s own output links' +
+              (headed ? ', headed by their region and output plug' : '')
         })),
-      h('div', { class: 'aw-flex-row aw-flex-wrap aw-gap-col-large aw-gap-row-large' },
-        ...drawn.map((g) => vpuBlock(g, device, changed))));
+      h('div', { class: 'aw-flex-row aw-flex-wrap aw-gap-col-large aw-gap-row-large', style: { alignItems: 'flex-start' } },
+        ...stacks.map((members) => {
+          const cards = members.map((v) => vpuBlock(byVpu.get(v), device, changed, outputLinks));
+          return cards.length === 1
+            ? cards[0]
+            : h('div', { class: 'wru-vpu-stack' }, ...cards);
+        })));
   }
 
-  function vpuBlock(grid, device, changed) {
+  function vpuBlock(grid, device, changed, outputLinks) {
     const optimized = device.optimized.has(grid.vpu);
     return h('div', { class: 'wru-vpu-device' },
-      h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium aw-margin-bottom-small' },
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium aw-margin-bottom-small aw-flex-wrap' },
         h('div', { class: 'aw-font-body-1-bold', text: 'VPU ' + grid.vpu }),
         grid.fitted
           ? h('span', {
@@ -221,24 +245,39 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
             })
           : h('span', { class: 'wru-tag', text: 'not fitted' }),
         optimized ? h('span', { class: 'wru-tag wru-tag--good', text: 'optimized' }) : null,
-        grid.overflow ? h('span', { class: 'wru-tag wru-warn', text: 'overflows 8 links' }) : null),
-      vpuSvg(grid, optimized, device, changed));
+        grid.overflow ? h('span', { class: 'wru-tag wru-warn', text: 'overflows 8 links' }) : null,
+        ...(grid.screens || []).filter((sc) => sc.from !== undefined).map((sc) =>
+          h('span', {
+            class: 'wru-tag wru-tag--cont',
+            style: { color: screenColour(sc.screen), borderColor: screenColour(sc.screen) },
+            title: `${sc.screen} ran out of mixers on VPU ${sc.from}: its next layer is here, on the same output links`,
+            text: `${sc.screen} continues from VPU ${sc.from}`
+          }))),
+      vpuSvg(grid, optimized, device, changed, outputLinks));
   }
 
-  function vpuSvg(grid, optimized, device, changed) {
-    /* Native layers spend output capacity but not layer capacity, so they are laid
-       out in a band under the eight links rather than inside them, and the screen
-       bar over the top says which output links belong to which screen. */
+  function vpuSvg(grid, optimized, device, changed, outputLinks) {
     const bandRows = grid.backgroundRows || 0;
     const screens = grid.screens || [];
-    const head = screens.length ? HEAD + 3 : 0;
-    const bandTop = head + PAD_T + FIELD + (bandRows ? BAND_GAP : 0);
+    /* The header: the screen bar, then — when the store's outputs add up to
+       what the screen reports — which region and which output each link is. */
+    const known = screens.filter((sc) => outputLinks && outputLinks.get(sc.screen)?.consistent);
+    const headerRows = known.length ? 2 : 0;
+    const head = screens.length ? HEAD + 3 + headerRows * (HDR + 2) + (headerRows ? 3 : 0) : 0;
+    const continues = screens.some((sc) => sc.to !== undefined);
+
+    /* Native layers spend output capacity but not layer capacity, so they are
+       laid out in a band of their own — above the field, because a native is the
+       bottom of the stack and so the first thing on the output link. */
+    const top = head + PAD_T;
+    const bandTop = top;
     const bandH = bandRows * CELL;
+    const y0 = top + (bandRows ? bandH + BAND_GAP : 0);
+    const bottom = y0 + FIELD;
 
     const W = PAD_L + FIELD + 12;
-    const H = bandTop + bandH + PAD_T;
+    const H = bottom + PAD_T + (continues ? TAIL : 0);
     const x0 = PAD_L;
-    const y0 = head + PAD_T;
     const yOf = (row) =>
       row >= LINKS_PER_VPU ? bandTop + (row - LINKS_PER_VPU) * CELL : y0 + row * CELL;
 
@@ -254,19 +293,63 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
     for (const sc of screens) {
       const sx = x0 + sc.col * CELL;
       const sw = sc.width * CELL;
-      const g = s('g', { class: 'wru-screen-bar', style: `color:${screenColour(sc.screen)}` });
-      g.append(s('title', {}, `${sc.screen} · output link${sc.width === 1 ? '' : 's'} 1-${sc.width}`));
+      const colour = screenColour(sc.screen);
+      const g = s('g', { class: 'wru-screen-bar' + (sc.from !== undefined ? ' wru-screen-bar--cont' : ''), style: `color:${colour}` });
+      g.append(s('title', {},
+        `${sc.screen} · output link${sc.width === 1 ? '' : 's'} 1-${sc.width}` +
+        (sc.from !== undefined ? `\ncontinues from VPU ${sc.from} — the same output links, more layers` : '') +
+        (sc.to !== undefined ? `\ncontinues onto VPU ${sc.to}` : '')));
       g.append(s('rect', { x: sx + 1, y: 2, width: sw - 2, height: HEAD, rx: 2 }));
       g.append(s('text', { x: sx + sw / 2, y: 2 + HEAD - 3 }, String(sc.screen)));
       root.append(g);
+
+      /* The header proper: a cell per region run, then one per output, each on
+         the links it carries — see screenOutputLinks for why only screens whose
+         outputs add up get one. */
+      const info = outputLinks && outputLinks.get(sc.screen);
+      if (!info || !info.consistent) continue;
+      const cell = (row, first, last, text, title) => {
+        const cx = x0 + (sc.col + first - 1) * CELL;
+        const cw = (last - first + 1) * CELL;
+        const cy = 2 + HEAD + 2 + row * (HDR + 2);
+        const c = s('g', { class: 'wru-hdr', style: `color:${colour}` });
+        c.append(
+          s('title', {}, title),
+          s('rect', { x: cx + 1, y: cy, width: cw - 2, height: HDR, rx: 1.5 }),
+          s('text', { x: cx + cw / 2, y: cy + HDR - 3 }, text));
+        root.append(c);
+      };
+      const runs = info.runs.filter((r) => r.first <= sc.width);
+      const regions = [];
+      for (const r of runs) {
+        const last = Math.min(r.last, sc.width);
+        const tail = regions[regions.length - 1];
+        if (tail && tail.name === r.region) tail.last = last;
+        else regions.push({ name: r.region, first: r.first, last });
+      }
+      for (const r of regions) {
+        cell(0, r.first, r.last, r.name === null ? '—' : 'R' + r.name,
+          `${sc.screen} · region ${r.name ?? '?'} · output link${r.last === r.first ? '' : 's'} ` +
+          (r.last === r.first ? `${r.first}` : `${r.first}-${r.last}`));
+      }
+      for (const r of runs) {
+        const last = Math.min(r.last, sc.width);
+        const wide = last - r.first + 1 >= 2;
+        cell(1, r.first, last, wide ? 'Out ' + r.output : String(r.output),
+          `Output ${r.output}${r.label ? ' · ' + r.label : ''}` +
+          `\n${sc.screen} · region ${r.region ?? '?'} · link${last === r.first ? '' : 's'} ` +
+          (last === r.first ? `${r.first}` : `${r.first}-${last}`) +
+          `\ncapability ${r.capability ?? '?'}` + (r.type ? ' · ' + r.type : '') +
+          (r.card ? `\n${r.card}${r.physical ? ' plug ' + r.physical : ''}` : ''));
+      }
     }
 
-    root.append(s('rect', { class: 'wru-field', x: x0, y: y0, width: FIELD, height: FIELD, rx: 2 }));
     if (bandRows) {
       root.append(
         s('rect', { class: 'wru-field wru-band', x: x0, y: bandTop, width: FIELD, height: bandH, rx: 2 }),
         s('text', { class: 'wru-band-label', x: x0 - 4, y: bandTop + bandH / 2 + 3 }, 'bg'));
     }
+    root.append(s('rect', { class: 'wru-field', x: x0, y: y0, width: FIELD, height: FIELD, rx: 2 }));
 
     for (let i = 1; i < LINKS_PER_VPU; i++) {
       root.append(
@@ -282,19 +365,47 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
         class: 'wru-lattice', x1: x0, y1: bandTop + i * CELL, x2: x0 + FIELD, y2: bandTop + i * CELL }));
     }
 
-    /* Layer links in from the left, output links out top and bottom — the
-       manual's own orientation, and the reason the grid reads as a VPU. There are
-       eight layer links and they belong to the field, not to the band. */
+    /* Which output links arrive from an earlier VPU, and which carry on to a
+       later one: those arrows take the screen's colour, and the leaving ones
+       say where they go. */
+    const arriving = new Map();
+    const leaving = new Map();
+    for (const sc of screens) {
+      for (let c = sc.col; c < sc.col + sc.width && c < LINKS_PER_VPU; c++) {
+        if (sc.from !== undefined) arriving.set(c, sc);
+        if (sc.to !== undefined) leaving.set(c, sc);
+      }
+    }
+
+    /* Layer links in from the left, output links in at the top and out at the
+       bottom — the manual's own orientation, and the reason the grid reads as a
+       VPU. There are eight layer links and they belong to the field, not to the
+       band. */
     for (let i = 0; i < LINKS_PER_VPU; i++) {
       const cy = y0 + i * CELL + CELL / 2;
       root.append(s('line', { class: 'wru-link-in', x1: x0 - 22, y1: cy, x2: x0 - 4, y2: cy }));
       const cx = x0 + i * CELL + CELL / 2;
+      const inFrom = arriving.get(i);
+      const outTo = leaving.get(i);
       root.append(
-        s('line', { class: 'wru-link-out', x1: cx, y1: y0 - 13, x2: cx, y2: y0 - 3 }),
         s('line', {
-          class: 'wru-link-out',
-          x1: cx, y1: bandTop + bandH + 3, x2: cx, y2: bandTop + bandH + 13 }),
-        s('text', { class: 'wru-link-no', x: cx, y: y0 - 16 }, String(i + 1)));
+          class: 'wru-link-out' + (inFrom ? ' wru-link-out--cascade' : ''),
+          style: inFrom ? `color:${screenColour(inFrom.screen)}` : null,
+          x1: cx, y1: top - 13, x2: cx, y2: top - 3 }),
+        s('line', {
+          class: 'wru-link-out' + (outTo ? ' wru-link-out--cascade' : ''),
+          style: outTo ? `color:${screenColour(outTo.screen)}` : null,
+          x1: cx, y1: bottom + 3, x2: cx, y2: bottom + 13 }),
+        s('text', { class: 'wru-link-no', x: cx, y: top - 15 }, String(i + 1)));
+    }
+    for (const sc of screens) {
+      if (sc.to === undefined) continue;
+      root.append(s('text', {
+        class: 'wru-cascade-label',
+        style: `color:${screenColour(sc.screen)}`,
+        x: x0 + (sc.col + Math.min(sc.width, LINKS_PER_VPU - sc.col) / 2) * CELL,
+        y: bottom + PAD_T + TAIL - 4
+      }, `↓ VPU ${sc.to}`));
     }
 
     for (const b of grid.blocks) {
