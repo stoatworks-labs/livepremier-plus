@@ -3,6 +3,7 @@
 //! and live in the system tray.
 
 mod config;
+mod serve;
 
 use std::process::{Child, Command};
 use std::sync::Mutex;
@@ -12,10 +13,30 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, State, WindowEvent};
 
-/// Runtime state: the supervised child process, if running.
+/// Runtime state: the supervised child process, or the in-process static
+/// server, if running. A launcher has one or the other, never both — which
+/// the config decides, not the panel.
 #[derive(Default)]
 struct AppState {
     child: Mutex<Option<Child>>,
+    server: Mutex<Option<serve::StaticServer>>,
+}
+
+impl AppState {
+    /// Kill the child or stop the server, whichever is running.
+    fn shutdown(&self) {
+        if let Ok(mut guard) = self.child.lock() {
+            if let Some(mut child) = guard.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+        if let Ok(mut guard) = self.server.lock() {
+            if let Some(server) = guard.take() {
+                server.stop();
+            }
+        }
+    }
 }
 
 /// Persisted user choices (port + interface + any custom field values), stored
@@ -202,7 +223,7 @@ fn status_from(app: &AppHandle, running: bool, message: String) -> Result<Status
 /// would make the UI lie.
 fn get_status(app: AppHandle, state: State<AppState>) -> Result<Status, String> {
     let mut guard = state.child.lock().map_err(|e| e.to_string())?;
-    let running = match guard.as_mut() {
+    let child_running = match guard.as_mut() {
         Some(child) => match child.try_wait() {
             Ok(Some(_exited)) => {
                 *guard = None; // process ended on its own
@@ -214,8 +235,61 @@ fn get_status(app: AppHandle, state: State<AppState>) -> Result<Status, String> 
         None => false,
     };
     drop(guard);
+
+    // Same reap for the static server: a serving thread that has stopped is
+    // forgotten here, so the panel offers Start rather than claiming Running.
+    let mut guard = state.server.lock().map_err(|e| e.to_string())?;
+    let server_running = match guard.as_ref() {
+        Some(server) if server.is_running() => true,
+        Some(_) => {
+            *guard = None;
+            false
+        }
+        None => false,
+    };
+    drop(guard);
+
+    let running = child_running || server_running;
     let msg = if running { "Running" } else { "Stopped" };
     status_from(&app, running, msg.into())
+}
+
+/// Start the in-process static server described by `[serve]`.
+fn start_static(
+    app: &AppHandle,
+    state: &State<AppState>,
+    cfg: &config::LauncherConfig,
+    spec: &config::ServeSpec,
+) -> Result<Status, String> {
+    {
+        let guard = state.server.lock().map_err(|e| e.to_string())?;
+        if guard.as_ref().is_some_and(|s| s.is_running()) {
+            drop(guard);
+            return status_from(app, true, "Running".into());
+        }
+    }
+
+    let s = load_settings(app, cfg.app.default_port);
+    let (bind_host, _display) = config::resolve_hosts(&s.interface);
+    let resource_dir = app.path().resource_dir().ok();
+    let paths = config::resolve_serve(spec, resource_dir.as_deref())?;
+
+    let headers = match &paths.headers {
+        Some(h) => serve::HeaderRules::parse(
+            &std::fs::read_to_string(h).map_err(|e| format!("reading {}: {e}", h.display()))?,
+        ),
+        None => serve::HeaderRules::default(),
+    };
+    let site = serve::Site {
+        root: paths.dir,
+        index: spec.index.clone(),
+        not_found: serve::NotFound::parse(&spec.not_found)?,
+        headers,
+    };
+    let server = serve::StaticServer::start(site, &bind_host, s.port)?;
+    *state.server.lock().map_err(|e| e.to_string())? = Some(server);
+
+    status_from(app, true, "Running".into())
 }
 
 #[tauri::command]
@@ -230,6 +304,18 @@ fn get_status(app: AppHandle, state: State<AppState>) -> Result<Status, String> 
 /// argv placeholders. See config.rs; the launcher itself knows nothing about
 /// any particular server.
 fn start_server(app: AppHandle, state: State<AppState>) -> Result<Status, String> {
+    let cfg = config::load()?;
+
+    // A static site is served from this process; there is no child.
+    if let Some(spec) = &cfg.serve {
+        return start_static(&app, &state, &cfg, spec);
+    }
+    if cfg.app.command.is_empty() {
+        return Err(
+            "launcher.toml has no [app].command and no [serve] block — nothing to start".into(),
+        );
+    }
+
     {
         // Already running? Report current status instead of double-spawning.
         let mut guard = state.child.lock().map_err(|e| e.to_string())?;
@@ -241,7 +327,6 @@ fn start_server(app: AppHandle, state: State<AppState>) -> Result<Status, String
         }
     }
 
-    let cfg = config::load()?;
     let s = load_settings(&app, cfg.app.default_port);
     let (bind_host, _display) = config::resolve_hosts(&s.interface);
     let fields = effective_fields(&cfg, &s);
@@ -294,15 +379,11 @@ fn start_server(app: AppHandle, state: State<AppState>) -> Result<Status, String
 }
 
 #[tauri::command]
-/// Kill the supervised server. There is no graceful-shutdown signal, so a
-/// server that writes state on exit gets no chance to.
+/// Kill the supervised server, or stop the in-process one. There is no
+/// graceful-shutdown signal for a child, so a server that writes state on
+/// exit gets no chance to.
 fn stop_server(app: AppHandle, state: State<AppState>) -> Result<Status, String> {
-    let mut guard = state.child.lock().map_err(|e| e.to_string())?;
-    if let Some(mut child) = guard.take() {
-        let _ = child.kill();
-        let _ = child.wait();
-    }
-    drop(guard);
+    state.shutdown();
     status_from(&app, false, "Stopped".into())
 }
 
@@ -319,11 +400,7 @@ fn open_gui(app: AppHandle) -> Result<(), String> {
 /// Kill the server and exit. Distinct from hide_window(), which leaves it
 /// running in the tray — the difference an operator most often gets wrong.
 fn quit_app(app: AppHandle, state: State<AppState>) {
-    if let Ok(mut guard) = state.child.lock() {
-        if let Some(mut child) = guard.take() {
-            let _ = child.kill();
-        }
-    }
+    state.shutdown();
     app.exit(0);
 }
 
@@ -424,11 +501,7 @@ pub fn run() {
                     "show" => show_main(app),
                     "quit" => {
                         if let Some(state) = app.try_state::<AppState>() {
-                            if let Ok(mut guard) = state.child.lock() {
-                                if let Some(mut child) = guard.take() {
-                                    let _ = child.kill();
-                                }
-                            }
+                            state.shutdown();
                         }
                         app.exit(0);
                     }
@@ -455,6 +528,19 @@ pub fn run() {
                 api.prevent_close();
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        // Every way out passes through here: ⌘Q, Quit from the Dock, and the
+        // exit() our own Quit items call after stopping the server themselves.
+        // Without this, ⌘Q exited the shell and left the child listening —
+        // orphaned, with no tray left to stop it from, and holding the port
+        // against the next Start. shutdown() is idempotent, so the paths that
+        // already stopped the server cost nothing here.
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
+                if let Some(state) = app.try_state::<AppState>() {
+                    state.shutdown();
+                }
+            }
+        });
 }
