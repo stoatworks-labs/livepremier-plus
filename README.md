@@ -36,7 +36,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.7.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.8.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -107,6 +107,16 @@ to install in the browser.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.8.0 (2026-09-17).** The VPU map reads the grid top to bottom the way an
+> output link runs: the native band sits above the eight layer links, a screen
+> whose next layer landed on another VPU keeps its columns there — the two
+> cards stack and the link draws straight down out of one and into the next —
+> and a header over the columns names each link's region and output plug from
+> `outputList`, with the real Aquilon C outputs of 2026-09-09 as a fixture.
+> The desktop launcher now stops the proxy it supervises on every exit path
+> (⌘Q and Quit from the Dock left the Node process holding the port); the
+> shell is av-launcher 2c83ad7.
 >
 > **0.7.0 (2026-09-13).** Three things, all proven on the simulators and not
 > yet on hardware. **Audio routing on Midra 4K / Alta 4K**, at the Console:
