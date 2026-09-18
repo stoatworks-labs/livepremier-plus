@@ -36,7 +36,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.8.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.8.1.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -107,6 +107,14 @@ to install in the browser.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.8.1 (2026-09-18).** The desktop launcher says why a start failed. Pressing
+> Start with the port held — another copy of the app, or the proxy started
+> by hand — used to look like nothing happening; it now says so on the click
+> and keeps Open available, names a port the OS refuses or an interface
+> address that has gone, and quotes a proxy that dies right after starting
+> with its last output lines. The shell is av-launcher 21bc307; nothing in
+> the proxy or the panels changed.
 >
 > **0.8.0 (2026-09-17).** The VPU map reads the grid top to bottom the way an
 > output link runs: the native band sits above the eight layer links, a screen
