@@ -17,6 +17,9 @@ as a bolt-on.
   follows a source change made to any member, wherever it came from.
 - **Send to** — a `…` on every source card that routes it to a screen and layer, or to a whole
   group, in preview or program, without a drag.
+- **Matrix Routing** — patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
+  Videohub, a Lightware or a Turtle AV router, and route through it from the panel, a cue, the
+  Console or OSC.
 - **MIDI Mapping** — a control surface driving the switcher, from the page itself.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a layer width and get
   1000.
@@ -146,6 +149,81 @@ locked and asked about too.
 
 Groups are kept **per switcher**, beside the cue stack. Point the app at a different frame and you
 get that frame's groups.
+
+---
+
+## Matrix Routing
+
+**PLUS ▸ Matrix Routing.** Patch the switcher's own sockets to ports on an external router —
+a **Blackmagic Videohub**, a **Lightware**, or a **Turtle AV** — and route through it from here.
+
+You describe the **cable**, and the rest follows. The direction inverts, which is the thing that
+reads wrong at first glance every time:
+
+```
+switcher INPUT   <--- cable ---   router OUTPUT     (the router feeds us)
+switcher OUTPUT   --- cable --->  router INPUT      (we feed the router)
+```
+
+So a switcher input is fed by a router *output*, and a switcher output arrives at a router *input*.
+The patch form says which of the two it wants as you fill it in.
+
+**Set it up in three steps.** Add the router (name, protocol, address — the port follows the
+protocol's own default). Patch each cable: pick a socket, pick the router, give the port number at
+the other end. Then route.
+
+Sockets are named in the device's own words, because which connector "card 2, port 1" is depends on
+a legend this app cannot see:
+
+```
+Input 13 · card IN_2 · connector IN_25 · sdi
+Output 5 · card OUT_2 · hdmi
+```
+
+**The two route controls are different, and deliberately so.** An input row gets a source
+dropdown — one choice, because a socket is fed by one router output, and it settles what that input
+sees. An output row gets a destination field, because the signal arrives at one router input and
+can go to any number of outputs at once: type `3`, or `1-4`, or `1,2,5-8`.
+
+> ⚠️ **Sending adds; it never takes away.** Naming outputs 1-4 routes those four and leaves output 5
+> alone, even if it was showing this source a moment ago. A router output always shows *something*,
+> so "removing" a destination would mean choosing a different source for it — and there is no
+> answer to which one.
+
+**The Now column is what the router says, not what you asked for.** A click does not move the grid
+until the router agrees, and it keeps up with changes made at the router's own front panel or by
+another operator. A Videohub answers a route it will not make with an acknowledgement and the
+unchanged crosspoints, so a panel that showed your request back to you would look right and be
+wrong — during exactly the minute that matters.
+
+### From a cue, the Console and OSC
+
+A cue can carry a matrix route beside its recalls and takes. It goes out ahead of the take, so the
+signal is there before anything switches to it.
+
+> ⚠️ **A cue does not wait for the signal to lock.** An SDI reclock is quick; an HDMI or HDCP
+> handshake through a router can take a second or more, and nothing reports when it is done. A cue
+> that routes and takes in one breath can take to black — put the route in an earlier cue when the
+> format may change.
+
+The same three addresses work typed at the Console and sent over OSC:
+
+```
+/lp/matrix/input/5/source        7        switcher input 5 now sees router input 7
+/lp/matrix/output/2/destinations "1-4"    switcher output 2 out of router outputs 1-4
+/lp/matrix/hub/route/3           9        router "hub": output 3 takes input 9
+```
+
+The routers are kept for the **installation**, not per switcher — a Videohub does not move when you
+fail over to a backup frame. The **patch** is per switcher, beside the cue stack, because it
+describes that frame's own sockets.
+
+> **What has been proven, and what has not.** The Videohub driver was driven end to end against a
+> working implementation of the protocol, including the crosspoint numbering, which counts from
+> zero on the wire and from one everywhere you can see. **No real Videohub has been in the loop.**
+> The Lightware and Turtle AV drivers are written from their vendors' protocol documents and
+> **have never spoken to the hardware at all**. `docs/MATRIX.md` gives a short procedure for
+> proving each on your own kit before a show.
 
 ---
 

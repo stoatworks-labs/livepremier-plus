@@ -33,6 +33,10 @@ rather than as a bolt-on:
 - **Send to** — a `…` on every source card that routes it without a drag:
   preview or program, then a screen and layer or a whole group. It respects the
   vendor's own PGM padlock, asking before it steps past one.
+- **Matrix Routing** — patch the frame's own SDI and HDMI sockets to ports on a
+  Blackmagic Videohub, a Lightware or a Turtle AV router, and route through it
+  from the panel, a cue, the Console or OSC. You describe the cable; the
+  direction inverts on its own.
 - **MIDI Mapping** — a control surface driving the switcher, from the page
   itself. Faders to opacity, encoders to size and position, buttons to select.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
@@ -43,7 +47,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.8.1.** The panels render inside a real Web RCS
+> **Status: field testing — v0.9.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -125,6 +129,20 @@ to install in the browser.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.9.0 (2026-09-21).** Two things an operator keeps doing by hand.
+> **Layer Groups** name a set of layers across screens and drive them as one — a
+> ganged group follows a source change made to any member, whatever made it —
+> and a **`…` on every source card** routes an input to a screen and layer, or
+> to a whole group, in preview or program, without a drag. You write a *role*,
+> never a preset letter, because which letter is program changes on every take.
+> **Matrix Routing** patches the frame's own SDI and HDMI sockets to ports on a
+> Blackmagic Videohub, a Lightware or a Turtle AV router: you describe the
+> cable, the direction inverts on its own, and the crosspoints are reachable
+> from the panel, a cue, the Console and OSC. The Videohub driver was driven end
+> to end against a working implementation of that protocol; the Lightware and
+> Turtle AV drivers are written from their vendors' documents and have not met
+> the hardware — `docs/MATRIX.md` says how to prove each on your own kit.
 >
 > **0.8.1 (2026-09-18).** The desktop launcher says why a start failed. Pressing
 > Start with the port held — another copy of the app, or the proxy started
