@@ -169,6 +169,58 @@ that reason rather than guessing. A layer move landing in whichever buffer
 happened to be live is the exact failure being defended against. That asymmetry
 is intended and is documented in `docs/OSC.md`.
 
+### External matrix routing (`server/matrix/`, `core/patch.js`)
+
+The only subsystem here that talks to something other than the switcher, and
+the reasoning that makes that allowed is narrow — read it before extending.
+
+**It holds connections open, and `server/awj.js` forbids exactly that.** That
+prohibition is about the *store mirror*: an AWJ reader would be a second source
+of truth for state the vendor socket already carries. None of it applies to a
+router, because a router is not in the store at all. There is no mirror to
+contradict, nothing else in this process or the page knows what a Videohub is
+routing, and its crosspoints change without us — a poll-on-demand grid would be
+right when the panel opened and wrong thereafter. The five-client budget
+`awj.js` respects is a limit on the Analog Way frame, not on a Videohub.
+
+Four things are load-bearing:
+
+- **The direction inverts.** A switcher input hangs off a router OUTPUT; a
+  switcher output arrives at a router INPUT. An entry stores the switcher side
+  only and derives the router side, because a stored direction is a stored
+  opportunity to disagree with the side it belongs to.
+- ⚠️ **Everything counts from 1 except the Videohub wire, which counts from 0.**
+  `server/matrix/videohub.js` is the only file that knows this, and the
+  conversion is in two marked places — the same containment `core/paths.js`
+  gives the AWJ spelling. Getting it wrong routes a real crosspoint one off
+  from the one asked for and looks plausible doing it.
+- **No driver writes its own state.** `route()` sends and returns; every field
+  comes from what the router said. A Videohub answers a refused route with ACK
+  and the unchanged routing, so a refusal is indistinguishable from a command
+  that never arrived except that the state does not move.
+- **A send adds and never takes away.** A router output always shows
+  *something*, so "removing" a destination would mean choosing a different
+  source for it, and there is no answer to which.
+
+⚠️ **The OSC addresses are ours, not mynah's** — the one exception to "this repo
+states no grammar of its own". Mynah is the single statement of the
+*switcher's* grammar; a router in front of it is not the switcher. They live in
+`core/patch.js`, and the Console posts them to the launcher rather than
+resolving them in the page, so the typed and the UDP paths cannot drift.
+
+⚠️ **The Lightware and Turtle AV drivers have never spoken to hardware.** They
+are written from vendor documentation, their command strings are collected in
+one table per file so a correction is one edit, and they parse defensively
+because that is an admission of uncertainty rather than belt and braces. The
+LW3 half is polled *as well as* subscribed for the same reason. `docs/MATRIX.md`
+has a procedure for proving each on real kit.
+
+⚠️ **Inputs and outputs are keyed differently in the same store** — `IN_5` and
+`5`, with `physical` spelled `IN_9` and `5` — and `IN_1` names both logical
+input 1 and the first input card depending on the field. `core/connectors.js`
+absorbs it; nothing above it should learn it. `slot` repeats within a card, so
+(card, slot) is never an identity — `physical` is.
+
 ### `docs/OSC.md` is generated — `npm run gen:osc-docs`
 
 A published address space is a promise to somebody building a TouchOSC layout,

@@ -400,6 +400,51 @@ shared; what differs is below.
 
 ---
 
+## External matrix routing
+
+These addresses do **not** go to the switcher. They drive a Blackmagic
+Videohub, a Lightware or a Turtle AV router patched to the frame's own
+connectors — see **[MATRIX.md](MATRIX.md)** for the patch and the drivers.
+
+They are the one part of this address space that is **not** mynah's. Every
+other address here belongs to the command language, because it addresses the
+switcher and there must be exactly one statement of that grammar. A router in
+front of the switcher is not the switcher: mynah has never heard of it and the
+device store has never heard of it. So these are this app's own, defined in
+`src/core/patch.js`, and they are listed here because an address space
+published in two places is one nobody can check.
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/lp/matrix/input/<n>/source` | int | Feed switcher input `n` from that router input. One crosspoint. |
+| `/lp/matrix/output/<n>/destinations` | ints, or one string | Send switcher output `n` to those router outputs. One crosspoint each. |
+| `/lp/matrix/<router>/route/<out>` | int | Raw crosspoint on a named router. Consults no patch. |
+
+```text
+  /lp/matrix/input/5/source        7        switcher input 5 now sees router input 7
+  /lp/matrix/output/2/destinations "1-4"    switcher output 2 out of router outputs 1-4
+  /lp/matrix/hub/route/3           9        router "hub": output 3 takes input 9
+```
+
+Four things worth knowing:
+
+- **The connector number is the logical one.** `/input/5` is the socket the
+  device calls `IN_5`; an output's is its bare key. A sender never has to know
+  that the two sides are spelled differently in the store.
+- **The first two forms need a patch**, and refuse by name when there is none
+  — `switcher input 9 is not patched to a matrix`. The third does not, so a
+  sender with no patch can still drive a router.
+- **Destinations take a range.** Four ints, or one string holding `1-4` or
+  `1,2,5-8`. Senders differ and both are obviously what was meant.
+- **No switcher is required.** A matrix route does not touch the device, so it
+  is not refused when no frame is configured or the frame is unreachable.
+
+⚠️ **A send adds and never takes away.** Naming outputs 1-4 routes those four
+and leaves output 5 alone even if it was showing this source a moment ago. A
+router output always shows *something*, so "removing" a destination would mean
+choosing a different source for it, and there is no answer to which.
+---
+
 ## How a message reaches the switcher
 
 ```text

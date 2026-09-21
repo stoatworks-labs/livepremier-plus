@@ -359,6 +359,42 @@ point — and that port can be switched off in the Web RCS security settings.
 > not hold. It refuses those addresses with that reason rather than guessing.
 > The Console *can* resolve them, because the page has the device store.
 
+## Matrix routing
+
+Patch the switcher's own SDI and HDMI connectors to ports on a **Blackmagic
+Videohub**, a **Lightware** or a **Turtle AV** router, then route through it —
+from the panel, from a cue, from the Console or over OSC.
+
+Tell it about the **cable** and the rest follows:
+
+```text
+  switcher INPUT   <--- cable ---   router OUTPUT     (the router feeds us)
+  switcher OUTPUT   --- cable --->  router INPUT      (we feed the router)
+```
+
+That inversion is the whole model. From it come the two operations, which are
+deliberately not symmetrical: an input is fed by one router output, so choosing
+its source is one crosspoint and fully determines what it sees; an output
+arrives at one router input, which can be sent to any number of destinations at
+once.
+
+The panel names sockets in the device's own words — `Input 13 · card IN_2 ·
+connector IN_25 · sdi` — because which connector "card 2, port 1" is depends on
+a legend this app cannot see.
+
+**Nothing is optimistic.** A driver never writes its own state: a click does
+not move the grid until the router says it moved. A Videohub answers a refused
+route with ACK and the *unchanged* routing, so a UI that showed what it asked
+for would lie during exactly the minute that matters.
+
+> ⚠️ **No real router has ever driven this.** The Videohub driver is a port of
+> BlackMatrix's, exercised against a working implementation of the protocol;
+> the Lightware and Turtle AV drivers are written from their vendors' protocol
+> documents and have never spoken to hardware. The patch model and the
+> connector reader *are* checked against a real LivePremier's own store.
+> **[docs/MATRIX.md](docs/MATRIX.md)** has the whole thing, including a short
+> procedure for proving each driver on your own kit.
+
 ## Pitch Compensation
 
 Under Preconfig, beside the two fields it fills in.

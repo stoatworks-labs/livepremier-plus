@@ -68,12 +68,66 @@ export class StackStore {
     await rename(tmp, file);
   }
 
-  _file(deviceKey, kind = 'stack') {
+  /**
+   * The external routers in the rack. NOT keyed by device, for the same
+   * reason the settings are not.
+   *
+   * A Videohub does not move when you fail over to a backup frame, so
+   * re-pointing the app must not drop the routers off the network. See
+   * `src/core/patch.js` for the other half of this split — the *patch* is
+   * per device, because that describes one frame's own sockets.
+   */
+  async loadMatrices() {
+    try {
+      const raw = JSON.parse(await readFile(join(this.dir, 'matrices.json'), 'utf8'));
+      return Array.isArray(raw) ? raw : Array.isArray(raw?.matrices) ? raw.matrices : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async saveMatrices(matrices) {
+    await this._writeAtomic('matrices.json', { matrices });
+  }
+
+  /**
+   * The cable schedule between one switcher and those routers.
+   *
+   * Keyed by device, and filed beside the cue stack and the layer groups
+   * rather than inside either: a stack is a show and a patch is the rig it
+   * runs on, and an operator importing somebody else's cue list must not
+   * import their cabling with it.
+   */
+  async loadPatch(deviceKey) {
+    try {
+      const raw = JSON.parse(await readFile(this._file(deviceKey, 'patch'), 'utf8'));
+      return Array.isArray(raw) ? raw : Array.isArray(raw?.entries) ? raw.entries : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async savePatch(deviceKey, entries) {
+    await this._writeAtomic(`patch-${this._safe(deviceKey)}.json`, { entries });
+  }
+
+  _safe(deviceKey) {
     /* Dots are excluded along with everything else outside the allowlist, so
        no key can produce a name containing `..` — the filename stays obviously
        inert rather than merely being safe by argument. */
-    const safe = String(deviceKey).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120) || 'default';
-    return join(this.dir, `${kind}-${safe}.json`);
+    return String(deviceKey).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120) || 'default';
+  }
+
+  async _writeAtomic(name, data) {
+    await mkdir(this.dir, { recursive: true });
+    const file = join(this.dir, name);
+    const tmp = `${file}.${process.pid}.tmp`;
+    await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+    await rename(tmp, file);
+  }
+
+  _file(deviceKey, kind = 'stack') {
+    return join(this.dir, `${kind}-${this._safe(deviceKey)}.json`);
   }
 
   async load(deviceKey) {

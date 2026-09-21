@@ -190,6 +190,23 @@ export const CAPABILITIES = [
     absent: 'This platform describes its outputs differently, so pitch compensation cannot be read yet.'
   },
   {
+    id: 'matrixRouting',
+    label: 'Matrix routing',
+    /* The patch names the sockets on the back of the frame, so all it needs
+       is that the device describes them. Both families carry an `outputList`
+       with a `mapping` node — but the mapping shape has only been read off a
+       LivePremier, so the probe asks for the field the panel actually uses
+       rather than for the collection. A Midra that turns out to spell it the
+       same way will light this up on its own; one that does not will say so
+       here instead of drawing an empty table. */
+    probes: {
+      nlc: [ROOT, 'outputList', 'items', '*', 'mapping'],
+      mng: [ROOT, 'outputList', 'items', '*', 'mapping']
+    },
+    needs: 'the connector mapping for its outputs',
+    absent: 'This switcher does not describe its physical connectors in a way this panel can read.'
+  },
+  {
     id: 'audioPatch',
     label: 'Audio routing',
     /* LivePremier has a channel matrix (`audio/control/deviceList`); Midra 4K

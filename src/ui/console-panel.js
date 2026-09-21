@@ -67,6 +67,9 @@ import { presetBanks, listDestinations } from '../core/screens.js';
 import { dialectFor } from '../core/dialect.js';
 import { DEFAULT_SETTINGS } from '../core/settings.js';
 
+/** The address prefix this app answers itself — see `resolveMatrixOsc`. */
+const MATRIX_PREFIX = '/lp/matrix/';
+
 const HISTORY_MAX = 100;
 const LOG_MAX = 200;
 
@@ -242,6 +245,21 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
     if (state.history.length > HISTORY_MAX) state.history.length = HISTORY_MAX;
     state.historyAt = -1;
 
+    /*
+     * A matrix address, which is this app's own and not mynah's.
+     *
+     * Handed to the launcher rather than resolved here, so that a line typed
+     * at this keyboard and the identical address arriving over UDP take the
+     * same code path — see the `/matrix/osc` route. Recognised by prefix
+     * before `run()` sees it, because mynah would rightly reject an address
+     * from a grammar it does not have and the operator would read that as
+     * their own typo.
+     */
+    if (text.startsWith(MATRIX_PREFIX)) {
+      void viaMatrix(text);
+      return finish();
+    }
+
     let result;
     try { result = run(text, runContext()); } catch (err) {
       note('error', text, err.message);
@@ -307,6 +325,49 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
    * path in the panel that takes measurable time — a command that vanished for
    * two seconds and then reappeared would read as a dropped keystroke.
    */
+  /**
+   * A `/lp/matrix/…` line, routed by the launcher.
+   *
+   * The arguments are split off the address and typed loosely: a port list
+   * like `1-4` has to survive as a string, and a bare number has to arrive as
+   * a number. So a token that is entirely digits becomes one, and everything
+   * else stays text — which is exactly the distinction `resolveMatrixOsc`
+   * expects, and the same one an OSC sender makes with its type tags.
+   */
+  async function viaMatrix(text) {
+    const [address, ...rest] = text.split(/\s+/);
+    const args = rest.map((token) => (/^\d+$/.test(token) ? Number(token) : token));
+
+    const entry = { at: Date.now(), kind: 'warn', text, detail: 'routing…', label: 'Matrix' };
+    state.log.unshift(entry);
+    if (state.log.length > LOG_MAX) state.log.length = LOG_MAX;
+    onRefresh();
+
+    try {
+      const res = await fetch('/__lpp/matrix/osc', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ address, args })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        entry.kind = 'error';
+        entry.detail = body.error || `matrix route failed — HTTP ${res.status}`;
+      } else {
+        /* Sent, never confirmed — the same rule the whole driver layer keeps.
+           A router acknowledges receipt of a crosspoint and not the making of
+           one; the Matrix Routing panel shows what actually moved. */
+        entry.kind = 'ok';
+        entry.detail = `${body.summary || 'routed'} — ${body.crosspoints?.length ?? 0} crosspoint`
+          + `${body.crosspoints?.length === 1 ? '' : 's'} sent`;
+      }
+    } catch (err) {
+      entry.kind = 'error';
+      entry.detail = `matrix route failed: ${err.message}`;
+    }
+    onRefresh();
+  }
+
   async function viaAwjSocket(text, result, label) {
     const messages = [
       ...result.ops.map((op) => ({ op: 'replace', path: op.path.toAwj(), value: op.value })),

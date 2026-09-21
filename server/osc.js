@@ -52,6 +52,7 @@
 import dgram from 'node:dgram';
 
 import { resolveOsc, LIVEPREMIER, MIDRA } from '../src/vendor/mynah-lang.mjs';
+import { resolveMatrixOsc, groupCrosspoints } from '../src/core/patch.js';
 import { paramsFor } from '../src/core/osc-dictionary.js';
 import { exchange, AWJ_PORT } from './awj.js';
 
@@ -146,11 +147,17 @@ export function decode(buf) {
  * @param {(entry: object) => void} [opts.onActivity]  every message and what
  *   became of it, for the console log
  * @param {(msg: string) => void} [opts.log]
+ * @param {object} [opts.matrix]  the external-router hook: `{patch, route}`.
+ *   `patch()` returns the current cable schedule and `route(groups)` takes
+ *   crosspoints. Absent means the `/lp/matrix/…` half of the address space is
+ *   simply not answered — the launcher always supplies it, but a test that
+ *   only cares about switcher addresses need not.
  */
 export function createOscServer({
   port = DEFAULT_OSC_PORT,
   address = '127.0.0.1',
   deviceHost,
+  matrix = null,
   onActivity = () => {},
   log = () => {},
   /* The device's AWJ port. Fixed by the vendor; overridable so a test can
@@ -232,6 +239,45 @@ export function createOscServer({
   });
 
   async function handle(msg, from) {
+    /*
+     * The router half of the address space, answered before the switcher is
+     * consulted at all.
+     *
+     * ⚠️ These addresses are **this app's own**, not mynah's — see
+     * `resolveMatrixOsc` in `src/core/patch.js` for why a language that
+     * describes the switcher has no business describing the box in front of
+     * it. `resolveMatrixOsc` returns null for anything that is not ours,
+     * which is how an ordinary `/lp/screen/…` falls through untouched.
+     *
+     * No switcher is required. A matrix route does not touch the device, so
+     * refusing it because no frame is configured, or because the frame is
+     * unreachable, would be refusing it for a reason that has nothing to do
+     * with it.
+     */
+    if (matrix) {
+      const routed = resolveMatrixOsc(msg.address, msg.args, matrix.patch());
+      if (routed) {
+        if (!routed.ok) {
+          state.failed++;
+          return note({ from, address: msg.address, args: msg.args, error: routed.error });
+        }
+        const results = matrix.route(groupCrosspoints(routed.crosspoints));
+        const failed = results.filter((r) => !r.ok);
+        if (failed.length) {
+          state.failed++;
+          return note({
+            from, address: msg.address, args: msg.args,
+            summary: routed.summary, error: failed.map((f) => f.error).join('; '),
+          });
+        }
+        state.sent += routed.crosspoints.length;
+        return note({
+          from, address: msg.address, args: msg.args,
+          summary: routed.summary, writes: routed.crosspoints.length,
+        });
+      }
+    }
+
     /*
      * Resolved from the decoded message, never from a rendered line.
      *

@@ -55,8 +55,19 @@ export const ACTION_KINDS = {
   SCREEN_PRESET: 'screenPreset',
   MASTER_PRESET: 'masterPreset',
   TAKE: 'take',
-  CUT: 'cut'
+  CUT: 'cut',
+  /*
+   * A crosspoint on an external router — see `core/patch.js`. Two kinds and
+   * not one, because feeding a switcher input and sending a switcher output
+   * are different operations with different arguments, and collapsing them
+   * into a "route" action would mean a cue sheet that reads the same for both.
+   */
+  MATRIX_FEED: 'matrixFeed',
+  MATRIX_SEND: 'matrixSend'
 };
+
+/** The action kinds that go to the router rather than to the switcher. */
+export const MATRIX_KINDS_SET = new Set([ACTION_KINDS.MATRIX_FEED, ACTION_KINDS.MATRIX_SEND]);
 
 export function makeCue(partial = {}) {
   return {
@@ -98,9 +109,16 @@ export class CueStack extends EventTarget {
    *   has arrived, and may change when the operator re-points at a backup
    *   frame. Defaults to the LivePremier table.
    */
-  constructor({ send, clock, commands } = {}) {
+  constructor({ send, clock, commands, routeMatrix } = {}) {
     super();
     this.send = send || (() => false);
+    /*
+     * Where a matrix action goes. Injected exactly as `send` is, and for the
+     * same reason: this engine knows no transport. A stack with no router
+     * wired up simply cannot fire one, and says so rather than failing
+     * silently — see `fire`.
+     */
+    this.routeMatrix = routeMatrix || null;
     this._commands = typeof commands === 'function' ? commands : () => (commands || commandsFor(NLC));
     this.clock = clock || {
       setTimeout: (...a) => setTimeout(...a),
@@ -291,6 +309,45 @@ export class CueStack extends EventTarget {
         case ACTION_KINDS.CUT:
           for (const target of a.targets || []) takeTargets.add(target + ' ' + a.kind);
           break;
+
+        /*
+         * Router crosspoints, sent immediately and outside the settle.
+         *
+         * Immediately — in this loop, alongside the recalls — which puts them
+         * ahead of the take whatever order the actions are listed in, because
+         * the take is deferred to `trigger()`. That is the ordering that
+         * matters: a signal has to be present on an input before anything
+         * switches to it, or the old source is on air for the length of the
+         * transition.
+         *
+         * Outside the settle, because the settle exists to stop a TAKE
+         * overtaking its own preset recall, and a crosspoint is not a recall.
+         * Waiting for it would delay every cue that touches a router for a
+         * reason that does not apply.
+         *
+         * ⚠️ **This does not wait for the signal to lock.** An SDI reclock is
+         * fast; an HDMI or HDCP handshake through a router can take a second
+         * or more, and no protocol here reports when it is done. A cue that
+         * routes and takes in the same breath can take to black. Put the route
+         * in an earlier cue when the format may change.
+         */
+        case ACTION_KINDS.MATRIX_FEED:
+        case ACTION_KINDS.MATRIX_SEND:
+          if (!this.routeMatrix) {
+            this._emit('warning', { cue, message: 'No matrix is wired up, so this cue cannot route.' });
+            break;
+          }
+          try {
+            /* Fire-and-forget, exactly like every other write here: the
+               router acknowledges receipt and not success, so there is
+               nothing to await that would mean anything. */
+            this.routeMatrix(a);
+            sent++;
+          } catch (err) {
+            this._emit('warning', { cue, message: `Matrix route failed: ${err.message}` });
+          }
+          break;
+
         default:
           this._emit('warning', { cue, message: 'Unknown action kind: ' + a.kind });
       }

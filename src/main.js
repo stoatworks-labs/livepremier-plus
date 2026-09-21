@@ -17,6 +17,7 @@ import { CueStack } from './core/cuestack.js';
 import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
 import { createVpuPanel } from './ui/vpu-panel.js';
+import { createMatrixPanel } from './ui/matrix-panel.js';
 import { createPitchPanel } from './ui/pitch-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
 import { installMathFields } from './ui/math-fields.js';
@@ -128,7 +129,31 @@ async function boot() {
    */
   const stack = new CueStack({
     send: (cmd) => session.send(cmd),
-    commands: () => commandsFor(dialectFor(session.store))
+    commands: () => commandsFor(dialectFor(session.store)),
+    /*
+     * Matrix actions do not go on the vendor socket — an external router is
+     * not in the device store and the switcher has never heard of it. They go
+     * to our own process, which holds the router connections.
+     *
+     * Not awaited, for the same reason a take is not: the router acknowledges
+     * receipt rather than success, so there is nothing to wait for that would
+     * mean anything. A failure is logged where an operator will see it.
+     */
+    routeMatrix: (action) => {
+      const path = action.kind === 'matrixFeed' ? 'feed' : 'send';
+      const body = action.kind === 'matrixFeed'
+        ? { connector: action.connector, source: action.source }
+        : { connector: action.connector, destinations: action.destinations };
+      fetch(`/__lpp/matrix/${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(async (res) => {
+        if (res.ok) return;
+        const payload = await res.json().catch(() => ({}));
+        console.warn(TAG, 'matrix cue refused:', payload.error || res.status);
+      }).catch((err) => console.warn(TAG, 'matrix cue failed', err));
+    }
   });
 
   const saved = await storage.load();
@@ -189,6 +214,7 @@ async function boot() {
   });
 
   const vpu = createVpuPanel({ session, platform, onRefresh: refresh });
+  const matrix = createMatrixPanel({ session, onRefresh: refresh });
   const timeline = createTimelinePanel({ session, stack, storage, timecode, chase, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
   const pitch = createPitchPanel({ session, onRefresh: refresh });
@@ -265,6 +291,11 @@ async function boot() {
          a group exists precisely because it crosses screens, so it could not
          live on a per-screen tab strip even if that strip had room. */
       { id: 'groups', label: 'Layer Groups', icon: ['group-18', 'layer-stacked-18'], enabled: () => can('layerGroups'), render: () => groups.render() },
+      /* Also a whole-device view, and for the same reason as the VPU map: it
+         is about the back of the frame rather than about one screen. It is
+         the only panel here that reads something other than the store — an
+         external router is not in the store and never will be. */
+      { id: 'matrix', label: 'Matrix Routing', icon: ['connector-gpio-18', 'gpio-18'], enabled: () => can('matrixRouting'), render: () => matrix.render() },
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
       { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', render: () => midi.render() },

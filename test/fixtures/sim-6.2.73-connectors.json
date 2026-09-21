@@ -1,0 +1,828 @@
+{
+ "device": {
+  "inputList": {
+   "itemKeys": [
+    "IN_1",
+    "IN_2",
+    "IN_3",
+    "IN_4",
+    "IN_5",
+    "IN_6",
+    "IN_7",
+    "IN_8",
+    "IN_9",
+    "IN_10",
+    "IN_11",
+    "IN_12",
+    "IN_13",
+    "IN_14",
+    "IN_15",
+    "IN_16",
+    "IN_17",
+    "IN_18",
+    "IN_19",
+    "IN_20"
+   ],
+   "items": {
+    "IN_1": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "0",
+       "slot": 0,
+       "physical": "IN_1",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_2": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "0",
+       "slot": 1,
+       "physical": "IN_2",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_3": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "0",
+       "slot": 2,
+       "physical": "IN_3",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_4": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "0",
+       "slot": 3,
+       "physical": "IN_4",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_5": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "1",
+       "slot": 0,
+       "physical": "IN_9",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_6": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "1",
+       "slot": 1,
+       "physical": "IN_10",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_7": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "1",
+       "slot": 2,
+       "physical": "IN_11",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_8": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "1",
+       "slot": 3,
+       "physical": "IN_12",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_9": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_2",
+       "frontend": "0",
+       "slot": 0,
+       "physical": "IN_17",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_10": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_2",
+       "frontend": "0",
+       "slot": 1,
+       "physical": "IN_18",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_11": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_2",
+       "frontend": "0",
+       "slot": 2,
+       "physical": "IN_19",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_12": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_2",
+       "frontend": "0",
+       "slot": 3,
+       "physical": "IN_20",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_13": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_2",
+       "frontend": "1",
+       "slot": 0,
+       "physical": "IN_25",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "SDI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_14": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_2",
+       "frontend": "1",
+       "slot": 1,
+       "physical": "IN_26",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "SDI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_15": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_2",
+       "frontend": "1",
+       "slot": 2,
+       "physical": "IN_27",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "SDI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_16": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_2",
+       "frontend": "1",
+       "slot": 3,
+       "physical": "IN_28",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "SDI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_17": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_3",
+       "frontend": "0",
+       "slot": 0,
+       "physical": "IN_33",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "DISPLAY_PORT"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_18": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_3",
+       "frontend": "0",
+       "slot": 1,
+       "physical": "IN_34",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "DISPLAY_PORT"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_19": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_3",
+       "frontend": "0",
+       "slot": 2,
+       "physical": "IN_35",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "DISPLAY_PORT"
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_20": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_3",
+       "frontend": "0",
+       "slot": 3,
+       "physical": "IN_36",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "DISPLAY_PORT"
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "outputList": {
+   "itemKeys": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8"
+   ],
+   "items": {
+    "1": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_1",
+       "backend": "0",
+       "slot": 0,
+       "physical": "1",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "2": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_1",
+       "backend": "0",
+       "slot": 1,
+       "physical": "2",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "3": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_1",
+       "backend": "0",
+       "slot": 2,
+       "physical": "3",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "4": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_1",
+       "backend": "0",
+       "slot": 3,
+       "physical": "4",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "5": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_2",
+       "backend": "0",
+       "slot": 0,
+       "physical": "5",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "6": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_2",
+       "backend": "0",
+       "slot": 1,
+       "physical": "6",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "7": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_2",
+       "backend": "0",
+       "slot": 2,
+       "physical": "7",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    },
+    "8": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "OUT_2",
+       "backend": "0",
+       "slot": 3,
+       "physical": "8",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": ""
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "pp": {
+          "type": "HDMI"
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}
