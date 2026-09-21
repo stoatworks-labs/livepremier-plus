@@ -68,12 +68,12 @@ export class StackStore {
     await rename(tmp, file);
   }
 
-  _file(deviceKey) {
+  _file(deviceKey, kind = 'stack') {
     /* Dots are excluded along with everything else outside the allowlist, so
        no key can produce a name containing `..` — the filename stays obviously
        inert rather than merely being safe by argument. */
     const safe = String(deviceKey).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120) || 'default';
-    return join(this.dir, `stack-${safe}.json`);
+    return join(this.dir, `${kind}-${safe}.json`);
   }
 
   async load(deviceKey) {
@@ -98,6 +98,31 @@ export class StackStore {
   async save(deviceKey, data) {
     await mkdir(this.dir, { recursive: true });
     const file = this._file(deviceKey);
+    const tmp = `${file}.${process.pid}.tmp`;
+    await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+    await rename(tmp, file);
+  }
+
+  /*
+   * Layer groups, on exactly the cue stack's terms and for the same reason.
+   *
+   * A group names screens and layer slots — `S1/2`, `S2/1` — which only mean
+   * anything on the box they were written against. Re-point at a backup frame
+   * with a different preconfig and last night's groups would name layers that
+   * are not there, so they are keyed by device like the stacks and kept in
+   * their own file beside them.
+   */
+  async loadGroups(deviceKey) {
+    try {
+      return JSON.parse(await readFile(this._file(deviceKey, 'groups'), 'utf8'));
+    } catch {
+      return null;
+    }
+  }
+
+  async saveGroups(deviceKey, data) {
+    await mkdir(this.dir, { recursive: true });
+    const file = this._file(deviceKey, 'groups');
     const tmp = `${file}.${process.pid}.tmp`;
     await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
     await rename(tmp, file);

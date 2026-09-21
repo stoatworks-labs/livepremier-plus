@@ -162,6 +162,21 @@ export const CAPABILITIES = [
     absent: 'This platform spells its layers in a way no catalogue here describes yet.'
   },
   {
+    id: 'layerGroups',
+    label: 'Layer groups',
+    /* A group writes one layer property — the source — through the same
+       addresser the Layer panel uses, so it needs exactly what that needs.
+       Listed separately anyway: the two can be withheld independently, and a
+       capability that says "layer groups" is what the settings page has to
+       print when a switcher cannot have them. */
+    probes: {
+      nlc: [ROOT, 'screenAuxGroupList', 'items'],
+      mng: [ROOT, 'transition', 'screenList', 'items']
+    },
+    needs: 'the screen list',
+    absent: 'This platform spells its layers in a way no catalogue here describes yet, so there is nothing to group.'
+  },
+  {
     id: 'pitchCompensation',
     label: 'Pitch compensation',
     /* The ratio trio lives under `canvas/cmd` on LivePremier and `canvas/pitch`

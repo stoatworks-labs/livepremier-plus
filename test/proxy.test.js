@@ -241,6 +241,31 @@ test('cue stacks round-trip through the launcher', async () => {
   }
 });
 
+test('layer groups round-trip, in a file of their own', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'lpp-'));
+  try {
+    await withProxy({ storage: new StackStore(dir) }, async ({ base }) => {
+      const empty = await (await fetch(`${base}${NS}/groups`)).json();
+      assert.equal(empty.data, null, 'no groups to begin with');
+
+      const groups = { version: 1, groups: [{ id: 'g1', name: 'Sides', gang: true, members: [{ id: 'S1', layer: '2' }] }] };
+      const put = await fetch(`${base}${NS}/groups`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: groups })
+      });
+      assert.equal(put.status, 200);
+      assert.deepEqual((await (await fetch(`${base}${NS}/groups`)).json()).data, groups);
+
+      /* And the cue stack is untouched by it — same device key, two files.
+         Sharing one would mean an edit to either racing the other's save. */
+      assert.equal((await (await fetch(`${base}${NS}/stack`)).json()).data, null);
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('a corrupt stack file reads as absent rather than throwing', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lpp-'));
   try {

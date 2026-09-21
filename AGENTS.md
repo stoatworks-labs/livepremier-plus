@@ -269,6 +269,57 @@ reports `settled: false` mid-take and the panel **refuses the write** rather
 than guessing, because the wrong choice during a transition lands on the
 output. A buffer that is on air gets a red banner saying so.
 
+### Layer groups and the send-to menu (`core/groups.js`, `ui/groups-panel.js`, `ui/send-to.js`, `ui/preset-lock.js`)
+
+A group is several layers — one screen or many — driven as one, kept per
+device beside the cue stack. Two halves, and only one of them writes on its
+own: `sourceCommands()` fans a source out when a caller asks, and
+`createGang()` *follows*, writing the rest of a group into line when any
+member changes by any route. The gang is **the only thing in this app that
+puts a write on the wire without an operator having asked for that write
+specifically**, so read `core/groups.js`'s head before changing it.
+
+⚠️ **You gang a ROLE, not a letter.** Two screens are routinely on opposite
+letters — S1 at `AT_UP` has program B while S2 at `AT_DOWN` has program A — so
+a change seen in one screen's letter is turned back into program-or-preview
+through `presetBanks()` and re-resolved per target. Copying letter to letter
+puts a preview edit on air on half the screens. LivePremier's third buffer
+(`presetPrevious`, C) is neither role and propagates nothing.
+
+⚠️ **Three separate things stop it looping**, and they are not
+interchangeable — the comment in `core/groups.js` says which case each closes.
+The echo-suppression map is the one that is easy to think redundant: a fan-out
+to three members produces a *second* round off its own first echo without it,
+because that echo lands while the other members are still stale in the mirror.
+`the echo of a fan-out produces no second round` failed before it existed.
+
+⚠️ **The gang never fires on state it merely found.** `Session` replays the
+frames buffered during hydration without dispatching them, so a page opening
+onto a desk already out of step does not rewrite it. Opening a browser tab is
+not an instruction to the switcher.
+
+⚠️ **A layer belongs to at most one group**, imposed by `normalise()` on the
+way in and out. Two ganged groups sharing a member is the one shape that could
+still ping-pong, so it cannot be stored even by editing the file by hand.
+
+**The `…` on a source card is cloned from the vendor's own `⋮`**, wrapper and
+all — same reasoning as `ui/shell.js`'s sidebar entries, and the wrapper is
+what makes it appear on hover. The glyph is swapped to `more-horizontal-12` so
+the two are distinguishable. ⚠️ **A card does not say which source it is**: no
+data attribute, no id, and the visible number is a position. What it has is a
+picture, and `/api/device/snapshots/inputs/3` *is* `LIVE_3` — `dialect.
+sourceFromSnapshot()` is that mapping read backwards, and a card it cannot
+name gets no button, which is why the background-sets tab has none.
+
+⚠️ **The PGM padlock is not device state.** The whole store was searched on
+2026-09-21: the only `lock` keys are `frontPanel/pp/lock` and the ST2110 PTP
+`isLocked`. `localStorage` is empty too. It is React state in the vendor
+bundle, which means a socket write ignores it and that respecting it is a
+choice — and that it can only be read where it is drawn. `ui/preset-lock.js`
+falls back card → master pair → **locked**, because a screen whose card is not
+on screen is the one case that cannot be checked and so must be the one that
+asks.
+
 ### The popped-out panels (`ui/popout.js`, `server/*.html`)
 
 There are four: `/__lpp/console`, `/__lpp/timeline`, `/__lpp/memories` and

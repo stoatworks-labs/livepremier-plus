@@ -13,6 +13,10 @@ as a bolt-on.
 - **Console** — a lighting-desk command grammar for a video switcher.
 - **Timeline** — a theatre-style cue stack that advances on one GO, with per-cue fade, delay and
   follow times.
+- **Layer Groups** — several layers, on one screen or on many, driven as one; a ganged group
+  follows a source change made to any member, wherever it came from.
+- **Send to** — a `…` on every source card that routes it to a screen and layer, or to a whole
+  group, in preview or program, without a drag.
 - **MIDI Mapping** — a control surface driving the switcher, from the page itself.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a layer width and get
   1000.
@@ -96,6 +100,52 @@ That is worth more than tidiness: mynah's compiler and this repo's command build
 independently, and they emit **byte-identical** store paths for the commands both know. Two
 independent derivations agreeing is the strongest evidence either is right, and it stays true only
 while nobody re-types the grammar here.
+
+---
+
+## Layer Groups, and the `…` on a source card
+
+**PLUS ▸ Layer Groups.** A group is a name and a list of layers, on one screen or on several —
+layer 2 on screen 1 with layer 1 on screens 2 and 3 is *the side screens*. Add a layer with the
+destination and layer pickers at the bottom of each group card; the layer list is the device's own
+**fitted** list, so a slot the hardware has not got is never offered.
+
+The two source columns beside each member show what it is showing now, in program and in preview,
+so a glance says whether the group agrees.
+
+**Gang: follows** is on by default. The rest of the group is written to match whenever any member's
+source changes — by the `…` menu, by the vendor's own drag-and-drop, by a memory recall, by another
+client. Turn it off and the group stays useful as a target and does nothing on its own.
+
+A layer belongs to **one group at a time**; adding it somewhere takes it out of where it was, and
+the panel says so.
+
+### Sending an input
+
+Every source card in the Sources panel gets a **`…`** beside the vendor's own `⋮`. The `⋮` is
+theirs and opens that input's settings; the `…` is ours and routes it.
+
+```
+Send IN4
+  [ Preview ] [ Program ]
+  Recent    Side screens        S1 L2 · S2 L1   GANG
+  Groups    Side screens        S1 L2 · S2 L1   GANG
+  Screens   S1  [L1] [L2]   S2  [L1]
+```
+
+Preview and program mean the **role**, resolved per screen at the moment you click. Two screens
+sitting on opposite preset letters — which is normal — still both get it in the right buffer.
+
+**The PGM padlock is respected.** With program unlocked on the screens involved, a program send
+goes through on one click. With it locked, you get a step naming every layer it is about to change
+and asking. A screen you have not got on the page has no padlock to read, so it is treated as
+locked and asked about too.
+
+> Mid-take nothing is sent. While a transition is in flight, "program" and "preview" do not name a
+> buffer honestly, and the menu says so rather than guessing.
+
+Groups are kept **per switcher**, beside the cue stack. Point the app at a different frame and you
+get that frame's groups.
 
 ---
 

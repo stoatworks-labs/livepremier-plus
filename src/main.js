@@ -26,6 +26,9 @@ import { createMidiPanel } from './ui/midi-panel.js';
 import { createSettingsPanel } from './ui/settings-panel.js';
 import { createMemoriesPanel } from './ui/memories-panel.js';
 import { createPropertiesPanel } from './ui/properties-panel.js';
+import { createGroupsPanel } from './ui/groups-panel.js';
+import { installSendTo } from './ui/send-to.js';
+import { createGang } from './core/groups.js';
 import { detectPlatform, supports } from './core/platform.js';
 import { dialectFor } from './core/dialect.js';
 import { commandsFor } from './core/commands.js';
@@ -47,7 +50,7 @@ function throttleFrame(fn) {
 }
 
 /**
- * Cue stacks are persisted by the launcher, not by the browser.
+ * Cue stacks and layer groups are persisted by the launcher, not by the browser.
  *
  * The extension version of this brokered chrome.storage through a content
  * script over window messages, because the page had no other way to reach it.
@@ -55,12 +58,16 @@ function throttleFrame(fn) {
  * keys the stack by the device it is proxying, which is the right key anyway:
  * a cue list is written against one box's screens and presets.
  *
+ * Layer groups take the same route for the same reason. `S1/2` names a layer
+ * slot on one box's preconfig; pointed at another frame the same words mean
+ * something else or nothing, so the groups are keyed by device too and live
+ * in a file of their own beside the stacks.
+ *
  * Deliberately not localStorage. That belongs to the vendor's own web app and
  * writing our data into it is not ours to do — a point that survived the move
  * off the extension unchanged.
  */
-function makeStorage() {
-  const url = '/__lpp/stack';
+function makeStorage(url = '/__lpp/stack') {
   return {
     async load() {
       try {
@@ -141,7 +148,8 @@ async function boot() {
      before its declaration runs is a ReferenceError, not an undefined. */
   let memories = null;
   let properties = null;
-  const editing = () => [memories, properties].some((p) => p && p.busy && p.busy());
+  let groups = null;
+  const editing = () => [memories, properties, groups].some((p) => p && p.busy && p.busy());
   const refresh = throttleFrame(() => {
     if (editing()) return;
     shell.refresh();
@@ -196,6 +204,16 @@ async function boot() {
    */
   memories = createMemoriesPanel({ session, onRefresh: refresh });
   properties = createPropertiesPanel({ session, onRefresh: refresh });
+  /*
+   * Layer groups, and the two things that read them.
+   *
+   * The panel owns the list and its file; the `…` menu on the vendor's source
+   * cards aims at it; and the gang follows a change made anywhere. All three
+   * are handed the same object rather than a copy, because the panel edits
+   * the list while the other two are running and a snapshot would gang the
+   * arrangement the page was opened with. See `core/groups.js`.
+   */
+  groups = createGroupsPanel({ session, storage: makeStorage('/__lpp/groups'), onRefresh: refresh });
 
   /*
    * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
@@ -243,6 +261,10 @@ async function boot() {
          cover every screen at once, and the screen bank is one flat list of
          1000 slots that any screen can recall from. */
       { id: 'memories', label: 'Memories', icon: 'shotbox-18', enabled: () => can('cueStack'), render: () => memories.render() },
+      /* Also a whole-device view, and for the sharpest version of the reason:
+         a group exists precisely because it crosses screens, so it could not
+         live on a per-screen tab strip even if that strip had room. */
+      { id: 'groups', label: 'Layer Groups', icon: ['group-18', 'layer-stacked-18'], enabled: () => can('layerGroups'), render: () => groups.render() },
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
       { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', render: () => midi.render() },
@@ -262,6 +284,25 @@ async function boot() {
   });
   session.addEventListener('frame', refresh);
   stack.addEventListener('changed', refresh);
+
+  /*
+   * The gang: a ganged group follows whichever of its members was changed.
+   *
+   * Wired to `frame` rather than to anything of ours on purpose — the point
+   * is that it follows a change made by *any* route, including the vendor's
+   * own drag-and-drop and a memory recall. `Session` does not dispatch the
+   * frames it replays during hydration, so opening a page onto a desk that is
+   * already out of step does not rewrite it; the gang only ever acts on a
+   * change someone just made. `core/groups.js` has the rest of the rules,
+   * including why this cannot loop.
+   */
+  const gang = createGang({
+    store: session.store,
+    groups: () => (groups ? groups.list() : []),
+    send: (cmd) => session.send(cmd),
+    onActivity: (report) => { groups.reportActivity(report); }
+  });
+  session.addEventListener('frame', (ev) => gang.onFrame(ev.detail));
 
   /* The sidebar may not exist yet - the vendor app mounts React after its own
      bundle runs. Retry briefly rather than racing it. */
@@ -293,8 +334,33 @@ async function boot() {
   shell.remount();
   tabs.remount();
 
+  /*
+   * The groups, and the `…` on the vendor's source cards.
+   *
+   * Both wait for the store: the menu has nothing to offer without a screen
+   * list, and a card cannot be named for a source without a dialect to ask.
+   * The installer declines on a platform that has no layers to group, which
+   * is the same answer the sidebar entry gives.
+   */
+  await groups.load();
+  const sendTo = installSendTo({
+    session,
+    groups,
+    enabled: () => can('layerGroups'),
+    /*
+     * A send aimed at a whole group has already written every member, so the
+     * echoes are that send landing — not one member drifting for the rest to
+     * chase. Telling the gang stops it writing the same values a second time
+     * and reporting that as work it did. A send to a single layer is NOT
+     * announced, even when that layer is in a group: following it is the
+     * whole point of ganging. See `core/groups.js`.
+     */
+    onWrote: ({ target, cmds }) => { if (target.kind === 'group') gang.expect(cmds); },
+    onSent: (r) => console.info(TAG, 'send to', r.source, r.mode, '->', r.sent, 'layer(s)')
+  });
+
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase };
+  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

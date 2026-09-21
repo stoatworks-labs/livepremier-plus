@@ -231,6 +231,7 @@ const CSS = `
   background: rgba(255,255,255,0.08); font-size: 0.833333rem; margin-right: 0.166667rem;
 }
 .wru-tag--good { background: rgba(0,255,127,0.1); color: #00FF7F; }
+.wru-tag--warn { background: rgba(243,153,16,0.12); color: #F39910; }
 
 .wru-select {
   background: rgba(0,0,0,0.3); border: 0.1rem solid #49535B; border-radius: 0.25rem;
@@ -505,6 +506,64 @@ body > .lpp-banner { position: absolute; top: 0; left: 0; right: 0; z-index: 50;
   color: #838B91; font-variant-numeric: tabular-nums;
   padding: 0.333333rem 0; min-height: 1.5rem;
 }
+
+/* Layer groups. A card per group, and a members table whose two source
+   columns exist to be compared down the column — so tabular figures and a
+   dimmed em-dash for a layer showing nothing. */
+.wru-groups-card { background: rgba(255,255,255,0.02); border: 0.1rem solid #283239; }
+.wru-groups-name {
+  border: 0.1rem solid transparent; background: transparent; padding: 0.166667rem 0.333333rem;
+  min-width: 12rem;
+}
+.wru-groups-name:hover { border-color: #49535B; }
+.wru-groups-members { width: 100%; border-collapse: collapse; }
+.wru-groups-members th {
+  text-align: left; font-size: 0.833333rem; color: #838B91; font-weight: 600;
+  padding: 0.25rem 0.5rem 0.25rem 0; border-bottom: 0.1rem solid rgba(255,255,255,0.08);
+}
+.wru-groups-members td {
+  padding: 0.25rem 0.5rem 0.25rem 0; border-bottom: 0.1rem solid rgba(255,255,255,0.04);
+}
+.wru-groups-src { color: #838B91; font-variant-numeric: tabular-nums; }
+.wru-groups-member--absent td { opacity: 0.5; }
+.wru-groups-activity {
+  border-left: 0.166667rem solid #2185D0; padding: 0.25rem 0.5rem;
+  background: rgba(33,133,208,0.06);
+}
+
+/* The Send to menu. Fixed and parented to <body> because the vendor's source
+   list is a clipping scroller; width is fixed so the rows do not reflow as
+   the group names change under them. */
+.wru-sendto {
+  position: fixed; z-index: 9999; width: 20rem; max-height: 80vh;
+  display: flex; flex-direction: column;
+  background: #1B272F; border: 0.1rem solid #49535B; border-radius: 0.333333rem;
+  box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.5);
+}
+.wru-sendto-head { border-bottom: 0.1rem solid #283239; }
+.wru-sendto-x { background: none; border: 0; cursor: pointer; padding: 0; line-height: 0; }
+.wru-sendto-body { overflow: auto; padding-bottom: 0.5rem; }
+.wru-sendto-group { padding: 0.333333rem 0 0; }
+.wru-sendto-group-title { padding: 0.333333rem 0.666667rem; }
+.wru-sendto-row {
+  width: 100%; background: none; border: 0; color: inherit; font: inherit; text-align: left;
+  cursor: pointer; padding: 0.333333rem 0.666667rem;
+}
+.wru-sendto-row:hover { background: rgba(255,255,255,0.06); }
+.wru-sendto-screen { padding: 0.25rem 0.666667rem; }
+.wru-sendto-screen-id { width: 3rem; flex: 0 0 auto; }
+.wru-sendto-chip {
+  background: rgba(0,0,0,0.3); border: 0.1rem solid #49535B; border-radius: 0.25rem;
+  color: #fff; font: inherit; font-size: 0.833333rem; padding: 0.083333rem 0.333333rem;
+  cursor: pointer;
+}
+.wru-sendto-chip:hover { background: #2185D0; border-color: #2185D0; }
+.wru-sendto-empty { padding: 0.25rem 0.666667rem 0.5rem; }
+/* The confirmation step. Red because it is the vendor's own on-air colour and
+   this is the one place the app steps past a guard rail the operator set. */
+.wru-sendto-warn { background: rgba(246,71,71,0.08); border-left: 0.166667rem solid #F64747; }
+.wru-sendto-result--ok { color: #00FF7F; }
+.wru-sendto-result--warn { color: #F39910; }
 `;
 
 /**

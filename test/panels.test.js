@@ -269,3 +269,43 @@ test('mid-take, the resolution is reported unsettled rather than guessed', () =>
   /* Still names the letter the take started from, so a reader can carry on. */
   assert.equal(r.letter, 'A');
 });
+
+/*
+ * Layer groups against the real capture.
+ *
+ * `groups.test.js` does the model's own work on a synthetic store built to
+ * put two screens on opposite letters. This is the other half: that the path
+ * a group writes is the path the Aquilon C actually answered on, pinned in
+ * AWJ's spelling as well — because a wrong path here does not error, it
+ * writes into a node the device does not have and reports success.
+ */
+test('a group fans a source out on the paths the box itself uses', async () => {
+  const { sourceCommands } = await import('../src/core/groups.js');
+  /* S1 rests at AT_UP, so its PROGRAM is letter B. Layers 1 and 2 are both
+     fitted on this box; NATIVE reads OFF and is correctly not offered. */
+  const { cmds, refused } = sourceCommands(
+    store, [{ id: 'S1', layer: '1' }, { id: 'S1', layer: '2' }], 'LIVE_3', 'PROGRAM');
+
+  assert.deepEqual(refused, []);
+  assert.deepEqual(cmds.map((c) => c.path.join('/')), [
+    'device/screenList/items/S1/presetList/items/B/layerList/items/1/source/pp/inputNum',
+    'device/screenList/items/S1/presetList/items/B/layerList/items/2/source/pp/inputNum'
+  ]);
+  assert.equal(toAwj(cmds[0].path),
+    'DeviceObject/$screen/@items/S1/$preset/@items/B/$layer/@items/1/source/@props/inputNum');
+
+  /* And the same write through the Layer panel's own builder, so the two
+     surfaces cannot drift apart on where a layer's source lives. */
+  const spec = layerSpec('source.inputNum');
+  assert.deepEqual(
+    writeCmd({ id: 'S1', bank: 'B', layer: '1' }, spec, 'LIVE_3', store).path,
+    cmds[0].path);
+});
+
+test('a group refuses the layer slot this box has not got', async () => {
+  const { sourceCommands } = await import('../src/core/groups.js');
+  /* NATIVE is a real slot in the preset and reads `capability: OFF` here. */
+  const { cmds, refused } = sourceCommands(store, [{ id: 'S1', layer: 'NATIVE' }], 'LIVE_3', 'PROGRAM');
+  assert.deepEqual(cmds, []);
+  assert.match(refused[0].why, /S1 has no layer NATIVE/);
+});

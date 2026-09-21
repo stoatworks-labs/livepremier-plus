@@ -26,6 +26,13 @@ rather than as a bolt-on:
 - **Layer** — every one of a layer's 67 properties, generated from the device's
   own parameter catalogue rather than transcribed, so a firmware that adds one
   grows a field for it.
+- **Layer Groups** — several layers, on one screen or on many, driven as one.
+  Layer 2 on screen 1 with layer 1 on screens 2 and 3 is *the side screens*, and
+  a ganged group follows a source change made to any of its members, wherever
+  that change came from.
+- **Send to** — a `…` on every source card that routes it without a drag:
+  preview or program, then a screen and layer or a whole group. It respects the
+  vendor's own PGM padlock, asking before it steps past one.
 - **MIDI Mapping** — a control surface driving the switcher, from the page
   itself. Faders to opacity, encoders to size and position, buttons to select.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
@@ -42,6 +49,17 @@ to install in the browser.
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
 > is tested against that capture, including Optimized mode, interleaved output
 > links, and a staged preconfig that differs from the running one.
+>
+> **Layer groups and the send-to menu were driven on a simulator on
+> 2026-09-21**, against a preconfig staged for the purpose: two screens on
+> **opposite preset letters** — S1 at `AT_UP` with program B, S2 at `AT_DOWN`
+> with program A — which is the only arrangement in which getting the role
+> conversion wrong shows up. A change to S1's layer 2 in letter B was followed
+> onto S2's layer 1 in letter **A**, leaving S2's preview untouched; a group
+> send in preview wrote both members' preview buffers and neither program; and
+> a program send was held behind the confirmation step while the vendor's PGM
+> padlock was shut and went straight through once it was opened, both read
+> from the vendor's own buttons. No physical LivePremier has seen any of it.
 >
 > **Verified against real hardware (Aquilon C `NLC_C`, firmware 6.2.73,
 > 2026-09-09).** Every path this app emits was checked against the box: the
@@ -545,12 +563,57 @@ SETUP
 PLUS                 <- ours
   VPU Map
   Memories
+  Layer Groups
 ```
 
 The memory banks are in the sidebar rather than on the strip for two reasons.
 They are not per-screen — master memories cover every screen at once, and the
 screen bank is one flat list of 1000 slots any screen can recall from — and the
-strip is about 360px wide, where five tabs already fall back to icons.
+strip is about 360px wide, where five tabs already fall back to icons. Layer
+Groups is there for the sharpest version of the same reason: a group exists
+*because* it crosses screens.
+
+## Layer groups, and sending a source to one
+
+An operator does not think "layer 2 on screen 1, layer 1 on screen 2, layer 1
+on screen 3". They think **the side screens**. The switcher has no word for
+that — a LivePremier addresses a layer as (destination, preset buffer, layer)
+and nothing above that ties two of them together — so this adds one.
+
+A group is a name and a list of layers, kept per device beside the cue stack.
+It does two things:
+
+- **It is a target.** Send an input to the group and every member gets it.
+- **It follows.** A group marked *gang* — the default — watches its members,
+  and a source change to any one of them is written to the rest. It does not
+  matter how that change arrived: our menu, the vendor's own drag-and-drop, a
+  memory recall, another client on the network.
+
+The `…` on each source card is how you aim at one. It is beside the vendor's
+own `⋮` (which opens that input's settings) and cloned from it, so it inherits
+the same button styling whatever the firmware hashes it to this week; the glyph
+is horizontal rather than vertical so the two are told apart at a glance. The
+menu is preview or program, then a target: a recently used one, a group, or a
+screen and one of its fitted layers.
+
+**It writes the role, not the letter.** A layer's source lives under a preset
+buffer — A, B or C — and which letter is program changes on every take, so two
+screens are routinely on opposite ones. Sending to "program" resolves that per
+screen. A gang that copied letter to letter would put a preview edit on air on
+half the screens, and that is the single thing this feature has to get right;
+it is verified on a device with S1 at `AT_UP` and S2 at `AT_DOWN`, which is the
+only arrangement in which a wrong answer shows up.
+
+**It respects the PGM padlock.** The lock on a screen card is React state
+inside the vendor bundle — it is not in the device store, and a write over the
+socket is not subject to it. The menu honours it anyway: a locked target buffer
+gets a confirmation step naming every layer it is about to change, an open one
+is sent straight through. A screen whose card is not on screen has no lock to
+read, so it is treated as locked and asked about.
+
+Mid-take nothing is written at all. "Program" and "preview" do not name a
+buffer honestly while a transition is in flight, and the refusal is the same
+one the Layer panel already makes.
 
 ### Popping a panel out
 
@@ -738,9 +801,22 @@ Everything a panel withholds is withheld with its reason, on the Settings page.
   enum value the device does not have, a parameter that is read-only, a preset
   that needs a take state this process does not hold — each is turned away with
   the reason, and counted in Settings.
+- **A ganged group is the one thing that writes unprompted** — that is what
+  ganging *is* — and it is fenced accordingly. It writes only a layer's source
+  and only to members of a group someone made; it resolves program and preview
+  per screen rather than copying a preset letter; it refuses outright while a
+  take is in flight; it acts only on a change made while the page is open,
+  never on state it merely found at startup; and a layer can belong to only
+  one group, so two groups cannot pull at the same layer. Turning a group's
+  gang off leaves it a target and nothing more.
+- **The send-to menu respects a padlock it could ignore.** The PGM lock on a
+  screen card is state inside the vendor's own bundle — it stops their UI, not
+  the device — so a write from here is not subject to it. The menu asks anyway
+  when a target buffer is locked, and treats a screen it cannot see as locked.
 - **Re-pointing drops the old relay.** Moving to a backup frame hangs up the
   sockets aimed at the previous one, so a page cannot go on driving a device
-  the operator believes they have left.
+  the operator believes they have left. Cue stacks and layer groups are both
+  keyed by device, so neither follows you to another frame.
 
 ## Testing
 

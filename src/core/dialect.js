@@ -364,6 +364,22 @@ export const NLC = {
     return `/api/device/snapshots/${m[1] === 'LIVE' ? 'inputs' : 'images'}/${m[2]}`;
   },
 
+  /**
+   * The same mapping read backwards: a snapshot URL to the source that owns it.
+   *
+   * This is how a card in the vendor's own Sources panel says which source it
+   * is. Web RCS renders those cards with per-build hashed classes and no data
+   * attribute naming the source — but every one of them fetches a picture,
+   * and the picture's address is this table. Inverting it here keeps both
+   * directions in one place, so a platform that numbers its snapshots
+   * differently cannot have only half of the pair updated.
+   */
+  sourceFromSnapshot(url) {
+    const m = /\/api\/device\/snapshots\/(inputs|images)\/(\d+)\b/.exec(String(url || ''));
+    if (!m) return null;
+    return (m[1] === 'inputs' ? 'LIVE_' : 'STILL_') + m[2];
+  },
+
   sourceLabel(source) {
     const s = String(source || 'NONE');
     const m = /^(LIVE|STILL)_(\d+)$/.exec(s);
@@ -687,6 +703,21 @@ export const MNG = {
   snapshotUrl(source) {
     const m = /^INPUT_(\d+)$/.exec(String(source || ''));
     return m ? `/api/device/snapshots/inputs/${m[1]}` : null;
+  },
+
+  /**
+   * Read backwards, as on LivePremier — but only for inputs.
+   *
+   * ⚠️ A still is not a layer source on this platform. `LAYER_CONTENT` offers
+   * `NONE`, `INPUT_1`..`INPUT_16` and `COLOR`, and nothing else, so an
+   * `/images/` snapshot here belongs to a card that cannot be sent to a layer
+   * at all. Answering `STILL_n` for it — the shape the other platform uses —
+   * would produce a value the device refuses, from a menu that should never
+   * have offered it.
+   */
+  sourceFromSnapshot(url) {
+    const m = /\/api\/device\/snapshots\/inputs\/(\d+)\b/.exec(String(url || ''));
+    return m ? 'INPUT_' + m[1] : null;
   },
 
   sourceLabel(source) {
