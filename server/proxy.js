@@ -37,6 +37,10 @@ import { join, extname, normalize } from 'node:path';
 import {
   normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged, pixelhueChanged,
 } from '../src/core/settings.js';
+import { companionChanged } from '../src/core/companion.js';
+import {
+  CompanionLink, MOUNT as COMPANION_MOUNT, proxyToCompanion, relayUpgradeToCompanion,
+} from './companion.js';
 import { exchange as awjExchange } from './awj.js';
 import { importMemories, exportMemories } from './memory-import.js';
 import { createOscServer } from './osc.js';
@@ -278,6 +282,18 @@ export async function createProxy({
     storage && storage.loadMatrices ? await storage.loadMatrices() : []);
   matrices.apply(matrixConfig);
 
+  /*
+   * The link to a Companion.
+   *
+   * Installation-level, like the OSC listener and the matrices: a control
+   * surface in the rack does not move when you fail over to a backup frame,
+   * so re-pointing the switcher must not disturb it. `server/companion.js`
+   * carries the argument for why this one holds a socket open, and it is the
+   * matrix argument rather than the AWJ one.
+   */
+  const companion = new CompanionLink(log);
+  companion.apply(settings);
+
   let patch = normalisePatch(
     storage && storage.loadPatch ? await storage.loadPatch(state.device) : []);
 
@@ -370,6 +386,24 @@ export async function createProxy({
   async function serveOwn(req, res, url) {
     const rest = url.pathname.slice(NS.length) || '/';
 
+    /*
+     * Companion, mounted whole under our own origin.
+     *
+     * Checked before anything else because it is a *prefix* and every other
+     * route here is an exact path — and because what is below it is not ours
+     * to interpret. The query string has to be carried across by hand:
+     * `url.pathname` has already dropped it, and the emulator identifies
+     * itself with one.
+     *
+     * The mount point is stripped here rather than at the far end. Companion
+     * matches its own routes on the unprefixed path and is *told* about the
+     * prefix by a header instead — see `server/companion.js`.
+     */
+    if (rest === COMPANION_MOUNT || rest.startsWith(COMPANION_MOUNT + '/')) {
+      const below = rest.slice(COMPANION_MOUNT.length) || '/';
+      return proxyToCompanion(req, res, below + (url.search || ''), companion.target, log);
+    }
+
     if (rest === '/timecode') {
       if (req.method === 'GET') return sendJson(res, 200, { timecode: lastTimecode });
       if (req.method === 'PUT' || req.method === 'POST') {
@@ -419,6 +453,7 @@ export async function createProxy({
       if (req.method === 'GET') {
         return sendJson(res, 200, {
           settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
+          companion: companion.state,
         });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
@@ -432,14 +467,20 @@ export async function createProxy({
            surface that is changing a different one. */
         const next = normaliseSettings({ ...settings, ...(parsed.settings ?? parsed) });
         const needsRebind = oscChanged(settings, next);
+        /* Diffed for the same reason the matrices are: settings are saved as
+           a whole, so a change to the console language must not hang up a
+           Companion link — or a Pixelhue panel — that nobody touched. */
         const needsPanel = pixelhueChanged(settings, next);
+        const needsRedial = companionChanged(settings, next);
         settings = next;
         if (storage && storage.saveSettings) await storage.saveSettings(settings);
         if (needsRebind) await applyOsc();
         if (needsPanel) await pixelhue.apply(settings);
+        if (needsRedial) companion.apply(settings);
 
         return sendJson(res, 200, {
           ok: true, settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
+          companion: companion.state,
         });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
@@ -1017,6 +1058,36 @@ export async function createProxy({
    * client count in the Web RCS header stays honest.
    */
   const onUpgrade = (req, socket, head) => {
+    /*
+     * An upgrade under the Companion mount goes to Companion, not the
+     * switcher.
+     *
+     * The embedded web UI computes its own socket address from the prefix it
+     * was served with, so it dials `/__lpp/companion/trpc` — and Companion
+     * matches that upgrade on the pathname `/trpc` and nothing else. Passing
+     * the mounted path through verbatim gets a socket that opens and then
+     * says nothing, with no error at either end.
+     */
+    let upgradePath = null;
+    try { upgradePath = new URL(req.url, 'http://localhost').pathname; }
+    catch { socket.destroy(); return; }
+
+    const mounted = NS + COMPANION_MOUNT;
+    if (upgradePath === mounted || upgradePath.startsWith(mounted + '/')) {
+      const below = req.url.slice(mounted.length) || '/';
+      const pair = relayUpgradeToCompanion(req, socket, head, below, companion.target, log);
+      if (pair) {
+        /* Tracked with the vendor relays so that a launcher Stop hangs this
+           up too — an upgraded socket is invisible to `server.close()`
+           whichever box is on the other end of it. */
+        relays.add(pair);
+        const drop = () => relays.delete(pair);
+        pair.socket.on('close', drop);
+        pair.upstream.on('close', drop);
+      }
+      return;
+    }
+
     if (!target) { socket.destroy(); return; }
     const here = target;
     const upstream = net.connect(here.port, here.host, () => {
@@ -1106,6 +1177,9 @@ export async function createProxy({
     void pixelhue.stop();
     for (const listener of pixelhueListeners) { try { listener.end(); } catch { /* gone */ } }
     pixelhueListeners.clear();
+    /* And the Companion link, which holds both a socket and a redial timer
+       for exactly the reasons the matrices do. */
+    companion.stop();
   };
 
   return server;

@@ -28,6 +28,8 @@
  * table of what is allowed — and it does no I/O of its own.
  */
 
+import { DEFAULT_COMPANION, normaliseCompanion } from './companion.js';
+
 export const LANGUAGE_CHOICES = [
   {
     id: 'all',
@@ -112,6 +114,12 @@ export const DEFAULT_SETTINGS = {
    * `server/memory-import.js`.
    */
   memoryImportDir: '',
+  /* Also off, for a weaker version of the same reason. This one only dials
+     out rather than opening a door — but an app that reaches for a machine on
+     the show network the moment it starts is not one an operator can reason
+     about, and the address has to be typed before it could anyway.
+     See `src/core/companion.js`. */
+  ...DEFAULT_COMPANION,
 };
 
 /**
@@ -158,6 +166,10 @@ export function normalise(raw) {
     pixelhueHost: hostOrNothing(input.pixelhueHost),
     pixelhueModel: pick(input.pixelhueModel, CONSOLE_MODELS, DEFAULT_SETTINGS.pixelhueModel),
     memoryImportDir: pathOrNothing(input.memoryImportDir),
+    /* Validated next door rather than here: what a Companion address is
+       allowed to be is a fact about Companion, and the panel that draws the
+       field imports the same function. */
+    ...normaliseCompanion(input),
   };
 }
 
