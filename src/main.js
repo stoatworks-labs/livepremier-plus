@@ -266,13 +266,29 @@ async function boot() {
        * difference between them — theirs follows the layer you have clicked,
        * which is React state we cannot read, so ours makes you name one.
        *
-       * There is deliberately no second tab for the memory banks. The strip is
-       * about 360px and the fit ladder is already down to short labels at four
-       * tabs; a fifth would push the lot to icons. The banks are a whole-device
-       * view anyway — 1000 screen slots and 500 master ones are not per-screen
-       * — so they sit in the sidebar beside the VPU map instead.
+       * There is deliberately no tab for the memory banks. They are a
+       * whole-device view — 1000 screen slots and 500 master ones are not
+       * per-screen — so they sit in the sidebar beside the VPU map instead.
        */
-      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', enabled: () => can('layerProperties'), render: () => properties.render() }
+      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', enabled: () => can('layerProperties'), render: () => properties.render() },
+      /*
+       * Layer Groups is on the strip *as well as* in the sidebar, which no
+       * other panel is.
+       *
+       * The sidebar entry is still the right home — a group crosses screens,
+       * so it is a whole-device view. But it is also the thing you reach for
+       * while you are looking at the screens, and walking to the sidebar and
+       * back to check which layers a group holds is the kind of trip that
+       * stops an operator using a feature at all. Both, deliberately.
+       *
+       * ⚠️ This is the fourth of ours on a strip about 360px wide, beside the
+       * vendor's own Properties and Memories. The fit ladder in `ui/tabs.js`
+       * measures and drops a rung rather than overflowing, so nothing breaks
+       * — but the whole strip now reaches icon-only at a wider window than it
+       * did. That is the cost, and it is why a fifth would need a better
+       * argument than this one had.
+       */
+      { id: 'groups', label: 'Groups', short: 'Grps', icon: ['group-14', 'layer-stacked-14'], enabled: () => can('layerGroups'), render: () => groups.render() }
     ]
   });
 
