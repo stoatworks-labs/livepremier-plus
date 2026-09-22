@@ -261,14 +261,73 @@ export function planConnections(existing, want = Object.keys(MODULES)) {
 }
 
 /**
+ * The key a module appears under in `instances.modules.watch`.
+ *
+ * Namespaced by kind, because surfaces live in the same map: `analogway-awj`
+ * is `connection:analogway-awj` there and nowhere else in the API. Looking it
+ * up by the bare id finds nothing and looks exactly like "not installed".
+ */
+export const moduleKey = (moduleId, kind = 'connection') => `${kind}:${moduleId}`;
+
+/**
+ * Which version of a module to ask for.
+ *
+ * ## Why this is not simply `null`
+ *
+ * `addConnectionWithLabel` reads a null `versionId` as "the latest installed
+ * version", which reads like an invitation to send one. It is not: the tRPC
+ * procedure in front of it declares `versionId: z.string()`, **not
+ * nullable**, so a null never reaches that code — it is refused by the schema
+ * with Companion's generic "Invalid or malformed input provided for
+ * instances.connections.add/mutation", which names the procedure and not the
+ * field. Verified the hard way against a live Companion 5.0.5.
+ *
+ * So a real version string has to be resolved first, and the module list is
+ * the only place that knows them.
+ *
+ * ## The order, and why
+ *
+ * `stableVersion` first, because it is Companion's *own* answer to "the
+ * latest one you should be running" — matching `getLatestVersionOfModule`,
+ * which also prefers stable and only returns `dev` when explicitly allowed.
+ * Then beta, then whatever is installed, and `dev` last: a developer with a
+ * dev build of a module has almost certainly also got it installed, and
+ * silently binding a show to a working copy is not this app's decision to
+ * make.
+ *
+ * Returns null when the module is not installed at all — which is a different
+ * answer from "no version", and the caller must say so rather than trying the
+ * add and reporting a schema error.
+ */
+export function pickVersion(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  const id = (v) => (v && typeof v.versionId === 'string' && v.versionId ? v.versionId : null);
+
+  const ordered = [entry.stableVersion, entry.betaVersion];
+  for (const candidate of ordered) {
+    const found = id(candidate);
+    if (found) return found;
+  }
+  if (Array.isArray(entry.installedVersions)) {
+    /* Last rather than first: Companion emits these in ascending order, and
+       there is no semver comparison here to do better with. A show pinned to
+       a version an operator can see in the list is recoverable; one pinned to
+       a version chosen by a sort this app invented is not. */
+    for (let i = entry.installedVersions.length - 1; i >= 0; i--) {
+      const found = id(entry.installedVersions[i]);
+      if (found) return found;
+    }
+  }
+  return id(entry.builtinVersion) || id(entry.devVersion);
+}
+
+/**
  * The `input` for `instances.connections.add`.
  *
- * `versionId` is required by the schema but may be null, which Companion
- * reads as "the latest installed version" — and that is the honest answer
- * here. Pinning a version would mean this app claiming to know which build of
- * somebody else's module an operator should be running.
+ * `versionId` is a real version string — see `pickVersion` for why it cannot
+ * be null, and what it costs when it is.
  */
-export function addInput(spec, { versionId = null } = {}) {
+export function addInput(spec, versionId) {
   return {
     module: { type: spec.moduleId, product: spec.product },
     label: spec.label,

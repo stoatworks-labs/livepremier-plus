@@ -35,11 +35,13 @@ import {
   addInput,
   companionChanged,
   locationKey,
+  moduleKey,
   normaliseCompanion,
   normaliseHost,
   originAllowed,
   pageGrid,
   parseFrames,
+  pickVersion,
   planConnections,
   request,
   stopRequest,
@@ -99,8 +101,10 @@ test('no input means no input key at all', () => {
      so the key has to be absent rather than present and empty. */
   const frame = request(1, 'query', 'appInfo.version');
   assert.equal('input' in frame.params, false);
-  /* But a deliberate null is still sent — `versionId` is nullable and means
-     "the latest installed version". */
+  /* A null *inside* an input object is still sent, though — the rule is
+     about the input as a whole being absent, not about its fields. (Do not
+     read this as licence to send `versionId: null` to `connections.add`: that
+     particular field is `z.string()` and refuses one. See `pickVersion`.) */
   const withNull = request(2, 'mutation', 'x', { versionId: null });
   assert.deepEqual(withNull.params.input, { versionId: null });
 });
@@ -288,16 +292,67 @@ test('a device carrying a port keeps it through the AWJ url', () => {
   });
 });
 
-test('addInput leaves the version to Companion', () => {
-  const input = addInput(MODULES.awj);
-  assert.deepEqual(input, {
+test('addInput carries a real version, because null is refused by the schema', () => {
+  /* ⚠️ The expensive one. `addConnectionWithLabel` treats a null versionId as
+     "the latest installed version", which reads like an invitation to send
+     one — but the tRPC procedure in front of it declares `z.string()`, not
+     nullable, so a null never gets that far. It comes back as Companion's
+     generic "Invalid or malformed input provided for
+     instances.connections.add/mutation", which names the procedure and not
+     the field. Found against a live Companion 5.0.5, not by reading. */
+  assert.deepEqual(addInput(MODULES.awj, '2.5.1-customfix-jt'), {
     module: { type: 'analogway-awj', product: 'LivePremier' },
     label: 'AWJ',
-    versionId: null,
+    versionId: '2.5.1-customfix-jt',
   });
-  /* Null is "latest installed" to Companion. Pinning would be this app having
-     an opinion about which build of somebody else's module to run. */
-  assert.equal(addInput(MODULES.awj, { versionId: '2.5.0' }).versionId, '2.5.0');
+});
+
+test('a module is looked up under its namespaced key', () => {
+  /* Surfaces share the map, so the bare id finds nothing — and "not found"
+     is indistinguishable from "not installed" at the call site. */
+  assert.equal(moduleKey('analogway-awj'), 'connection:analogway-awj');
+  assert.equal(moduleKey('elgato-stream-deck', 'surface'), 'surface:elgato-stream-deck');
+});
+
+test('pickVersion prefers what Companion itself calls stable', () => {
+  /* Shape taken verbatim from a live `instances.modules.watch`. */
+  const entry = {
+    devVersion: { versionId: 'dev' },
+    builtinVersion: null,
+    stableVersion: { versionId: '2.5.1-customfix-jt' },
+    betaVersion: { versionId: '2.6.0-beta' },
+    installedVersions: [{ versionId: '2.5.0' }, { versionId: '2.5.1-customfix-jt' }],
+  };
+  assert.equal(pickVersion(entry), '2.5.1-customfix-jt');
+});
+
+test('pickVersion falls back in a fixed order, with dev last', () => {
+  const beta = { stableVersion: null, betaVersion: { versionId: '3.0.0-beta' } };
+  assert.equal(pickVersion(beta), '3.0.0-beta');
+
+  /* Last of the installed list, not the first: Companion emits them in
+     ascending order and there is no semver comparison here to do better. */
+  const installed = { installedVersions: [{ versionId: '1.0.0' }, { versionId: '1.2.0' }] };
+  assert.equal(pickVersion(installed), '1.2.0');
+
+  /* A developer with a working copy almost certainly also has it installed,
+     and binding a show to a working copy is not this app's call to make. */
+  const dev = { devVersion: { versionId: 'dev' }, installedVersions: [{ versionId: '1.0.0' }] };
+  assert.equal(pickVersion(dev), '1.0.0');
+  assert.equal(pickVersion({ devVersion: { versionId: 'dev' } }), 'dev');
+  assert.equal(pickVersion({ builtinVersion: { versionId: 'builtin' } }), 'builtin');
+});
+
+test('pickVersion says null for a module that is not installed', () => {
+  /* Which is the *expected* answer for our own module until somebody installs
+     it, and has to be distinguishable from "no version" so the caller can say
+     so in words instead of letting the add fail on a schema error. */
+  assert.equal(pickVersion(undefined), null);
+  assert.equal(pickVersion(null), null);
+  assert.equal(pickVersion({}), null);
+  assert.equal(pickVersion({ stableVersion: {}, installedVersions: [] }), null);
+  assert.equal(pickVersion({ stableVersion: { versionId: '' } }), null);
+  assert.equal(pickVersion('nonsense'), null);
 });
 
 /* ---------------------------------------------------------------- the surface */

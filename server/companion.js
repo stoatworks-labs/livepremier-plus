@@ -78,7 +78,7 @@ import net from 'node:net';
 
 import { WsClient } from './ws-client.js';
 import {
-  addInput, originAllowed, parseFrames, request, stopRequest,
+  addInput, moduleKey, originAllowed, parseFrames, pickVersion, request, stopRequest,
 } from '../src/core/companion.js';
 
 /**
@@ -344,6 +344,44 @@ export function listConnections(target, timeoutMs = 5000) {
 }
 
 /**
+ * The modules Companion has, read once.
+ *
+ * `instances.modules.watch` is a **subscription**, not a query — there is no
+ * one-shot form of it. It yields `{type:'init', info}` immediately and then
+ * stays open feeding changes, so this takes the first frame and hangs up.
+ *
+ * That is not a poll pretending to be a stream: nothing here wants to know
+ * when a module is installed, only what is installed at the moment somebody
+ * pressed a button. A held subscription would be this process keeping a
+ * second copy of a list it needs twice a show.
+ */
+export function readModules(link, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    let stop = null;
+    const timer = setTimeout(() => {
+      if (stop) stop();
+      reject(new Error('Companion did not send its module list in time'));
+    }, timeoutMs);
+    timer.unref?.();
+
+    stop = link.subscribe('instances.modules.watch', undefined, (value) => {
+      /* Later frames are deltas and are not what this asked for. */
+      if (!value || value.type !== 'init') return;
+      clearTimeout(timer);
+      if (stop) stop();
+      resolve(value.info && typeof value.info === 'object' ? value.info : {});
+    });
+
+    /* `subscribe` returns a no-op when there is no socket, and would otherwise
+       leave this promise pending until the timeout for no reason. */
+    if (!link.ws || !link.ws.open) {
+      clearTimeout(timer);
+      reject(new Error('not connected to Companion'));
+    }
+  });
+}
+
+/**
  * Create the connections a plan says are missing, and report what happened.
  *
  * Never throws for one module's sake: a show where the AWJ module is present
@@ -358,6 +396,21 @@ export async function addConnections(link, plan, facts, want, target) {
   const results = [];
   const wanted = new Set(want && want.length ? want : plan.add.map((a) => a.key));
 
+  /* Which modules Companion actually has, and what it calls their versions.
+   *
+   * Read before anything is created, because `add` needs a real version
+   * string — see `pickVersion`. It also answers the question the schema error
+   * cannot: whether the module is installed at all. Our own module is not on
+   * anybody's Companion yet, so that is the *expected* answer for it, and it
+   * deserves a sentence rather than a validation failure. */
+  let modules = {};
+  let modulesError = null;
+  try {
+    modules = await readModules(link);
+  } catch (err) {
+    modulesError = err.message;
+  }
+
   /* Add first, configure second, with a read of the show in between.
    *
    * Not one pass, because of `makeLabelUnique`: Companion renames a colliding
@@ -368,11 +421,28 @@ export async function addConnections(link, plan, facts, want, target) {
    * to look. */
   for (const { key, spec } of plan.add) {
     if (!wanted.has(key)) continue;
+
+    const entry = modules[moduleKey(spec.moduleId)];
+    const versionId = pickVersion(entry);
+    if (!versionId) {
+      results.push({
+        key, spec, ok: false, id: null, configured: false,
+        note: modulesError
+          ? `could not read Companion's module list: ${modulesError}`
+          : `Companion has no “${spec.moduleId}” module installed. Install it in Companion first — `
+            + 'Modules > Manage, or by importing its package.',
+      });
+      continue;
+    }
+
     try {
-      const created = await link.call('mutation', 'instances.connections.add', addInput(spec));
+      const created = await link.call('mutation', 'instances.connections.add', addInput(spec, versionId));
       /* The mutation answers with the new connection's id, as a bare string. */
       const id = typeof created === 'string' ? created : created?.id;
-      results.push({ key, spec, ok: !!id, id: id ?? null, configured: false, note: id ? null : 'added, but Companion named no id' });
+      results.push({
+        key, spec, ok: !!id, id: id ?? null, configured: false, version: versionId,
+        note: id ? null : 'added, but Companion named no id',
+      });
     } catch (err) {
       results.push({ key, spec, ok: false, id: null, configured: false, note: err.message });
     }
