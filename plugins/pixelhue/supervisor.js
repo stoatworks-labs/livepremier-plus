@@ -2,9 +2,9 @@
  * The Pixelhue panel supervisor.  ** PREVIEW **
  *
  * Holds one console link, feeds it a model of the switcher, and turns what it
- * reports back into writes. `src/core/pixelhue.js` has the reasoning for the
- * model-and-intents shape; `server/pixelhue/ucenter.js` has the one for
- * holding a socket open.
+ * reports back into writes. `core.js` beside this has the reasoning for the
+ * model-and-intents shape; `ucenter.js` has the one for holding a socket open;
+ * `server.js` puts it on the app as a plugin.
  *
  * ## It reads the switcher in bursts, and holds nothing open on it
  *
@@ -35,7 +35,7 @@
 
 import { EventEmitter } from 'node:events';
 
-import { exchange, AWJ_PORT } from '../awj.js';
+import { exchange, AWJ_PORT } from '../../server/awj.js';
 import { UCenterLink } from './ucenter.js';
 import { NLC, MNG } from '../../src/core/dialect.js';
 import { commandsFor } from '../../src/core/commands.js';
@@ -43,7 +43,7 @@ import { letterFor } from '../../src/vendor/surface/preset.js';
 import { toAwj } from '../../src/core/paths.js';
 import {
   businessModel, readIntent, writesFor, Selection, commandName, CONSOLE_MODELS,
-} from '../../src/core/pixelhue.js';
+} from './core.js';
 
 export { CONSOLE_MODELS };
 

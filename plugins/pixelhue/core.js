@@ -23,10 +23,13 @@
  *
  * ## Why this file holds no I/O
  *
- * Same rule as everything else in `core/`: it runs under plain node, the tests
- * import it directly, and `server/pixelhue/` does the sockets. It is also why
- * the caller supplies the preset letters rather than this resolving them —
- * which letter is on air is device state, and guessing puts a change on air.
+ * Same rule as everything in `src/core/`: it runs under plain node, the tests
+ * import it directly, and the plugin's `supervisor.js` and `ucenter.js` do the
+ * sockets. Both halves of the plugin import it — the settings card reads its
+ * console list — which is the other reason it must stay free of either. It is
+ * also why the caller supplies the preset letters rather than this resolving
+ * them — which letter is on air is device state, and guessing puts a change on
+ * air.
  */
 
 /**
@@ -350,3 +353,43 @@ export class Selection {
     return { destinations: this.list, layer: this.layer, buffer: this.buffer };
   }
 }
+
+/* ------------------------------------------------------------------ settings */
+
+/**
+ * The plugin's settings, and its settings schema's two functions.
+ *
+ * Off, and for the same reason as the OSC listener plus one more: this is a
+ * preview, it has never been run against a console, and it writes to a
+ * switcher. Nobody should find it on by surprise. The mini is the default
+ * model because it is the one that can be driven over the LAN without
+ * installing anything on the console.
+ */
+export const DEFAULT_PIXELHUE = {
+  pixelhueEnabled: false,
+  pixelhueHost: '',
+  pixelhueModel: 'u5mini',
+};
+
+/**
+ * Coerce stored Pixelhue settings into something usable — a bad field falls
+ * back to its default rather than refusing the file, like every setting in
+ * this app. A host with whitespace or a scheme in it is a paste of something
+ * else, and a field that silently empties says so on the page it was typed on.
+ */
+export function normalisePixelhue(raw) {
+  const input = raw && typeof raw === 'object' ? raw : {};
+  const host = String(input.pixelhueHost ?? '').trim();
+  return {
+    pixelhueEnabled: input.pixelhueEnabled === true,
+    pixelhueHost: host && host.length <= 255 && /^[A-Za-z0-9._-]+$/.test(host) ? host : '',
+    pixelhueModel: CONSOLE_MODELS.some((m) => m.id === input.pixelhueModel)
+      ? input.pixelhueModel : DEFAULT_PIXELHUE.pixelhueModel,
+  };
+}
+
+/** True when a change needs the console link rebuilt rather than just noted. */
+export const pixelhueChanged = (a, b) =>
+  a.pixelhueEnabled !== b.pixelhueEnabled
+  || a.pixelhueHost !== b.pixelhueHost
+  || a.pixelhueModel !== b.pixelhueModel;

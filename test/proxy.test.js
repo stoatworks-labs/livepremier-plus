@@ -833,3 +833,28 @@ test('an upgrade under the namespace that no plugin takes is refused, never rela
     sock.destroy();
   });
 });
+
+test('the Pixelhue panel is a hosted plugin: its state has a route, and its old settings are lifted', async () => {
+  let saved = { pixelhueHost: '10.0.0.9', pixelhueModel: 'u5' };
+  const storage = { loadSettings: async () => saved, saveSettings: async (s) => { saved = s; } };
+  await withProxy({ storage }, async ({ base }) => {
+    const state = await fetch(base + '/__lpp/pixelhue/state');
+    assert.equal(state.status, 200);
+    const body = await state.json();
+    assert.equal(body.preview, true);
+    assert.equal(body.configured, false, 'off until "Drive a Pixelhue console" is ticked');
+
+    const { settings } = await (await fetch(base + '/__lpp/settings')).json();
+    assert.deepEqual(settings.plugins.pixelhue.settings,
+      { pixelhueEnabled: false, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5' });
+    assert.equal(settings.pixelhueHost, undefined);
+
+    /* Switched off, it is gone; its settings are not. */
+    await fetch(base + '/__lpp/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plugins: { pixelhue: { enabled: false } } })
+    });
+    assert.equal((await fetch(base + '/__lpp/pixelhue/state')).status, 404);
+    assert.equal(saved.plugins.pixelhue.settings.pixelhueHost, '10.0.0.9');
+  });
+});

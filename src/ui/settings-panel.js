@@ -33,7 +33,7 @@
  * `../core/settings.js`.
  */
 
-import { h, button, readout, sectionTitle } from './dom.js';
+import { h, button, readout, card, note, picker as pick } from './dom.js';
 import { panel } from './shell.js';
 import { readIdentity } from '../core/identity.js';
 import { detectPlatform, CAPABILITIES } from '../core/platform.js';
@@ -41,7 +41,7 @@ import { BUILTINS, status as pluginStatus, isSwitchedOn } from '../core/plugins.
 import { SOURCE_KINDS } from './timecode-source.js';
 import { formatTimecode } from '../core/timecode.js';
 import {
-  AWJ_TRANSPORTS, CONSOLE_MODELS, DEFAULT_SETTINGS, LANGUAGE_CHOICES, OSC_BIND_CHOICES
+  AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES, OSC_BIND_CHOICES
 } from '../core/settings.js';
 import { OSC_ROOT } from '../vendor/mynah-lang.mjs';
 import { insecureContextAdvice } from '../core/secure-context.js';
@@ -64,7 +64,15 @@ const PLANNED = [
   }
 ];
 
-export function createSettingsPanel({ session, platform = null, timecode = null, onRefresh = () => {} }) {
+/**
+ * @param {object} o
+ * @param {() => Array<{id: string, order?: number, render: () => Node}>} [o.sections]
+ *        plugins' own cards, from `ui/plugin-host.js` — read at every render,
+ *        because the plugins load after this panel is built
+ */
+export function createSettingsPanel({
+  session, platform = null, timecode = null, onRefresh = () => {}, sections = () => []
+}) {
   /*
    * The proxy's own status: our version, and which switcher it is pointed at.
    * Fetched once and cached, because none of it changes while the page is
@@ -80,7 +88,6 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
        it avoids a page that flickers between empty and populated. */
     settings: { ...DEFAULT_SETTINGS },
     osc: null,
-    pixelhue: null,
     saveError: null,
     saving: false,
     /* The server's own list of plugins, by id — see `loadPlugins`. */
@@ -96,7 +103,6 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
       state.status = await res.json();
       if (state.status.settings) state.settings = state.status.settings;
       state.osc = state.status.osc || null;
-      state.pixelhue = state.status.pixelhue || null;
     } catch (err) {
       state.statusError = err.message;
     }
@@ -145,7 +151,6 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
       if (!res.ok) throw new Error(body.error || 'HTTP ' + res.status);
       state.settings = body.settings;
       state.osc = body.osc || null;
-      state.pixelhue = body.pixelhue || null;
       window.dispatchEvent(new CustomEvent('lpp:settings', { detail: state.settings }));
     } catch (err) {
       state.saveError = err.message;
@@ -407,28 +412,9 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
 
   /* -------------------------------------------------------- console setup */
 
-  /**
-   * A labelled picker over a closed list of choices.
-   *
-   * Each option carries a sentence, and the sentence for whichever is selected
-   * is printed under the control. That is deliberate rather than decorative:
-   * every choice on this page trades something — a language for detection, an
-   * AWJ client slot for a reply, a loopback bind for the network being able to
-   * fire takes — and a `title` attribute is not where a trade-off gets read.
-   */
-  function picker(label, choices, current, onPick) {
-    const chosen = choices.find((c) => c.id === current) || choices[0];
-    return h('div', { class: 'aw-flex-col aw-gap-row-mini', style: { flex: '1 1 22rem' } },
-      h('div', { class: 'aw-font-overline aw-text-tertiary', text: label }),
-      h('select', {
-        class: 'wru-input', style: { maxWidth: '24rem' },
-        disabled: state.saving ? 'disabled' : null,
-        onChange: (ev) => onPick(ev.target.value)
-      }, choices.map((c) => h('option', {
-        value: c.id, selected: c.id === current ? 'selected' : null, text: c.label
-      }))),
-      h('div', { class: 'aw-font-caption aw-text-tertiary', text: chosen.what }));
-  }
+  /** The kit's picker, held while a save is in flight — see `ui/dom.js`. */
+  const picker = (label, choices, current, onPick) =>
+    pick(label, choices, current, onPick, { disabled: state.saving });
 
   function consoleSection() {
     const notes = [];
@@ -541,110 +527,6 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
     void put({ oscPort: n });
   }
 
-  /* --------------------------------------------------------------- panel */
-
-  /**
-   * A Pixelhue U-series console.  ** PREVIEW **
-   *
-   * Marked preview in as many words, because it has never been run against a
-   * console: every byte of it was worked out from firmware and proved against
-   * the vendor's own control service running headless in a VM. That is a long
-   * way from a panel on a desk, and an operator deciding whether to rig one
-   * deserves to be told which it is.
-   *
-   * It is also the second setting on this page that writes to a switcher
-   * without anybody looking at a browser, so it is off until somebody turns it
-   * on, exactly like the OSC listener.
-   */
-  function pixelhueSection() {
-    const on = state.settings.pixelhueEnabled;
-    const live = state.pixelhue;
-    const link = live && live.link;
-    const model = CONSOLE_MODELS.find((m) => m.id === state.settings.pixelhueModel);
-
-    const toggle = h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { cursor: 'pointer' } },
-      h('input', {
-        type: 'checkbox',
-        checked: on ? 'checked' : null,
-        disabled: state.saving ? 'disabled' : null,
-        onChange: (ev) => put({ pixelhueEnabled: ev.target.checked })
-      }),
-      h('span', { class: 'aw-font-body-1', text: 'Drive a Pixelhue console' }));
-
-    const host = h('div', { class: 'aw-flex-col aw-gap-row-mini' },
-      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Console address' }),
-      h('input', {
-        class: 'wru-input', type: 'text', value: state.settings.pixelhueHost,
-        placeholder: model && model.overLan ? '192.168.2.50' : '127.0.0.1',
-        style: { maxWidth: '12rem' },
-        disabled: state.saving ? 'disabled' : null,
-        /* On blur, not per keystroke: a link is rebuilt on every change and
-           retyping an address would dial four consoles that do not exist. */
-        onBlur: (ev) => commitPanelHost(ev.target.value),
-        onKeyDown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); } }
-      }));
-
-    const rows = live
-      ? h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
-        readout('Link', link && link.connected ? `connected to ${link.host}:${link.port}` : 'not connected',
-          { tone: link && link.connected ? null : 'tertiary' }),
-        readout('Published', link ? String(link.published) : '0'),
-        readout('Commands', link ? String(link.commands) : '0'),
-        readout('Selected', live.selection.destinations.join(' ') || 'nothing on the panel',
-          { tone: live.selection.destinations.length ? null : 'tertiary' }),
-        readout('Editing', live.selection.buffer, { tone: live.selection.buffer === 'PROGRAM' ? 'warn' : null }))
-      : null;
-
-    const notes = [note('warn',
-      'Preview. This has never been run against a console — it was built from the '
-      + 'firmware and proved against the vendor’s own control service running with no '
-      + 'hardware. Treat the first show with one as a rehearsal.')];
-
-    if (model && !model.overLan) {
-      notes.push(note('warn',
-        `A ${model.label} serves its control port on loopback only, so this app has to be `
-        + 'running on the console itself to reach one. A U5 mini answers on the network.'));
-    }
-    if (link && link.lastError) notes.push(note('warn', link.lastError));
-    if (on) {
-      notes.push(note('info',
-        'The console is handed a model of this switcher — its screens, inputs and memories — '
-        + 'and labels, lights and pages its own keys from it. What comes back is what the '
-        + 'operator meant, so there is no key mapping to keep. docs/PIXELHUE.md has the rest.'));
-      notes.push(note('info',
-        'A recall from the panel always lands in preview, whatever PGM EDIT is doing, for the '
-        + 'same reason every other recall in this app does. Fade to black and freeze are '
-        + 'reported by the console and not yet sent anywhere.'));
-      notes.push(note('info',
-        'Tally is read when the panel connects and after each change it makes. A take fired '
-        + 'from the Web RCS or the front panel does not relight the console’s keys until then.'));
-    }
-
-    const history = live && live.history && live.history.length
-      ? h('div', { class: 'aw-flex-col aw-gap-row-mini' },
-        live.history.slice(0, 5).map((e) => h('div', {
-          class: ['aw-font-caption', e.error ? 'wru-warn' : 'aw-text-tertiary'],
-          text: [e.command, e.note || e.error || e.kind].filter(Boolean).join(' — ')
-        })))
-      : null;
-
-    return card('Pixelhue panel',
-      h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' },
-        toggle, host,
-        picker('Console', CONSOLE_MODELS, state.settings.pixelhueModel, (v) => put({ pixelhueModel: v }))),
-      rows, history, ...notes);
-  }
-
-  function commitPanelHost(raw) {
-    const value = String(raw || '').trim();
-    if (value === state.settings.pixelhueHost) return;
-    if (value && !/^[A-Za-z0-9._-]+$/.test(value)) {
-      state.saveError = `${raw} is not a host name or address`;
-      return onRefresh();
-    }
-    void put({ pixelhueHost: value });
-  }
-
   /* -------------------------------------------------------------- planned */
 
   function plannedSection() {
@@ -657,13 +539,6 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
   }
 
   /* --------------------------------------------------------------- render */
-
-  const card = (title, ...body) => h('div', { class: 'wru-vpu-device aw-flex-col aw-gap-row-medium' },
-    sectionTitle(title), ...body);
-
-  const note = (tone, text) => h('div', {
-    class: ['aw-font-caption', tone === 'warn' ? 'wru-warn' : 'aw-text-tertiary'], text
-  });
 
   /* Refreshing has to re-read the settings too, not just the device status —
      another window may have changed one. */
@@ -717,6 +592,22 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
      configure about a listener that cannot run. */
   const shown = (id) => pluginStatus((state.settings && state.settings.plugins) || {}, id).on;
 
+  /**
+   * The plugins' own cards — the Pixelhue panel's, for one — after the app's
+   * feature cards and before the installation's. A card that throws is replaced
+   * by a line saying so rather than taking the page down: this is where an
+   * operator comes to switch a broken plugin off.
+   */
+  function pluginCards() {
+    return sections().map((section) => {
+      try { return section.render(); }
+      catch (err) { return card(section.id, note('warn', `This card could not be drawn: ${err.message}`)); }
+    });
+  }
+
+  /* The panel as last drawn, so `busy` can tell whether the caret is in it. */
+  let drawn = null;
+
   function render() {
     loadStatus();
     const body = h('div', { class: 'aw-flex-col aw-gap-row-large' },
@@ -725,13 +616,30 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
       consoleSection(),
       shown('osc-input') ? oscSection() : null,
       shown('edit') ? memorySection() : null,
-      shown('pixelhue') ? pixelhueSection() : null,
       shown('timecode') ? timecodeSection() : null,
+      pluginCards(),
       proxySection(),
       pluginSection(),
       plannedSection());
-    return panel({ toolbar: toolbar(), body });
+    drawn = panel({ toolbar: toolbar(), body });
+    return drawn;
   }
 
-  return { render };
+  /**
+   * True while a text field on this page has the caret.
+   *
+   * The app repaints on every frame the switcher sends — about once a second —
+   * and this page is rebuilt whole each time, so a field being typed in was
+   * replaced under the caret about once a second: an OSC port, a directory, a
+   * console's address, each typed a character or two at a time (found
+   * 2026-09-22). The fields here commit on blur, so holding repaints for as
+   * long as one has the caret loses nothing.
+   */
+  function busy() {
+    const el = typeof document !== 'undefined' ? document.activeElement : null;
+    if (!el || !drawn || !drawn.contains(el)) return false;
+    return el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit)$/i.test(el.type || ''));
+  }
+
+  return { render, busy };
 }

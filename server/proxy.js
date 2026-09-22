@@ -35,7 +35,7 @@ import { readFile } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
 
 import {
-  normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged, pixelhueChanged,
+  normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged,
   liftLegacy, mergeSettings,
 } from '../src/core/settings.js';
 import { API_VERSION, isEnabled as pluginOn, routeOwner } from '../src/core/plugins.js';
@@ -45,7 +45,6 @@ import { importMemories, exportMemories } from './memory-import.js';
 import { createOscServer } from './osc.js';
 import { loopbackRedirect } from './local-client.js';
 import { MatrixSupervisor } from './matrix/index.js';
-import { PixelhueSupervisor } from './pixelhue/index.js';
 import {
   buildConfig, applyConfig, summarise as summariseConfig,
   validate as validateConfig, DEFAULT_IMPORT,
@@ -354,30 +353,6 @@ export async function createProxy({
 
   await applyOsc();
 
-  /*
-   * A Pixelhue console, driven as a peer rather than as a keyboard.  ** PREVIEW **
-   *
-   * `server/pixelhue/index.js` argues at the top why it may hold a socket to
-   * the console while holding nothing open on the switcher. It is installation
-   * state like the OSC listener and the matrices — a panel on the desk does
-   * not move when the app is re-pointed at a backup frame — so it is applied
-   * from settings and survives a device change.
-   */
-  const pixelhue = new PixelhueSupervisor({
-    deviceHost: () => (state.device ? String(state.device).split(':')[0] : null),
-    log,
-  });
-  const pixelhueListeners = new Set();
-  pixelhue.on('activity', () => {
-    const line = `event: pixelhue\ndata: ${JSON.stringify(pixelhue.describe())}\n\n`;
-    for (const listener of pixelhueListeners) {
-      try { listener.write(line); } catch { pixelhueListeners.delete(listener); }
-    }
-  });
-  const applyPixelhue = () =>
-    pixelhue.apply(on('pixelhue') ? settings : { ...settings, pixelhueEnabled: false });
-  await applyPixelhue();
-
   /* The hosted plugins, started after the app's own services so that anything
      a plugin asks of the app is already there to answer. */
   await host.sync(settings);
@@ -476,9 +451,7 @@ export async function createProxy({
      */
     if (rest === '/settings') {
       if (req.method === 'GET') {
-        return sendJson(res, 200, {
-          settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
-        });
+        return sendJson(res, 200, { settings, osc: osc ? osc.state : null });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
         const body = await collect(req, 16 * 1024);
@@ -494,23 +467,19 @@ export async function createProxy({
            plugin's on the way in. See `core/settings.js`. */
         const patch = liftLegacy(parsed.settings ?? parsed, host.schemas);
         const next = normaliseSettings(mergeSettings(settings, patch), host.schemas);
-        const needsRebind = oscChanged(settings, next);
         /* Diffed for the same reason the matrices are: settings are saved as
-           a whole, so a change to the console language must not hang up a
-           Pixelhue panel that nobody touched. The hosted plugins are diffed by
-           the host, each by its own schema. */
-        const needsPanel = pixelhueChanged(settings, next);
+           a whole, so a change to the console language must not rebind an OSC
+           socket nobody touched. The hosted plugins are diffed by the host,
+           each by its own schema. */
+        const needsRebind = oscChanged(settings, next);
         const needsPlugins = JSON.stringify(switches(settings.plugins)) !== JSON.stringify(switches(next.plugins));
         settings = next;
         if (storage && storage.saveSettings) await storage.saveSettings(settings);
         if (needsRebind || needsPlugins) await applyOsc();
-        if (needsPanel || needsPlugins) await applyPixelhue();
         if (needsPlugins) applyMatrices();
         await host.sync(settings);
 
-        return sendJson(res, 200, {
-          ok: true, settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
-        });
+        return sendJson(res, 200, { ok: true, settings, osc: osc ? osc.state : null });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
     }
@@ -657,7 +626,8 @@ export async function createProxy({
            then also stopped the OSC listener, the routers, the Pixelhue panel
            and the Companion link — so pointing the app at a backup frame
            silently switched all four off until the next restart, the exact
-           opposite of what each of them promises about a failover. */
+           opposite of what each of them promises about a failover. The last
+           two are plugins now, and the host keeps them running. */
         hangUpVendorRelays();
         target = next;
         state.device = `${next.host}:${next.port}`;
@@ -1203,15 +1173,10 @@ export async function createProxy({
     for (const listener of matrixListeners) { try { listener.end(); } catch { /* gone */ } }
     matrixListeners.clear();
 
-    /* And the console, which holds an upgraded socket of its own plus a
-       reconnect timer. Same failure if it is left: a Stop button that does
-       nothing while something goes on dialling a panel. */
-    void pixelhue.stop();
-    for (const listener of pixelhueListeners) { try { listener.end(); } catch { /* gone */ } }
-    pixelhueListeners.clear();
     /* And every plugin: the host stops each one, which ends its streams,
        hangs up the sockets it relayed and runs its own disposers — the
-       Companion link's socket and redial timer among them. */
+       Companion link's socket and redial timer, and the Pixelhue console's,
+       among them. */
     void host.stop();
   };
 

@@ -31,13 +31,13 @@
  * depending on something that can move.
  */
 
-import { h, button, readout, sectionTitle, fill, icon } from './dom.js';
+import { h, button, readout, sectionTitle, fill, icon, card, note, picker } from './dom.js';
 import { panel } from './shell.js';
 
 const TAG = '[LivePremier Plus]';
 
 /** The DOM helpers a plugin draws with. Frozen: a plugin cannot swap one out from under another. */
-export const KIT = Object.freeze({ h, button, readout, sectionTitle, fill, icon, panel });
+export const KIT = Object.freeze({ h, button, readout, sectionTitle, fill, icon, panel, card, note, picker });
 
 /**
  * Load the page halves of the plugins that are on.
@@ -51,7 +51,7 @@ export const KIT = Object.freeze({ h, button, readout, sectionTitle, fill, icon,
  * @param {typeof fetch} [o.fetch]
  * @param {(url: string) => Promise<object>} [o.load]  how a module is imported; tests stub it
  * @param {Console} [o.log]
- * @returns {Promise<{sidebar: object[], tabs: object[], busy: () => boolean, loaded: string[], failed: object[]}>}
+ * @returns {Promise<{sidebar: object[], tabs: object[], settings: object[], busy: () => boolean, loaded: string[], failed: object[]}>}
  */
 export async function loadPlugins({
   session, platform, can, refresh, settings,
@@ -61,6 +61,7 @@ export async function loadPlugins({
 }) {
   const sidebar = [];
   const tabs = [];
+  const sections = [];
   const busy = [];
   const loaded = [];
   const failed = [];
@@ -96,7 +97,7 @@ export async function loadPlugins({
 
     /* Registered into scratch lists first and kept only if activation
        finishes: a plugin that throws halfway must not leave half an entry. */
-    const mine = { sidebar: [], tabs: [], busy: [] };
+    const mine = { sidebar: [], tabs: [], sections: [], busy: [] };
     const needs = (p.requires && p.requires.capabilities) || [];
     /* An entry is offered only where the switcher can do what the plugin
        said it needs — the same rule every built-in entry follows — and then
@@ -158,6 +159,16 @@ export async function loadPlugins({
         tab(entry) {
           mine.tabs.push(gate({ id: p.id, ...entry }));
           if (entry.busy) mine.busy.push(entry.busy);
+        },
+        /**
+         * A card on this app's settings page: `{ id, render, order? }`, where
+         * `render()` returns one element — `kit.card(title, …)` makes it look
+         * like the page's own. Drawn only where the manifest's capabilities
+         * are met, in `order` among the other plugins' cards.
+         */
+        settingsSection(entry) {
+          const gated = gate({ id: p.id, ...entry });
+          mine.sections.push({ ...gated, render: () => (gated.enabled() ? entry.render() : null) });
         }
       })
     });
@@ -171,6 +182,7 @@ export async function loadPlugins({
     }
     sidebar.push(...mine.sidebar);
     tabs.push(...mine.tabs);
+    sections.push(...mine.sections);
     busy.push(...mine.busy);
     loaded.push(p.id);
   }
@@ -178,6 +190,7 @@ export async function loadPlugins({
   return {
     sidebar,
     tabs,
+    settings: byOrder(sections),
     /* A plugin's `busy` that throws is not busy: a broken predicate must not
        freeze every repaint in the app. */
     busy: () => busy.some((fn) => { try { return Boolean(fn()); } catch { return false; } }),

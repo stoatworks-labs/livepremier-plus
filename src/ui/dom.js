@@ -103,6 +103,46 @@ export function sectionTitle(text, ...right) {
     right.length ? h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' }, right) : null);
 }
 
+/**
+ * A settings card: a heading over whatever it holds. The settings page is made
+ * of these, and a plugin's own section is one — so it reads as part of the page.
+ */
+export function card(title, ...body) {
+  return h('div', { class: 'wru-vpu-device aw-flex-col aw-gap-row-medium' },
+    sectionTitle(title), ...body);
+}
+
+/** A line of small print: `'warn'` for something to act on, anything else for context. */
+export function note(tone, text) {
+  return h('div', {
+    class: ['aw-font-caption', tone === 'warn' ? 'wru-warn' : 'aw-text-tertiary'], text
+  });
+}
+
+/**
+ * A labelled picker over a closed list of choices, `{ id, label, what }`.
+ *
+ * Each option carries a sentence, and the sentence for whichever is selected
+ * is printed under the control. That is deliberate rather than decorative:
+ * every choice on the settings page trades something — a language for
+ * detection, an AWJ client slot for a reply, a loopback bind for the network
+ * being able to fire takes — and a `title` attribute is not where a trade-off
+ * gets read.
+ */
+export function picker(label, choices, current, onPick, { disabled = false } = {}) {
+  const chosen = choices.find((c) => c.id === current) || choices[0];
+  return h('div', { class: 'aw-flex-col aw-gap-row-mini', style: { flex: '1 1 22rem' } },
+    h('div', { class: 'aw-font-overline aw-text-tertiary', text: label }),
+    h('select', {
+      class: 'wru-input', style: { maxWidth: '24rem' },
+      disabled: disabled ? 'disabled' : null,
+      onChange: (ev) => onPick(ev.target.value)
+    }, choices.map((c) => h('option', {
+      value: c.id, selected: c.id === current ? 'selected' : null, text: c.label
+    }))),
+    h('div', { class: 'aw-font-caption aw-text-tertiary', text: chosen.what }));
+}
+
 export const fmtClock = (ms) => {
   const t = Math.max(0, Math.round(ms / 100) / 10);
   const m = Math.floor(t / 60);

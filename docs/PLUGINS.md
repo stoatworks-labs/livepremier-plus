@@ -11,7 +11,7 @@ plugins arrive.
 |---|---|---|
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
-| 2 | The self-contained features moved: VPU Map and Pitch Compensation (**done**), Pixelhue, Edit page | in progress |
+| 2 | The self-contained features moved: VPU Map, Pitch Compensation and the Pixelhue panel (**done**), the Edit page | in progress |
 | 3 | Contribution points, then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing — and MIDI, Memories, Layer and layer names, which turned out to share more than they looked (MIDI's port feeds the timecode source; Memories and Layer ride the pop-out machinery; layer names are read by five surfaces) | planned |
 | 4 | **User plugins** loaded from the data directory; this guide finished; an example plugin | planned |
 
@@ -39,7 +39,7 @@ of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map and Pitch Compensation.
+A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation and the Pixelhue panel.
 
 ```
 plugins/companion/
@@ -106,8 +106,9 @@ page half of every plugin that is on, and calls `activate(ctx)`.
 |---|---|
 | `ui.sidebar(entry)` | A sidebar entry: `{ id, label, icon, render, order?, after?, submenuOf?, enabled?, busy? }` — the same shape as the app's own ([`ui/shell.js`](../src/ui/shell.js)). |
 | `ui.tab(entry)` | A tab on the Screens / Aux. strip: `{ id, label, short, icon, render, order?, enabled?, busy? }`. |
+| `ui.settingsSection(entry)` | A card on this app's settings page: `{ id, render, order? }`, `render()` returning one element — `kit.card(title, …)` makes it match the page's own. Drawn after the app's feature cards; a card that throws is replaced by a line saying so. The Pixelhue panel's is the example. |
 | `settings.get()` / `settings.set(patch)` | This plugin's settings; `set` resolves with them as stored, which may differ if the schema corrected a field. |
-| `kit` | The app's DOM helpers — `h`, `button`, `readout`, `sectionTitle`, `fill`, `icon`, `panel` — so a plugin looks like the rest of the app without importing files by path. What is in the kit is the stable surface; `/__lpp/src/…` is not. |
+| `kit` | The app's DOM helpers — `h`, `button`, `readout`, `sectionTitle`, `fill`, `icon`, `panel`, and the settings page's `card`, `note` and `picker` — so a plugin looks like the rest of the app without importing files by path. What is in the kit is the stable surface; `/__lpp/src/…` is not. |
 | `session`, `platform()`, `can(capability)`, `refresh()` | The live store mirror and what this switcher supports. An entry is only offered where every capability in the manifest's `requires` is there. |
 | `url(path)`, `log`, `id`, `manifest` | |
 

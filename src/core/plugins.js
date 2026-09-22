@@ -17,7 +17,7 @@
  *   half, and loaded through the plugin hosts (`server/plugin-host.js`,
  *   `src/ui/plugin-host.js`) exactly as a plugin written by somebody else
  *   will be. Its manifest names those halves. Companion was the first;
- *   VPU Map and Pitch Compensation followed.
+ *   VPU Map, Pitch Compensation and the Pixelhue panel followed.
  *
  * ## Present, and active
  *
@@ -165,7 +165,9 @@ export const BUILTINS = [
     id: 'pixelhue',
     name: 'Pixelhue panel',
     where: 'Settings (preview)',
-    description: 'A Pixelhue U5, U5 Pro or U5 mini driving the switcher. Never yet run against a console.'
+    description: 'A Pixelhue U5, U5 Pro or U5 mini driving the switcher. Never yet run against a console.',
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'setup-file',

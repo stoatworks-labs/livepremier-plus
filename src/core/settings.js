@@ -85,14 +85,6 @@ export const OSC_BIND_CHOICES = [
   },
 ];
 
-/**
- * The consoles the panel subsystem understands. Imported rather than restated:
- * `core/pixelhue.js` is where the ports live, and a settings page offering a
- * model the supervisor cannot open would be a lie told by duplication.
- */
-import { CONSOLE_MODELS } from './pixelhue.js';
-export { CONSOLE_MODELS };
-
 export const DEFAULT_SETTINGS = {
   /* Detection, because a console pinned to one language is one an operator has
      to configure before it is useful. */
@@ -105,14 +97,6 @@ export const DEFAULT_SETTINGS = {
   oscEnabled: false,
   oscPort: 8000,
   oscBind: '127.0.0.1',
-  /* Off, and for the same reason as the OSC listener plus one more: this is a
-     preview, it has never been run against a console, and it writes to a
-     switcher. Nobody should find it on by surprise. */
-  pixelhueEnabled: false,
-  pixelhueHost: '',
-  /* The mini first, because it is the one that can be driven over the LAN
-     without installing anything on the console. */
-  pixelhueModel: 'u5mini',
   /*
    * Where the Edit page's memory file is written for the device to read.
    *
@@ -127,21 +111,6 @@ export const DEFAULT_SETTINGS = {
      `{ id: { enabled, settings } }`. Empty means every built-in at its
      default, which is on — see `core/plugins.js`. */
   plugins: {},
-};
-
-/**
- * A hostname or address, or nothing.
- *
- * Free text, unlike every other setting here, because a switcher's address is
- * free text on the setup page too and there is no closed list of consoles on a
- * show network. Sanitised rather than validated: anything with whitespace or a
- * scheme in it is a paste of something else, and a field that silently empties
- * says so on the page it was typed on.
- */
-const hostOrNothing = (raw) => {
-  const value = String(raw ?? '').trim();
-  if (!value || value.length > 255) return '';
-  return /^[A-Za-z0-9._-]+$/.test(value) ? value : '';
 };
 
 const ids = (list) => list.map((c) => c.id);
@@ -246,9 +215,6 @@ export function normalise(raw, schemas = {}) {
        surprising thing for this app to ask for. */
     oscPort: Number.isInteger(port) && port > 1024 && port < 65536 ? port : DEFAULT_SETTINGS.oscPort,
     oscBind: pick(input.oscBind, OSC_BIND_CHOICES, DEFAULT_SETTINGS.oscBind),
-    pixelhueEnabled: input.pixelhueEnabled === true,
-    pixelhueHost: hostOrNothing(input.pixelhueHost),
-    pixelhueModel: pick(input.pixelhueModel, CONSOLE_MODELS, DEFAULT_SETTINGS.pixelhueModel),
     memoryImportDir: pathOrNothing(input.memoryImportDir),
     plugins,
   };
@@ -285,12 +251,6 @@ function pathOrNothing(raw) {
   if (!value || value.length > 1024) return '';
   return value.startsWith('/') ? value : '';
 }
-
-/** True when a change needs the console link rebuilt rather than just noted. */
-export const pixelhueChanged = (a, b) =>
-  a.pixelhueEnabled !== b.pixelhueEnabled
-  || a.pixelhueHost !== b.pixelhueHost
-  || a.pixelhueModel !== b.pixelhueModel;
 
 /** True when a change needs the UDP socket rebound rather than just noted. */
 export const oscChanged = (a, b) =>

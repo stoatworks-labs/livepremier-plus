@@ -67,10 +67,12 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
 
 - **Hosted** — moved into `plugins/<id>/` with a server half and/or a page half,
   loaded by `server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a
-  plugin written elsewhere will be. **Companion**, **VPU Map** and **Pitch
-  Compensation** so far; a built-in may import `src/` directly, and the two
-  page-only ones keep their shared engines (`core/vpu.js`, the vendored
-  models) where the rest of the app can still reach them.
+  plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
+  Compensation** and the **Pixelhue panel** so far; a built-in may import
+  `src/` directly, and the page-only ones keep their shared engines
+  (`core/vpu.js`, the vendored models) where the rest of the app can still
+  reach them. A plugin's card on the settings page is `ctx.ui.settingsSection`
+  — Pixelhue's is the example.
 - **In place** — still wired into `src/main.js` and `server/proxy.js` by hand and
   gated there with `isEnabled`. Everything else, until its phase.
 
@@ -281,7 +283,7 @@ input 1 and the first input card depending on the field. `core/connectors.js`
 absorbs it; nothing above it should learn it. `slot` repeats within a card, so
 (card, slot) is never an identity — `physical` is.
 
-### A Pixelhue console (`src/core/pixelhue.js`, `server/pixelhue/`) — **preview**
+### A Pixelhue console (`plugins/pixelhue/`) — **preview**
 
 A U-series event controller driving the switcher. The whole subsystem turns on
 one observation, and everything else follows from it: **a console is not a
@@ -312,9 +314,9 @@ Four things are load-bearing:
   silently drops the first object of every bus — no error, no complaint, a
   panel one short. `test/pixelhue.test.js` pins it.
 - **It holds a socket to the console and nothing open on the switcher.**
-  `server/pixelhue/ucenter.js` argues the first half (a console is not in the
+  `plugins/pixelhue/ucenter.js` argues the first half (a console is not in the
   store; there is no mirror to contradict and no tab to depend on);
-  `server/pixelhue/index.js` argues the second (a burst of `exchange()` gets,
+  `plugins/pixelhue/supervisor.js` argues the second (a burst of `exchange()` gets,
   closed, because `awj.js`'s rule does not need beating for this). The price is
   no live tally, and it is written down rather than hidden.
 - ⚠️ **A recall lands in preview, always**, whatever the panel's PGM EDIT is

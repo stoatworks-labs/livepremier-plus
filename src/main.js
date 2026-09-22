@@ -255,8 +255,9 @@ async function boot() {
   let editProps = null;
   /* The plugins' page halves, loaded below — see `ui/plugin-host.js`. */
   let hosted = null;
+  let settingsPage = null;
   const editing = () =>
-    [memories, properties, groups, edit, editProps].some((p) => p && p.busy && p.busy())
+    [memories, properties, groups, edit, editProps, settingsPage].some((p) => p && p.busy && p.busy())
     || Boolean(hosted && hosted.busy());
   const refresh = throttleFrame(() => {
     if (editing()) return;
@@ -300,7 +301,13 @@ async function boot() {
   const timeline = createTimelinePanel({ session, stack, storage, timecode, chase, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
   const midi = createMidiPanel({ session, onRefresh: refresh });
-  const settings = createSettingsPanel({ session, platform, timecode, onRefresh: refresh });
+  /* The plugins' own settings cards are read at every render: the plugins
+     load further down, after this is built. */
+  const settings = createSettingsPanel({
+    session, platform, timecode, onRefresh: refresh,
+    sections: () => (hosted ? hosted.settings : [])
+  });
+  settingsPage = settings;
   /*
    * The two panels the vendor already has tabs for, rebuilt so they can leave
    * the window. Web RCS's own Memories and Properties panes are React, and a

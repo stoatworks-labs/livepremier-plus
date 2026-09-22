@@ -22,12 +22,14 @@ import { readFileSync } from 'node:fs';
 import {
   businessModel, readIntent, writesFor, Selection, commandName,
   COMMAND, CONSOLE_MODELS,
-} from '../src/core/pixelhue.js';
+} from '../plugins/pixelhue/core.js';
 import { NLC } from '../src/core/dialect.js';
 import { commandsFor } from '../src/core/commands.js';
 import { toAwj } from '../src/core/paths.js';
-import { WsClient } from '../server/pixelhue/ws-client.js';
-import { normalise } from '../src/core/settings.js';
+import { WsClient } from '../plugins/pixelhue/ws-client.js';
+import { normalisePixelhue as normalise, pixelhueChanged } from '../plugins/pixelhue/core.js';
+import { normalise as normaliseSettings } from '../src/core/settings.js';
+import { settings as schema } from '../plugins/pixelhue/server.js';
 
 const reports = JSON.parse(readFileSync(new URL('./fixtures/pixelhue-u5pro-reports.json', import.meta.url)));
 const byCommand = (code) => reports.commands.find((c) => c.command === code);
@@ -239,6 +241,17 @@ test('the panel is off by default and its host is sanitised', () => {
   assert.equal(normalise({ pixelhueHost: '  10.0.0.9 ' }).pixelhueHost, '10.0.0.9');
   assert.equal(normalise({ pixelhueHost: 'http://10.0.0.9' }).pixelhueHost, '');
   assert.equal(normalise({ pixelhueModel: 'u3' }).pixelhueModel, 'u5mini');
+});
+
+test('the panel’s settings live in its own plugin entry, lifted from where they were', () => {
+  /* The shape every settings file had up to 0.12. */
+  const s = normaliseSettings({ pixelhueEnabled: true, pixelhueHost: '10.0.0.9' }, { pixelhue: schema });
+  assert.deepEqual(s.plugins.pixelhue.settings, { pixelhueEnabled: true, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5mini' });
+  assert.equal('pixelhueHost' in s, false);
+  /* Renaming nothing does not redial a console somebody is holding. */
+  const same = normalise({ pixelhueEnabled: true, pixelhueHost: '10.0.0.9' });
+  assert.equal(pixelhueChanged(same, { ...same }), false);
+  assert.equal(pixelhueChanged(same, { ...same, pixelhueModel: 'u5' }), true);
 });
 
 test('the mini is the only model reachable over the LAN', () => {
