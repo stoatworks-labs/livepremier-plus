@@ -46,7 +46,7 @@ const OPEN_BY_DEFAULT = new Set(['source', 'position', 'opacity']);
  */
 export function createPropertiesPanel({
   session, onRefresh = () => {}, popoutEnabled = true, doc = document,
-  names = () => ({}), onRename = null
+  names = () => ({}), onRename = null, buffers = null, roles = true
 } = {}) {
   /*
    * Rebuilt per render rather than once: the catalogue is the platform's, and
@@ -247,14 +247,21 @@ export function createPropertiesPanel({
    */
   function bufferChips(target) {
     const letter = target ? target.bank : null;
-    const literals = dialectOrDefault(store()).bufferKeys;
-    if (view.mode !== 'PREVIEW' && view.mode !== 'PROGRAM' && !literals.includes(view.mode)) view.mode = 'PREVIEW';
+    /*
+     * `buffers` is normally the three letters the device has. The Edit page
+     * passes its own, and turns the roles off with it: a programmer buffer is
+     * not on air and cannot be, so offering PGM there would be offering to do
+     * the one thing that page exists to avoid.
+     */
+    const literals = buffers || dialectOrDefault(store()).bufferKeys;
+    const allowed = roles ? ['PREVIEW', 'PROGRAM', ...literals] : literals;
+    if (!allowed.includes(view.mode)) view.mode = allowed[0];
     return h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
       h('span', { class: 'aw-font-overline aw-text-tertiary', text: 'Buffer' }),
-      chip('PRW', view.mode === 'PREVIEW', () => { view.mode = 'PREVIEW'; onRefresh(); }, 'lpp-chip--prw'),
-      chip('PGM', view.mode === 'PROGRAM', () => { view.mode = 'PROGRAM'; onRefresh(); }, 'lpp-chip--pgm'),
+      roles ? chip('PRW', view.mode === 'PREVIEW', () => { view.mode = 'PREVIEW'; onRefresh(); }, 'lpp-chip--prw') : null,
+      roles ? chip('PGM', view.mode === 'PROGRAM', () => { view.mode = 'PROGRAM'; onRefresh(); }, 'lpp-chip--pgm') : null,
       ...literals.map((l) => chip(l, view.mode === l, () => { view.mode = l; onRefresh(); })),
-      letter
+      letter && roles
         ? h('span', {
           class: ['wru-tag', target.live ? 'wru-warn' : 'wru-tag--good'],
           title: target.live ? 'This buffer is on air' : 'This buffer is not on air'

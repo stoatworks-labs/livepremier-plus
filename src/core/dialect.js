@@ -385,6 +385,58 @@ export const NLC = {
     const m = /^(LIVE|STILL)_(\d+)$/.exec(s);
     if (m) return (m[1] === 'LIVE' ? 'IN' : 'IMG') + m[2];
     return s === 'NONE' ? '' : s.replace(/_/g, ' ');
+  },
+
+  /**
+   * The sources a layer can be given, as the device has them right now.
+   *
+   * Two different gates, and using one for both is the trap:
+   *
+   * - An **input** is offered when `mapping/pp/isValid` is true, which is the
+   *   card being fitted. On the Cmax that is 32 of 256, and the other 224 read
+   *   `global: DISABLE` — the same answer, from the other end, so either would
+   *   do. `isValid` is used because it is the same gate `core/connectors.js`
+   *   uses for a plug and there is no reason for two.
+   * - A **still** is offered when its own `status/pp/isValid` is true, which is
+   *   an image being loaded into the slot. A still's `mapping` says nothing
+   *   about that — all 192 slots exist on an empty device — so the input's gate
+   *   would offer 192 blank pictures.
+   *
+   * ⚠️ Incomplete on purpose. The vendor's Sources panel has four tabs and
+   * this is the first two: background sets (`BS1`..`BS8`) and screens-as-source
+   * are layer sources too, and neither has a snapshot to draw. They are worth
+   * adding and they are not worth guessing at.
+   */
+  sources(store) {
+    const out = [];
+    const inputs = store.get([ROOT, 'inputList']);
+    for (const key of keysOf(inputs)) {
+      const node = (inputs.items || {})[key];
+      if (!pp(node && node.mapping).isValid) continue;
+      const n = /^IN_(\d+)$/.exec(key);
+      if (!n) continue;
+      const value = 'LIVE_' + n[1];
+      out.push({
+        value,
+        kind: 'input',
+        label: pp(node && node.control).label || NLC.sourceLabel(value),
+        snapshot: NLC.snapshotUrl(value)
+      });
+    }
+
+    const stills = store.get([ROOT, 'stillList']);
+    for (const key of keysOf(stills)) {
+      const node = (stills.items || {})[key];
+      if (!pp(node && node.status).isValid) continue;
+      const value = 'STILL_' + key;
+      out.push({
+        value,
+        kind: 'still',
+        label: pp(node && node.control).label || NLC.sourceLabel(value),
+        snapshot: NLC.snapshotUrl(value)
+      });
+    }
+    return out;
   }
 };
 
@@ -725,6 +777,30 @@ export const MNG = {
     const m = /^INPUT_(\d+)$/.exec(s);
     if (m) return 'IN' + m[1];
     return s === 'NONE' ? '' : s.replace(/_/g, ' ');
+  },
+
+  /**
+   * Inputs only, for the reason `sourceFromSnapshot` gives just above: a still
+   * is not a layer source on this platform, so offering one would build a
+   * value the device refuses.
+   */
+  sources(store) {
+    const out = [];
+    const inputs = store.get([ROOT, 'inputList']);
+    for (const key of keysOf(inputs)) {
+      const node = (inputs.items || {})[key];
+      if (!pp(node && node.mapping).isValid) continue;
+      const n = /^(?:IN_)?(\d+)$/.exec(key);
+      if (!n) continue;
+      const value = 'INPUT_' + n[1];
+      out.push({
+        value,
+        kind: 'input',
+        label: pp(node && node.control).label || MNG.sourceLabel(value),
+        snapshot: MNG.snapshotUrl(value)
+      });
+    }
+    return out;
   }
 };
 

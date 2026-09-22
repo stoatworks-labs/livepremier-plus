@@ -28,6 +28,10 @@ import { createSettingsPanel } from './ui/settings-panel.js';
 import { createMemoriesPanel } from './ui/memories-panel.js';
 import { createPropertiesPanel } from './ui/properties-panel.js';
 import { createGroupsPanel } from './ui/groups-panel.js';
+import { createEditPanel } from './ui/edit-panel.js';
+import { createProgrammer, EDIT } from './core/programmer.js';
+import { composeMemory, saveViaPreview, applyLook, lookFromMemory } from './core/save-look.js';
+import { fromMemory } from './core/preset-file.js';
 import { installLayerLabels } from './ui/layer-labels.js';
 import { normalise as normaliseNames, withName } from './core/layer-names.js';
 import { installSendTo } from './ui/send-to.js';
@@ -95,6 +99,62 @@ function makeStorage(url = '/__lpp/stack') {
         console.warn(TAG, 'could not save cue stack', err);
       }
     }
+  };
+}
+
+/**
+ * Save a programmed look into a real memory slot.
+ *
+ * Two routes, and the operator chooses on the page rather than here: the
+ * direct one writes the bank itself and touches no bus at all, and the fallback
+ * borrows preview and puts it back. `core/save-look.js` sets out both, and
+ * `server/memory-import.js` says why the direct one has a condition attached
+ * that this process cannot check for itself.
+ */
+async function saveLook(programmer, session, { id, slot, label, route }) {
+  if (route === 'preview') {
+    return saveViaPreview({ session, programmer, id, slot, label });
+  }
+
+  const memory = composeMemory({ programmer, id, slot, label });
+  if (!memory) return { ok: false, message: `${id}: nothing programmed to save` };
+
+  const res = await fetch('/__lpp/memory', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ memories: [memory] })
+  });
+  const body = await res.json().catch(() => ({}));
+
+  if (res.ok && body.ok) {
+    return { ok: true, message: `memory ${slot} written from ${id} — no buffer touched` };
+  }
+  /* The expected failure on a real switcher is that it cannot see this
+     machine's disk, and the operator's next move is the other route. Say so
+     rather than making them work it out. */
+  return {
+    ok: false,
+    message: `${body.error || 'the save failed'} — try the “Via preview” route`
+  };
+}
+
+/** Read a memory back out of the bank and into the programmer. */
+async function loadLook(programmer, { id, slot }) {
+  const res = await fetch(`/__lpp/memory?slots=${encodeURIComponent(slot)}`, { cache: 'no-store' });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.ok) return { ok: false, message: body.error || `could not read memory ${slot}` };
+
+  const first = (body.memories || [])[0];
+  if (!first) return { ok: false, message: `memory ${slot} is empty` };
+
+  const memory = fromMemory(first);
+  const sent = applyLook({ programmer, id, look: lookFromMemory(memory) });
+  if (!sent) return { ok: false, message: `memory ${slot} had nothing this screen could take` };
+
+  return {
+    ok: true,
+    message: `memory ${slot}${memory.label ? ` “${memory.label}”` : ''} loaded into ${id}`
+      + ` (${sent} properties)`
   };
 }
 
@@ -176,7 +236,10 @@ async function boot() {
   let memories = null;
   let properties = null;
   let groups = null;
-  const editing = () => [memories, properties, groups].some((p) => p && p.busy && p.busy());
+  let edit = null;
+  let editProps = null;
+  const editing = () =>
+    [memories, properties, groups, edit, editProps].some((p) => p && p.busy && p.busy());
   const refresh = throttleFrame(() => {
     if (editing()) return;
     shell.refresh();
@@ -242,6 +305,40 @@ async function boot() {
    * arrangement the page was opened with. See `core/groups.js`.
    */
   groups = createGroupsPanel({ session, storage: makeStorage('/__lpp/groups'), onRefresh: refresh, names: () => names() });
+
+  /*
+   * The Edit page: a preset buffer that is not on the device.
+   *
+   * The programmer is a session in its own right — same `{store, send}`
+   * contract, same buffer-keyed addressing — so the Layer panel drives it
+   * unchanged. It gets its OWN properties panel rather than sharing the one on
+   * the vendor's tab strip, because the two are pointed at different buffers
+   * and `view.mode` is one field: sharing would have the tab strip's Layer tab
+   * silently following the Edit page's selection into a buffer the device does
+   * not have. See `core/programmer.js`.
+   */
+  const programmer = createProgrammer({ session });
+  editProps = createPropertiesPanel({
+    session: programmer,
+    onRefresh: refresh,
+    popoutEnabled: false,
+    names: () => names(),
+    onRename: (...a) => rename(...a),
+    /* The programmer's buffer is the only one this panel offers, and the
+       roles are off with it: EDIT is on neither bus and never can be. */
+    buffers: [EDIT],
+    roles: false
+  });
+  edit = createEditPanel({
+    session,
+    programmer,
+    properties: editProps,
+    onRefresh: refresh,
+    names: () => names(),
+    onSave: (req) => saveLook(programmer, session, req),
+    onLoad: (req) => loadLook(programmer, req)
+  });
+  programmer.addEventListener('changed', refresh);
 
   /*
    * Layer names.
@@ -319,6 +416,16 @@ async function boot() {
     entries: [
       /* Midra 4K and Alta 4K have no VPU to map — their processing is fixed
          rather than allocated — so on those the entry is simply not there. */
+      /*
+       * The Edit page is first, and it is a page rather than a tab.
+       *
+       * It is the Screens / Aux. layout with one row instead of two, so it is
+       * the same shape as a whole vendor page and not a panel beside one — and
+       * it has its own sources column, which no tab strip 360px wide could
+       * hold. It leads the section because it is the only entry here an
+       * operator will open before the show rather than during it.
+       */
+      { id: 'edit', label: 'Edit', icon: ['properties-18', 'layer-stacked-18'], enabled: () => can('layerProperties'), render: () => edit.render() },
       { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', enabled: () => can('vpuMap'), render: () => vpu.render() },
       /* The three memory banks, which are a whole-device view like the VPU map
          and unlike everything on the Screens / Aux. strip: master memories
@@ -398,6 +505,15 @@ async function boot() {
 
   tabs.start();
   watchVendorTabs(tabs);
+
+  /*
+   * The Edit page's snapshot clock runs from boot rather than from the page
+   * being opened: the shell has no per-entry show/hide hook, and the clock
+   * already costs nothing when nothing is on screen — it skips a hidden
+   * document outright and drops every `<img>` that is no longer connected, so
+   * a closed page leaves it iterating an empty set.
+   */
+  edit.start();
 
   await session.start();
 

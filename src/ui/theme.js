@@ -397,6 +397,92 @@ const CSS = `
   pointer-events: none; white-space: nowrap;
 }
 
+/* ---------------------------------------------------------------- Edit page
+
+   The Screens / Aux. layout with one row instead of two. Sources on the left,
+   destinations in the middle, the per-layer panel on the right — the vendor's
+   own order, so an operator who can use Web RCS can use this without being
+   told where anything is.
+
+   The stage is amber rather than red or green, which are spoken for: red is on
+   air and green is cued, and the whole point of this page is that it is
+   neither. */
+.lpp-edit { display: flex; gap: 0.75rem; height: 100%; min-height: 0; align-items: stretch; }
+.lpp-edit-main { flex: 1 1 auto; min-width: 0; overflow: auto; }
+.lpp-edit-sources {
+  flex: 0 0 13rem; min-width: 0; overflow: auto;
+  border-right: 0.1rem solid #283239; padding-right: 0.75rem;
+}
+.lpp-edit-rail {
+  flex: 0 0 22rem; min-width: 0; display: flex; flex-direction: column;
+  border-left: 0.1rem solid #283239; padding-left: 0.75rem;
+}
+.lpp-rail-title { display: block; margin-bottom: 0.416667rem; }
+.lpp-rail-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.5rem; }
+.lpp-rail-tab {
+  background: transparent; border: 0.1rem solid #323F48; border-radius: 0.333333rem;
+  color: #8A9BA8; padding: 0.1666667rem 0.5rem; cursor: pointer; font-size: 0.8333333rem;
+}
+.lpp-rail-tab--on { background: #2185D0; border-color: #2185D0; color: #fff; }
+.lpp-rail-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+
+.lpp-card--on { border-color: #E8A33D; }
+.lpp-card-name {
+  background: transparent; border: 0; padding: 0; cursor: pointer; color: inherit;
+}
+.lpp-card-tools { padding-top: 0.25rem; }
+
+.lpp-stage--edit { border-color: rgba(232,163,61,0.7); }
+.lpp-stage-tag--edit { color: #E8A33D; }
+.lpp-stage-inner--empty {
+  display: flex; align-items: center; justify-content: center;
+}
+
+.lpp-layer--pick { cursor: move; }
+.lpp-layer--on { outline: 2px solid #E8A33D; z-index: 2; }
+
+/* The eight resize handles. Drawn on the selected layer only, and large
+   enough to hit on a small card — a 6px handle on a 240px stage is a target
+   nobody can reliably land on. */
+.lpp-handle {
+  position: absolute; width: 0.666667rem; height: 0.666667rem; background: #E8A33D;
+  border: 0.1rem solid #08141B; box-sizing: border-box; z-index: 3;
+}
+.lpp-handle--nw { left: -0.333333rem; top: -0.333333rem; cursor: nwse-resize; }
+.lpp-handle--n { left: calc(50% - 0.333333rem); top: -0.333333rem; cursor: ns-resize; }
+.lpp-handle--ne { right: -0.333333rem; top: -0.333333rem; cursor: nesw-resize; }
+.lpp-handle--w { left: -0.333333rem; top: calc(50% - 0.333333rem); cursor: ew-resize; }
+.lpp-handle--e { right: -0.333333rem; top: calc(50% - 0.333333rem); cursor: ew-resize; }
+.lpp-handle--sw { left: -0.333333rem; bottom: -0.333333rem; cursor: nesw-resize; }
+.lpp-handle--s { left: calc(50% - 0.333333rem); bottom: -0.333333rem; cursor: ns-resize; }
+.lpp-handle--se { right: -0.333333rem; bottom: -0.333333rem; cursor: nwse-resize; }
+
+.lpp-layer-strip { display: flex; flex-direction: column; gap: 0.0833333rem; }
+.lpp-layer-row {
+  display: flex; justify-content: space-between; gap: 0.5rem; align-items: center;
+  background: transparent; border: 0; border-left: 0.1666667rem solid transparent;
+  padding: 0.0833333rem 0.333333rem; cursor: pointer; color: #8A9BA8; text-align: left;
+}
+.lpp-layer-row:hover { background: #12202A; }
+.lpp-layer-row--on { border-left-color: #E8A33D; background: #12202A; color: #fff; }
+
+.lpp-source-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.333333rem; }
+.lpp-source {
+  position: relative; aspect-ratio: 16 / 9; background: #000; cursor: pointer;
+  border: 0.1rem solid #323F48; border-radius: 0.166667rem; padding: 0; overflow: hidden;
+}
+.lpp-source--on { border-color: #E8A33D; }
+.lpp-source-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lpp-source-blank {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; color: #566873;
+}
+.lpp-source-tag {
+  position: absolute; left: 0; bottom: 0; right: 0; padding: 0 0.25rem;
+  font-size: 0.75rem; background: rgba(8,20,27,0.75); color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left;
+}
+
 .lpp-banner {
   background: rgba(246,71,71,0.15); border-bottom: 0.1rem solid #F64747;
   color: #fff; padding: 0.666667rem 1rem; flex: 0 0 auto;

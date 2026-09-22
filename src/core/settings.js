@@ -102,6 +102,16 @@ export const DEFAULT_SETTINGS = {
   /* The mini first, because it is the one that can be driven over the LAN
      without installing anything on the console. */
   pixelhueModel: 'u5mini',
+  /*
+   * Where the Edit page's memory file is written for the device to read.
+   *
+   * Empty means a temporary directory on this machine, which is right for a
+   * simulator — the device software is running here, so our disk is its disk.
+   * On a real switcher that path is the SWITCHER's filesystem, so this is the
+   * setting an installation points at a share both machines can see. See
+   * `server/memory-import.js`.
+   */
+  memoryImportDir: '',
 };
 
 /**
@@ -147,7 +157,23 @@ export function normalise(raw) {
     pixelhueEnabled: input.pixelhueEnabled === true,
     pixelhueHost: hostOrNothing(input.pixelhueHost),
     pixelhueModel: pick(input.pixelhueModel, CONSOLE_MODELS, DEFAULT_SETTINGS.pixelhueModel),
+    memoryImportDir: pathOrNothing(input.memoryImportDir),
   };
+}
+
+/**
+ * An absolute directory, or nothing.
+ *
+ * Absolute because the device resolves it, not this process, and a relative
+ * path would be relative to whatever the switcher's own working directory
+ * happens to be. Sanitised rather than checked for existence: on a real
+ * installation this names a directory on the *switcher*, which this machine
+ * has no way to stat.
+ */
+function pathOrNothing(raw) {
+  const value = String(raw ?? '').trim();
+  if (!value || value.length > 1024) return '';
+  return value.startsWith('/') ? value : '';
 }
 
 /** True when a change needs the console link rebuilt rather than just noted. */

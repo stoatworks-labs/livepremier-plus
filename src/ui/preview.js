@@ -27,7 +27,8 @@
  */
 
 import { h } from './dom.js';
-import { listDestinations, readLayers, sourceLabel } from '../core/screens.js';
+import { listDestinations } from '../core/screens.js';
+import { stage as drawStage } from './stage.js';
 
 /* Vendor input thumbnails move at about 1 Hz. Matching that is enough for a
    confidence view and is the rate the device is already producing. */
@@ -43,9 +44,12 @@ export const SIZES = [
 /**
  * A wall of destination previews.
  *
- * @param {{session: object, onRefresh?: Function, doc?: Document}} opts
+ * @param {{session: object, onRefresh?: Function, doc?: Document,
+ *          names?: Function}} opts
  */
-export function createPreviewWall({ session, onRefresh = () => {}, doc = document }) {
+export function createPreviewWall({
+  session, onRefresh = () => {}, doc = document, names = () => ({})
+}) {
   const state = {
     /* null means "everything in service", which is the vendor's ALL. Kept as
        null rather than as a filled-in set so a screen that comes into service
@@ -146,44 +150,9 @@ export function createPreviewWall({ session, onRefresh = () => {}, doc = documen
   }
 
   function stage(dest, bank, label, tone) {
-    const layers = readLayers(session.store, dest, bank);
-    const ratio = (dest.canvas.height / dest.canvas.width) * 100;
-
-    const frame = h('div', { class: ['lpp-stage', 'lpp-stage--' + tone] },
-      h('div', { class: 'lpp-stage-pad', style: { paddingTop: ratio + '%' } }),
-      h('div', { class: 'lpp-stage-inner' }, layers.map(layerBox)),
-      h('span', { class: ['lpp-stage-tag', 'lpp-stage-tag--' + tone], text: label }));
-
-    return frame;
-  }
-
-  function layerBox(layer) {
-    const pct = (n) => (n * 100).toFixed(4) + '%';
-    const box = h('div', {
-      class: ['lpp-layer', layer.isNative ? 'lpp-layer--native' : ''],
-      style: {
-        left: pct(layer.frac.left),
-        top: pct(layer.frac.top),
-        width: pct(layer.frac.width),
-        height: pct(layer.frac.height),
-        opacity: String(layer.opacity)
-      },
-      title: `${layer.label} · ${layer.source}`
+    return drawStage({
+      store: session.store, dest, bank, label, tone, tick: state.tick, images, names: names()
     });
-
-    if (layer.snapshot) {
-      const img = h('img', { class: 'lpp-layer-img', alt: '', decoding: 'async' });
-      /* The base URL is kept on the node so the shared clock can re-bust it
-         without re-deriving anything. */
-      img.dataset.lppSnapshot = layer.snapshot;
-      img.setAttribute('src', layer.snapshot + '?' + state.tick);
-      images.add(img);
-      box.append(img);
-    }
-
-    const name = sourceLabel(layer.source, session.store);
-    box.append(h('span', { class: 'lpp-layer-tag', text: name ? `${layer.label} ${name}` : layer.label }));
-    return box;
   }
 
   /* ------------------------------------------------------------ controls */

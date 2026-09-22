@@ -169,6 +169,24 @@ export function anchorToTopLeft(anchor, posH, posV, width, height) {
 }
 
 /**
+ * The same arithmetic backwards: a top-left corner as an anchored position.
+ *
+ * Dragging a layer's edge is a statement about its corner, and the device
+ * stores a statement about its anchor. Sizing a `BOTTOM_RIGHT`-anchored layer
+ * by writing `sizeH` alone moves its left edge instead of its right one — so
+ * every drag has to go back through the anchor, and this is that step.
+ *
+ * It lives beside `anchorToTopLeft` deliberately: two halves of one
+ * correspondence in two files is how one of them comes to be fixed alone.
+ */
+export function topLeftToAnchor(anchor, left, top, width, height) {
+  const [v, hz] = String(anchor || 'MIDDLE_CENTER').split('_');
+  const posH = hz === 'LEFT' ? left : hz === 'RIGHT' ? left + width : left + width / 2;
+  const posV = v === 'TOP' ? top : v === 'BOTTOM' ? top + height : top + height / 2;
+  return { posH, posV };
+}
+
+/**
  * Where to find a picture of a source, if there is one.
  *
  * Only live inputs and stills have a snapshot. Patterns, colours, black and
@@ -183,4 +201,20 @@ export function snapshotUrl(inputNum, store = null) {
 /** A short human name for a source, for the label drawn on a layer. */
 export function sourceLabel(inputNum, store = null) {
   return (dialectFor(store) || NLC).sourceLabel(inputNum);
+}
+
+/**
+ * The sources a layer can be given, as the device has them right now.
+ *
+ * `NONE` is first and is not read off the device — it is the absence of a
+ * source rather than one of them, and a picker without it gives an operator no
+ * way to empty a layer they have filled.
+ *
+ * @returns {Array<{value:string, kind:string, label:string, snapshot:string|null}>}
+ */
+export function listSources(store) {
+  const dialect = dialectFor(store);
+  const none = { value: 'NONE', kind: 'none', label: 'None', snapshot: null };
+  if (!dialect || !dialect.sources) return [none];
+  return [none, ...dialect.sources(store)];
 }

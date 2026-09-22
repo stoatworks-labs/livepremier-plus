@@ -225,9 +225,37 @@ export function createProgrammer({ session, buffer = EDIT } = {}) {
     const source = session.store.get([ROOT, dest.listName, 'items', dest.id, 'presetList', 'items', letter]);
     if (!source || typeof source !== 'object') return false;
 
-    setIn(store.own, target, structuredClone(source));
+    setIn(store.own, target, dropReported(structuredClone(source)));
     changed(id);
     return true;
+  }
+
+  /**
+   * Take the device's own echoes back out of a seeded buffer.
+   *
+   * A layer carries a couple of read-only properties the device writes to say
+   * what it is *actually* doing — `source/status/pp/inputNum` above all, which
+   * the Layer panel shows as "(showing IN5)" when it disagrees with what was
+   * asked for. In a real buffer that is useful: during a load the two differ
+   * for a moment. In the programmer it is a claim about a device that has
+   * never heard of this buffer, frozen at whatever it said when the seed was
+   * taken — so the panel would report a look as "showing" a source that is
+   * nowhere near it. Absent is the honest value, and the panel already draws
+   * nothing for it.
+   */
+  function dropReported(node) {
+    const dialect = dialectFor(session.store);
+    const listName = layerListName();
+    const items = (node[listName] && node[listName].items) || {};
+    const readOnly = (dialect ? dialect.catalogue.layer : []).filter((spec) => spec.readOnly);
+
+    for (const layer of Object.values(items)) {
+      for (const spec of readOnly) {
+        const parent = spec.path.slice(0, -1).reduce((n, seg) => (n == null ? undefined : n[seg]), layer);
+        if (parent && typeof parent === 'object') delete parent[spec.path[spec.path.length - 1]];
+      }
+    }
+    return node;
   }
 
   /**
