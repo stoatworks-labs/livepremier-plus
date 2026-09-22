@@ -52,7 +52,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.9.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.10.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -153,6 +153,18 @@ to install in the browser.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.10.0 (2026-09-22).** The **Edit page** — the Screens / Aux. layout with one
+> row instead of two, and that row is a *programmer*: a buffer that is on neither
+> preview nor program. The same sources, the same sixty-seven layer parameters and
+> the same memory bank, with a stage you can drag and resize a layer on, and
+> nothing reaching the switcher until you save a memory. Saving offers two routes
+> and says what each costs: **direct**, which writes the bank itself through a
+> facility Web RCS does not expose — no preset buffer, no take — and **via
+> preview**, which borrows the preview buffer, fires the switcher's own save and
+> puts preview back property-for-property. `docs/NOTES.md` has the device work
+> behind it, including why the third preset buffer C looks like the answer and is
+> not.
 >
 > **0.9.0 (2026-09-21).** Two things an operator keeps doing by hand.
 > **Layer Groups** name a set of layers across screens and drive them as one — a
