@@ -658,6 +658,56 @@ body > .lpp-banner { position: absolute; top: 0; left: 0; right: 0; z-index: 50;
   margin-left: 0.5rem; font-size: 0.916667rem; font-style: italic;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 12rem;
 }
+
+/*
+ * A router's ports, on the vendor's input and output pages (ui/router-box.js).
+ *
+ * The tiles copy the vendor's own selection tiles — the 1x1 / 2x1 picker in
+ * Preconfig — measured off the page: a black-30 % tile, white at 70 %, and
+ * the vendor blue (#2185D0) on a black-50 % tile for what is selected. The
+ * router's word ("live") is that filled look; our pending selection is only
+ * outlined, so the two can never be confused.
+ */
+/* The box is a Semantic "ui form" so its fields line up with the vendor's,
+   and Semantic paints every select and input inside one white. */
+.wru-router.ui.form select.wru-select,
+.wru-router.ui.form input.wru-input {
+  background: rgba(0,0,0,0.3); border: 0.1rem solid #49535B; border-radius: 0.25rem;
+  color: #fff; height: auto; width: auto; padding: 0.166667rem 0.333333rem; line-height: 1.4;
+}
+.wru-router.ui.form input.wru-input--narrow { width: 4.5rem; }
+.wru-router.ui.form input[type=radio], .wru-router.ui.form input[type=checkbox] { accent-color: #2185D0; }
+.wru-router .inline.field { display: flex; align-items: center; gap: 0.5rem; margin: 0; }
+.wru-router .inline.field > label { flex: 0 0 auto; color: rgba(255,255,255,0.7); }
+.wru-port-grid {
+  display: grid; gap: 0.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(3.75rem, 1fr));
+}
+.wru-port {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 0; height: 3rem; padding: 0.166667rem 0.25rem;
+  background: rgba(0,0,0,0.3); color: rgba(255,255,255,0.7);
+  border: 0.1rem solid transparent; border-radius: 0.333333rem;
+  font-family: inherit; cursor: pointer;
+}
+.wru-port:hover { background: rgba(255,255,255,0.08); color: #fff; }
+.wru-port-num { font-size: 1.166667rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.wru-port-label {
+  font-size: 0.75rem; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wru-port--live { background: rgba(0,0,0,0.5); color: #2185D0; border-color: #2185D0; cursor: default; }
+.wru-port--live:hover { background: rgba(0,0,0,0.5); color: #2185D0; }
+.wru-port--pending { color: #fff; border-color: #2185D0; border-style: dashed; }
+.wru-port-list { max-height: 16rem; overflow-y: auto; }
+.wru-port-list td:first-child { width: 1.5rem; }
+.wru-row--pending { background: rgba(33,133,208,0.06); }
+.wru-router-dot {
+  display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%;
+  background: #616D75; flex: 0 0 auto;
+}
+.wru-router-dot--connected { background: #00FF7F; }
+.wru-router-dot--connecting { background: #F39910; }
 `;
 
 /**

@@ -318,6 +318,65 @@ export function currentFor(patch, connectorId, routing) {
 }
 
 /**
+ * The router ports one socket can choose between, and where each one stands.
+ *
+ * Both of the per-socket surfaces (`ui/router-box.js`) draw this twice — as a
+ * grid of port tiles and as a list — and the two must never disagree, so the
+ * model is built once here and both are drawn from it.
+ *
+ * The choice is on the side opposite the cable, which is the inversion again:
+ *
+ * - An **input** is hung off a router output, so it chooses among router
+ *   *inputs*. Exactly one of them is `live` — the source that output takes.
+ * - An **output** arrives at a router input, so it chooses among router
+ *   *outputs*. Any number are `live` — every destination already taking it —
+ *   and each port also carries `source`, what it is showing now, because
+ *   sending there replaces that and an operator should see what they displace.
+ *
+ * `count` is what the router reported. Before it has said, there are no
+ * ports: a grid of guessed ports is a grid of buttons that may route nothing.
+ *
+ * @param {object} entry     a normalised patch entry
+ * @param {{inputs?:number, outputs?:number, inputLabels?:object, outputLabels?:object}|null} state
+ * @param {object} routing   the router's table, destination -> source, 1-based
+ * @returns {{side:'input'|'output', ports:Array<{port:number, label:string, live:boolean, source?:number|null}>}}
+ */
+export function choicesFor(entry, state, routing) {
+  const side = entry.side === 'input' ? 'input' : 'output';
+  const count = state ? (side === 'input' ? state.inputs : state.outputs) : 0;
+  const labels = (state && (side === 'input' ? state.inputLabels : state.outputLabels)) || {};
+  const table = routing || {};
+  const ports = [];
+  for (let port = 1; Number.isInteger(count) && port <= Math.min(count, MAX_PORT); port++) {
+    const label = labels[port] ? String(labels[port]) : '';
+    if (side === 'input') {
+      ports.push({ port, label, live: Number(table[entry.port]) === port });
+    } else {
+      const source = table[port] == null ? null : Number(table[port]);
+      ports.push({ port, label, live: source === entry.port, source });
+    }
+  }
+  return { side, ports };
+}
+
+/**
+ * The patch with one socket's cable replaced, added or removed.
+ *
+ * The per-socket surfaces edit one entry at a time, but the server stores the
+ * whole schedule, so this is the one place that turns "this socket is on hub
+ * output 3" into a new list. `null` for the matrix unpatches. Every other
+ * entry is kept exactly as it was, including a duplicate `validate` would
+ * flag — fixing somebody else's conflict is not this edit's business.
+ */
+export function withEntry(patch, connectorId, { matrix, port } = {}) {
+  const match = /^(input|output):(.+)$/.exec(String(connectorId ?? ''));
+  if (!match) return patch;
+  const rest = patch.filter((e) => entryConnectorId(e) !== connectorId);
+  if (!matrix) return rest;
+  return normalisePatch([...rest, { side: match[1], key: match[2], matrix, port }]);
+}
+
+/**
  * Group crosspoints by matrix, so a caller makes one call per router.
  *
  * Order within a matrix is preserved. A later crosspoint for the same output

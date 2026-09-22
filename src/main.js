@@ -34,6 +34,7 @@ import { createProgrammer, EDIT } from './core/programmer.js';
 import { composeMemory, saveViaPreview, applyLook, lookFromMemory } from './core/save-look.js';
 import { fromMemory } from './core/preset-file.js';
 import { installLayerLabels } from './ui/layer-labels.js';
+import { installRouterSurfaces } from './ui/router-box.js';
 import { normalise as normaliseNames, withName } from './core/layer-names.js';
 import { installSendTo } from './ui/send-to.js';
 import { createGang } from './core/groups.js';
@@ -485,6 +486,13 @@ async function boot() {
    * a firmware that moves a list shows up as a number rather than as silence.
    */
   const labels = installLayerLabels({ names, enabled: () => can('layerGroups') });
+  /*
+   * A Router tab on the vendor's own input and output pages, and a Router box
+   * in Preconfig ▸ Inputs / Outputs: one socket's slice of the matrix panel,
+   * where that socket is already being configured. `ui/router-box.js` says
+   * what it matches, and why a socket it cannot identify gets no box at all.
+   */
+  const routerBoxes = installRouterSurfaces({ session, enabled: () => can('matrixRouting') });
 
   session.addEventListener('frame', refresh);
   stack.addEventListener('changed', refresh);
@@ -576,7 +584,7 @@ async function boot() {
   });
 
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels };
+  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels, routerBoxes };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

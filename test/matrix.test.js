@@ -39,7 +39,9 @@ import {
 import {
   normaliseMatrices, normalisePatch, validate, feed, send, currentFor,
   groupCrosspoints, entryForConnector, ROUTER_SIDE, resolveMatrixOsc, toPortList,
+  choicesFor, withEntry,
 } from '../src/core/patch.js';
+import { connectorForPage } from '../src/ui/router-box.js';
 import { VideohubDriver } from '../server/matrix/videohub.js';
 import { LightwareDriver } from '../server/matrix/lightware.js';
 import { TurtleDriver, sizeFromModel } from '../server/matrix/turtle.js';
@@ -603,4 +605,67 @@ test('supervisor: routing into a matrix that is not there fails with a reason', 
   const results = supervisor.route([{ matrix: 'ghost', routes: [{ output: 1, input: 1 }] }]);
   assert.equal(results[0].ok, false);
   assert.match(results[0].error, /no such matrix/);
+});
+
+/* ------------------------------------------- per-socket surfaces (router-box) */
+
+test('a page names its socket from the URL, or from the Preconfig heading', () => {
+  assert.equal(connectorForPage('/inputs/IN_5/signal'), 'input:IN_5');
+  assert.equal(connectorForPage('/outputs/5/format'), 'output:5');
+  /* The two sides are keyed differently — see core/connectors.js. */
+  assert.equal(connectorForPage('/inputs/5/signal'), null);
+  assert.equal(connectorForPage('/outputs/OUT_5/format'), null);
+  assert.equal(connectorForPage('/preconfig/inputs', 'In13'), 'input:IN_13');
+  assert.equal(connectorForPage('/preconfig/resources/outputs', 'Out2'), 'output:2');
+  /* The card list's own heading, and a page with nothing selected, are not a socket. */
+  assert.equal(connectorForPage('/preconfig/inputs', 'Inputs'), null);
+  assert.equal(connectorForPage('/preconfig/inputs', ''), null);
+  /* A heading only counts on its own page: "Out2" on the inputs page is not an input. */
+  assert.equal(connectorForPage('/preconfig/inputs', 'Out2'), null);
+  assert.equal(connectorForPage('/screens'), null);
+});
+
+test('choices: an input chooses among router inputs, and exactly one is live', () => {
+  const [entry] = normalisePatch([{ side: 'input', key: 'IN_1', matrix: 'hub', port: 3 }]);
+  const state = { inputs: 4, outputs: 4, inputLabels: { 2: 'Cam 2' } };
+  const { side, ports } = choicesFor(entry, state, { 1: 1, 2: 2, 3: 2, 4: 4 });
+  assert.equal(side, 'input');
+  assert.deepEqual(ports.map((p) => p.port), [1, 2, 3, 4]);
+  assert.deepEqual(ports.filter((p) => p.live).map((p) => p.port), [2],
+    'router output 3 carries input 2, so input 2 is what this socket sees');
+  assert.equal(ports[1].label, 'Cam 2');
+});
+
+test('choices: an output chooses among router outputs, any number live, each with what it shows', () => {
+  const [entry] = normalisePatch([{ side: 'output', key: '1', matrix: 'hub', port: 5 }]);
+  const { side, ports } = choicesFor(entry, { inputs: 8, outputs: 3 }, { 1: 5, 2: 7, 3: 5 });
+  assert.equal(side, 'output');
+  assert.deepEqual(ports.filter((p) => p.live).map((p) => p.port), [1, 3]);
+  assert.equal(ports[1].source, 7, 'what a destination shows now, so a send says what it displaces');
+});
+
+test('choices: no ports until the router has said how big it is', () => {
+  const [entry] = normalisePatch([{ side: 'input', key: 'IN_1', matrix: 'hub', port: 1 }]);
+  assert.deepEqual(choicesFor(entry, null, {}).ports, []);
+});
+
+test('withEntry: replaces one socket\'s cable and leaves every other entry alone', () => {
+  const patch = normalisePatch([
+    { side: 'input', key: 'IN_1', matrix: 'hub', port: 1 },
+    { side: 'output', key: '1', matrix: 'hub', port: 5 },
+  ]);
+  const moved = withEntry(patch, 'input:IN_1', { matrix: 'hub', port: 4 });
+  assert.equal(entryForConnector(moved, 'input:IN_1').port, 4);
+  assert.equal(entryForConnector(moved, 'input:IN_1').routerSide, 'output');
+  assert.deepEqual(entryForConnector(moved, 'output:1'), patch[1]);
+
+  const added = withEntry(patch, 'output:2', { matrix: 'hub', port: 6 });
+  assert.equal(added.length, 3);
+  assert.equal(entryForConnector(added, 'output:2').routerSide, 'input');
+
+  const removed = withEntry(patch, 'input:IN_1', { matrix: null });
+  assert.equal(entryForConnector(removed, 'input:IN_1'), null);
+  assert.equal(removed.length, 1);
+
+  assert.equal(withEntry(patch, 'nonsense', { matrix: 'hub', port: 1 }), patch);
 });

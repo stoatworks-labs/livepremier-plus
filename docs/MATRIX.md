@@ -66,6 +66,38 @@ The **Now** column is what the *router* says, never what was asked for. A click
 does not move the grid until the router agrees — see "Nothing is optimistic"
 below. It stays live while somebody else is at the router's own front panel.
 
+### On the input and output pages themselves
+
+The same routing is also where you configure the socket, so you do not have to
+walk to the Matrix Routing page and back:
+
+| Page | What appears |
+|---|---|
+| **Inputs** ▸ an input, **Outputs** ▸ an output | a **Router** tab beside Signal / Aspect / Keying |
+| **Preconfig** ▸ **Inputs** / **Outputs** ▸ a card | a **Router** box under the vendor's own boxes |
+
+Each shows the cable (and lets you patch or change it right there), then the
+router's ports twice — as a **grid of tiles** and as a **list** with the
+router's own port names:
+
+- An **input** picks one router source. Click a tile, or a row's radio button,
+  and it routes straight away.
+- An **output** picks any number of router destinations. Clicking tiles or
+  ticking rows builds a selection (dashed outline); **Route** sends it. A tile
+  that is solid blue is one the router already reports as carrying this
+  output, and the list says what every other destination is showing now —
+  which is what a route there would replace.
+
+⚠️ **This is live, not part of Preconfig's Apply.** A router route taken from
+the Preconfig box goes to the router immediately, like one taken anywhere
+else; Apply only concerns the switcher.
+
+The tab and box are drawn with the vendor's own classes and a header cloned
+from the box beside it, so they follow Web RCS's look. On the input and output
+pages the vendor's tab strip already overflows at ordinary window sizes, so
+adding **Router** lets that strip wrap to a second row rather than hiding a tab
+past the edge.
+
 ### What the sockets are called
 
 The panel uses the device's own vocabulary and invents no numbering:
@@ -239,7 +271,8 @@ the top of each file for exactly that reason.
 | `server/matrix/{videohub,lightware,turtle}.js` | One protocol each. |
 | `server/matrix/index.js` | The supervisor: one connection per router, kept up. |
 | `src/ui/matrix-panel.js` | The panel. |
-| `test/matrix.test.js` | 46 tests. What they can and cannot prove is in their header. |
+| `src/ui/router-box.js` | The Router tab and box on the vendor's own input and output pages. |
+| `test/matrix.test.js` | 51 tests. What they can and cannot prove is in their header. |
 
 `core/` knows nothing about browsers or sockets and runs under plain Node,
 which is how the patch arithmetic is testable without a rack.

@@ -221,6 +221,16 @@ because that is an admission of uncertainty rather than belt and braces. The
 LW3 half is polled *as well as* subscribed for the same reason. `docs/MATRIX.md`
 has a procedure for proving each on real kit.
 
+**The Router tab and box (`ui/router-box.js`) write into vendor pages**, so
+they carry the same fragility as `ui/layer-labels.js`: Setup ▸ Inputs/Outputs
+detail pages get a tab on their **routed** strip (every anchor has an `href`,
+which is why `ui/tabs.js` never claims it), and Preconfig ▸ Inputs/Outputs get
+a box in the column headed `In5` / `Out5`. Which socket a page is about comes
+from the URL or that heading only — `connectorForPage` is the one place, and a
+page it cannot place gets nothing. The port model both the grid and the list
+draw from is `choicesFor` in `core/patch.js`, so the two cannot disagree.
+`routerBoxes.describe()` on `window.__WRU` reports what was found.
+
 ⚠️ **Inputs and outputs are keyed differently in the same store** — `IN_5` and
 `5`, with `physical` spelled `IN_9` and `5` — and `IN_1` names both logical
 input 1 and the first input card depending on the field. `core/connectors.js`
