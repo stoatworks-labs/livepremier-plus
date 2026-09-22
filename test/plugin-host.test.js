@@ -57,7 +57,8 @@ async function withHost({ tree, manifests, settings = { plugins: {} }, ...opts }
   const dir = await pluginsOnDisk(tree);
   const logs = [];
   const host = await createPluginHost({
-    root: dir, manifests, dirOf: (m) => join(dir, m.id), log: (m) => logs.push(m), ...opts
+    root: dir, manifests, dirOf: (m) => join(dir, m.id), log: (m) => logs.push(m),
+    device: () => '10.1.2.3:80', ...opts
   });
   await host.sync(normaliseSettings(settings, host.schemas));
   const { server, base } = await serve(host);
@@ -369,4 +370,126 @@ test('registering after being switched off is refused, not silently live', async
     assert.throws(() => ctx.route('GET', '/zombie', () => {}), /after it was switched off/);
     assert.equal((await fetch(base + '/__lpp/late/zombie')).status, 404);
   });
+});
+
+/* ---------------------------------------------------------------- user plugins */
+
+/** A user plugin folder's worth of files, with a manifest. */
+const userPlugin = (id, files, manifest = {}) => ({
+  'plugin.json': JSON.stringify({ id, name: id, version: '1.0.0', apiVersion: 1, server: 'server.js', ...manifest }),
+  ...files
+});
+
+async function withUserPlugins(tree, fn, settings = { plugins: {} }) {
+  const userDir = await pluginsOnDisk(tree);
+  try {
+    await withHost({ tree: {}, manifests: [], userDir, settings }, (h) => fn({ ...h, userDir }));
+  } finally {
+    await rm(userDir, { recursive: true, force: true });
+  }
+}
+
+test('a user plugin is listed but off, and none of its code runs until it is switched on', async () => {
+  globalThis.__imported = 0;
+  const tree = {
+    mine: userPlugin('mine', {
+      'server.js': `
+        globalThis.__imported++;
+        export default (ctx) => ctx.route('GET', '/hi', (req, res, h) => h.json(200, { hi: 'mine' }));`,
+      'client.js': 'export default () => {};'
+    }, { client: 'client.js', enabledByDefault: true })
+  };
+  await withUserPlugins(tree, async ({ host, base, schemas, userDir }) => {
+    const listed = host.list().find((p) => p.id === 'mine');
+    assert.equal(listed.source, 'user');
+    assert.equal(listed.builtIn, false);
+    assert.equal(listed.on, false, 'off, though its manifest asked to be on by default');
+    assert.equal(listed.dir, join(userDir, 'mine'));
+    assert.equal(globalThis.__imported, 0, 'not imported by being found');
+    assert.equal((await fetch(base + '/__lpp/mine/hi')).status, 404);
+    assert.equal((await fetch(base + '/__lpp/plugins/mine/client.js')).status, 404, 'nothing served while off');
+
+    await host.sync(normaliseSettings({ plugins: { mine: { enabled: true } } }, schemas));
+    assert.equal(globalThis.__imported, 1, 'imported the moment it was switched on');
+    assert.deepEqual(await (await fetch(base + '/__lpp/mine/hi')).json(), { hi: 'mine' });
+    assert.equal((await fetch(base + '/__lpp/plugins/mine/client.js')).status, 200);
+    assert.equal((await fetch(base + '/__lpp/plugins/mine/server.js')).status, 404);
+  });
+});
+
+test('a folder that is not a plugin is listed with the reason, and can never be switched on', async () => {
+  const tree = {
+    'no-manifest': { 'server.js': 'export default () => {};' },
+    garbled: { 'plugin.json': '{ not json' },
+    renamed: userPlugin('something-else', { 'server.js': 'export default () => {};' }),
+    settings: userPlugin('settings', { 'server.js': 'export default () => {};' }),
+    companion: userPlugin('companion', { 'server.js': 'export default () => {};' }),
+    escape: userPlugin('escape', {}, { server: '../../evil.js' }),
+    future: userPlugin('future', { 'server.js': 'globalThis.__future2 = true; export default () => {};' }, { apiVersion: 9 })
+  };
+  const everything = Object.fromEntries(Object.keys(tree).map((id) => [id, { enabled: true }]));
+  await withUserPlugins(tree, async ({ host, base }) => {
+    const reasons = Object.fromEntries(host.list().filter((p) => p.source === 'user').map((p) => [p.id, p.reason]));
+    assert.match(reasons['no-manifest'], /plugin\.json: there is none/);
+    assert.match(reasons.garbled, /would not parse/);
+    assert.match(reasons.renamed, /must match/);
+    assert.match(reasons.settings, /taken by this app/, 'an id that would sit on the settings route');
+    assert.match(reasons.companion, /taken by this app/, 'a built-in’s id');
+    assert.match(reasons.escape, /inside its own folder/);
+    assert.match(reasons.future, /needs plugin API 9/);
+    assert.equal(globalThis.__future2, undefined);
+    /* Switched on in the settings, and still nothing answers. */
+    assert.equal((await fetch(base + '/__lpp/escape/x')).status, 404);
+    assert.equal(host.running().length, 0);
+  }, { plugins: everything });
+});
+
+test('a user plugin’s settings are carried untouched while it is off, and normalised once it is on', async () => {
+  const tree = {
+    tidy: userPlugin('tidy', {
+      'server.js': `
+        export const settings = {
+          normalise: (raw) => ({ level: Number.isInteger(raw.level) ? raw.level : 3 }),
+          legacy: ['consoleLanguage'],
+        };
+        export default (ctx) => ctx.route('GET', '/level', (req, res, h) => h.json(200, ctx.settings.get()));`
+    })
+  };
+  const stored = { consoleLanguage: 'awj', plugins: { tidy: { settings: { level: 'x', extra: 1 } } } };
+  await withUserPlugins(tree, async ({ host, base, schemas }) => {
+    assert.equal(schemas.tidy, undefined, 'no schema, because nothing was imported');
+    const off = normaliseSettings(stored, schemas);
+    assert.deepEqual(off.plugins.tidy.settings, { level: 'x', extra: 1 }, 'untouched while it is off');
+
+    await host.sync(normaliseSettings(mergeSettings(stored, { plugins: { tidy: { enabled: true } } }), schemas));
+    assert.deepEqual(await (await fetch(base + '/__lpp/tidy/level')).json(), { level: 3 });
+    /* A user plugin cannot lift the app's own fields into itself. */
+    assert.deepEqual(schemas.tidy.legacy, []);
+    assert.equal(normaliseSettings(stored, schemas).consoleLanguage, 'awj');
+  }, stored);
+});
+
+test('the example plugin in examples/ works as a user plugin, unchanged', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const src = new URL('../examples/plugins/hello-switcher/', import.meta.url);
+  const files = {};
+  for (const name of await readdir(src)) files[name] = await readFile(new URL(name, src), 'utf8');
+  await withUserPlugins({ 'hello-switcher': files }, async ({ host, base, schemas }) => {
+    const listed = host.list().find((p) => p.id === 'hello-switcher');
+    assert.equal(listed.reason, 'switched off');
+    await host.sync(normaliseSettings({ plugins: { 'hello-switcher': { enabled: true } } }, schemas));
+
+    const hello = await (await fetch(base + '/__lpp/hello-switcher/hello')).json();
+    assert.deepEqual(hello, { greeting: 'Hello', switcher: '10.1.2.3:80' });
+
+    const res = await fetch(base + '/__lpp/hello-switcher/ticks');
+    const reader = res.body.getReader();
+    let seen = '';
+    while (!seen.includes('event: tick')) seen += new TextDecoder().decode((await reader.read()).value);
+    await reader.cancel();
+
+    const client = await fetch(base + '/__lpp/plugins/hello-switcher/client.js');
+    assert.equal(client.status, 200);
+    assert.equal(host.list().find((p) => p.id === 'hello-switcher').client, '/__lpp/plugins/hello-switcher/client.js');
+  }, { plugins: {} });
 });

@@ -658,6 +658,20 @@ Everything is on until you switch it off.
 - A feature's own switch is separate. Switching **OSC input** on as a plugin brings its settings
   back; the listener itself still starts off until you tick *Listen for OSC*.
 
+### Adding a plugin of your own
+
+A plugin somebody wrote — or you did — is a folder you put in the **`plugins` folder of the app's
+data directory**: `~/.livepremier-plus/plugins/` for the desktop app, `/config/plugins/` in Docker.
+
+1. Copy the plugin's folder in, and **restart the app**.
+2. In **Preconfig ▸ LivePremier Plus → Plugins** it is listed under **Added by you**, switched off.
+3. Tick it. You are asked to confirm, because a plugin runs inside this app with full control of it
+   and of the switcher. **Only switch on plugins you trust.** Then reload the page.
+
+Nothing in a plugin's folder runs until you switch it on. A folder that is not a working plugin is
+listed with the reason instead. The app's source has an example to start from in
+`examples/plugins/hello-switcher`, and `docs/PLUGINS.md` is the guide to writing one.
+
 ---
 
 ## Saving and restoring your setup

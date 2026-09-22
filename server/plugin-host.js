@@ -40,15 +40,24 @@
  * has to be known while it is off: switching a plugin off must not lose what
  * it was set to. Everything with an effect belongs in `activate`.
  *
+ * ## User plugins
+ *
+ * Folders in `<data dir>/plugins/`, each with a `plugin.json`
+ * (`validateManifest` in `src/core/plugins.js` says what it must hold). They
+ * are found at startup and listed, but **nothing of theirs is imported until
+ * somebody switches them on** — a user plugin's code does not run on this
+ * machine because it was copied into a folder. They start off, whatever their
+ * manifest says, and their settings are carried untouched while they are off.
+ *
  * `ctx` is described where it is built, in `makeContext`, and for plugin
  * authors in docs/PLUGINS.md.
  */
 
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join, extname, relative, isAbsolute, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { API_VERSION, BUILTINS, createRegistry, routeBase } from '../src/core/plugins.js';
+import { API_VERSION, BUILTINS, createRegistry, routeBase, validateManifest } from '../src/core/plugins.js';
 import { changedPluginSettings } from '../src/core/settings.js';
 
 /** What a plugin's folder may serve to the page, by extension. Nothing else is. */
@@ -157,6 +166,7 @@ class Scope {
  * @param {(messages: object[]) => Promise<object[]>} [o.awj]  a one-shot AWJ exchange
  * @param {(addr: string, port: number) => {host, port}|null} [o.splitAddress]
  *        the app's one opinion about what a host:port looks like — `splitDevice`
+ * @param {string|null} [o.userDir]  where user plugins are, `<data dir>/plugins`; null for none
  * @param {(msg: string) => void} [o.log]
  */
 export async function createPluginHost({
@@ -164,57 +174,99 @@ export async function createPluginHost({
   ns = '/__lpp',
   manifests = BUILTINS,
   dirOf = (m) => join(root, 'plugins', m.id),
+  userDir = null,
   device = () => null,
   awj = null,
   splitAddress = () => null,
   log = () => {}
 } = {}) {
-  const registry = createRegistry(manifests);
   /** id -> record. Only plugins with a half of their own; in-place built-ins are the proxy's. */
   const plugins = new Map();
   /** id -> settings schema, for `core/settings.js`'s `normalise`. */
   const schemas = {};
+  /** User plugin folders whose `plugin.json` was refused: listed, never loaded. */
+  const refused = [];
   let settings = { plugins: {} };
+
+  const newRecord = (manifest, dir, user) => ({
+    id: manifest.id,
+    manifest,
+    dir,
+    user,
+    base: routeBase(manifest),
+    module: null,
+    scope: null,
+    on: false,
+    /* A load error is for good — the module will not import, or asks for an
+       API this build does not speak. A start error clears when the plugin is
+       switched off, so switching it back on is how an operator retries. */
+    loadError: null,
+    startError: null
+  });
 
   for (const manifest of manifests) {
     if (!manifest.hosted) continue;
-    const record = {
-      id: manifest.id,
-      manifest,
-      dir: dirOf(manifest),
-      base: routeBase(manifest),
-      module: null,
-      scope: null,
-      on: false,
-      /* A load error is for good — the module will not import, or asks for an
-         API this build does not speak. A start error clears when the plugin is
-         switched off, so switching it back on is how an operator retries. */
-      loadError: null,
-      startError: null
-    };
+    const record = newRecord(manifest, dirOf(manifest), false);
     plugins.set(manifest.id, record);
+    if (refuseNewerApi(record)) continue;
+    /* A built-in's server half is imported now, on or off, for its schema. */
+    if (manifest.server) await importServer(record);
+  }
 
-    if (manifest.apiVersion > API_VERSION) {
-      record.loadError = `needs plugin API ${manifest.apiVersion}; this build speaks ${API_VERSION}`;
-      log(`plugin ${manifest.id}: ${record.loadError}`);
+  const found = userDir ? await discover(userDir, log) : [];
+  for (const { folder, dir, manifest, error } of found) {
+    if (error) {
+      refused.push({ id: folder, dir, reason: `plugin.json: ${error}` });
+      log(`user plugin ${folder}: plugin.json: ${error}`);
       continue;
     }
-    if (!manifest.server) continue;
+    const record = newRecord(manifest, dir, true);
+    plugins.set(manifest.id, record);
+    refuseNewerApi(record);
+    /* Not imported: a user plugin's code runs when somebody switches it on. */
+  }
+
+  const registry = createRegistry([...manifests, ...found.filter((f) => f.manifest).map((f) => f.manifest)]);
+
+  function refuseNewerApi(record) {
+    if (record.manifest.apiVersion <= API_VERSION) return false;
+    record.loadError = `needs plugin API ${record.manifest.apiVersion}; this build speaks ${API_VERSION}`;
+    log(`plugin ${record.id}: ${record.loadError}`);
+    return true;
+  }
+
+  /** Import a plugin's server half and read its settings schema. False when it would not load. */
+  async function importServer(record) {
     try {
-      record.module = await import(pathToFileURL(join(record.dir, manifest.server)).href);
+      record.module = await import(pathToFileURL(join(record.dir, record.manifest.server)).href);
       if (typeof record.module.default !== 'function') {
         record.loadError = 'its server half exports no activate function';
       }
       const schema = record.module.settings;
-      if (schema && typeof schema.normalise === 'function') schemas[manifest.id] = schema;
+      if (schema && typeof schema.normalise === 'function') {
+        /* `legacy` is for built-ins' own history; a user plugin has none, and
+           honouring one would let it lift the app's own fields into itself. */
+        schemas[record.id] = record.user ? { ...schema, legacy: [] } : schema;
+      }
     } catch (err) {
       record.loadError = `its server half would not load: ${err.message}`;
     }
-    if (record.loadError) log(`plugin ${manifest.id}: ${record.loadError}`);
+    if (record.loadError) {
+      record.module = null;
+      log(`plugin ${record.id}: ${record.loadError}`);
+      return false;
+    }
+    return true;
   }
 
   const pluginLog = (r) => (msg) => log(`${r.id}: ${msg}`);
-  const settingsOf = (id) => ({ ...((settings.plugins && settings.plugins[id] && settings.plugins[id].settings) || {}) });
+  /* A user plugin's settings are stored raw until its schema is known — it is
+     only imported once switched on — so they are normalised here on the way
+     out as well. For a built-in that is a second, idempotent pass. */
+  const settingsOf = (id) => {
+    const raw = (settings.plugins && settings.plugins[id] && settings.plugins[id].settings) || {};
+    return schemas[id] ? schemas[id].normalise({ ...raw }) : { ...raw };
+  };
 
   /**
    * Hosted plugins in the order they can be started: everything a plugin
@@ -389,6 +441,9 @@ export async function createPluginHost({
   }
 
   async function startPlugin(r) {
+    /* A user plugin's server half is first imported here, the moment it is
+       switched on — never before. */
+    if (r.user && r.manifest.server && !r.module && !(await importServer(r))) return;
     /* A plugin with no server half has nothing to start here; being on is all
        it needs for the page to load its other half. */
     if (!r.module) { r.on = true; return; }
@@ -416,6 +471,13 @@ export async function createPluginHost({
     }
   }
 
+  /** Settings as the plugins' schemas read them — what "changed" is judged on. */
+  const effective = (s) => ({
+    plugins: Object.fromEntries(Object.keys(schemas).map((id) => [id, {
+      settings: schemas[id].normalise({ ...((s && s.plugins && s.plugins[id] && s.plugins[id].settings) || {}) })
+    }]))
+  });
+
   /** Tell a running plugin its settings changed. A listener that throws is logged, not fatal. */
   function notify(r, prev, next) {
     const read = (s) => ({ ...((s.plugins && s.plugins[r.id] && s.plugins[r.id].settings) || {}) });
@@ -440,6 +502,8 @@ export async function createPluginHost({
     settings = next;
     const order = startOrder();
     const wanted = (r) => !r.loadError && registry.isEnabled(next.plugins, r.id);
+    /* A user plugin that would not import stays failed until the app restarts:
+       the file it would import is the same file until somebody edits it. */
 
     for (const r of [...order].reverse()) {
       if (wanted(r)) continue;
@@ -448,7 +512,9 @@ export async function createPluginHost({
       r.startError = null;
     }
 
-    const changed = new Set(changedPluginSettings(prev, next, schemas));
+    /* Compared as each plugin's schema reads them, so defaults filled in for a
+       plugin whose schema has only just arrived are not taken for a change. */
+    const changed = new Set(changedPluginSettings(effective(prev), effective(next), schemas));
     for (const r of order) {
       if (!wanted(r)) continue;
       if (!r.on && !r.startError) await startPlugin(r);
@@ -594,25 +660,39 @@ export async function createPluginHost({
    * What `GET /__lpp/plugins` answers, and what the page host loads from.
    */
   function list() {
-    return manifests.map((m) => {
-      const r = plugins.get(m.id);
-      const st = registry.status(settings.plugins, m.id);
-      const on = m.hosted ? Boolean(r && r.on) : st.on;
-      return {
-        id: m.id,
-        name: m.name,
-        description: m.description,
-        where: m.where,
-        builtIn: m.builtIn,
-        hosted: m.hosted,
-        apiVersion: m.apiVersion,
-        requires: m.requires,
-        base: m.hosted ? ns + routeBase(m) : null,
-        on,
-        reason: (r && (r.loadError || r.startError)) || (on ? null : st.reason),
-        client: m.hosted && m.client && on ? `${ns}/plugins/${m.id}/${m.client}` : null
-      };
-    });
+    const userManifests = [...plugins.values()].filter((r) => r.user).map((r) => r.manifest);
+    return [
+      ...[...manifests, ...userManifests].map((m) => {
+        const r = plugins.get(m.id);
+        const st = registry.status(settings.plugins, m.id);
+        const on = m.hosted ? Boolean(r && r.on) : st.on;
+        return {
+          id: m.id,
+          name: m.name,
+          version: m.version || null,
+          description: m.description,
+          where: m.where,
+          builtIn: m.builtIn,
+          hosted: m.hosted,
+          /* Where a user plugin came from, so the settings page can say. */
+          source: r && r.user ? 'user' : 'built-in',
+          dir: r && r.user ? r.dir : null,
+          apiVersion: m.apiVersion,
+          requires: m.requires,
+          base: m.hosted ? ns + routeBase(m) : null,
+          on,
+          reason: (r && (r.loadError || r.startError)) || (on ? null : st.reason),
+          client: m.hosted && m.client && on ? `${ns}/plugins/${m.id}/${m.client}` : null
+        };
+      }),
+      /* Folders that are not plugins yet, and why — the settings page is where
+         somebody who has just copied one in will look. */
+      ...refused.map((f) => ({
+        id: f.id, name: f.id, version: null, description: '', where: '', builtIn: false, hosted: true,
+        source: 'user', dir: f.dir, apiVersion: null, requires: { capabilities: [], plugins: [] },
+        base: null, on: false, reason: f.reason, client: null, invalid: true
+      }))
+    ];
   }
 
   /** Stop every running plugin — the app is stopping. */
@@ -631,4 +711,34 @@ export async function createPluginHost({
     /** For tests and the status route: which hosted plugins are running. */
     running: () => [...plugins.values()].filter((r) => r.on).map((r) => r.id)
   };
+}
+
+/**
+ * The folders in the user plugin directory, each with its manifest or the
+ * reason it has none. A directory that does not exist is no plugins, not an
+ * error: most installations will never make one.
+ */
+async function discover(userDir, log) {
+  let entries;
+  try {
+    entries = await readdir(userDir, { withFileTypes: true });
+  } catch (err) {
+    if (err.code !== 'ENOENT') log(`user plugins: could not read ${userDir}: ${err.message}`);
+    return [];
+  }
+  const out = [];
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+    const dir = join(userDir, entry.name);
+    let raw;
+    try {
+      raw = JSON.parse(await readFile(join(dir, 'plugin.json'), 'utf8'));
+    } catch (err) {
+      out.push({ folder: entry.name, dir, error: err.code === 'ENOENT' ? 'there is none' : `it would not parse: ${err.message}` });
+      continue;
+    }
+    const checked = validateManifest(raw, entry.name);
+    out.push({ folder: entry.name, dir, ...checked });
+  }
+  return out;
 }

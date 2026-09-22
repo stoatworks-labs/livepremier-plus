@@ -131,6 +131,7 @@ function decode(buf, encoding) {
  * @param {object} [opts.storage]     {load(), save(data)} for cue stacks
  * @param {string[]} [opts.extraModules]  extra module URLs to inject after the panels
  * @param {Record<string,string>} [opts.extraFiles]  NS-relative path -> file on disk
+ * @param {string|null} [opts.pluginDir]  user plugins; defaults to `plugins/` in the data directory
  * @param {(msg:string)=>void} [opts.log]
  */
 export async function createProxy({
@@ -141,7 +142,11 @@ export async function createProxy({
   appVersion = '',
   /* The port a loopback listener answers on, when this server is also bound
      to a LAN address — see local-client.js. Null means never redirect. */
-  loopbackPort = null
+  loopbackPort = null,
+  /* Where user plugins are looked for: `plugins/` beside everything else this
+     app keeps — `~/.livepremier-plus/plugins`, or `/config/plugins` in Docker.
+     Null for none, which is what a caller with no data directory gets. */
+  pluginDir = storage && storage.dir ? join(storage.dir, 'plugins') : null
 }) {
   /*
    * The switcher is chosen at runtime, not baked in at startup.
@@ -207,6 +212,7 @@ export async function createProxy({
   const host = await createPluginHost({
     root,
     ns: NS,
+    userDir: pluginDir,
     /* Read per use, never captured: the switcher can be re-pointed. */
     device: () => state.device,
     awj: (messages) => (target
@@ -354,8 +360,11 @@ export async function createProxy({
   await applyOsc();
 
   /* The hosted plugins, started after the app's own services so that anything
-     a plugin asks of the app is already there to answer. */
+     a plugin asks of the app is already there to answer. A user plugin's
+     settings schema only arrives when it starts — its code is not imported
+     before — so the settings are read through the schemas once more after. */
   await host.sync(settings);
+  settings = normaliseSettings(settings, host.schemas);
 
   /*
    * Timecode pushed in from outside.
@@ -478,6 +487,9 @@ export async function createProxy({
         if (needsRebind || needsPlugins) await applyOsc();
         if (needsPlugins) applyMatrices();
         await host.sync(settings);
+        /* A user plugin switched on just now has only now brought its schema:
+           fill its defaults in, so the page is sent what the plugin reads. */
+        settings = normaliseSettings(settings, host.schemas);
 
         return sendJson(res, 200, { ok: true, settings, osc: osc ? osc.state : null });
       }

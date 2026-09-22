@@ -102,6 +102,16 @@ Five things about it that break quietly:
 - **A panel with an iframe renders in place.** See the invariant below.
 - **The page loads plugins from `/__lpp/plugins`, not from the manifest
   table**, so what it shows is what the server actually started.
+- **A user plugin's code never runs before it is switched on.** User plugins
+  (`<data dir>/plugins/<id>/`, validated by `validateManifest`) are found at
+  startup but imported only in `startPlugin`. Their settings schema therefore
+  arrives late: the proxy re-normalises after every `host.sync`, and the host
+  judges "changed" on schema-read settings, so the defaults that fill in are
+  not a change. Do not "simplify" discovery into importing — a test counts
+  imports.
+- **`examples/plugins/hello-switcher` is tested as a user plugin**, unchanged,
+  through the host and through a real data directory. If the API moves, the
+  example moves with it, or the suite says so.
 
 ## Why a proxy, and the three things that make it work
 

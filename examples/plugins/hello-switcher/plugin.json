@@ -1,0 +1,10 @@
+{
+  "id": "hello-switcher",
+  "name": "Hello, switcher",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "description": "An example plugin: a page in the sidebar, a card in settings, a route and a live stream.",
+  "where": "Sidebar, under PLUS, and a card in Settings",
+  "server": "server.js",
+  "client": "client.js"
+}

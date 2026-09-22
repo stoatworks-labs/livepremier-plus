@@ -407,7 +407,56 @@ export function createSettingsPanel({
             h('div', { class: 'aw-font-body-1', text: plugin.description }),
             h('div', { class: 'aw-font-caption aw-text-tertiary',
               text: plugin.builtIn ? `${plugin.where} · built in` : plugin.where })));
-        })));
+        }),
+        userPlugins(plugins, toggle)));
+  }
+
+  /**
+   * Plugins somebody added, from the plugins folder in the data directory.
+   *
+   * Off until switched on, whatever their manifest says, and switching one on
+   * asks first — in words, because it is the one click on this page that hands
+   * code nobody here reviewed the switcher. A folder that is not a plugin yet is
+   * listed with the reason, since this is where somebody who has just copied
+   * one in will look.
+   */
+  function userPlugins(plugins, toggle) {
+    const mine = Object.values(state.hosted || {}).filter((p) => p.source === 'user');
+    if (!mine.length) return null;
+
+    const turnOn = (p, checkbox) => {
+      const ok = typeof window === 'undefined' || typeof window.confirm !== 'function' || window.confirm(
+        `Switch on “${p.name}”?\n\nA plugin runs inside this app with full control of it and of the `
+        + 'switcher it is pointed at. Only switch on plugins you trust.');
+      if (!ok) { checkbox.checked = false; return; }
+      void toggle(p.id, true);
+    };
+
+    return h('div', { class: 'aw-flex-col aw-gap-row-medium' },
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Added by you' }),
+      note('warn', 'A plugin you add runs with full control of this app and the switcher. '
+        + 'They start switched off; only switch on the ones you trust.'),
+      mine.map((p) => {
+        const switched = isSwitchedOn(plugins, p.id);
+        const broken = p.invalid || (switched && !p.on && p.reason);
+        return h('div', {
+          class: 'aw-flex-row aw-gap-col-large aw-flex-wrap',
+          style: switched && p.on ? null : { opacity: '0.55' }
+        },
+        h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { minWidth: '13rem', cursor: 'pointer' } },
+          h('input', {
+            type: 'checkbox',
+            checked: switched ? 'checked' : null,
+            disabled: state.saving || p.invalid ? 'disabled' : null,
+            onChange: (ev) => (ev.target.checked ? turnOn(p, ev.target) : void toggle(p.id, false))
+          }),
+          h('span', { class: 'aw-font-body-1-bold', text: p.version ? `${p.name} ${p.version}` : p.name }),
+          broken ? h('span', { class: 'wru-tag wru-warn', text: p.reason }) : null),
+        h('div', { class: 'aw-flex-col aw-gap-row-mini', style: { flex: '1 1 20rem' } },
+          p.description ? h('div', { class: 'aw-font-body-1', text: p.description }) : null,
+          h('div', { class: 'aw-font-caption aw-text-tertiary',
+            text: [p.where, `added by you · ${p.dir}`].filter(Boolean).join(' · ') })));
+      }));
   }
 
   /* -------------------------------------------------------- console setup */

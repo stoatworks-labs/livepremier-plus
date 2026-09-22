@@ -858,3 +858,50 @@ test('the Pixelhue panel is a hosted plugin: its state has a route, and its old 
     assert.equal(saved.plugins.pixelhue.settings.pixelhueHost, '10.0.0.9');
   });
 });
+
+test('a plugin copied into the data directory is found, starts off, and runs once switched on', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'lpp-data-'));
+  const { cp } = await import('node:fs/promises');
+  await cp(join(ROOT, 'examples/plugins/hello-switcher'), join(dir, 'plugins/hello-switcher'), { recursive: true });
+  const { server: device } = fakeDevice();
+  const devicePort = await listen(device);
+  const proxy = await createProxy({ device: `127.0.0.1:${devicePort}`, root: ROOT, storage: new StackStore(dir), log: () => {} });
+  const port = await listen(proxy);
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    const listed = (await (await fetch(base + '/__lpp/plugins')).json()).plugins.find((p) => p.id === 'hello-switcher');
+    assert.equal(listed.source, 'user');
+    assert.equal(listed.on, false);
+    assert.equal((await fetch(base + '/__lpp/hello-switcher/hello')).status, 404);
+
+    /* Switched on alone: the page is sent the plugin's defaults, though its
+       schema only arrived when it started. */
+    const on = await (await fetch(base + '/__lpp/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plugins: { 'hello-switcher': { enabled: true } } })
+    })).json();
+    assert.deepEqual(on.settings.plugins['hello-switcher'].settings, { greeting: 'Hello' });
+
+    await fetch(base + '/__lpp/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plugins: { 'hello-switcher': { enabled: true, settings: { greeting: 'Evening' } } } })
+    });
+    const hello = await (await fetch(base + '/__lpp/hello-switcher/hello')).json();
+    assert.deepEqual(hello, { greeting: 'Evening', switcher: `127.0.0.1:${devicePort}` });
+
+    /* And it is still there after a restart, switched on, with its setting. */
+    await close(proxy);
+    const again = await createProxy({ device: `127.0.0.1:${devicePort}`, root: ROOT, storage: new StackStore(dir), log: () => {} });
+    const port2 = await listen(again);
+    try {
+      const back = await (await fetch(`http://127.0.0.1:${port2}/__lpp/hello-switcher/hello`)).json();
+      assert.equal(back.greeting, 'Evening');
+    } finally {
+      await close(again);
+    }
+  } finally {
+    await close(proxy).catch(() => {});
+    await close(device);
+    await rm(dir, { recursive: true, force: true });
+  }
+});

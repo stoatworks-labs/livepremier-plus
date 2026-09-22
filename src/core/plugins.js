@@ -335,3 +335,82 @@ export function routeOwner(rest) {
   }
   return null;
 }
+
+/* ------------------------------------------------------------- user plugins */
+
+/**
+ * The first path segments under `/__lpp` that are the app's own. A plugin's
+ * routes live at `/__lpp/<id>`, so a plugin called `settings` would sit on top
+ * of the settings route — and the settings route is how a broken plugin gets
+ * switched off. Every built-in's id and route base is reserved too.
+ */
+const CORE_SEGMENTS = [
+  'awj', 'config', 'console', 'demo', 'device', 'groups', 'layer-names', 'matrix',
+  'memory', 'memories', 'osc', 'plugins', 'properties', 'settings', 'src', 'stack',
+  'status', 'timecode', 'timeline'
+];
+export const RESERVED_IDS = new Set([
+  ...CORE_SEGMENTS,
+  ...BUILTINS.map((p) => p.id),
+  ...BUILTINS.map((p) => routeBase(p).slice(1).split('/')[0])
+]);
+
+/** A path inside a plugin's folder: relative, forward slashes, no way out. */
+const insideFolder = (p) => typeof p === 'string' && /^[A-Za-z0-9._-][A-Za-z0-9._/-]*$/.test(p)
+  && !p.split('/').some((seg) => seg === '..' || seg === '');
+
+/**
+ * Check a user plugin's `plugin.json` and turn it into a manifest.
+ *
+ * Refused rather than repaired, unlike a settings file: a manifest is written
+ * by the plugin's author once, and a plugin whose manifest is wrong should say
+ * so plainly on the settings page rather than load half-understood. The folder
+ * name must be the id, so what is on disk and what is on the page cannot
+ * disagree about which plugin is which.
+ *
+ * Whatever the file says, a user plugin is **off until switched on**
+ * (`enabledByDefault` is forced false) and **not built in**, and it may not
+ * move its routes off `/__lpp/<id>` or lift settings from the top level — both
+ * of those exist for built-ins' history, and nothing else has any.
+ *
+ * @returns {{manifest: object} | {error: string}}
+ */
+export function validateManifest(raw, folder) {
+  if (!isPlainObject(raw)) return { error: 'plugin.json is not a JSON object' };
+  const { id, name, version, apiVersion, description = '', where = '', server, client } = raw;
+
+  if (typeof id !== 'string' || !PLUGIN_ID.test(id)) return { error: 'its id must be lower-case letters, digits and dashes' };
+  if (id !== folder) return { error: `its id is "${id}" but its folder is "${folder}" — they must match` };
+  if (RESERVED_IDS.has(id)) return { error: `"${id}" is taken by this app or one of its built-in plugins` };
+  if (typeof name !== 'string' || !name.trim()) return { error: 'it has no name' };
+  if (typeof version !== 'string' || !version.trim()) return { error: 'it has no version' };
+  if (!Number.isInteger(apiVersion) || apiVersion < 1) return { error: 'its apiVersion must be a whole number, 1 or more' };
+  if (typeof description !== 'string' || typeof where !== 'string') return { error: 'its description and where must be text' };
+  if (server === undefined && client === undefined) return { error: 'it names neither a server nor a client file' };
+  for (const [key, file] of [['server', server], ['client', client]]) {
+    if (file !== undefined && !insideFolder(file)) return { error: `its ${key} file must be a path inside its own folder` };
+  }
+
+  const requires = raw.requires === undefined ? {} : raw.requires;
+  if (!isPlainObject(requires)) return { error: 'its requires must be an object' };
+  const list = (v) => v === undefined || (Array.isArray(v) && v.every((x) => typeof x === 'string'));
+  if (!list(requires.capabilities) || !list(requires.plugins)) {
+    return { error: 'requires.capabilities and requires.plugins must be lists of names' };
+  }
+
+  return {
+    manifest: withDefaults({
+      id,
+      name: name.trim(),
+      version: version.trim(),
+      apiVersion,
+      description,
+      where,
+      ...(server !== undefined ? { server } : {}),
+      ...(client !== undefined ? { client } : {}),
+      requires: { capabilities: requires.capabilities || [], plugins: requires.plugins || [] },
+      builtIn: false,
+      enabledByDefault: false
+    })
+  };
+}

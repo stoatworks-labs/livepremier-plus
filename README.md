@@ -74,8 +74,11 @@ rather than as a bolt-on:
 
 **Every one of these is a plugin you can switch off**, in Preconfig ▸
 LivePremier Plus → Plugins; a switched-off feature leaves no menu entry, route or
-background service behind. Plugins you write yourself are on the way —
-[docs/PLUGINS.md](docs/PLUGINS.md) has the design and where it stands.
+background service behind. **You can add your own**: a folder in
+`~/.livepremier-plus/plugins/` (or `/config/plugins/` in Docker) with a
+`plugin.json`, a server half and a page half. They start switched off, and run
+only once you switch them on. [docs/PLUGINS.md](docs/PLUGINS.md) is the guide, and
+[`examples/plugins/hello-switcher`](examples/plugins/hello-switcher) the template.
 
 Point it at a switcher, open the address it prints, and you get the vendor's
 own Web RCS with the extra panels already in it. The panels ride the vendor
