@@ -57,7 +57,7 @@ own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
 
-> **Status: field testing — v0.10.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.11.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -172,6 +172,17 @@ to install in the browser.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.11.0 (2026-09-22).** **Companion**, served inside this app. A Bitfocus
+> Companion's admin pages, web buttons and emulator open on the same address as
+> Web RCS — Companion's own sub-path support with this proxy in front, so there
+> is no second port and no CORS — and a panel lists the show's real connections,
+> follows them live, and offers to add the AWJ and LivePremier Plus connections
+> pointed at the switcher you are on, saying what it will create before it does.
+> Companion's cross-origin WebSocket check is re-made here rather than bypassed.
+> The LivePremier Plus connection cannot be added until a Companion module for
+> this app exists; the panel says so. Linking a Companion also puts its admin UI
+> behind this proxy, which is why the binding-wide warning now names it.
 >
 > **0.10.0 (2026-09-22).** The **Edit page** — the Screens / Aux. layout with one
 > row instead of two, and that row is a *programmer*: a buffer that is on neither
