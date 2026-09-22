@@ -3,12 +3,20 @@
  *
  * Every feature is described here as a **plugin** — an id, what it is, where
  * it lives, and what it needs — and whether it is on is a setting like any
- * other. Phase 0 of the plugin work (see the design in docs/PLUGINS.md): the
- * built-in features are registered *in place*, so nothing about how they are
- * built has moved; what is new is that each one can be switched off, and that
- * the list an operator sees in the app is generated from this table rather
- * than written a second time by hand. The in-app list had drifted nine
- * features behind the code before this existed.
+ * other. The list an operator sees in the app is generated from this table
+ * rather than written a second time by hand; the in-app list had drifted nine
+ * features behind the code before it existed. See docs/PLUGINS.md.
+ *
+ * ## In place, and hosted
+ *
+ * A built-in is one of two kinds while the move is under way:
+ *
+ * - **In place**: still wired into `src/main.js` and `server/proxy.js` by hand,
+ *   and gated there by `isEnabled`. Most features, for now.
+ * - **Hosted**: moved into `plugins/<id>/` with a `server` and/or `client`
+ *   half, and loaded through the plugin hosts (`server/plugin-host.js`,
+ *   `src/ui/plugin-host.js`) exactly as a plugin written by somebody else
+ *   will be. Its manifest names those halves. Companion was the first.
  *
  * ## Present, and active
  *
@@ -55,7 +63,10 @@ export const BUILTINS = [
     id: 'companion',
     name: 'Companion',
     where: 'Sidebar, under PLUS',
-    description: 'A Bitfocus Companion on this address — its buttons, web buttons and emulator — and the connections that belong in the show for this switcher.'
+    description: 'A Bitfocus Companion on this address — its buttons, web buttons and emulator — and the connections that belong in the show for this switcher.',
+    /* Hosted: plugins/companion/, loaded through the plugin hosts. */
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'vpu-map',
@@ -165,92 +176,139 @@ export const BUILTINS = [
     where: 'Every numeric field in Web RCS',
     description: 'Type 1080-80 in a layer width and get 1000.'
   }
-].map((p) => ({
-  apiVersion: API_VERSION,
-  builtIn: true,
-  enabledByDefault: true,
-  ...p,
-  requires: { capabilities: [], plugins: [], ...(p.requires || {}) }
-}));
-
-const byId = new Map(BUILTINS.map((p) => [p.id, p]));
-
-/** The manifest for a plugin id, or null. */
-export const manifestOf = (id) => byId.get(id) || null;
+].map((p) => withDefaults(p));
 
 /**
- * Coerce the stored `plugins` setting into `{ [id]: { enabled } }`.
+ * A manifest with every optional field filled in, so nothing downstream has to
+ * guard against a missing `requires` or an absent default. Used for the
+ * built-ins above and, later, for a user plugin's `plugin.json`.
+ */
+export function withDefaults(p) {
+  return {
+    apiVersion: API_VERSION,
+    builtIn: true,
+    enabledByDefault: true,
+    ...p,
+    /* A plugin with a server or page half of its own is loaded through the
+       plugin hosts; one without is still wired in by hand. */
+    hosted: Boolean(p.server || p.client),
+    requires: { capabilities: [], plugins: [], ...(p.requires || {}) }
+  };
+}
+
+/** The path a plugin's routes sit under, below `/__lpp`: its id, unless it says otherwise. */
+export const routeBase = (manifest) => manifest.routeBase || `/${manifest.id}`;
+
+/** What a plugin id may look like: the same rule as an npm package name, minus scopes. */
+export const PLUGIN_ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+const isPlainObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * Coerce the stored `plugins` setting into `{ [id]: { enabled?, settings? } }`.
  *
  * Unknown ids are KEPT, not dropped. An entry for a user plugin that is not
  * installed right now — a folder moved, a disk not mounted — must survive a
  * settings save, or reinstalling it silently resets it to off. Anything that is
  * not a boolean is dropped, so a hand-edited file cannot enable something by
  * accident with `"enabled": "no"`.
+ *
+ * A plugin's own `settings` are kept as an object and nothing more here: the
+ * plugin's schema is what knows what is allowed in them, and `core/settings.js`
+ * applies it where the plugin is installed. Where it is not, they are carried
+ * untouched for the same reason the switch is.
  */
 export function normalisePlugins(raw) {
   const out = {};
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  if (!isPlainObject(raw)) return out;
   for (const [id, entry] of Object.entries(raw)) {
-    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)) continue;
-    if (entry && typeof entry === 'object' && typeof entry.enabled === 'boolean') {
-      out[id] = { enabled: entry.enabled };
-    }
+    if (!PLUGIN_ID.test(id) || !isPlainObject(entry)) continue;
+    const kept = {};
+    if (typeof entry.enabled === 'boolean') kept.enabled = entry.enabled;
+    if (isPlainObject(entry.settings)) kept.settings = entry.settings;
+    if (Object.keys(kept).length) out[id] = kept;
   }
   return out;
 }
 
 /**
- * Whether a plugin is switched on, before its dependencies are considered.
- * A plugin nobody has touched takes its manifest's default.
+ * The switch-and-dependency questions, over one set of manifests.
+ *
+ * The page and the settings card ask them of the built-ins, through the
+ * functions exported below. The server's plugin host asks them of whatever it
+ * actually loaded — which will include plugins nobody shipped — so it builds
+ * its own registry rather than consulting a table that has never heard of them.
  */
-export function isSwitchedOn(plugins, id) {
-  const entry = plugins && plugins[id];
-  if (entry && typeof entry.enabled === 'boolean') return entry.enabled;
-  const manifest = manifestOf(id);
-  return manifest ? manifest.enabledByDefault : false;
-}
+export function createRegistry(manifests) {
+  const byId = new Map(manifests.map((p) => [p.id, p]));
+  const manifestOf = (id) => byId.get(id) || null;
 
-/**
- * Whether a plugin is on, all things considered, and if not, why.
- *
- * `can` answers platform capabilities; leave it out and capabilities are not
- * checked (the server gates on the switch and the dependencies alone — the
- * device store it would need to answer capabilities lives in the page).
- *
- * @returns {{on: boolean, reason: string|null}}
- */
-export function status(plugins, id, can = null, seen = new Set()) {
-  const manifest = manifestOf(id);
-  if (!manifest) return { on: false, reason: 'not installed' };
-  if (!isSwitchedOn(plugins, id)) return { on: false, reason: 'switched off' };
-  if (can) {
-    const missing = manifest.requires.capabilities.find((cap) => !can(cap));
-    if (missing) return { on: false, reason: 'not on this switcher' };
+  /**
+   * Whether a plugin is switched on, before its dependencies are considered.
+   * A plugin nobody has touched takes its manifest's default.
+   */
+  function isSwitchedOn(plugins, id) {
+    const entry = plugins && plugins[id];
+    if (entry && typeof entry.enabled === 'boolean') return entry.enabled;
+    const manifest = manifestOf(id);
+    return manifest ? manifest.enabledByDefault : false;
   }
-  /* A cycle would be a mistake in the table above; treat it as "off" rather
-     than recursing until the stack gives out. */
-  if (seen.has(id)) return { on: false, reason: 'depends on itself' };
-  seen.add(id);
-  for (const dep of manifest.requires.plugins) {
-    if (!status(plugins, dep, can, seen).on) {
-      return { on: false, reason: `needs ${manifestOf(dep)?.name || dep}` };
+
+  /**
+   * Whether a plugin is on, all things considered, and if not, why.
+   *
+   * `can` answers platform capabilities; leave it out and capabilities are not
+   * checked (the server gates on the switch and the dependencies alone — the
+   * device store it would need to answer capabilities lives in the page).
+   *
+   * @returns {{on: boolean, reason: string|null}}
+   */
+  function status(plugins, id, can = null, seen = new Set()) {
+    const manifest = manifestOf(id);
+    if (!manifest) return { on: false, reason: 'not installed' };
+    if (!isSwitchedOn(plugins, id)) return { on: false, reason: 'switched off' };
+    if (can) {
+      const missing = manifest.requires.capabilities.find((cap) => !can(cap));
+      if (missing) return { on: false, reason: 'not on this switcher' };
     }
+    /* A cycle would be a mistake in a manifest; treat it as "off" rather than
+       recursing until the stack gives out. */
+    if (seen.has(id)) return { on: false, reason: 'depends on itself' };
+    seen.add(id);
+    for (const dep of manifest.requires.plugins) {
+      if (!status(plugins, dep, can, seen).on) {
+        return { on: false, reason: `needs ${manifestOf(dep)?.name || dep}` };
+      }
+    }
+    return { on: true, reason: null };
   }
-  return { on: true, reason: null };
+
+  return {
+    manifestOf,
+    isSwitchedOn,
+    status,
+    /** Shorthand for the common question. */
+    isEnabled: (plugins, id, can = null) => status(plugins, id, can).on
+  };
 }
 
-/** Shorthand for the common question. */
-export const isEnabled = (plugins, id, can = null) => status(plugins, id, can).on;
+const builtins = createRegistry(BUILTINS);
+
+/** The manifest for a built-in plugin id, or null. */
+export const manifestOf = builtins.manifestOf;
+export const isSwitchedOn = builtins.isSwitchedOn;
+export const status = builtins.status;
+export const isEnabled = builtins.isEnabled;
 
 /**
  * Which plugin owns an `/__lpp/…` route, or null for the core's own.
  *
  * Longest prefix first, so `/timecode/stream` is timecode's and not a
  * shorter match's. Kept here rather than in the proxy so that the table of
- * what a plugin owns lives in one place.
+ * what a plugin owns lives in one place. A hosted plugin's base comes off its
+ * manifest rather than being written here a second time.
  */
 const ROUTES = [
-  ['/companion', 'companion'],
   ['/memory', 'edit'],
   ['/matrix', 'matrix-routing'],
   ['/osc/stream', 'osc-input'],
@@ -262,7 +320,8 @@ const ROUTES = [
   ['/config', 'setup-file'],
   ['/console', 'console'],
   ['/memories', 'memories'],
-  ['/properties', 'layer']
+  ['/properties', 'layer'],
+  ...BUILTINS.filter((p) => p.hosted).map((p) => [routeBase(p), p.id])
 ].sort((a, b) => b[0].length - a[0].length);
 
 export function routeOwner(rest) {

@@ -2,7 +2,7 @@
 #
 # Simpler than most of the fleet's launchers: LivePremier Plus is a zero-
 # dependency Node program with no build step, so the bundle carries a Node
-# runtime and a straight copy of the repo's server/ and src/ trees. Nothing is
+# runtime and a straight copy of the repo's server/, src/ and plugins/ trees. Nothing is
 # compiled, nothing is installed. {resource} = the .app resource dir.
 #
 # The switcher can be named here OR left blank. Blank is the normal case: the

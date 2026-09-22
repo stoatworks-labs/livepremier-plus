@@ -394,7 +394,15 @@ export class Shell {
     this._syncNav();
   }
 
-  /** Ask the visible panel to redraw, if it is one of ours. */
+  /**
+   * Ask the visible panel to redraw, if it is one of ours.
+   *
+   * A panel that hands back **the element already on screen** has redrawn
+   * itself in place, and is left exactly where it is. Taking it out to put it
+   * back would reload anything stateful inside it — an iframe above all, which
+   * reloads the moment it is detached. The Companion panel embeds one, and
+   * before this rule its editor reloaded on every frame the switcher sent.
+   */
   refresh() {
     if (this.active == null) return;
     const entry = this.entries.find((e) => e.id === this.active);
@@ -402,8 +410,10 @@ export class Shell {
     if (!entry || !overlay) return;
     const scroll = overlay.querySelector('.wru-body');
     const top = scroll ? scroll.scrollTop : 0;
+    const next = entry.render();
+    if (overlay.children.length === 1 && overlay.children[0] === next) return;
     overlay.textContent = '';
-    overlay.append(entry.render());
+    overlay.append(next);
     const again = overlay.querySelector('.wru-body');
     if (again) again.scrollTop = top;
   }

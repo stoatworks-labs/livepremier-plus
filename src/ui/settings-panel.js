@@ -82,7 +82,9 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
     osc: null,
     pixelhue: null,
     saveError: null,
-    saving: false
+    saving: false,
+    /* The server's own list of plugins, by id — see `loadPlugins`. */
+    hosted: null
   };
 
   async function loadStatus() {
@@ -98,6 +100,23 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
     } catch (err) {
       state.statusError = err.message;
     }
+    onRefresh();
+    void loadPlugins();
+  }
+
+  /**
+   * What the server says about each plugin, which the manifests alone cannot:
+   * whether a hosted plugin that is switched on actually loaded and started.
+   * One that failed says why on its row, and not only in a log nobody on a
+   * show floor is reading. The card draws from the manifests without it.
+   */
+  async function loadPlugins() {
+    try {
+      const res = await fetch('/__lpp/plugins', { cache: 'no-store' });
+      if (!res.ok) return;
+      const body = await res.json();
+      state.hosted = Object.fromEntries((body.plugins || []).map((p) => [p.id, p]));
+    } catch { /* the card still draws from the manifests */ }
     onRefresh();
   }
 
@@ -348,7 +367,7 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
     const plugins = (state.settings && state.settings.plugins) || {};
 
     const toggle = (id, enabled) => put({ plugins: { ...plugins, [id]: { enabled } } })
-      .then(() => { state.pluginsChanged = true; onRefresh(); });
+      .then(() => { state.pluginsChanged = true; return loadPlugins(); });
 
     return card('Plugins',
       h('div', { class: 'aw-flex-col aw-gap-row-medium' },
@@ -358,7 +377,12 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
         BUILTINS.map((plugin) => {
           const switched = isSwitchedOn(plugins, plugin.id);
           const verdict = pluginStatus(plugins, plugin.id, can);
-          const dim = !verdict.on;
+          /* Switched on and allowed, but the server could not load or start
+             it: the server's reason, since it is the one that knows. */
+          const server = state.hosted && state.hosted[plugin.id];
+          const failed = verdict.on && server && server.hosted && !server.on && server.reason
+            ? server.reason : null;
+          const dim = !verdict.on || Boolean(failed);
           return h('div', {
             class: 'aw-flex-row aw-gap-col-large aw-flex-wrap',
             style: dim ? { opacity: '0.55' } : null
@@ -371,7 +395,9 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
               onChange: (ev) => { void toggle(plugin.id, ev.target.checked); }
             }),
             h('span', { class: 'aw-font-body-1-bold', text: plugin.name }),
-            verdict.on ? null : h('span', { class: 'wru-tag', text: verdict.reason })),
+            verdict.on
+              ? (failed ? h('span', { class: 'wru-tag wru-warn', text: failed }) : null)
+              : h('span', { class: 'wru-tag', text: verdict.reason })),
           h('div', { class: 'aw-flex-col aw-gap-row-mini', style: { flex: '1 1 20rem' } },
             h('div', { class: 'aw-font-body-1', text: plugin.description }),
             h('div', { class: 'aw-font-caption aw-text-tertiary',

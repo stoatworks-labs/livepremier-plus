@@ -45,7 +45,7 @@ import {
   planConnections,
   request,
   stopRequest,
-} from '../src/core/companion.js';
+} from '../plugins/companion/core.js';
 
 /* ------------------------------------------------------------- the settings */
 

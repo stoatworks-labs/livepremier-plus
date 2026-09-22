@@ -903,6 +903,7 @@ the cue engine are the same code, and they still ride the vendor's own socket.
 server/
   index.js       CLI entry: flags, data dir, shutdown
   proxy.js       the reverse proxy, the injection, the socket relay
+  plugin-host.js loads each plugin's server half, routes to it, and stops it
   storage.js     cue stacks and the remembered device, on disk
   setup.html     shown until a switcher is chosen
 src/
@@ -912,10 +913,14 @@ src/
     vpu.js         the VPU allocation map, adapted from the device store
     cuestack.js    the cue engine: GO, follow chains, delays, fade times
     session.js     snapshot + stream, folded into a store
+    plugins.js     every feature as a plugin: what it is, and whether it is on
   transports/
     page-socket.js the vendor page's own WebSocket
   ui/            panels, built out of the host's `aw-` utility classes
+    plugin-host.js loads each plugin's page half into the sidebar and tabs
   hook/          the WebSocket hook, inlined into the document by the proxy
+plugins/         features moved into plugins, each a folder with a server
+  companion/     half and a page half - Companion is the first
 launcher/        the desktop app - the fleet's standard Tauri tray shell
 ```
 

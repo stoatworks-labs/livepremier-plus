@@ -26,9 +26,17 @@
  * This file is data and validation. It runs under plain Node — the server
  * imports it to sanitise what it stores, the panels import it for the same
  * table of what is allowed — and it does no I/O of its own.
+ *
+ * ## A plugin's settings are its own
+ *
+ * A plugin that keeps settings keeps them in its own entry,
+ * `plugins[<id>].settings`, beside its on/off switch — never at the top level,
+ * where two plugins could want the same name. What is allowed in them is the
+ * plugin's business: it exports a **schema** (see `normalise`), and whoever
+ * loaded the plugins hands the schemas in. This file cannot import a plugin
+ * itself; `core/` never reaches outside `src/`.
  */
 
-import { DEFAULT_COMPANION, normaliseCompanion } from './companion.js';
 import { normalisePlugins } from './plugins.js';
 
 export const LANGUAGE_CHOICES = [
@@ -115,14 +123,9 @@ export const DEFAULT_SETTINGS = {
    * `server/memory-import.js`.
    */
   memoryImportDir: '',
-  /* Also off, for a weaker version of the same reason. This one only dials
-     out rather than opening a door — but an app that reaches for a machine on
-     the show network the moment it starts is not one an operator can reason
-     about, and the address has to be typed before it could anyway.
-     See `src/core/companion.js`. */
-  ...DEFAULT_COMPANION,
-  /* Which features are switched on, as `{ id: { enabled } }`. Empty means
-     every built-in at its default, which is on — see `core/plugins.js`. */
+  /* Which features are switched on, and each plugin's own settings, as
+     `{ id: { enabled, settings } }`. Empty means every built-in at its
+     default, which is on — see `core/plugins.js`. */
   plugins: {},
 };
 
@@ -143,6 +146,68 @@ const hostOrNothing = (raw) => {
 
 const ids = (list) => list.map((c) => c.id);
 
+const isPlainObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * Move a built-in plugin's settings from the top level, where they lived before
+ * plugins had a namespace, into `plugins[<id>].settings`.
+ *
+ * A schema's `legacy` names those keys — Companion's `companionHost` and its
+ * two neighbours were the first. A legacy key that is present **wins** over the
+ * namespaced value: it can only be there because it is newer — a settings file
+ * from before the move, an older setup file just imported, or a caller that
+ * still sends the old shape — and each of those is somebody saying what they
+ * want now. Once lifted it is gone from the top level, so it is lifted once.
+ *
+ * Works on a whole stored file and on a partial update alike.
+ */
+export function liftLegacy(input, schemas = {}) {
+  if (!isPlainObject(input)) return {};
+  let out = input;
+  for (const [id, schema] of Object.entries(schemas)) {
+    const keys = (schema.legacy || []).filter((k) => Object.prototype.hasOwnProperty.call(out, k));
+    if (!keys.length) continue;
+    out = { ...out };
+    const moved = {};
+    for (const k of keys) { moved[k] = out[k]; delete out[k]; }
+    const plugins = isPlainObject(out.plugins) ? { ...out.plugins } : {};
+    const entry = isPlainObject(plugins[id]) ? { ...plugins[id] } : {};
+    entry.settings = { ...(isPlainObject(entry.settings) ? entry.settings : {}), ...moved };
+    plugins[id] = entry;
+    out.plugins = plugins;
+  }
+  return out;
+}
+
+/**
+ * Apply a partial update to the settings held now.
+ *
+ * Shallow for the app's own fields — a panel may send one without restating
+ * the rest — and one level deeper for `plugins`, so that switching a plugin
+ * off does not wipe its settings and saving a plugin's settings does not flip
+ * its switch. Within a plugin's `settings` it is shallow again, for the same
+ * reason as at the top.
+ */
+export function mergeSettings(current, patch) {
+  const base = isPlainObject(current) ? current : {};
+  if (!isPlainObject(patch)) return { ...base };
+  const out = { ...base, ...patch };
+  if (isPlainObject(patch.plugins)) {
+    const plugins = isPlainObject(base.plugins) ? { ...base.plugins } : {};
+    for (const [id, entry] of Object.entries(patch.plugins)) {
+      if (!isPlainObject(entry)) continue;
+      const prev = isPlainObject(plugins[id]) ? plugins[id] : {};
+      const next = { ...prev, ...entry };
+      if (isPlainObject(entry.settings)) {
+        next.settings = { ...(isPlainObject(prev.settings) ? prev.settings : {}), ...entry.settings };
+      }
+      plugins[id] = next;
+    }
+    out.plugins = plugins;
+  }
+  return out;
+}
+
 /**
  * Coerce anything into a valid settings object.
  *
@@ -152,10 +217,25 @@ const ids = (list) => list.map((c) => c.id);
  * edited, and refusing to start over one bad field would take the whole app
  * down for a typo. A field that is wrong is reported by being *not what was
  * typed*, which is visible in the settings page.
+ *
+ * `schemas` are the settings schemas of the plugins that are installed, by id:
+ *
+ *     { normalise(raw) -> settings,  changed?(a, b) -> bool,  legacy?: [keys] }
+ *
+ * Each installed plugin gets its settings normalised — and filled in with its
+ * defaults when it has none yet — whether it is switched on or not: switching a
+ * plugin off must not lose what it was set to. A plugin that is not installed
+ * keeps whatever it had, unread.
  */
-export function normalise(raw) {
-  const input = raw && typeof raw === 'object' ? raw : {};
+export function normalise(raw, schemas = {}) {
+  const input = liftLegacy(isPlainObject(raw) ? raw : {}, schemas);
   const pick = (value, list, fallback) => (ids(list).includes(value) ? value : fallback);
+
+  const plugins = normalisePlugins(input.plugins);
+  for (const [id, schema] of Object.entries(schemas)) {
+    const entry = plugins[id] || {};
+    plugins[id] = { ...entry, settings: schema.normalise(entry.settings || {}) };
+  }
 
   const port = Number(input.oscPort);
   return {
@@ -170,12 +250,25 @@ export function normalise(raw) {
     pixelhueHost: hostOrNothing(input.pixelhueHost),
     pixelhueModel: pick(input.pixelhueModel, CONSOLE_MODELS, DEFAULT_SETTINGS.pixelhueModel),
     memoryImportDir: pathOrNothing(input.memoryImportDir),
-    /* Validated next door rather than here: what a Companion address is
-       allowed to be is a fact about Companion, and the panel that draws the
-       field imports the same function. */
-    ...normaliseCompanion(input),
-    plugins: normalisePlugins(input.plugins),
+    plugins,
   };
+}
+
+/**
+ * Which installed plugins' settings differ between two settings objects.
+ *
+ * A schema's own `changed` decides where it has one, so a plugin whose
+ * settings include something cosmetic can say that a change to it needs no
+ * reconnect. Otherwise any difference counts.
+ */
+export function changedPluginSettings(prev, next, schemas = {}) {
+  const read = (s, id) => (s && s.plugins && s.plugins[id] && s.plugins[id].settings) || {};
+  return Object.keys(schemas).filter((id) => {
+    const a = read(prev, id);
+    const b = read(next, id);
+    const schema = schemas[id];
+    return schema.changed ? schema.changed(a, b) : JSON.stringify(a) !== JSON.stringify(b);
+  });
 }
 
 /**

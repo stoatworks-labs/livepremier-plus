@@ -3,7 +3,7 @@
  *
  * Companion is a control surface server. It is not a switcher, and nothing in
  * here belongs to the store mirror — which is the whole reason this file is
- * allowed to exist at all. Read `server/companion.js` for the connection
+ * allowed to exist at all. Read `link.js` beside this for the connection
  * argument; this file is the part with no I/O in it.
  *
  * ## Two APIs, and why both
@@ -52,11 +52,13 @@
  *    "Invalid or malformed input provided", which is Companion's own wording
  *    from its `tidyZodMiddleware`.
  *
- * ## `core/` still knows nothing about browsers
+ * ## Shared by both halves, and so it knows nothing about either
  *
- * No DOM, no sockets, no fetch. The server imports this to drive a real
- * connection; the panel imports the same table so the two cannot disagree
- * about what a plan means. Tests run it under plain Node.
+ * No DOM, no sockets, no fetch. The plugin's server half imports this to
+ * drive a real connection; its page half imports the same table so the two
+ * cannot disagree about what a plan means. Tests run it under plain Node. It
+ * is the one file of the Companion plugin that both halves load, which is
+ * what keeps `core/`'s rule — no I/O — true inside a plugin as well.
  */
 
 /** Companion's default admin port. Its own default, not a preference of ours. */
@@ -75,9 +77,11 @@ export const DEFAULT_COMPANION = {
 /**
  * Coerce a stored Companion block into something usable.
  *
- * Same contract as the rest of `settings.js`: a bad field falls back to its
- * default rather than taking the whole file down, and being *not what was
- * typed* is how it reports itself.
+ * Same contract as the rest of `src/core/settings.js`: a bad field falls
+ * back to its default rather than taking the whole file down, and being *not
+ * what was typed* is how it reports itself. This is the plugin's settings
+ * schema — `server.js` hands it to the host, which applies it to
+ * `plugins.companion.settings`.
  */
 export function normaliseCompanion(raw) {
   const input = raw && typeof raw === 'object' ? raw : {};
@@ -216,7 +220,7 @@ export const MODULES = {
     what: 'This app — cue stack, timeline, layer groups, matrix routing.',
     /* Pointed at us, not at the switcher. `facts.self` is the address this
        process is reachable on, which is not always the one the browser used
-       to get here — see `server/companion.js`. */
+       to get here — see `selfAddress` in `server/plugin-host.js`. */
     configure: (facts) => ({ host: facts.selfHost, port: facts.selfPort }),
   },
 };

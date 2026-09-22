@@ -44,11 +44,15 @@ echo "==> staging the app (server + panels)"
 rm -rf "$APP"
 mkdir -p "$APP"
 # server/ holds the proxy and its setup page; src/ holds the hook and the panel
-# modules, which the proxy serves to the browser and reads the hook from. The
-# repo layout is preserved because server/index.js resolves both relative to
-# itself.
+# modules, which the proxy serves to the browser and reads the hook from;
+# plugins/ holds the built-in plugins, each feature that has moved into one.
+# The repo layout is preserved because server/index.js resolves all three
+# relative to itself. A plugin that is missing is left out rather than fatal,
+# so forgetting a line here ships a build with features quietly absent —
+# test/packaging.test.js checks this list.
 cp -R "$REPO/server" "$APP/server"
 cp -R "$REPO/src" "$APP/src"
+cp -R "$REPO/plugins" "$APP/plugins"
 cp "$REPO/package.json" "$APP/package.json"
 
 echo "==> fetching self-contained Node $NODE_VERSION ($PLATFORM)"

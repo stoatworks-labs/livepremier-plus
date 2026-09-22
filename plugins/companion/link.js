@@ -77,19 +77,22 @@ import http from 'node:http';
 import net from 'node:net';
 import { EventEmitter } from 'node:events';
 
-import { WsClient } from './ws-client.js';
+import { WsClient } from '../../server/ws-client.js';
 import {
   addInput, moduleKey, originAllowed, parseFrames, pickVersion, request, stopRequest,
-} from '../src/core/companion.js';
+} from './core.js';
 
 /**
- * The path under the app's namespace that Companion is mounted at.
+ * Where Companion's own UI is mounted, below this plugin's base.
  *
  * A level deeper than it looks like it needs to be, so that `/__lpp/companion`
  * itself stays ours. Everything below the mount belongs to Companion and is
  * forwarded unread — which means the moment this app wants a route of its own
  * about Companion, it has nowhere to put it unless the mount is a sub-path.
  * `/state` and `/connections` live beside `/ui`, not underneath it.
+ *
+ * The plugin host puts this plugin's routes under `/__lpp/companion`, its id,
+ * so the whole mount is `/__lpp/companion/ui`.
  */
 export const API = '/companion';
 export const MOUNT = API + '/ui';
@@ -103,6 +106,9 @@ export const MOUNT = API + '/ui';
  * than one segment deep is fine — it is substituted as a string, not walked.
  */
 export const PREFIX_HEADER = `__lpp${MOUNT}`;
+
+/** The header value for a mount at `path` — `/__lpp/companion/ui` becomes `__lpp/companion/ui`. */
+export const prefixHeaderFor = (path) => String(path).replace(/^\/+/, '');
 
 /* How long to wait before redialling, and the ceiling.
  *
@@ -154,8 +160,8 @@ export class CompanionLink extends EventEmitter {
    * Take a new settings object. Returns true when the socket was rebuilt.
    *
    * The caller decides *whether* anything changed — `companionChanged` in
-   * `src/core/companion.js` is the one place that knows which fields mean a
-   * new socket, so that the panel and this agree.
+   * `core.js` is the one place that knows which fields mean a new socket, so
+   * that the panel and this agree.
    */
   apply(next) {
     this.config = {
@@ -527,7 +533,7 @@ export async function addConnections(link, plan, facts, want, target) {
  *
  * @param {string} rest the path *below* the mount, always starting with `/`
  */
-export function proxyToCompanion(req, res, rest, target, log = () => {}) {
+export function proxyToCompanion(req, res, rest, target, log = () => {}, prefix = PREFIX_HEADER) {
   if (!target) {
     res.writeHead(503, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
     return res.end(JSON.stringify({ error: 'no Companion configured' }));
@@ -538,7 +544,7 @@ export function proxyToCompanion(req, res, rest, target, log = () => {}) {
      loopback for its DNS-rebinding guard on `/int`, so it has to be the
      address we actually dialled rather than ours. */
   headers.host = target.port === 80 ? target.host : `${target.host}:${target.port}`;
-  headers['companion-custom-prefix'] = PREFIX_HEADER;
+  headers['companion-custom-prefix'] = prefix;
   /* Hop-by-hop headers belong to the connection we received on, not to the
      one we are about to make. */
   delete headers.connection;
@@ -588,12 +594,12 @@ export function proxyToCompanion(req, res, rest, target, log = () => {}) {
  * `rest` must already have the mount stripped: Companion matches the tRPC
  * upgrade on the pathname `/trpc` and nothing else.
  */
-export function relayUpgradeToCompanion(req, socket, head, rest, target, log = () => {}) {
+export function relayUpgradeToCompanion(req, socket, head, rest, target, log = () => {}, prefix = PREFIX_HEADER) {
   if (!target) { socket.destroy(); return null; }
 
   /*
    * The cross-origin check, kept — see `originAllowed` in
-   * `src/core/companion.js` for the whole argument.
+   * `core.js` for the whole argument.
    *
    * Short version: Companion refuses a cross-origin upgrade because a
    * WebSocket gets no CORS preflight, and mounting it under our origin would
@@ -615,7 +621,7 @@ export function relayUpgradeToCompanion(req, socket, head, rest, target, log = (
     const headers = { ...req.headers };
     const upstreamHost = target.port === 80 ? target.host : `${target.host}:${target.port}`;
     headers.host = upstreamHost;
-    headers['companion-custom-prefix'] = PREFIX_HEADER;
+    headers['companion-custom-prefix'] = prefix;
     /* Restated, not forged: the question this answers was already asked
        above, by the only party still in a position to ask it. Companion
        compares Origin against the Host we are about to send, so the two have

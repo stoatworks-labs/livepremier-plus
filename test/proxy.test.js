@@ -15,6 +15,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
+import dgram from 'node:dgram';
 import zlib from 'node:zlib';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -715,7 +716,9 @@ test('a switched-off plugin answers 404 on every route it owns, and comes back w
       body: JSON.stringify({ plugins: { companion: { enabled: true } } })
     });
     assert.equal(put.status, 200);
-    assert.deepEqual(saved.plugins, { companion: { enabled: true } }, 'the switch was saved');
+    assert.equal(saved.plugins.companion.enabled, true, 'the switch was saved');
+    /* …beside the plugin's own settings, which a switch must never wipe. */
+    assert.equal(saved.plugins.companion.settings.companionPort, 8000);
 
     const back = await fetch(base + '/__lpp/companion/state');
     assert.equal(back.status, 200, 'on again, with no restart');
@@ -726,5 +729,107 @@ test('an untouched install has every plugin on', async () => {
   await withProxy({}, async ({ base }) => {
     assert.equal((await fetch(base + '/__lpp/companion/state')).status, 200);
     assert.equal((await fetch(base + '/__lpp/matrix')).status, 200);
+  });
+});
+
+/* ------------------------------------------------------------- the plugin host */
+
+test('the hosted Companion is listed with its page half, which is served — its server half is not', async () => {
+  await withProxy({}, async ({ base }) => {
+    const { apiVersion, plugins } = await (await fetch(base + '/__lpp/plugins')).json();
+    assert.equal(apiVersion, 1);
+    const companion = plugins.find((p) => p.id === 'companion');
+    assert.equal(companion.hosted, true);
+    assert.equal(companion.on, true);
+    assert.equal(companion.base, '/__lpp/companion');
+    assert.equal(companion.client, '/__lpp/plugins/companion/client.js');
+    /* An in-place built-in is listed too, with no page half to load. */
+    assert.equal(plugins.find((p) => p.id === 'edit').client, null);
+
+    for (const file of ['client.js', 'panel.js', 'core.js']) {
+      const res = await fetch(`${base}/__lpp/plugins/companion/${file}`);
+      assert.equal(res.status, 200, file);
+      assert.match(res.headers.get('content-type'), /javascript/);
+    }
+    assert.equal((await fetch(base + '/__lpp/plugins/companion/server.js')).status, 404);
+  });
+});
+
+test('Companion settings from before plugins had a namespace are moved into it', async () => {
+  /* The shape every settings file had up to 0.12. */
+  let saved = { consoleLanguage: 'awj', companionEnabled: false, companionHost: 'companion.local', companionPort: 9000 };
+  const storage = {
+    loadSettings: async () => saved,
+    saveSettings: async (s) => { saved = s; }
+  };
+  await withProxy({ storage }, async ({ base }) => {
+    const state = await (await fetch(base + '/__lpp/companion/state')).json();
+    assert.deepEqual(state.settings, { companionEnabled: false, companionHost: 'companion.local', companionPort: 9000 });
+
+    const { settings } = await (await fetch(base + '/__lpp/settings')).json();
+    assert.equal(settings.companionHost, undefined, 'not at the top level any more');
+    assert.equal(settings.plugins.companion.settings.companionHost, 'companion.local');
+    assert.equal(settings.consoleLanguage, 'awj');
+
+    /* A caller still sending the old shape is lifted the same way. */
+    const put = await fetch(base + '/__lpp/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ settings: { companionPort: 9100 } })
+    });
+    assert.equal(put.status, 200);
+    assert.equal(saved.companionPort, undefined);
+    assert.deepEqual(saved.plugins.companion.settings,
+      { companionEnabled: false, companionHost: 'companion.local', companionPort: 9100 });
+  });
+});
+
+/*
+ * 2026-09-22: pointing the app at another switcher called `closeRelays`, which
+ * by then also stopped the OSC listener, the routers, the Pixelhue panel and
+ * the Companion link — all four silently off until the next restart, on the
+ * one operation each of them promises to survive.
+ */
+test('pointing the app at another switcher leaves the plugins and the OSC listener running', async () => {
+  const { server: deviceA } = fakeDevice();
+  const { server: deviceB } = fakeDevice();
+  const portA = await listen(deviceA);
+  const portB = await listen(deviceB);
+  const free = await new Promise((resolve) => {
+    const probe = dgram.createSocket('udp4');
+    probe.bind(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); });
+  });
+  let saved = { oscEnabled: true, oscPort: free };
+  const storage = { loadSettings: async () => saved, saveSettings: async (s) => { saved = s; } };
+  const proxy = await createProxy({ device: `127.0.0.1:${portA}`, root: ROOT, storage, log: () => {} });
+  const port = await listen(proxy);
+  const base = `http://127.0.0.1:${port}`;
+  try {
+    assert.equal((await (await fetch(base + '/__lpp/settings')).json()).osc.listening, true);
+
+    await fetch(`${base}${NS}/device`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ device: `127.0.0.1:${portB}` })
+    });
+
+    assert.equal((await (await fetch(base + '/__lpp/settings')).json()).osc.listening, true, 'OSC still listening');
+    const { plugins } = await (await fetch(base + '/__lpp/plugins')).json();
+    assert.equal(plugins.find((p) => p.id === 'companion').on, true, 'Companion still running');
+    assert.equal((await fetch(base + '/__lpp/companion/state')).status, 200);
+  } finally {
+    await close(proxy);
+    await close(deviceA);
+    await close(deviceB);
+  }
+});
+
+test('an upgrade under the namespace that no plugin takes is refused, never relayed to the switcher', async () => {
+  await withProxy({}, async ({ port, seen }) => {
+    const sock = net.connect(port, '127.0.0.1');
+    await new Promise((r) => sock.on('connect', r));
+    sock.write('GET /__lpp/nobody/ws HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n');
+    const reply = await new Promise((r) => sock.once('data', (d) => r(d.toString())));
+    assert.match(reply, /^HTTP\/1\.1 404/);
+    assert.equal(seen.upgrades, 0);
+    sock.destroy();
   });
 });

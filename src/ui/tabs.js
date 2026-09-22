@@ -380,8 +380,11 @@ export class TabHost {
     if (!tab) return;
     const scroll = this._pane.querySelector('.wru-body');
     const top = scroll ? scroll.scrollTop : 0;
+    const next = tab.render();
+    /* Redrawn in place — the same rule, and the same reason, as `Shell.refresh`. */
+    if (this._pane.children.length === 1 && this._pane.children[0] === next) return;
     this._pane.textContent = '';
-    this._pane.append(tab.render());
+    this._pane.append(next);
     const again = this._pane.querySelector('.wru-body');
     if (again) again.scrollTop = top;
   }

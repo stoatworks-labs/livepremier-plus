@@ -469,3 +469,38 @@ test('remount drops what the switcher turned out not to support', async () => {
     assert.equal(list.children.filter((c) => c.getAttribute('id') === 'wru-nav-section').length, 0);
   });
 });
+
+/*
+ * 2026-09-22: the Companion panel embeds Companion's own editor in an iframe,
+ * and every repaint took the panel out and put a new one back — so the editor
+ * reloaded on every frame the switcher sent. A panel that returns the element
+ * already on screen has redrawn itself in place and must be left alone.
+ */
+test('a panel that redraws in place is left mounted; one that rebuilds is swapped', async () => {
+  await withDom(async ({ doc }) => {
+    const { Shell } = await import('../src/ui/shell.js');
+    const kept = document.createElement('div');
+    const shell = new Shell({
+      entries: [
+        entry({ id: 'inplace', label: 'In place', submenuOf: 'Preconfig', render: () => kept }),
+        entry({ id: 'fresh', label: 'Fresh', submenuOf: 'Preconfig' })
+      ]
+    });
+    shell._mount();
+
+    shell.show('inplace');
+    const overlay = doc.getElementById('wru-overlay');
+    let appended = 0;
+    const append = overlay.append.bind(overlay);
+    overlay.append = (...kids) => { appended++; append(...kids); };
+
+    shell.refresh();
+    assert.equal(appended, 0, 'not taken out and put back');
+    assert.equal(overlay.children[0], kept);
+
+    shell.show('fresh');
+    appended = 0;
+    shell.refresh();
+    assert.equal(appended, 1, 'a panel that builds a new element each time still gets it');
+  });
+});

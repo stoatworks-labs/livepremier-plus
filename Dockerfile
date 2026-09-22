@@ -6,6 +6,10 @@ WORKDIR /app
 COPY package.json ./
 COPY server/ ./server/
 COPY src/ ./src/
+# The built-in plugins: each feature that has moved into one lives here, and
+# the app runs without it rather than failing — so a missing line here ships
+# an image with features quietly absent. test/packaging.test.js checks it.
+COPY plugins/ ./plugins/
 
 # Inside a container the loopback default would make the app unreachable, so
 # bind wide here — the container boundary is what limits exposure, and the

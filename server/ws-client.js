@@ -21,7 +21,7 @@
  * automatic reconnect. The one server it talks to is Companion's tRPC
  * endpoint, which negotiates none of those, and reconnection is a policy
  * question that belongs to the thing that knows what a lost link *means* —
- * see `server/companion.js`.
+ * see `plugins/companion/link.js`.
  *
  * ## The four things that are easy to get wrong
  *

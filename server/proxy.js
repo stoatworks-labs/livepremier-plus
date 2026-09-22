@@ -36,14 +36,10 @@ import { join, extname, normalize } from 'node:path';
 
 import {
   normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged, pixelhueChanged,
+  liftLegacy, mergeSettings,
 } from '../src/core/settings.js';
-import { companionChanged } from '../src/core/companion.js';
-import { isEnabled as pluginOn, routeOwner } from '../src/core/plugins.js';
-import {
-  CompanionLink, API as COMPANION_API, MOUNT as COMPANION_MOUNT,
-  addConnections, listConnections, proxyToCompanion, relayUpgradeToCompanion,
-} from './companion.js';
-import { MODULES, planConnections } from '../src/core/companion.js';
+import { API_VERSION, isEnabled as pluginOn, routeOwner } from '../src/core/plugins.js';
+import { createPluginHost } from './plugin-host.js';
 import { exchange as awjExchange } from './awj.js';
 import { importMemories, exportMemories } from './memory-import.js';
 import { createOscServer } from './osc.js';
@@ -202,6 +198,26 @@ export async function createProxy({
   const state = { device: target ? `${target.host}:${target.port}` : null, clients: 0, upstreamError: null, version };
 
   /*
+   * The plugin host — see `server/plugin-host.js`.
+   *
+   * Created before the settings are read, because a plugin's settings schema
+   * decides what of the stored file is kept and what a legacy field becomes.
+   * The host loads every hosted plugin's server half now, switched on or not;
+   * nothing is *started* until `host.sync` below.
+   */
+  const host = await createPluginHost({
+    root,
+    ns: NS,
+    /* Read per use, never captured: the switcher can be re-pointed. */
+    device: () => state.device,
+    awj: (messages) => (target
+      ? awjExchange({ host: target.host, messages })
+      : Promise.reject(new Error('no switcher configured'))),
+    splitAddress: splitDevice,
+    log
+  });
+
+  /*
    * Settings, and the UDP socket one of them opens.
    *
    * Loaded once at startup and held in memory: the panels read them on every
@@ -210,7 +226,8 @@ export async function createProxy({
    * rather than rejected, because refusing to start over one bad field would
    * take the app down for a typo.
    */
-  let settings = normaliseSettings(storage && storage.loadSettings ? await storage.loadSettings() : {});
+  let settings = normaliseSettings(
+    storage && storage.loadSettings ? await storage.loadSettings() : {}, host.schemas);
 
   /*
    * Whether a plugin is switched on — see `src/core/plugins.js`. Read per call,
@@ -295,83 +312,6 @@ export async function createProxy({
   const applyMatrices = () => matrices.apply(on('matrix-routing') ? matrixConfig : []);
   applyMatrices();
 
-  /*
-   * The link to a Companion.
-   *
-   * Installation-level, like the OSC listener and the matrices: a control
-   * surface in the rack does not move when you fail over to a backup frame,
-   * so re-pointing the switcher must not disturb it. `server/companion.js`
-   * carries the argument for why this one holds a socket open, and it is the
-   * matrix argument rather than the AWJ one.
-   */
-  const companion = new CompanionLink(log);
-  const applyCompanion = () =>
-    companion.apply(on('companion') ? settings : { ...settings, companionEnabled: false });
-  applyCompanion();
-
-  /*
-   * Pages watching the Companion show.
-   *
-   * Exactly the arrangement the matrices use, and for the reason
-   * `server/matrix/index.js` gives: a panel that only updated when you
-   * touched it would be a panel that was right when it was opened. This one
-   * has the sharpest version of that problem — Companion's own Connections
-   * page is embedded in the panel, so the most likely way for the show to
-   * change is the operator changing it two clicks away, inside our own
-   * iframe.
-   */
-  const companionListeners = new Set();
-  companion.on('showChanged', () => {
-    if (!companionListeners.size) return;
-    /* Re-read over the documented API rather than forwarding whatever the
-       subscription said — the link uses that only as a doorbell. */
-    listConnections(companion.target).then((connections) => {
-      const line = `event: show\ndata: ${JSON.stringify({
-        connections, plan: planConnections(connections), link: companion.state,
-      })}\n\n`;
-      for (const listener of companionListeners) {
-        try { listener.write(line); } catch { companionListeners.delete(listener); }
-      }
-    }).catch(() => { /* the next change will try again */ });
-  });
-
-  /**
-   * The facts a module needs to be pointed at something: the switcher, and us.
-   *
-   * ## Why our own address comes off the request rather than out of a config
-   *
-   * This process genuinely does not know how it is reachable. It may be bound
-   * to loopback, to one LAN address, or to everything; it may be behind the
-   * launcher, a tunnel, or a container's port mapping. The one address known
-   * to work is **the one the request in hand arrived on**, because a browser
-   * just used it — so that is what is offered.
-   *
-   * That is right rather than merely convenient for the AWJ module too: it
-   * gets pointed at the *switcher*, which this process does know, because the
-   * module talks to the box and not to us.
-   *
-   * ⚠️ **It can still be the wrong answer, and the panel has to say so.** An
-   * operator with the page open on the same machine as this process sends
-   * `Host: 127.0.0.1:8535`, and telling a Companion on another machine to dial
-   * that points it at itself. `selfIsLoopback` is that warning, and it is left
-   * for the panel to phrase rather than being silently fixed up here — there
-   * is no address this process could substitute that it would not be guessing.
-   */
-  function companionFacts(req) {
-    /* `splitDevice` rather than a regex written here: a Host header and a
-       switcher address are the same shape, and this app already has one
-       opinion about what that shape is. It rejects the bracketed IPv6 form,
-       which `validHost` rejects everywhere else too — consistent beats
-       clever, and nothing in this app has ever accepted one. */
-    const self = splitDevice(String(req.headers.host || ''), 80);
-    return {
-      device: state.device || null,
-      selfHost: self ? self.host : null,
-      selfPort: self ? self.port : null,
-      selfIsLoopback: !!self && (self.host === '127.0.0.1' || self.host === 'localhost'),
-    };
-  }
-
   let patch = normalisePatch(
     storage && storage.loadPatch ? await storage.loadPatch(state.device) : []);
 
@@ -438,6 +378,10 @@ export async function createProxy({
     pixelhue.apply(on('pixelhue') ? settings : { ...settings, pixelhueEnabled: false });
   await applyPixelhue();
 
+  /* The hosted plugins, started after the app's own services so that anything
+     a plugin asks of the app is already there to answer. */
+  await host.sync(settings);
+
   /*
    * Timecode pushed in from outside.
    *
@@ -472,121 +416,18 @@ export async function createProxy({
     }
 
     /*
-     * Companion, mounted whole under our own origin.
+     * The plugins.
      *
-     * Checked before anything else because it is a *prefix* and every other
-     * route here is an exact path — and because what is below it is not ours
-     * to interpret. The query string has to be carried across by hand:
-     * `url.pathname` has already dropped it, and the emulator identifies
-     * itself with one.
-     *
-     * The mount point is stripped here rather than at the far end. Companion
-     * matches its own routes on the unprefixed path and is *told* about the
-     * prefix by a header instead — see `server/companion.js`.
+     * `/plugins` is the list the page host loads from and the settings page
+     * will draw; `/plugins/<id>/…` is a running plugin's own files; and a
+     * hosted plugin's routes are answered by the host. A path that is no
+     * hosted plugin's falls through to the app's own routes below.
      */
-    if (rest === COMPANION_MOUNT || rest.startsWith(COMPANION_MOUNT + '/')) {
-      const below = rest.slice(COMPANION_MOUNT.length) || '/';
-      return proxyToCompanion(req, res, below + (url.search || ''), companion.target, log);
+    if (rest === '/plugins') {
+      return sendJson(res, 200, { apiVersion: API_VERSION, plugins: host.list() });
     }
-
-    /*
-     * What this app knows about that Companion, which is not the same as what
-     * Companion knows about itself.
-     *
-     * The connection list comes from Companion's **documented** HTTP API
-     * rather than from the tRPC socket — see `listConnections`. The plan on
-     * top of it is entirely ours, and it is the part that decides what this
-     * app is willing to do to a show it did not create.
-     */
-    if (rest === COMPANION_API + '/state') {
-      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' });
-
-      const body = {
-        link: companion.state,
-        /* The three stored fields, so the address form has something to draw
-           without a second round trip to `/settings` — and so that what the
-           form shows and what the link is using cannot disagree. */
-        settings: {
-          companionEnabled: settings.companionEnabled,
-          companionHost: settings.companionHost,
-          companionPort: settings.companionPort,
-        },
-        /* The address our own module should be pointed at, so the panel can
-           show it before anybody commits to it. `null` when this process
-           cannot work out how it is reachable — see `selfAddress`. */
-        facts: companionFacts(req),
-        modules: Object.fromEntries(
-          Object.entries(MODULES).map(([k, m]) => [k, { moduleId: m.moduleId, label: m.label, what: m.what }])),
-        connections: null,
-        plan: null,
-        error: null,
-      };
-      if (!companion.target) return sendJson(res, 200, body);
-
-      try {
-        body.connections = await listConnections(companion.target);
-        body.plan = planConnections(body.connections);
-      } catch (err) {
-        body.error = err.message;
-      }
-      return sendJson(res, 200, body);
-    }
-
-    if (rest === COMPANION_API + '/stream') {
-      res.writeHead(200, {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-store',
-        connection: 'keep-alive',
-        'x-accel-buffering': 'no'
-      });
-      res.write(': companion stream open\n\n');
-      companionListeners.add(res);
-      req.on('close', () => companionListeners.delete(res));
-      return undefined;   /* held open deliberately */
-    }
-
-    /*
-     * Put the two connections in the show.
-     *
-     * A POST rather than a PUT: this creates, and it is emphatically not
-     * idempotent in the "make it look like this" sense — a second call adds
-     * nothing, because the plan is recomputed from what is actually there
-     * first. That recomputation is the whole safety property, so it happens
-     * HERE and not from whatever the panel last drew: a show can have gained
-     * a connection since the panel loaded.
-     */
-    if (rest === COMPANION_API + '/connections') {
-      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' });
-      if (!companion.target) return sendJson(res, 409, { error: 'no Companion configured' });
-      if (!companion.state.connected) return sendJson(res, 409, { error: 'not connected to Companion' });
-
-      const raw = await collect(req, 4096);
-      let parsed = {};
-      if (raw.length) {
-        try { parsed = JSON.parse(raw.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-      }
-      const want = Array.isArray(parsed.keys) ? parsed.keys.filter((k) => k in MODULES) : null;
-
-      let connections;
-      try { connections = await listConnections(companion.target); }
-      catch (err) { return sendJson(res, 502, { error: err.message }); }
-
-      const plan = planConnections(connections);
-      const results = await addConnections(
-        companion, plan, companionFacts(req), want, companion.target);
-
-      /* Read back rather than reporting what we meant to do. */
-      let after = connections;
-      try { after = await listConnections(companion.target); } catch { /* the adds still happened */ }
-
-      return sendJson(res, 200, {
-        ok: results.every((r) => r.ok),
-        results,
-        connections: after,
-        plan: planConnections(after),
-      });
-    }
+    if (await host.serveFile(rest, res)) return undefined;
+    if (await host.handle(req, res, url, rest)) return undefined;
 
     if (rest === '/timecode') {
       if (req.method === 'GET') return sendJson(res, 200, { timecode: lastTimecode });
@@ -637,7 +478,6 @@ export async function createProxy({
       if (req.method === 'GET') {
         return sendJson(res, 200, {
           settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
-          companion: companion.state,
         });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
@@ -648,25 +488,28 @@ export async function createProxy({
 
         /* Merged onto what is already held, so a panel may send one field
            without having to restate the rest and without racing another
-           surface that is changing a different one. */
-        const next = normaliseSettings({ ...settings, ...(parsed.settings ?? parsed) });
+           surface that is changing a different one. A plugin's entry is merged
+           a level deeper, so a switch and its settings never wipe each other —
+           and a field from before plugins had a namespace is lifted into its
+           plugin's on the way in. See `core/settings.js`. */
+        const patch = liftLegacy(parsed.settings ?? parsed, host.schemas);
+        const next = normaliseSettings(mergeSettings(settings, patch), host.schemas);
         const needsRebind = oscChanged(settings, next);
         /* Diffed for the same reason the matrices are: settings are saved as
            a whole, so a change to the console language must not hang up a
-           Companion link — or a Pixelhue panel — that nobody touched. */
+           Pixelhue panel that nobody touched. The hosted plugins are diffed by
+           the host, each by its own schema. */
         const needsPanel = pixelhueChanged(settings, next);
-        const needsRedial = companionChanged(settings, next);
-        const needsPlugins = JSON.stringify(settings.plugins) !== JSON.stringify(next.plugins);
+        const needsPlugins = JSON.stringify(switches(settings.plugins)) !== JSON.stringify(switches(next.plugins));
         settings = next;
         if (storage && storage.saveSettings) await storage.saveSettings(settings);
         if (needsRebind || needsPlugins) await applyOsc();
         if (needsPanel || needsPlugins) await applyPixelhue();
-        if (needsRedial || needsPlugins) applyCompanion();
         if (needsPlugins) applyMatrices();
+        await host.sync(settings);
 
         return sendJson(res, 200, {
           ok: true, settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
-          companion: companion.state,
         });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
@@ -808,8 +651,14 @@ export async function createProxy({
 
         /* Re-pointing means every relay is now attached to the wrong box.
            Hang them up so the page reconnects to the new one rather than
-           quietly driving the old one. */
-        server.closeRelays();
+           quietly driving the old one.
+
+           ⚠️ The vendor relays ONLY. This used to call `closeRelays`, which by
+           then also stopped the OSC listener, the routers, the Pixelhue panel
+           and the Companion link — so pointing the app at a backup frame
+           silently switched all four off until the next restart, the exact
+           opposite of what each of them promises about a failover. */
+        hangUpVendorRelays();
         target = next;
         state.device = `${next.host}:${next.port}`;
         state.upstreamError = null;
@@ -1245,32 +1094,25 @@ export async function createProxy({
    */
   const onUpgrade = (req, socket, head) => {
     /*
-     * An upgrade under the Companion mount goes to Companion, not the
-     * switcher.
+     * An upgrade under our own namespace is a plugin's, never the switcher's.
      *
-     * The embedded web UI computes its own socket address from the prefix it
-     * was served with, so it dials `/__lpp/companion/trpc` — and Companion
-     * matches that upgrade on the pathname `/trpc` and nothing else. Passing
-     * the mounted path through verbatim gets a socket that opens and then
-     * says nothing, with no error at either end.
+     * The host offers it to the plugin whose base it is under — Companion's
+     * embedded UI dials `/__lpp/companion/ui/trpc` — and tracks what that
+     * plugin relays, so switching the plugin off or stopping the app hangs it
+     * up. Anything under the namespace that no running plugin takes is refused
+     * here: relaying it on to the switcher would hand the device a path it has
+     * never heard of, from a plugin that may just have been switched off.
      */
     let upgradePath = null;
     try { upgradePath = new URL(req.url, 'http://localhost').pathname; }
     catch { socket.destroy(); return; }
 
-    const mounted = NS + COMPANION_MOUNT;
-    if (upgradePath === mounted || upgradePath.startsWith(mounted + '/')) {
-      const below = req.url.slice(mounted.length) || '/';
-      const pair = relayUpgradeToCompanion(req, socket, head, below, companion.target, log);
-      if (pair) {
-        /* Tracked with the vendor relays so that a launcher Stop hangs this
-           up too — an upgraded socket is invisible to `server.close()`
-           whichever box is on the other end of it. */
-        relays.add(pair);
-        const drop = () => relays.delete(pair);
-        pair.socket.on('close', drop);
-        pair.upstream.on('close', drop);
-      }
+    if (upgradePath === NS || upgradePath.startsWith(NS + '/')) {
+      if (host.upgrade(req, socket, head, upgradePath.slice(NS.length) || '/')) return;
+      /* Answering rather than destroying: a browser left hanging on an
+         unanswered upgrade retries forever and reports nothing useful. */
+      if (socket.writable) socket.write('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n');
+      socket.destroy();
       return;
     }
 
@@ -1333,13 +1175,17 @@ export async function createProxy({
    * ours to hang up. Without this a launcher Stop, or a test's teardown, waits
    * on a Web RCS tab that has no reason to ever disconnect.
    */
-  server.closeRelays = () => {
+  function hangUpVendorRelays() {
     for (const { socket, upstream } of [...relays]) {
       upstream.destroy();
       socket.destroy();
     }
     relays.clear();
     state.clients = 0;
+  }
+
+  server.closeRelays = () => {
+    hangUpVendorRelays();
 
     /* The UDP socket is invisible to `server.close()` for the same reason an
        upgraded socket is — it was never the HTTP server's to begin with. A
@@ -1363,11 +1209,10 @@ export async function createProxy({
     void pixelhue.stop();
     for (const listener of pixelhueListeners) { try { listener.end(); } catch { /* gone */ } }
     pixelhueListeners.clear();
-    /* And the Companion link, which holds both a socket and a redial timer
-       for exactly the reasons the matrices do. */
-    companion.stop();
-    for (const listener of companionListeners) { try { listener.end(); } catch { /* gone */ } }
-    companionListeners.clear();
+    /* And every plugin: the host stops each one, which ends its streams,
+       hangs up the sockets it relayed and runs its own disposers — the
+       Companion link's socket and redial timer among them. */
+    void host.stop();
   };
 
   return server;
@@ -1386,6 +1231,11 @@ export function injectInto(html, fragment) {
   if (html.includes('<script')) return html.replace('<script', `${fragment}<script`);
   if (html.includes('<body')) return html.replace('<body', `${fragment}<body`);
   return fragment + html;
+}
+
+/** A plugins map reduced to its on/off switches — what the app's own services care about. */
+function switches(plugins) {
+  return Object.fromEntries(Object.entries(plugins || {}).map(([id, entry]) => [id, entry.enabled]));
 }
 
 function sendJson(res, status, body) {

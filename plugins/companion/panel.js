@@ -29,21 +29,28 @@
  * So the panel is ours where it has something to say — the link, the plan,
  * the two connections — and theirs where they are better at it.
  *
+ * ## Drawn in place, because of the iframe
+ *
+ * Every other panel is rebuilt whole on each repaint, and the app repaints on
+ * every frame the switcher sends — about once a second from its timers alone.
+ * Rebuilt whole, this panel took the iframe with it: Companion's editor
+ * reloaded every second it was open, and anything half-done in it was lost
+ * (found 2026-09-22, on 0.12.0). So this panel builds its frame once and
+ * returns the same element every time; each repaint refills the parts that
+ * change, and the iframe is replaced only when the operator picks another
+ * view. `ui/shell.js` leaves a panel alone when it hands back the element
+ * already on screen.
+ *
  * ## The plan is an offer, not a sync
  *
- * `core/companion.js` sets out the rule this panel exists to present: an
- * existing connection is **adopted**, never rewritten, and two of the same
- * module are reported rather than resolved. An operator's show is theirs. The
- * only button here that writes anything says exactly what it will create
- * before it creates it.
+ * `core.js` sets out the rule this panel exists to present: an existing
+ * connection is **adopted**, never rewritten, and two of the same module are
+ * reported rather than resolved. An operator's show is theirs. The only button
+ * here that writes anything says exactly what it will create before it creates
+ * it.
  */
 
-import { h, button, readout, sectionTitle } from './dom.js';
-import { panel } from './shell.js';
-import { MODULES } from '../core/companion.js';
-
-const API = '/__lpp/companion';
-const UI = API + '/ui';
+import { MODULES } from './core.js';
 
 /**
  * The pages of Companion's own UI worth reaching from here.
@@ -60,7 +67,19 @@ const VIEWS = [
   { id: 'emulator', label: 'Emulator', path: '/emulator', what: 'A Stream Deck on screen.' },
 ];
 
-export function createCompanionPanel({ onRefresh }) {
+/**
+ * @param {object} o
+ * @param {object} o.kit        the app's DOM helpers — `ctx.kit`
+ * @param {(path: string) => string} o.url   this plugin's routes — `ctx.url`
+ * @param {{get: Function, set: Function}} o.settings  this plugin's settings — `ctx.settings`
+ * @param {() => void} [o.onRefresh]
+ */
+export function createCompanionPanel({ kit, url, settings, onRefresh }) {
+  const { h, button, readout, sectionTitle, panel, fill } = kit;
+  const API = url('/');
+  const UI = url('/ui');
+  const repaint = () => { if (onRefresh) onRefresh(); };
+
   /* The last snapshot from our own process. Null until the first fetch lands,
      which is a different thing from "nothing configured" — the panel says
      which of those it is rather than showing an empty table that looks like
@@ -76,6 +95,11 @@ export function createCompanionPanel({ onRefresh }) {
      by the link coming up does not wipe what somebody is halfway through
      typing. Null means "not editing" — the fields show what is stored. */
   let draft = null;
+  /* Whether one of those fields has the caret. The app holds every repaint
+     while it does (see `busy()` below): a repaint rebuilds the form, and a
+     rebuilt field has lost the caret and whatever was selected in it. */
+  let typing = false;
+  let letGo = null;
 
   /* Which of Companion's own pages is showing, and nothing until the operator
      asks. An iframe that mounted itself on first paint would have Companion's
@@ -94,7 +118,7 @@ export function createCompanionPanel({ onRefresh }) {
     } catch (err) {
       error = `Could not reach the launcher: ${err.message}`;
     }
-    onRefresh && onRefresh();
+    repaint();
   }
 
   /**
@@ -121,7 +145,7 @@ export function createCompanionPanel({ onRefresh }) {
           /* A write that has just reported itself is not stale news, but the
              show it reported on has moved since — so the results stay and the
              list under them updates. */
-          onRefresh && onRefresh();
+          repaint();
         } catch { /* a malformed frame is not worth taking the panel down */ }
       });
     } catch { /* no EventSource: the panel still works, just not live */ }
@@ -129,34 +153,30 @@ export function createCompanionPanel({ onRefresh }) {
 
   async function saveAddress(next) {
     busy = 'address';
-    onRefresh && onRefresh();
+    clearTimeout(letGo);
+    typing = false;
+    repaint();
     try {
-      const res = await fetch('/__lpp/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings: next }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) { error = payload.error || `${res.status}`; return; }
+      await settings.set(next);
       draft = null;
       error = null;
       /* The link is rebuilt by the server on this write, and dialling takes a
          moment. Re-reading immediately would report "not connected" about a
          socket that is halfway open, so the state comes back on the next
-         poll rather than now. */
+         look rather than now. */
       await load();
     } catch (err) {
       error = err.message;
     } finally {
       busy = null;
-      onRefresh && onRefresh();
+      repaint();
     }
   }
 
   async function addToShow(keys) {
     busy = 'add';
     results = null;
-    onRefresh && onRefresh();
+    repaint();
     try {
       const res = await fetch(`${API}/connections`, {
         method: 'POST',
@@ -174,7 +194,7 @@ export function createCompanionPanel({ onRefresh }) {
       error = err.message;
     } finally {
       busy = null;
-      onRefresh && onRefresh();
+      repaint();
     }
   }
 
@@ -187,7 +207,13 @@ export function createCompanionPanel({ onRefresh }) {
       companionHost: (data && data.settings && data.settings.companionHost) || '',
       companionPort: (data && data.settings && data.settings.companionPort) || 8000,
     };
-    const edit = (patch) => { draft = { ...current, ...patch }; onRefresh && onRefresh(); };
+    const edit = (patch) => { draft = { ...current, ...patch }; repaint(); };
+    const focus = () => { clearTimeout(letGo); typing = true; };
+    /* Let go a moment after the caret leaves rather than at once. Pressing
+       Connect takes the caret off the field on mouse-down; a repaint landing
+       before mouse-up would swap the button out from under the pointer, and
+       the click would never arrive. */
+    const blur = () => { clearTimeout(letGo); letGo = setTimeout(() => { typing = false; }, 400); };
 
     return h('div', { class: 'aw-flex-col aw-gap-row-small' },
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
@@ -206,6 +232,8 @@ export function createCompanionPanel({ onRefresh }) {
           placeholder: 'address, e.g. 192.168.0.10',
           value: current.companionHost,
           style: { flex: '1 1 auto' },
+          onFocus: focus,
+          onBlur: blur,
           onInput: (ev) => { draft = { ...current, companionHost: ev.target.value }; },
         }),
         h('input', {
@@ -213,6 +241,8 @@ export function createCompanionPanel({ onRefresh }) {
           class: 'wru-input wru-input--narrow',
           placeholder: '8000',
           value: String(current.companionPort),
+          onFocus: focus,
+          onBlur: blur,
           onInput: (ev) => { draft = { ...current, companionPort: Number(ev.target.value) || 0 }; },
         }),
         button(busy === 'address' ? 'Connecting…' : 'Connect', {
@@ -281,13 +311,12 @@ export function createCompanionPanel({ onRefresh }) {
   function planSection(plan) {
     const parts = [];
 
-    for (const { key, spec, connections } of plan.ambiguous) {
+    for (const { spec, connections } of plan.ambiguous) {
       /* Reported, never resolved. A show with a main and a backup frame is a
          correct show, and picking one of them by sort order would be picking
          at random. */
       parts.push(h('div', { class: 'wru-warn aw-font-body-2', text:
         `${connections.length} connections use ${spec.moduleId}. Point this app at one by hand — it will not choose for you.` }));
-      void key;
     }
 
     for (const { spec, connection } of plan.adopt) {
@@ -354,6 +383,32 @@ export function createCompanionPanel({ onRefresh }) {
       })));
   }
 
+  /* ---------------------------------------------------------- the frame */
+
+  /*
+   * Built once and kept. `head` and `top` are refilled on every repaint; the
+   * embedded section is built when a Companion is first configured, and its
+   * iframe is replaced only when the chosen view changes. Refilling a parent
+   * of the iframe would detach it, and a detached iframe reloads.
+   */
+  let root = null;
+  let head = null;
+  let top = null;
+  let embed = null;
+  /* The embedded section's parts, while a Companion is configured. */
+  let parts = null;
+  /* The view whose iframe is in `parts.body` now: undefined for none yet,
+     null for the "pick a view" caption. */
+  let shown;
+
+  function frame() {
+    if (root) return;
+    head = h('div', { style: { display: 'contents' } });
+    top = h('div', { class: 'aw-flex-col aw-gap-row-medium' });
+    embed = h('div', { class: 'aw-flex-col aw-gap-row-small' });
+    root = panel({ toolbar: head, body: h('div', { class: 'aw-flex-col aw-gap-row-medium' }, top, embed) });
+  }
+
   /**
    * Companion's own pages, on this origin.
    *
@@ -361,39 +416,49 @@ export function createCompanionPanel({ onRefresh }) {
    * reassigned, so going back to a view is a fresh load rather than a history
    * entry in a frame nobody can navigate.
    */
-  function embedded() {
+  function syncEmbed() {
     const link = (data && data.link) || {};
-    if (!link.configured) return null;
+    if (!link.configured) {
+      if (parts) { fill(embed); parts = null; shown = undefined; }
+      return;
+    }
+    if (!parts) {
+      parts = { tabs: h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' }), body: h('div') };
+      fill(embed, sectionTitle('Companion'), parts.tabs, parts.body);
+      shown = undefined;
+    }
 
-    const tabs = h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
+    fill(parts.tabs,
       VIEWS.map((v) => button(v.label, {
         active: view === v.id,
         title: v.what,
         disabled: !link.connected,
-        onClick: () => { view = view === v.id ? null : v.id; onRefresh && onRefresh(); },
+        onClick: () => { view = view === v.id ? null : v.id; repaint(); },
       })),
-      view ? button('Close', { onClick: () => { view = null; onRefresh && onRefresh(); } }) : null);
+      view ? button('Close', { onClick: () => { view = null; repaint(); } }) : null);
 
     const chosen = VIEWS.find((v) => v.id === view);
-
-    return h('div', { class: 'aw-flex-col aw-gap-row-small' },
-      sectionTitle('Companion'),
-      tabs,
-      chosen
-        ? h('iframe', {
-            src: UI + chosen.path,
-            /* Tall enough to be usable and not so tall that the panel's own
-               controls are pushed off the top on a laptop. */
-            style: {
-              width: '100%', height: '32rem', border: '0',
-              borderRadius: '0.25rem', background: '#1c2226',
-            },
-            title: `Companion — ${chosen.label}`,
-          })
-        : h('div', { class: 'aw-font-caption aw-text-tertiary', text:
-            link.connected
-              ? 'Pick a view to open Companion here. It runs on this app’s own address, so it needs nothing extra opened up.'
-              : 'Connect to a Companion to open its pages here.' }));
+    if (chosen) {
+      if (shown !== chosen.id) {
+        fill(parts.body, h('iframe', {
+          src: UI + chosen.path,
+          /* Tall enough to be usable and not so tall that the panel's own
+             controls are pushed off the top on a laptop. */
+          style: {
+            width: '100%', height: '32rem', border: '0',
+            borderRadius: '0.25rem', background: '#1c2226',
+          },
+          title: `Companion — ${chosen.label}`,
+        }));
+        shown = chosen.id;
+      }
+    } else {
+      fill(parts.body, h('div', { class: 'aw-font-caption aw-text-tertiary', text:
+        link.connected
+          ? 'Pick a view to open Companion here. It runs on this app’s own address, so it needs nothing extra opened up.'
+          : 'Connect to a Companion to open its pages here.' }));
+      shown = null;
+    }
   }
 
   function render() {
@@ -402,21 +467,26 @@ export function createCompanionPanel({ onRefresh }) {
        a Companion nobody has asked about yet is a socket held open for a
        panel that may never be opened this show. */
     listen();
+    frame();
 
-    return panel({
-      toolbar: sectionTitle('Companion',
-        data && data.link && data.link.connected
-          ? h('span', { class: 'aw-font-caption aw-text-tertiary', text: 'connected' })
-          : null),
-      body: h('div', { class: 'aw-flex-col aw-gap-row-medium' },
-        error ? h('div', { class: 'wru-warn', text: error }) : null,
-        h('div', { class: 'aw-flex-col aw-gap-row-small' },
-          addressForm(),
-          linkState()),
-        showSection(),
-        embedded()),
-    });
+    fill(head, sectionTitle('Companion',
+      data && data.link && data.link.connected
+        ? h('span', { class: 'aw-font-caption aw-text-tertiary', text: 'connected' })
+        : null));
+    fill(top,
+      error ? h('div', { class: 'wru-warn', text: error }) : null,
+      h('div', { class: 'aw-flex-col aw-gap-row-small' },
+        addressForm(),
+        linkState()),
+      showSection());
+    syncEmbed();
+    return root;
   }
 
-  return { render, reload: load };
+  return {
+    render,
+    reload: load,
+    /* True while an address field has the caret; the app holds repaints. */
+    busy: () => typing,
+  };
 }

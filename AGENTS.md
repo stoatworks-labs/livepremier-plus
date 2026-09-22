@@ -55,7 +55,48 @@ reaches the box per tab.
 **4. `core/` knows nothing about browsers.** No DOM, no transport. It imports
 and runs under plain Node, which is what the tests do. The browser panels are
 one front-end; a standalone AWJ client is meant to be another and should need
-only a new `transports/` module. Keep device I/O out of `core/`.
+only a new `transports/` module. Keep device I/O out of `core/`. A plugin
+keeps the same rule inside its own folder: the file both its halves import
+(`plugins/companion/core.js`) has no I/O either.
+
+## Plugins: what the app is made of
+
+Every feature is a **plugin**, described once in `src/core/plugins.js` and
+switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
+([docs/PLUGINS.md](docs/PLUGINS.md)), so a built-in is one of two kinds today:
+
+- **Hosted** — moved into `plugins/<id>/` with a server half and/or a page half,
+  loaded by `server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a
+  plugin written elsewhere will be. **Companion** is the one so far.
+- **In place** — still wired into `src/main.js` and `server/proxy.js` by hand and
+  gated there with `isEnabled`. Everything else, until its phase.
+
+What the hosts own, so a plugin does not have to: routes under
+`/__lpp/<id>/…`, server-sent streams, relayed sockets, and disposal of all of
+it when the plugin is switched off — live, with no restart, on the server; on
+the next load in the page. A plugin that throws while starting is marked failed
+and says why on its settings row; nothing else goes down with it.
+
+Five things about it that break quietly:
+
+- **Importing a server half must do nothing.** The host imports every hosted
+  plugin at startup, switched on or not, to read its settings schema.
+  Everything with an effect belongs in `activate(ctx)`.
+- **A plugin's settings live in `plugins.<id>.settings`, never at the top
+  level.** Companion's three fields used to be top-level; its schema's `legacy`
+  list lifts them wherever they still appear (an old `settings.json`, an old
+  setup file, a caller sending the old shape), and a lifted value wins. A
+  settings save merges `plugins` one level deeper, so a switch never wipes a
+  plugin's settings — compare `switches()` in `proxy.js`, not the whole map,
+  when deciding whether the app's own services need re-applying, or a
+  Companion address change rebinds the OSC socket.
+- **`plugins/` must be in every package.** The app runs without a missing
+  plugin — right for a user's folder, wrong for a release — so a Dockerfile or
+  `launcher/scripts/prepare.sh` without it ships features quietly absent.
+  `test/packaging.test.js` reads both.
+- **A panel with an iframe renders in place.** See the invariant below.
+- **The page loads plugins from `/__lpp/plugins`, not from the manifest
+  table**, so what it shows is what the server actually started.
 
 ## Why a proxy, and the three things that make it work
 
@@ -534,9 +575,11 @@ Alta and the only one proven to work on a box.
 ### Companion, mounted inside us, and the five things that make it honest
 
 A Bitfocus Companion is served at `/__lpp/companion/ui` on our own origin, and a
-PLUS ▸ Companion panel manages the show beside it. The reasoning is in the heads
-of `server/companion.js` and `src/core/companion.js`; these are the parts that
-break quietly if "simplified".
+PLUS ▸ Companion panel manages the show beside it. It is a hosted plugin,
+`plugins/companion/`: `server.js` wires it into the host, `link.js` is the
+supervised link and the mount, `core.js` the no-I/O half both sides share, and
+`panel.js` the page. The reasoning is in the heads of `link.js` and `core.js`;
+these are the parts that break quietly if "simplified".
 
 - **The prefix is stripped, not forwarded.** Companion (4.1+) serves under a
   sub-path by rewriting a `/ROOT_URL_HERE` token according to a
@@ -554,6 +597,11 @@ break quietly if "simplified".
   must match the Host the browser used to reach us) and only then restate
   Origin as Companion's own. Verified live: 101 for our page and for no Origin,
   403 for a forged origin and for a sandboxed iframe's `null`.
+- **The panel builds its frame once.** Rebuilt whole on every repaint — about
+  once a second from the switcher's timers — it took the iframe with it, and
+  Companion's editor reloaded every second it was open, losing whatever was
+  half-done in it (found 2026-09-22, on 0.12.0). `panel.js` returns the same
+  element each time and replaces the iframe only when the view changes.
 - **`server/ws-client.js` exists because there can be no dependency.** This repo
   has none, and CI runs Node 20, where there is no global WebSocket. It is the
   smallest thing RFC 6455 allows; its tests drive it from a server written in
@@ -578,8 +626,8 @@ break quietly if "simplified".
 This link holds a socket open, which `server/awj.js` refuses to do. That
 argument is about the store mirror and does not reach here: nothing in the store
 has heard of a Companion show, the show changes without us, and the five-client
-budget is the switcher's, not Companion's. `server/companion.js` says so at
-length — read it before "fixing" the open socket.
+budget is the switcher's, not Companion's. `plugins/companion/link.js` says so
+at length — read it before "fixing" the open socket.
 
 ⚠️ **The LivePremier Plus connection has no module to add.** The panel offers
 both AWJ and a `livepremier-plus` Companion module, and the second does not
@@ -819,6 +867,17 @@ no benefit. Read `wru` as "the panels".
   indefinitely. `server.closeRelays()` exists for this. Without it the
   launcher's Stop button hangs, which is how it was found: a test that timed
   out rather than failed.
+- **`closeRelays()` stops everything; re-pointing hangs up the vendor relays
+  only.** `closeRelays` grew to stop the OSC listener, the routers, the Pixelhue
+  panel and the plugins as well — right for Stop, and wrong for `PUT /device`,
+  which called it: pointing the app at a backup frame silently switched all of
+  them off until a restart (found 2026-09-22). `/device` calls
+  `hangUpVendorRelays()`. Keep it that way; a test re-points and checks the OSC
+  listener and Companion are still running.
+- **A panel's `render()` may hand back the element already on screen**, and
+  then `Shell.refresh` / `TabHost.refresh` leave it mounted. Anything with state
+  in its DOM — an iframe above all, which reloads when detached — must use this:
+  build the frame once, refill the parts that change.
 - **Take the stream marker before fetching the snapshot**, not after. See
   `core/session.js` and [docs/TRANSPORT.md](docs/TRANSPORT.md). Getting this
   backwards makes the mirror quietly stale in a way nothing reports.

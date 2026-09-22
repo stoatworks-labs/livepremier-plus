@@ -18,7 +18,6 @@ import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
 import { createVpuPanel } from './ui/vpu-panel.js';
 import { createMatrixPanel } from './ui/matrix-panel.js';
-import { createCompanionPanel } from './ui/companion-panel.js';
 import { createPitchPanel } from './ui/pitch-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
 import { installMathFields } from './ui/math-fields.js';
@@ -40,6 +39,7 @@ import { installSendTo } from './ui/send-to.js';
 import { createGang } from './core/groups.js';
 import { detectPlatform, supports } from './core/platform.js';
 import { isEnabled as pluginOn } from './core/plugins.js';
+import { loadPlugins, byOrder } from './ui/plugin-host.js';
 import { dialectFor } from './core/dialect.js';
 import { commandsFor } from './core/commands.js';
 import { createTimecodeSource } from './ui/timecode-source.js';
@@ -181,10 +181,11 @@ async function boot() {
    * panels, because it is useful on its own: it improves the stock UI whether
    * or not anyone ever opens a panel of ours.
    */
-  const pluginState = await fetch('/__lpp/settings', { cache: 'no-store' })
+  const bootSettings = await fetch('/__lpp/settings', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : {}))
-    .then((body) => (body && body.settings && body.settings.plugins) || {})
+    .then((body) => (body && body.settings) || {})
     .catch(() => ({}));
+  const pluginState = bootSettings.plugins || {};
   /*
    * Whether a plugin is switched on, with its dependencies — see
    * `core/plugins.js`. The platform half stays where it was, in each entry's
@@ -254,8 +255,11 @@ async function boot() {
   let groups = null;
   let edit = null;
   let editProps = null;
+  /* The plugins' page halves, loaded below — see `ui/plugin-host.js`. */
+  let hosted = null;
   const editing = () =>
-    [memories, properties, groups, edit, editProps].some((p) => p && p.busy && p.busy());
+    [memories, properties, groups, edit, editProps].some((p) => p && p.busy && p.busy())
+    || Boolean(hosted && hosted.busy());
   const refresh = throttleFrame(() => {
     if (editing()) return;
     shell.refresh();
@@ -296,7 +300,6 @@ async function boot() {
 
   const vpu = createVpuPanel({ session, platform, onRefresh: refresh });
   const matrix = createMatrixPanel({ session, onRefresh: refresh });
-  const companion = createCompanionPanel({ onRefresh: refresh });
   const timeline = createTimelinePanel({ session, stack, storage, timecode, chase, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
   const pitch = createPitchPanel({ session, onRefresh: refresh });
@@ -381,6 +384,17 @@ async function boot() {
   };
 
   /*
+   * The plugins' page halves.
+   *
+   * Loaded now, after the app's own panels and before the strip and the
+   * sidebar are built, so what they register lands in both lists beside the
+   * app's own entries — ordered by `order`, like everything else there. Only
+   * the plugins the server says are on are loaded at all; one that fails is
+   * logged and left out, and the rest of the page comes up regardless.
+   */
+  hosted = await loadPlugins({ session, platform, can, refresh, settings: bootSettings });
+
+  /*
    * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
    * beside Properties and Memories — the two per-screen tools belong where an
    * operator already looks for per-screen tools, not in a separate corner of
@@ -388,7 +402,7 @@ async function boot() {
    * sidebar entry of its own.
    */
   const tabs = new TabHost({
-    tabs: [
+    tabs: byOrder([
       /* `short` is what the tab falls back to when the strip runs out of room,
          which it does at any ordinary window size — the panel is about 360px
          and the vendor's own two tabs spend most of it. Both are what the
@@ -396,8 +410,8 @@ async function boot() {
          read as neither one thing nor the other. */
       /* `mini-list-14` is LivePremier's sprite; Midra's has no list glyph and
          `bars-14` is the nearest it draws. `icon()` takes the first the page has. */
-      { id: 'console', label: 'Console', short: 'Cmd', icon: ['mini-list-14', 'bars-14'], enabled: () => can('console') && on('console'), render: () => consolePanel.render() },
-      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', enabled: () => can('cueStack') && on('timeline'), render: () => timeline.render() },
+      { id: 'console', label: 'Console', short: 'Cmd', icon: ['mini-list-14', 'bars-14'], order: 10, enabled: () => can('console') && on('console'), render: () => consolePanel.render() },
+      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', order: 20, enabled: () => can('cueStack') && on('timeline'), render: () => timeline.render() },
       /*
        * "Layer" and not "Properties": the vendor's own Properties tab is two
        * along in the same strip, and two tabs with one name is a worse problem
@@ -409,7 +423,7 @@ async function boot() {
        * whole-device view — 1000 screen slots and 500 master ones are not
        * per-screen — so they sit in the sidebar beside the VPU map instead.
        */
-      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', enabled: () => can('layerProperties') && on('layer'), render: () => properties.render() },
+      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', order: 30, enabled: () => can('layerProperties') && on('layer'), render: () => properties.render() },
       /*
        * Layer Groups is on the strip *as well as* in the sidebar, which no
        * other panel is.
@@ -427,13 +441,16 @@ async function boot() {
        * did. That is the cost, and it is why a fifth would need a better
        * argument than this one had.
        */
-      { id: 'groups', label: 'Groups', short: 'Grps', icon: ['group-14', 'layer-stacked-14'], enabled: () => can('layerGroups') && on('layer-groups'), render: () => groups.render() }
-    ]
+      { id: 'groups', label: 'Groups', short: 'Grps', icon: ['group-14', 'layer-stacked-14'], order: 40, enabled: () => can('layerGroups') && on('layer-groups'), render: () => groups.render() },
+      ...hosted.tabs
+    ])
   });
 
   const shell = new Shell({
     title: 'PLUS',
-    entries: [
+    /* Ordered by `order`, in tens so a plugin can put itself between two of
+       these. Companion, a plugin, asks for 60: after Matrix Routing. */
+    entries: byOrder([
       /* Midra 4K and Alta 4K have no VPU to map — their processing is fixed
          rather than allocated — so on those the entry is simply not there. */
       /*
@@ -445,48 +462,35 @@ async function boot() {
        * hold. It leads the section because it is the only entry here an
        * operator will open before the show rather than during it.
        */
-      { id: 'edit', label: 'Edit', icon: ['properties-18', 'layer-stacked-18'], enabled: () => can('layerProperties') && on('edit'), render: () => edit.render() },
-      { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', enabled: () => can('vpuMap') && on('vpu-map'), render: () => vpu.render() },
+      { id: 'edit', label: 'Edit', icon: ['properties-18', 'layer-stacked-18'], order: 10, enabled: () => can('layerProperties') && on('edit'), render: () => edit.render() },
+      { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', order: 20, enabled: () => can('vpuMap') && on('vpu-map'), render: () => vpu.render() },
       /* The three memory banks, which are a whole-device view like the VPU map
          and unlike everything on the Screens / Aux. strip: master memories
          cover every screen at once, and the screen bank is one flat list of
          1000 slots that any screen can recall from. */
-      { id: 'memories', label: 'Memories', icon: 'shotbox-18', enabled: () => can('cueStack') && on('memories'), render: () => memories.render() },
+      { id: 'memories', label: 'Memories', icon: 'shotbox-18', order: 30, enabled: () => can('cueStack') && on('memories'), render: () => memories.render() },
       /* Also a whole-device view, and for the sharpest version of the reason:
          a group exists precisely because it crosses screens, so it could not
          live on a per-screen tab strip even if that strip had room. */
-      { id: 'groups', label: 'Layer Groups', icon: ['group-18', 'layer-stacked-18'], enabled: () => can('layerGroups') && on('layer-groups'), render: () => groups.render() },
+      { id: 'groups', label: 'Layer Groups', icon: ['group-18', 'layer-stacked-18'], order: 40, enabled: () => can('layerGroups') && on('layer-groups'), render: () => groups.render() },
       /* Also a whole-device view, and for the same reason as the VPU map: it
          is about the back of the frame rather than about one screen. It is
          the only panel here that reads something other than the store — an
          external router is not in the store and never will be. */
-      { id: 'matrix', label: 'Matrix Routing', icon: ['connector-gpio-18', 'gpio-18'], enabled: () => can('matrixRouting') && on('matrix-routing'), render: () => matrix.render() },
-      /*
-       * Companion sits in PLUS rather than beside MIDI Mapping, and the call
-       * was close enough to be worth writing down. MIDI is anchored to the
-       * vendor's Virtual RC400T because both are control surfaces, and a
-       * Companion is a control surface too — by that argument this belongs
-       * there.
-       *
-       * Two things beat it. An anchored entry needs its vendor item to exist,
-       * and Virtual RC400T is not on every platform, so anchoring would make
-       * this quietly absent on a Midra 4K — which has just as much use for a
-       * Companion. And half of this panel is not a surface at all: it is what
-       * is in the show and what this app would add to it, which is a whole-rig
-       * configuration view of exactly the kind the rest of this section holds.
-       */
-      { id: 'companion', label: 'Companion', icon: ['gpio-18', 'connector-gpio-18'], enabled: () => on('companion'), render: () => companion.render() },
+      { id: 'matrix', label: 'Matrix Routing', icon: ['connector-gpio-18', 'gpio-18'], order: 50, enabled: () => can('matrixRouting') && on('matrix-routing'), render: () => matrix.render() },
+      /* Companion comes here, at 60 — from its plugin, `plugins/companion/`. */
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
-      { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', enabled: () => on('midi'), render: () => midi.render() },
+      { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', order: 70, enabled: () => on('midi'), render: () => midi.render() },
       /* Under Preconfig because that is literally where the two fields it
          fills in live — Preconfig > Canvas > Pitch. A panel that computes a
          number you then type in one flyout over belongs in the same flyout. */
-      { id: 'pitch', label: 'Pitch Compensation', submenuOf: 'Preconfig', enabled: () => can('pitchCompensation') && on('pitch'), render: () => pitch.render() },
+      { id: 'pitch', label: 'Pitch Compensation', submenuOf: 'Preconfig', order: 80, enabled: () => can('pitchCompensation') && on('pitch'), render: () => pitch.render() },
       /* Nor is this one: settings for the installation go where the device's
          own installation settings are, inside the Preconfig flyout. */
-      { id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig', render: () => settings.render() }
-    ]
+      { id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig', order: 90, render: () => settings.render() },
+      ...hosted.sidebar
+    ])
   });
 
   session.addEventListener('state', (ev) => {
@@ -602,7 +606,7 @@ async function boot() {
   });
 
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels, routerBoxes };
+  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels, routerBoxes, plugins: hosted };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

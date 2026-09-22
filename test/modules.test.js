@@ -18,6 +18,10 @@ import { join, dirname, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const src = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
+/* The built-in plugins: both halves of each, and what they share. A plugin's
+   page half is imported here under Node exactly as `src/` is, so it must not
+   touch the DOM at import time either — it waits for `activate`. */
+const plugins = join(dirname(fileURLToPath(import.meta.url)), '..', 'plugins');
 const SKIP = new Set(['main.js', 'loader.js', 'ws-hook.js']);
 
 async function walk(dir) {
@@ -48,5 +52,15 @@ test('every module parses and links', async () => {
     await assert.doesNotReject(
       () => import(pathToFileURL(file).href),
       'failed to import ' + relative(src, file));
+  }
+});
+
+test('every built-in plugin module parses and links', async () => {
+  const files = await walk(plugins);
+  assert.ok(files.some((f) => f.endsWith(join('companion', 'server.js'))), 'expected to find the plugins');
+  for (const file of files) {
+    await assert.doesNotReject(
+      () => import(pathToFileURL(file).href),
+      'failed to import ' + relative(plugins, file));
   }
 });
