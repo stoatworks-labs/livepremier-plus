@@ -6,6 +6,7 @@
  *   vpu-model.js      aquilon-vpu-map's VPU model
  *   mynah-lang.mjs    mynah's command language, as its own build output
  *   surface/          awj-surface's control-surface engine and profiles
+ *   pixelhue/         pixelhue-bridge's console frame codec and key tables
  *   pitch-engine.js   aquilon-pitch's pitch-compensation engine, ditto
  *
  * In every case the reason is the same, and it is not convenience: two
@@ -31,6 +32,8 @@ const mynahVendored = join(here, '..', 'src', 'vendor', 'mynah-lang.mjs');
 const mynahUpstream = join(here, '..', '..', 'mynah', 'dist-lang', 'mynah-lang.mjs');
 const surfaceDir = join(here, '..', 'src', 'vendor', 'surface');
 const surfaceUpstream = join(here, '..', '..', 'awj-surface');
+const pixelhueDir = join(here, '..', 'src', 'vendor', 'pixelhue');
+const pixelhueUpstream = join(here, '..', '..', 'pixelhue-bridge');
 const pitchVendored = join(here, '..', 'src', 'vendor', 'pitch-engine.js');
 const pitchUpstream = join(here, '..', '..', 'aquilon-pitch', 'dist-lib', 'aquilon-pitch-engine.js');
 
@@ -165,6 +168,48 @@ test('the vendored surface engine matches upstream, file for file', async (t) =>
     assert.equal(createHash('sha256').update(body).digest('hex'), hash,
       `${rel} has drifted — run: npm run sync:surface-core`);
   }
+});
+
+test('the vendored Pixelhue console core matches upstream, file for file', async (t) => {
+  const { createHash } = await import('node:crypto');
+  const { readdir } = await import('node:fs/promises');
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(join(pixelhueDir, 'MANIFEST.json'), 'utf8'));
+  } catch {
+    assert.fail('src/vendor/pixelhue/MANIFEST.json is missing — run: npm run sync:pixelhue-core');
+  }
+
+  for (const [rel, hash] of Object.entries(manifest.files)) {
+    const body = await readFile(join(pixelhueDir, rel));
+    assert.equal(createHash('sha256').update(body).digest('hex'), hash,
+      `src/vendor/pixelhue/${rel} was edited in place — edits belong upstream`);
+  }
+  assert.match(manifest.commit, /^[0-9a-f]{40}$|^unknown$/);
+
+  try {
+    await readdir(join(pixelhueUpstream, 'core'));
+  } catch {
+    t.skip('no pixelhue-bridge checkout beside this repo');
+    return;
+  }
+  for (const [rel, hash] of Object.entries(manifest.files)) {
+    const body = await readFile(join(pixelhueUpstream, 'core', rel));
+    assert.equal(createHash('sha256').update(body).digest('hex'), hash,
+      `${rel} has drifted — run: npm run sync:pixelhue-core`);
+  }
+});
+
+test('the vendored console codec decodes a frame this app can route', async () => {
+  /* The whole reason this codec is vendored: pixelhue-bridge worked the format
+     out and decoded it against a live UCenter, and a second implementation
+     here would eventually disagree with it about the same console. */
+  const { encodeFrame, decodeFrame } = await import('../src/vendor/pixelhue/apollo.js');
+  const { TAGS } = await import('../src/vendor/pixelhue/tags.js');
+  const report = { index: 2, command: 531, payload: { id: 0, uid: '', text: '' } };
+  const frame = decodeFrame(encodeFrame({ tag: TAGS.COMMAND_DATA, data: report }));
+  assert.equal(frame.tag, TAGS.COMMAND_DATA);
+  assert.deepEqual(frame.data, report);
 });
 
 test('the surface engine decodes MIDI and writes store paths', async () => {

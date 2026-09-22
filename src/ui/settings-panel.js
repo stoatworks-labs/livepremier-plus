@@ -40,7 +40,7 @@ import { detectPlatform, CAPABILITIES } from '../core/platform.js';
 import { SOURCE_KINDS } from './timecode-source.js';
 import { formatTimecode } from '../core/timecode.js';
 import {
-  AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES, OSC_BIND_CHOICES
+  AWJ_TRANSPORTS, CONSOLE_MODELS, DEFAULT_SETTINGS, LANGUAGE_CHOICES, OSC_BIND_CHOICES
 } from '../core/settings.js';
 import { OSC_ROOT } from '../vendor/mynah-lang.mjs';
 import { insecureContextAdvice } from '../core/secure-context.js';
@@ -133,6 +133,7 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
        it avoids a page that flickers between empty and populated. */
     settings: { ...DEFAULT_SETTINGS },
     osc: null,
+    pixelhue: null,
     saveError: null,
     saving: false
   };
@@ -146,6 +147,7 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
       state.status = await res.json();
       if (state.status.settings) state.settings = state.status.settings;
       state.osc = state.status.osc || null;
+      state.pixelhue = state.status.pixelhue || null;
     } catch (err) {
       state.statusError = err.message;
     }
@@ -177,6 +179,7 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
       if (!res.ok) throw new Error(body.error || 'HTTP ' + res.status);
       state.settings = body.settings;
       state.osc = body.osc || null;
+      state.pixelhue = body.pixelhue || null;
       window.dispatchEvent(new CustomEvent('lpp:settings', { detail: state.settings }));
     } catch (err) {
       state.saveError = err.message;
@@ -544,6 +547,110 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
     void put({ oscPort: n });
   }
 
+  /* --------------------------------------------------------------- panel */
+
+  /**
+   * A Pixelhue U-series console.  ** PREVIEW **
+   *
+   * Marked preview in as many words, because it has never been run against a
+   * console: every byte of it was worked out from firmware and proved against
+   * the vendor's own control service running headless in a VM. That is a long
+   * way from a panel on a desk, and an operator deciding whether to rig one
+   * deserves to be told which it is.
+   *
+   * It is also the second setting on this page that writes to a switcher
+   * without anybody looking at a browser, so it is off until somebody turns it
+   * on, exactly like the OSC listener.
+   */
+  function pixelhueSection() {
+    const on = state.settings.pixelhueEnabled;
+    const live = state.pixelhue;
+    const link = live && live.link;
+    const model = CONSOLE_MODELS.find((m) => m.id === state.settings.pixelhueModel);
+
+    const toggle = h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { cursor: 'pointer' } },
+      h('input', {
+        type: 'checkbox',
+        checked: on ? 'checked' : null,
+        disabled: state.saving ? 'disabled' : null,
+        onChange: (ev) => put({ pixelhueEnabled: ev.target.checked })
+      }),
+      h('span', { class: 'aw-font-body-1', text: 'Drive a Pixelhue console' }));
+
+    const host = h('div', { class: 'aw-flex-col aw-gap-row-mini' },
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Console address' }),
+      h('input', {
+        class: 'wru-input', type: 'text', value: state.settings.pixelhueHost,
+        placeholder: model && model.overLan ? '192.168.2.50' : '127.0.0.1',
+        style: { maxWidth: '12rem' },
+        disabled: state.saving ? 'disabled' : null,
+        /* On blur, not per keystroke: a link is rebuilt on every change and
+           retyping an address would dial four consoles that do not exist. */
+        onBlur: (ev) => commitPanelHost(ev.target.value),
+        onKeyDown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); } }
+      }));
+
+    const rows = live
+      ? h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
+        readout('Link', link && link.connected ? `connected to ${link.host}:${link.port}` : 'not connected',
+          { tone: link && link.connected ? null : 'tertiary' }),
+        readout('Published', link ? String(link.published) : '0'),
+        readout('Commands', link ? String(link.commands) : '0'),
+        readout('Selected', live.selection.destinations.join(' ') || 'nothing on the panel',
+          { tone: live.selection.destinations.length ? null : 'tertiary' }),
+        readout('Editing', live.selection.buffer, { tone: live.selection.buffer === 'PROGRAM' ? 'warn' : null }))
+      : null;
+
+    const notes = [note('warn',
+      'Preview. This has never been run against a console — it was built from the '
+      + 'firmware and proved against the vendor’s own control service running with no '
+      + 'hardware. Treat the first show with one as a rehearsal.')];
+
+    if (model && !model.overLan) {
+      notes.push(note('warn',
+        `A ${model.label} serves its control port on loopback only, so this app has to be `
+        + 'running on the console itself to reach one. A U5 mini answers on the network.'));
+    }
+    if (link && link.lastError) notes.push(note('warn', link.lastError));
+    if (on) {
+      notes.push(note('info',
+        'The console is handed a model of this switcher — its screens, inputs and memories — '
+        + 'and labels, lights and pages its own keys from it. What comes back is what the '
+        + 'operator meant, so there is no key mapping to keep. docs/PIXELHUE.md has the rest.'));
+      notes.push(note('info',
+        'A recall from the panel always lands in preview, whatever PGM EDIT is doing, for the '
+        + 'same reason every other recall in this app does. Fade to black and freeze are '
+        + 'reported by the console and not yet sent anywhere.'));
+      notes.push(note('info',
+        'Tally is read when the panel connects and after each change it makes. A take fired '
+        + 'from the Web RCS or the front panel does not relight the console’s keys until then.'));
+    }
+
+    const history = live && live.history && live.history.length
+      ? h('div', { class: 'aw-flex-col aw-gap-row-mini' },
+        live.history.slice(0, 5).map((e) => h('div', {
+          class: ['aw-font-caption', e.error ? 'wru-warn' : 'aw-text-tertiary'],
+          text: [e.command, e.note || e.error || e.kind].filter(Boolean).join(' — ')
+        })))
+      : null;
+
+    return card('Pixelhue panel',
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' },
+        toggle, host,
+        picker('Console', CONSOLE_MODELS, state.settings.pixelhueModel, (v) => put({ pixelhueModel: v }))),
+      rows, history, ...notes);
+  }
+
+  function commitPanelHost(raw) {
+    const value = String(raw || '').trim();
+    if (value === state.settings.pixelhueHost) return;
+    if (value && !/^[A-Za-z0-9._-]+$/.test(value)) {
+      state.saveError = `${raw} is not a host name or address`;
+      return onRefresh();
+    }
+    void put({ pixelhueHost: value });
+  }
+
   /* -------------------------------------------------------------- planned */
 
   function plannedSection() {
@@ -582,6 +689,7 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
       compatibilitySection(),
       consoleSection(),
       oscSection(),
+      pixelhueSection(),
       timecodeSection(),
       proxySection(),
       featureSection(),

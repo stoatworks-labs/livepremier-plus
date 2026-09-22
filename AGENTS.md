@@ -221,6 +221,51 @@ input 1 and the first input card depending on the field. `core/connectors.js`
 absorbs it; nothing above it should learn it. `slot` repeats within a card, so
 (card, slot) is never an identity — `physical` is.
 
+### A Pixelhue console (`src/core/pixelhue.js`, `server/pixelhue/`) — **preview**
+
+A U-series event controller driving the switcher. The whole subsystem turns on
+one observation, and everything else follows from it: **a console is not a
+keyboard.** It is a peer that already knows what a screen, a layer, a source
+and a memory are, and its control service speaks a protocol about those things.
+So this publishes a *model* and answers *intents*, and has no key map at all.
+
+```text
+  data-change  →  {screens, layers, inputs, presets}   the console labels,
+                                                       lights and pages itself
+  tag 0x00101307  ←  {command: 300, payload:{id: 2}}   what the operator meant
+```
+
+The identity round-trips: a screen published as `uid: "S1"` comes back as
+`uid: "S1"`. That is why there is nothing here to keep in step with a firmware,
+and why `vendor/surface/`'s binding engine — right for a MIDI controller — is
+the wrong shape for this.
+
+⚠️ **It has never been run against a console.** It was built from the firmware
+and proved against a real UCenter running headless in a VM, which is enough to
+pin the protocol and not enough to pin the hardware. It is off by default, the
+settings page says preview in as many words, and `docs/PIXELHUE.md` lists what
+is unverified.
+
+Four things are load-bearing:
+
+- ⚠️ **`index` is the key position and it is 1-based.** Publishing from zero
+  silently drops the first object of every bus — no error, no complaint, a
+  panel one short. `test/pixelhue.test.js` pins it.
+- **It holds a socket to the console and nothing open on the switcher.**
+  `server/pixelhue/ucenter.js` argues the first half (a console is not in the
+  store; there is no mirror to contradict and no tab to depend on);
+  `server/pixelhue/index.js` argues the second (a burst of `exchange()` gets,
+  closed, because `awj.js`'s rule does not need beating for this). The price is
+  no live tally, and it is written down rather than hidden.
+- ⚠️ **A recall lands in preview, always**, whatever the panel's PGM EDIT is
+  doing — the same choice every other recall path here makes. And a source
+  change is **refused** when the preset letter cannot be read, exactly as
+  `server/osc.js` refuses `preview`/`program`.
+- **The codec is vendored, not written here.** `src/vendor/pixelhue/` is
+  pixelhue-bridge's `core/`, and its `tags.js` still describes tag
+  `0x00101307` as business data — it is the *command* report, and the
+  correction belongs upstream rather than in a vendored file.
+
 ### `docs/OSC.md` is generated — `npm run gen:osc-docs`
 
 A published address space is a promise to somebody building a TouchOSC layout,

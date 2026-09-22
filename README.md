@@ -463,6 +463,29 @@ a live value until it has swept through that value, so picking up a fader
 mid-show cannot jump a layer's opacity. The panel shows the hold-off rather
 than looking broken.
 
+## Pixelhue panel — preview
+
+A Pixelhue U5, U5 Pro or U5 mini event controller, driving the switcher. Off by
+default; turn it on in Preconfig → Settings.
+
+It does not map keys. The console is handed a **model** of this switcher — its
+screens, its inputs, its memories — and labels, lights and pages its own keys
+from it; what comes back is what the operator meant (`select screen S2`,
+`put LIVE_2 on the selected layer`, `take`), carrying the identity this app
+published. So there is nothing to remap when a firmware moves a key.
+
+> ⚠️ **Preview: this has never been run against a console.** It was built from
+> the consoles' firmware and proved against the vendor's own control service
+> running headless with no panel attached. `docs/PIXELHUE.md` has the wire
+> detail, how to rig one, and the list of what is still unverified — including
+> fade-to-black and freeze, which the console asks for and this does not yet
+> send.
+
+A **U5 mini** answers on the LAN, so it is driven from wherever this app
+already runs. A **U5 or U5 Pro** serves its control port on loopback only, so
+this app has to run on the console itself — which is a Windows mini-PC with a
+touch screen, and runs the proxied Web RCS perfectly well.
+
 ### Why this needs no offscreen document
 
 `navigator.requestMIDIAccess()` is a **secure-context** API. When this project
@@ -763,13 +786,14 @@ under plain Node, which is what the test suite does. The browser panels are one
 front-end over it; a standalone client talking AWJ over TCP 10606 is meant to
 be another, and only needs a second `transports/` module.
 
-## Three things are vendored, not reimplemented
+## Four things are vendored, not reimplemented
 
 | in `src/vendor/` | from | what it is |
 | --- | --- | --- |
 | `vpu-model.js` | aquilon-vpu-map | the VPU mixer model |
 | `mynah-lang.mjs` | mynah | the command language |
 | `surface/` | awj-surface | the control-surface engine and profiles |
+| `pixelhue/` | pixelhue-bridge | the U-series console's frame codec |
 
 Each is copied rather than re-derived for the same reason, and it is not
 convenience: two implementations of one grammar, one device model or one decode

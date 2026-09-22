@@ -1,0 +1,47 @@
+{
+  "_": "Captured from a live UCenter (U5 Pro image, V1.8.0.T6, ModelID 29703) on 2026-09-22, with no console hardware attached. A LivePremier-shaped model of four screens, eight inputs and eight memories had been published over data-change; the keys were then pressed by injecting them over PUT ucenter/video-station/key/action. These are the bodies of tag 0x00101307 and 0x00101301 exactly as they arrived.",
+  "commands": [
+    {
+      "_": "screen bus key 1, which the model had labelled Screen 2",
+      "index": 2,
+      "command": 101,
+      "payload": { "id": 0, "uid": "S2", "type": 2, "deviceSN": "", "text": "Screen 2" },
+      "additionInfos": []
+    },
+    {
+      "_": "input bus key 65, labelled LIVE_2",
+      "index": 2,
+      "command": 300,
+      "payload": { "id": 2, "uid": "", "type": 2, "deviceSN": "AQUILON-C-TEST", "text": "LIVE_2" },
+      "additionInfos": []
+    },
+    {
+      "_": "preset bus key 73, labelled Memory 2",
+      "index": 2,
+      "command": 401,
+      "payload": { "id": 2, "uid": "", "type": 1, "deviceSN": "AQUILON-C-TEST", "text": "Memory 2" },
+      "additionInfos": []
+    },
+    {
+      "_": "the TAKE key, 255",
+      "index": 0,
+      "command": 531,
+      "payload": { "id": 0, "uid": "", "type": 0, "deviceSN": "", "text": "" },
+      "additionInfos": []
+    },
+    {
+      "_": "the console announcing it has no device selected, sent on every connect",
+      "index": 0,
+      "command": 0,
+      "payload": { "id": 0, "uid": "", "type": 0, "deviceSN": "", "text": "" },
+      "additionInfos": []
+    }
+  ],
+  "keyStates": [
+    { "key": 0, "state": 202, "text": "Screen 1", "page": 0, "businessID": "S1", "open": true, "businessType": 2 },
+    { "key": 1, "state": 201, "text": "Screen 2", "page": 0, "businessID": "S2", "open": true, "businessType": 2 },
+    { "key": 64, "state": 402, "text": "LIVE_1", "page": 0, "businessID": "", "open": true, "businessType": 2 },
+    { "key": 72, "state": 508, "text": "Memory 1", "page": 0, "businessID": "1", "open": true, "businessType": 1 },
+    { "key": 255, "state": 0, "text": "", "page": 0, "businessID": "", "open": false, "businessType": 0 }
+  ]
+}

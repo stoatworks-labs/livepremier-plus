@@ -9,14 +9,15 @@
   },
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js test/pitch.test.js test/proxy.test.js test/expr.test.js test/tabs.test.js test/shell.test.js test/timecode.test.js test/osc.test.js test/panels.test.js test/dialect.test.js test/local-client.test.js test/console.test.js test/groups.test.js test/preset-lock.test.js test/layer-names.test.js test/matrix.test.js test/config-file.test.js",
+    "test": "node --test test/core.test.js test/live.test.js test/modules.test.js test/vendor.test.js test/pitch.test.js test/proxy.test.js test/expr.test.js test/tabs.test.js test/shell.test.js test/timecode.test.js test/osc.test.js test/panels.test.js test/dialect.test.js test/local-client.test.js test/console.test.js test/groups.test.js test/preset-lock.test.js test/layer-names.test.js test/matrix.test.js test/config-file.test.js test/pixelhue.test.js",
     "serve": "node tools/serve.mjs",
     "sync:vpu-model": "node tools/sync-vpu-model.mjs",
     "demo": "node tools/demo.mjs",
     "sync:mynah-lang": "node tools/sync-mynah-lang.mjs",
     "sync:surface-core": "node tools/sync-surface-core.mjs",
     "gen:osc-docs": "node tools/gen-osc-docs.mjs",
-    "sync:pitch-engine": "node tools/sync-pitch-engine.mjs"
+    "sync:pitch-engine": "node tools/sync-pitch-engine.mjs",
+    "sync:pixelhue-core": "node tools/sync-pixelhue-core.mjs"
   },
   "engines": {
     "node": ">=20"

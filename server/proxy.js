@@ -34,11 +34,14 @@ import zlib from 'node:zlib';
 import { readFile } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
 
-import { normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged } from '../src/core/settings.js';
+import {
+  normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged, pixelhueChanged,
+} from '../src/core/settings.js';
 import { exchange as awjExchange } from './awj.js';
 import { createOscServer } from './osc.js';
 import { loopbackRedirect } from './local-client.js';
 import { MatrixSupervisor } from './matrix/index.js';
+import { PixelhueSupervisor } from './pixelhue/index.js';
 import {
   buildConfig, applyConfig, summarise as summariseConfig,
   validate as validateConfig, DEFAULT_IMPORT,
@@ -317,6 +320,28 @@ export async function createProxy({
   await applyOsc();
 
   /*
+   * A Pixelhue console, driven as a peer rather than as a keyboard.  ** PREVIEW **
+   *
+   * `server/pixelhue/index.js` argues at the top why it may hold a socket to
+   * the console while holding nothing open on the switcher. It is installation
+   * state like the OSC listener and the matrices — a panel on the desk does
+   * not move when the app is re-pointed at a backup frame — so it is applied
+   * from settings and survives a device change.
+   */
+  const pixelhue = new PixelhueSupervisor({
+    deviceHost: () => (state.device ? String(state.device).split(':')[0] : null),
+    log,
+  });
+  const pixelhueListeners = new Set();
+  pixelhue.on('activity', () => {
+    const line = `event: pixelhue\ndata: ${JSON.stringify(pixelhue.describe())}\n\n`;
+    for (const listener of pixelhueListeners) {
+      try { listener.write(line); } catch { pixelhueListeners.delete(listener); }
+    }
+  });
+  await pixelhue.apply(settings);
+
+  /*
    * Timecode pushed in from outside.
    *
    * The browser can read MTC over Web MIDI and LTC off an audio input all by
@@ -390,7 +415,11 @@ export async function createProxy({
      * operator chose. See `src/core/settings.js`.
      */
     if (rest === '/settings') {
-      if (req.method === 'GET') return sendJson(res, 200, { settings, osc: osc ? osc.state : null });
+      if (req.method === 'GET') {
+        return sendJson(res, 200, {
+          settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
+        });
+      }
       if (req.method === 'PUT' || req.method === 'POST') {
         const body = await collect(req, 16 * 1024);
         let parsed;
@@ -402,11 +431,15 @@ export async function createProxy({
            surface that is changing a different one. */
         const next = normaliseSettings({ ...settings, ...(parsed.settings ?? parsed) });
         const needsRebind = oscChanged(settings, next);
+        const needsPanel = pixelhueChanged(settings, next);
         settings = next;
         if (storage && storage.saveSettings) await storage.saveSettings(settings);
         if (needsRebind) await applyOsc();
+        if (needsPanel) await pixelhue.apply(settings);
 
-        return sendJson(res, 200, { ok: true, settings, osc: osc ? osc.state : null });
+        return sendJson(res, 200, {
+          ok: true, settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
+        });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
     }
@@ -1014,6 +1047,13 @@ export async function createProxy({
     matrices.stop();
     for (const listener of matrixListeners) { try { listener.end(); } catch { /* gone */ } }
     matrixListeners.clear();
+
+    /* And the console, which holds an upgraded socket of its own plus a
+       reconnect timer. Same failure if it is left: a Stop button that does
+       nothing while something goes on dialling a panel. */
+    void pixelhue.stop();
+    for (const listener of pixelhueListeners) { try { listener.end(); } catch { /* gone */ } }
+    pixelhueListeners.clear();
   };
 
   return server;
