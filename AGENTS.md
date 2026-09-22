@@ -612,6 +612,12 @@ these are the parts that break quietly if "simplified".
   must match the Host the browser used to reach us) and only then restate
   Origin as Companion's own. Verified live: 101 for our page and for no Origin,
   403 for a forged origin and for a sandboxed iframe's `null`.
+- **Answer Companion's text `PING`.** Its tRPC server runs a keep-alive of its
+  own — the bare text `PING` after 30 s of silence, then a terminate unless
+  anything arrives within 5 s — which is not the WebSocket ping frame
+  `ws-client.js` answers. Unanswered, the link was closed every 35 seconds and
+  redialled with no error at either end (found 2026-09-23, in every release
+  since Companion support). `link.js` replies `PONG`, as tRPC's client does.
 - **The panel builds its frame once.** Rebuilt whole on every repaint — about
   once a second from the switcher's timers — it took the iframe with it, and
   Companion's editor reloaded every second it was open, losing whatever was

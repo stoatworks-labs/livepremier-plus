@@ -352,3 +352,34 @@ test('send() after close is ignored rather than throwing', async () => {
   assert.equal(client.send('anything'), false);
   done();
 });
+
+
+/*
+ * 2026-09-23: Companion's tRPC server keeps a socket alive with a bare TEXT
+ * `PING` after 30 s of silence, and terminates it unless something comes back
+ * within 5 s. The link never answered, so it was closed and redialled every 35
+ * seconds with no error at either end. It answers `PONG`, as tRPC's own
+ * client does.
+ */
+test('the Companion link answers tRPC’s text PING with PONG, so Companion keeps it open', async () => {
+  const { CompanionLink } = await import('../plugins/companion/link.js');
+  let wire = null;
+  const server = serve((socket, w) => {
+    wire = w;
+    socket.write(w.frame(0x1, 'PING'));
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const link = new CompanionLink();
+  try {
+    link.apply({ companionEnabled: true, companionHost: '127.0.0.1', companionPort: server.address().port });
+    for (let i = 0; i < 100 && !(wire && wire.received.some((f) => f.opcode === 0x1 && f.text === 'PONG')); i++) {
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    const pong = wire && wire.received.find((f) => f.opcode === 0x1 && f.text === 'PONG');
+    assert.ok(pong, 'a text PONG came back');
+    assert.equal(pong.masked, true, 'masked, as every client frame must be');
+  } finally {
+    link.stop();
+    server.close();
+  }
+});

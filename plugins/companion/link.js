@@ -259,6 +259,21 @@ export class CompanionLink extends EventEmitter {
   }
 
   #onMessage(text) {
+    /*
+     * Companion's keep-alive, which is tRPC's and not WebSocket's.
+     *
+     * Its UI handler runs tRPC with `keepAlive: { pingMs: 3e4, pongWaitMs: 5e3 }`
+     * (read off 5.0.5): after 30 s with nothing from us it sends the bare TEXT
+     * `PING` — not a ping frame, which `ws-client.js` already answers — and
+     * terminates the socket unless something arrives within 5 s. `PONG` is what
+     * tRPC's own client sends back. Unanswered, the link was closed every 35
+     * seconds and redialled, with no error at either end and the subscription
+     * restarted each time (found 2026-09-23).
+     */
+    if (text === 'PING') {
+      if (this.ws && this.ws.open) this.ws.send('PONG');
+      return;
+    }
     for (const frame of parseFrames(text)) {
       const entry = this.pending.get(frame.id);
       if (!entry) continue;
