@@ -3,7 +3,7 @@
   "version": "0.11.0",
   "private": true,
   "type": "module",
-  "description": "A VPU resource map and a theatre cue stack inside an Analog Way LivePremier Web RCS session, served by a local proxy.",
+  "description": "The panels an Analog Way LivePremier or Midra 4K Web RCS is missing — an off-bus programmer, a VPU map, a command line, a cue stack, layer groups, matrix routing and an embedded Companion — served inside the vendor's own UI by a local proxy.",
   "bin": {
     "livepremier-plus": "server/index.js"
   },

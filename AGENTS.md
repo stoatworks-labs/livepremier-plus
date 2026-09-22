@@ -5,12 +5,18 @@ is the *what*; this is the *why* and the traps.
 
 ## The one-paragraph version
 
-A local reverse proxy that puts two new panels inside Analog Way's own
-LivePremier Web RCS: a VPU resource map and a theatre-style cue stack. You
-point it at a switcher and browse to it instead of to the device. It does not
-replace the vendor UI, does not open its own connection to the device, and does
-not ship a theme — it borrows the vendor's stylesheet and rides the vendor's
-socket.
+A local reverse proxy that adds panels to Analog Way's own Web RCS — on a
+LivePremier, and on a Midra 4K or Alta 4K for the panels that platform can
+carry: a programmer that saves memories without touching a bus, a VPU resource
+map, a command line, a theatre-style cue stack, the memory banks and layer
+properties in windows of their own, layer groups, routing through external
+matrices, a Bitfocus Companion mounted on the same origin, and the rest the
+README lists. You point it at a switcher and browse to it instead of to the
+device. It does not replace the vendor UI and does not ship a theme — it borrows
+the vendor's stylesheet — and **everything it shows comes off the vendor's own
+socket**. The server opens AWJ itself only for one-shot exchanges (OSC input,
+the Pixelhue panel, a typed AWJ line, the memory import) and never to mirror
+state; "Why a proxy" below says why that line is the one that matters.
 
 **It was a Chrome extension until 0.2.0.** The panels, the store mirror and the
 cue engine are unchanged; what went away was `manifest.json`, the isolated-world

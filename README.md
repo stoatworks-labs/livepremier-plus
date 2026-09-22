@@ -22,15 +22,21 @@ rather than as a bolt-on:
   preconfig would change.
 - **Console** — Mynah's command line, a lighting-desk grammar for a video
   switcher. `Recall Screen 1 Memory 5`, `R Sc 1 Th 4 Me 5 Pre`, `Take Screen 1`.
+  It also takes raw AWJ, raw Web RCS store writes and OSC addresses, says what a
+  line will do before Enter, and pops out into a window of its own.
 - **Timeline** — a theatre-style cue stack. A numbered list that advances on
   one GO, with per-cue fade, delay and follow times, driving the switcher's
-  preset recalls and TAKE.
+  preset recalls and TAKE. A cue can also carry a **timecode** and fire when
+  MIDI Time Code, LTC from an audio input, or a timecode pushed from another
+  machine passes it.
 - **Memories** — all three banks in one list: master, screen and layer, with
   search, renaming, and which buffer is holding each memory right now. Recall
-  names its target buffer every time and never defaults to program.
+  names its target buffer every time and never defaults to program. Pops out
+  onto a second monitor.
 - **Layer** — every one of a layer's 67 properties, generated from the device's
   own parameter catalogue rather than transcribed, so a firmware that adds one
-  grows a field for it.
+  grows a field for it. **Name a layer** here and the name appears in the
+  vendor's own layer lists — the switcher itself has nowhere to keep one.
 - **Layer Groups** — several layers, on one screen or on many, driven as one.
   Layer 2 on screen 1 with layer 1 on screens 2 and 3 is *the side screens*, and
   a ganged group follows a source change made to any of its members, wherever
@@ -47,8 +53,21 @@ rather than as a bolt-on:
   second port and no CORS. A panel lists the show's real connections, follows
   them live, and offers to add the AWJ and LivePremier Plus connections pointed
   at whichever switcher you are on — saying what it will create before it does.
+- **Pitch Compensation** — a screen spanning LED walls of different pixel
+  pitches needs H and V ratios per output, and the device has the fields and no
+  help filling them in. Give it the pitches; it reads everything else off the
+  switcher and writes the ratios on a second press.
+- **OSC input** — QLab, TouchOSC, a lighting desk or Companion drive the switcher
+  over UDP, with no browser open. Off until you turn it on; every address is in
+  [docs/OSC.md](docs/OSC.md).
 - **MIDI Mapping** — a control surface driving the switcher, from the page
   itself. Faders to opacity, encoders to size and position, buttons to select.
+- **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini drives the
+  switcher from a model of it rather than from a key map. It has never yet been
+  run against a real console.
+- **Your setup in one file** — the cue stack, layer groups, layer names, router
+  patch and settings, written as one plain JSON file and read back the same way,
+  so a rig restores with its `.awc` rather than half of it.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
   layer width and get 1000, the way you can in every other tool on the desk.
 
@@ -56,6 +75,11 @@ Point it at a switcher, open the address it prints, and you get the vendor's
 own Web RCS with the extra panels already in it. It rides the vendor app's own
 WebSocket — no second connection to the device, no replacement UI, and nothing
 to install in the browser.
+
+It runs as a desktop tray app for macOS, Windows and Linux, as a Docker image,
+or from the command line with Node 20. It works on a **LivePremier** and — for
+the Timeline, Console, Memories, Layer and Pitch Compensation — on a **Midra 4K
+or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 
 > **Status: field testing — v0.11.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
@@ -283,11 +307,8 @@ npm start -- --device 192.168.2.142
 There is a desktop app too — a tray launcher with an interface and port picker,
 in the fleet's usual shape. See [launcher/](launcher/).
 
-## Download
-
-Nothing below this line is hand-written: `gen-downloads.py` owns everything
-between the markers and rewrites it wholesale at each release.
-
+<!-- Nothing between the markers is hand-written: gen-downloads.py owns it,
+     heading and all, and rewrites it wholesale at each release. -->
 <!-- downloads:start -->
 
 ## Download
@@ -402,7 +423,7 @@ length of each exchange.
 
 ## OSC input
 
-Off by default. Turn it on in **Settings → OSC input** and this process listens
+Off by default. Turn it on in **Preconfig ▸ LivePremier Plus → OSC input** and this process listens
 on a UDP port, so QLab, TouchOSC, Companion or a lighting desk can drive the
 switcher directly.
 
@@ -530,29 +551,6 @@ a live value until it has swept through that value, so picking up a fader
 mid-show cannot jump a layer's opacity. The panel shows the hold-off rather
 than looking broken.
 
-## Pixelhue panel — preview
-
-A Pixelhue U5, U5 Pro or U5 mini event controller, driving the switcher. Off by
-default; turn it on in Preconfig → Settings.
-
-It does not map keys. The console is handed a **model** of this switcher — its
-screens, its inputs, its memories — and labels, lights and pages its own keys
-from it; what comes back is what the operator meant (`select screen S2`,
-`put LIVE_2 on the selected layer`, `take`), carrying the identity this app
-published. So there is nothing to remap when a firmware moves a key.
-
-> ⚠️ **Preview: this has never been run against a console.** It was built from
-> the consoles' firmware and proved against the vendor's own control service
-> running headless with no panel attached. `docs/PIXELHUE.md` has the wire
-> detail, how to rig one, and the list of what is still unverified — including
-> fade-to-black and freeze, which the console asks for and this does not yet
-> send.
-
-A **U5 mini** answers on the LAN, so it is driven from wherever this app
-already runs. A **U5 or U5 Pro** serves its control port on loopback only, so
-this app has to run on the console itself — which is a Windows mini-PC with a
-touch screen, and runs the proxied Web RCS perfectly well.
-
 ### Why this needs no offscreen document
 
 `navigator.requestMIDIAccess()` is a **secure-context** API. When this project
@@ -582,6 +580,29 @@ that is actually open, the loopback door with its port, and the fact that
 another machine would need HTTPS, which this app does not serve yet. Only
 top-level navigations are redirected; the vendor app's fetches and its socket
 stay where they are.
+
+## Pixelhue panel — preview
+
+A Pixelhue U5, U5 Pro or U5 mini event controller, driving the switcher. Off by
+default; turn it on in Preconfig ▸ LivePremier Plus.
+
+It does not map keys. The console is handed a **model** of this switcher — its
+screens, its inputs, its memories — and labels, lights and pages its own keys
+from it; what comes back is what the operator meant (`select screen S2`,
+`put LIVE_2 on the selected layer`, `take`), carrying the identity this app
+published. So there is nothing to remap when a firmware moves a key.
+
+> ⚠️ **Preview: this has never been run against a console.** It was built from
+> the consoles' firmware and proved against the vendor's own control service
+> running headless with no panel attached. `docs/PIXELHUE.md` has the wire
+> detail, how to rig one, and the list of what is still unverified — including
+> fade-to-black and freeze, which the console asks for and this does not yet
+> send.
+
+A **U5 mini** answers on the LAN, so it is driven from wherever this app
+already runs. A **U5 or U5 Pro** serves its control port on loopback only, so
+this app has to run on the console itself — which is a Windows mini-PC with a
+touch screen, and runs the proxied Web RCS perfectly well.
 
 ## The demo environment
 
@@ -668,18 +689,18 @@ exactly as typed for the vendor to reject as it would today.
 
 ## What it looks like
 
-Both panels are built from the vendor stylesheet's own utility classes — the
+Every panel is built from the vendor stylesheet's own utility classes — the
 slate-grey scale, the spacing scale, the typography — and the sidebar entries
 are cloned from real ones at runtime, so they inherit whatever per-build class
 hashes the firmware happens to use. The result is not a skin that approximates
 Web RCS; it is Web RCS's own CSS.
 
-Console, Timeline and Layer are **tabs in the vendor's own strip** on Screens /
-Aux., beside Properties and Memories, because per-screen tools belong where an
-operator already looks for per-screen tools:
+Console, Timeline, Layer and Groups are **tabs in the vendor's own strip** on
+Screens / Aux., beside Properties and Memories, because per-screen tools belong
+where an operator already looks for per-screen tools:
 
 ```
-Properties | Memories | Console | Timeline | Layer
+Properties | Memories | Console | Timeline | Layer | Groups
 ```
 
 Layer is a properties editor, and it is called Layer rather than Properties
@@ -693,8 +714,9 @@ behaviour anyway, because the window stays pointed where you left it.
 
 MIDI Mapping sits **under Virtual RC400T** in the vendor's own LIVE section —
 both are about control surfaces, and filing it in a section of ours would file
-it by who wrote it rather than by what it does. The two whole-device views get
-a section of their own:
+it by who wrote it rather than by what it does. Pitch Compensation and this
+app's own settings sit in the **Preconfig** flyout, beside the device settings
+they belong with. The whole-device views get a section of their own:
 
 ```
 LIVE
@@ -703,11 +725,18 @@ LIVE
   Virtual RC400T
   MIDI Mapping       <- ours
 SETUP
+  Preconfig
+    …
+    Pitch Compensation   <- ours
+    LivePremier Plus     <- ours: settings
   …
 PLUS                 <- ours
+  Edit
   VPU Map
   Memories
   Layer Groups
+  Matrix Routing
+  Companion
 ```
 
 The memory banks are in the sidebar rather than on the strip for two reasons.
@@ -1016,12 +1045,12 @@ repo.
 
 ## Related
 
-[`webrcs-timeline`](../webrcs-timeline) is a Rust workspace with the same cue
+`webrcs-timeline` (not public) is a Rust workspace with the same cue
 model, both transports and no UI — the headless path. Its engine and this one
 are independent implementations and will drift; converging them is an open
 decision.
 
-[`aquilon-vpu-map`](../aquilon-vpu-map) is a standalone server-side reader of
+[`aquilon-vpu-map`](https://github.com/stoatworks-labs/aquilon-vpu-map) is a standalone server-side reader of
 the same VPU mapping over AWJ. It and this app solve the same problem from
 opposite ends — that one reaches the device directly and can run headless, this
 one has the whole device store for free but only inside a browser tab.

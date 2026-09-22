@@ -8,15 +8,15 @@ as a bolt-on.
   a buffer that is on neither preview nor program. Build a look with the same sources, the same
   layer parameters and the same memory bank, and the switcher sees none of it until you save it
   into a memory.
-- **VPU Map** — the device's mixing-resource allocation, drawn as a budget. Which units are fitted,
-  who holds them, what is spare, and what a staged preconfig would change. The link grid reads top
-  to bottom the way an output link runs: a screen's native layer in a band above the eight layer
-  links, the layers down the field, and — when a screen ran out of mixers and its next layer is on
-  another VPU — on into that VPU's card, stacked underneath. The header over the columns names each
-  link's screen, and its region and output plug where the outputs add up to the screen's own figures.
-- **Console** — a lighting-desk command grammar for a video switcher.
+- **VPU Map** — the device's mixing-resource allocation, drawn as a budget: which units are
+  fitted, who holds them, what is spare, and what a staged preconfig would change.
+- **Console** — a lighting-desk command grammar for a video switcher, which also takes raw AWJ,
+  store writes and OSC addresses.
 - **Timeline** — a theatre-style cue stack that advances on one GO, with per-cue fade, delay and
-  follow times.
+  follow times — and cues that fire from MIDI Time Code, LTC or a pushed timecode.
+- **Memories** — every memory bank in one searchable list, showing which buffer holds each one.
+- **Layer** — all 67 of a layer's properties, from the switcher's own catalogue; and names for
+  layers, which the switcher has nowhere to keep.
 - **Layer Groups** — several layers, on one screen or on many, driven as one; a ganged group
   follows a source change made to any member, wherever it came from.
 - **Send to** — a `…` on every source card that routes it to a screen and layer, or to a whole
@@ -27,7 +27,14 @@ as a bolt-on.
 - **Companion** — a Bitfocus Companion served inside this app, on the same address as Web RCS:
   its button editor, web buttons and emulator, plus a panel that knows which switcher you are on
   and offers to add the connections that belong in the show.
+- **Pitch Compensation** — the H and V ratios a screen spanning LED walls of different pitches
+  needs, worked out from the pitches you give it.
+- **OSC input** — QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
+  no browser open.
 - **MIDI Mapping** — a control surface driving the switcher, from the page itself.
+- **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini driving the switcher.
+- **Your setup in one file** — cue stack, groups, layer names, router patch and settings, saved and
+  restored together.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a layer width and get
   1000.
 
@@ -47,6 +54,13 @@ and nothing to install in the browser.**
 > by the operator — the first writes this app's panels have made to real hardware. On LivePremier,
 > nothing has been written to a physical device yet and the timeline has only ever fired at a
 > simulator.
+>
+> **The Edit page and Companion (0.10.0, 0.11.0) have been proven on simulators and a running
+> Companion 5.0.5, not on a physical switcher.** Two of their limits are worth knowing now: the
+> Edit page's *direct* save hands the switcher a file path that the switcher resolves, so it is
+> unproven on real hardware — its *via preview* route works anywhere — and Companion cannot add the
+> LivePremier Plus connection until a Companion module for this app exists. The **Pixelhue panel**
+> has never met a console at all.
 >
 > Built with AI assistance, directed and reviewed by a human author.
 
@@ -141,6 +155,32 @@ change it.
 
 ---
 
+## VPU Map
+
+**PLUS ▸ VPU Map.** A LivePremier configuration either fits the mixing resources the chassis has or
+it does not, and the switcher's own interface only tells you which by refusing it. This draws the
+budget instead: which VPUs are fitted, which screen holds which mixers, and what is spare.
+
+Each VPU is drawn the way Analog Way's own manual draws one — an 8 × 8 field of links, layer links
+coming in from the left, output links running down from the top — so the picture matches the
+documentation you already have:
+
+- **Native layers** sit in a band above the field, because a native is the bottom of the stack.
+- **A screen that ran out of mixers** and continued onto another VPU has the two cards stacked, with
+  the link drawn straight down out of one and into the next.
+- **The header over the columns** names each link's screen, and its region and output plug where
+  the switcher's own output figures add up.
+
+**Current** and **Staged** switch between the running configuration and the one waiting in
+Preconfig, and a count says how many changes applying it would make — including a layer moving
+onto different links with every other value identical, which is still a change.
+
+It only reads. Nothing on this page writes to the switcher. It is LivePremier only: a Midra 4K or
+Alta 4K has fixed processing rather than allocated mixers, so there is no budget to draw and the
+entry is not there.
+
+---
+
 ## Console
 
 Verb first, then objects, innermost scope last. Every keyword abbreviates to any unambiguous
@@ -164,6 +204,85 @@ That is worth more than tidiness: mynah's compiler and this repo's command build
 independently, and they emit **byte-identical** store paths for the commands both know. Two
 independent derivations agreeing is the strongest evidence either is right, and it stays true only
 while nobody re-types the grammar here.
+
+---
+
+## Timeline
+
+**Screens / Aux. ▸ Timeline.** A lighting desk's cue stack, driving a switcher: a numbered list
+that advances on one **GO**, where each cue recalls memories onto screens and takes them.
+
+Each cue can carry:
+
+| | |
+|---|---|
+| **fade** | its own transition time, written to the screen before the take |
+| **delay** | wait this long after GO before firing — a second GO during the wait fires it at once |
+| **follow** | after this cue fires, fire the next one by itself, after a follow time you set |
+| **timecode** | fire when incoming timecode passes this point (below) |
+
+A few things behave the way a desk does rather than the way a switcher does:
+
+- **GO fires the standby cue, then advances.** **BACK** moves the pointer only.
+- **The switcher's own STEP BACK is a separate, clearly-labelled button**, because it restores the
+  device's previous state rather than replaying a cue, and the two differ as soon as a cue does
+  more than recall and take.
+- **A cue is sent, never confirmed.** The switcher answers recalls and takes with silence, so the
+  log says what left this app and the device status is shown separately.
+
+The editor pops out into a window of its own — useful on a second monitor while the stack runs.
+
+### Firing cues from timecode
+
+Choose a source under **Preconfig ▸ LivePremier Plus → Timecode**:
+
+- **MIDI Time Code** from any MIDI input the browser can see;
+- **Audio (LTC)** from an audio input on this machine;
+- **Pushed to LivePremier Plus** — anything that can POST a timecode to this app: a generator on
+  another machine, a lighting desk, a script.
+
+A cue fires **once per pass**, not on every reading. **Going backwards re-arms** it, so the same
+scene can be rehearsed twenty times. **Jumping forward does not run everything it skipped** — the
+cues in between are marked done, silently, and the show carries on from the new position, rather
+than firing a hundred takes in a second.
+
+---
+
+## Memories
+
+**PLUS ▸ Memories.** Every memory bank in one list: master, screen and layer on a LivePremier;
+master, screen and aux on a Midra 4K or Alta 4K. Search by name, rename in place, and see which
+preset buffer is holding each memory right now — and whether it is still unmodified.
+
+- **A recall names its target every time.** Pick **PRW** or **PGM** before you recall; there is no
+  default, and program is coloured like the risk it is.
+- **Save and erase** do what the vendor's own buttons do, and the page says which save filters the
+  switcher will apply before you press it.
+- **It pops out** onto a second monitor, which the vendor's own Memories tab cannot do.
+
+---
+
+## Layer
+
+**Screens / Aux. ▸ Layer.** Every one of a layer's 67 properties — source, position, size, opacity,
+cropping, border, transitions, effects, masks and keying — generated from the switcher's own
+parameter catalogue, so a firmware that adds a property grows a field for it.
+
+You name the destination, the buffer and the layer outright, rather than the panel following what
+you clicked: that is React state inside the vendor's page and cannot be read, and on a second
+monitor a panel that stays where you pointed it turns out to be the better behaviour anyway.
+
+- **The buffer is shown resolved**: PRW means "whichever letter is preview right now", and the
+  panel says which letter that is. A buffer that is on air is banded in red.
+- **Mid-take, it refuses to write to PRW or PGM**, because neither names a buffer honestly while a
+  transition is running. A literal letter still works.
+- **It pops out** into its own window.
+
+### Naming a layer
+
+Type a name into **Name** and it appears everywhere a layer is listed — this panel, the groups, the
+`…` menu, and **the vendor's own layer lists**. The switcher has no field for a layer name, so this
+app keeps it, per switcher; anything that talks to the switcher directly will not see it.
 
 ---
 
@@ -340,6 +459,60 @@ Companion, not a copy of it, so they are always the version you have installed.
 
 ---
 
+## Pitch Compensation
+
+**Preconfig ▸ Pitch Compensation**, beside the fields it fills in. A screen spanning LED walls of
+different pixel pitches needs each output told how much canvas its raster is worth, or a layer
+crossing the join changes physical size the instant it crosses. The switcher has the fields for it —
+Preconfig ▸ Canvas ▸ Pitch, **H Ratio** and **V Ratio** — and no help working out what to put in them.
+
+It knows every number but one. The panel reads the rasters, the outputs on the screen and the
+ratios already set, and asks you only for the pitches — one per output: `2.6`, or `2.6 x 3.0` if the
+pixels really are not square.
+
+- A **coarser** wall takes a ratio **above** 1.000 — the ratio multiplies a raster to give its
+  footprint on the canvas.
+- A ratio the switcher would not accept is **refused here** rather than sent: the device discards an
+  out-of-range write instead of clamping it.
+- **Applying takes two presses.** It is a preconfig change that moves every output on the screen at
+  once, so it should be hard to hit by accident. If the switcher already holds the computed ratios,
+  the button says so and does nothing.
+
+---
+
+## OSC input
+
+Off until you turn it on in **Preconfig ▸ LivePremier Plus → OSC input**. Then this app listens on
+a UDP port, and QLab, TouchOSC, a lighting desk or Companion can drive the switcher — **with no
+browser open**.
+
+```
+/lp/screen/1/take
+/lp/screen/1/memory/5/recall/preview
+/lp/master/memory/12/store
+/lp/screen/1/preset/a/layer/2/opacity/opacity/norm 0.5
+```
+
+Every address, its argument and its range is in
+[docs/OSC.md](https://github.com/stoatworks-labs/livepremier-plus/blob/main/docs/OSC.md) — generated
+from the same tables that resolve the messages, so it cannot list an address that does not work.
+
+- **The address is the target; the argument is only the value.** A button with a fixed address and
+  no argument still means something specific.
+- **A trigger fires on a non-zero argument and on none at all** — surfaces send 1 on press and 0 on
+  release, and firing on both would take the screen twice.
+- **A recall never defaults to program.** `…/recall` goes to preview.
+- **`/norm` takes 0–1 and scales**; without it the value is in the switcher's own units — opacity is
+  0–256, not 0–100.
+- **Live layer parameters must name a buffer** — `/a`, `/b` or `/c`. Over UDP there is no way to
+  know which letter is preview at this instant, so `preview` and `program` are refused with that
+  reason rather than guessed. The Console can resolve them.
+
+It binds to this machine only unless you choose otherwise, and the other option says in as many
+words that the network will be able to fire takes.
+
+---
+
 ## MIDI Mapping
 
 Under **Virtual RC400T**. Pick an input, an output for feedback, and a controller profile; press
@@ -352,6 +525,27 @@ with its stock profiles — X-Touch/Mackie, APC40, MIDIcon 2 and Pro, plus a gen
 until it has swept *through* that value, so picking up a fader mid-show cannot jump a layer's
 opacity. **The panel shows the hold-off rather than looking broken** — if a fader appears dead,
 that is what you are seeing.
+
+---
+
+## Pixelhue panel (preview)
+
+A Pixelhue **U5**, **U5 Pro** or **U5 mini** event controller, driving the switcher. Off until you
+turn it on in **Preconfig ▸ LivePremier Plus → Pixelhue panel**.
+
+It does not map keys. The console is handed a model of this switcher — its screens, inputs and
+memories — and labels, lights and pages its own keys from it; what comes back is what the operator
+meant: *select screen S2*, *put input 2 on the selected layer*, *take*. So there is nothing to remap
+when a firmware moves a key.
+
+- A **U5 mini** answers on the network, so it is driven from wherever this app already runs.
+- A **U5** or **U5 Pro** serves its control port to itself only, so this app has to run on the
+  console — a Windows mini-PC with a touch screen, which runs the proxied Web RCS perfectly well.
+
+> ⚠️ **This has never been run against a real console.** It was built from the consoles' firmware
+> and proved against the vendor's own control service running with no panel attached. Treat the
+> first show with one as a rehearsal. Fade-to-black and freeze, which the console asks for, are not
+> sent yet.
 
 ---
 

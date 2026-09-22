@@ -102,10 +102,61 @@ const FEATURES = [
     needs: 'layerProperties'
   },
   {
+    name: 'Layer names',
+    where: 'The Layer tab, and every layer list',
+    what: 'Name a layer and the name shows in the vendor\u2019s own lists \u2014 the switcher has nowhere to keep one.',
+    needs: 'layerGroups'
+  },
+  {
+    name: 'Layer Groups',
+    where: 'Sidebar, under PLUS, and a Groups tab',
+    what: 'Several layers, across screens, driven as one \u2014 and a gang that follows a change to any of them.',
+    needs: 'layerGroups'
+  },
+  {
+    name: 'Send to',
+    where: 'The \u2026 on every source card',
+    what: 'Route an input to a layer or a whole group, in preview or program, without a drag.',
+    needs: 'layerGroups'
+  },
+  {
+    name: 'Matrix Routing',
+    where: 'Sidebar, under PLUS',
+    what: 'Patch the frame to a Videohub, Lightware or Turtle AV router and route through it.',
+    needs: 'matrixRouting'
+  },
+  {
+    name: 'Pitch Compensation',
+    where: 'Preconfig flyout',
+    what: 'The H and V ratios for a screen spanning LED walls of different pitches.',
+    needs: 'pitchCompensation'
+  },
+  {
+    name: 'OSC input',
+    where: 'This page',
+    what: 'QLab, TouchOSC or a lighting desk driving the switcher over UDP, with no browser open.'
+  },
+  {
+    name: 'Timecode',
+    where: 'This page, and the Timeline',
+    what: 'Fire cues from MIDI Time Code, LTC on an audio input, or a timecode pushed to this app.',
+    needs: 'cueStack'
+  },
+  {
     name: 'MIDI Mapping',
     where: 'Sidebar, under Virtual RC400T',
     what: 'A MIDI control surface driving the switcher from this page.',
     needs: 'console'
+  },
+  {
+    name: 'Pixelhue panel',
+    where: 'This page (preview)',
+    what: 'A Pixelhue U5, U5 Pro or U5 mini driving the switcher. Never yet run against a console.'
+  },
+  {
+    name: 'Setup file',
+    where: '/__lpp/config',
+    what: 'Cue stack, groups, layer names, router patch and settings as one JSON file, and back.'
   },
   {
     name: 'Field arithmetic',
