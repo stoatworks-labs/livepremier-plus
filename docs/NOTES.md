@@ -9,6 +9,44 @@ Cross-cutting notes that are not specific to this repo live in
 
 *LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, injecting a VPU map and a theatre cue stack into a real LivePremier Web RCS session in the vendor's own CSS; PRIVATE + pushed; verified through the proxy against the simulator; no panel ever driven live on hardware in a browser*
 
+## The portable configuration file (2026-09-22)
+
+`server/config-file.js` writes everything this app holds for one device into a single
+JSON document, and reads one back. `GET /__lpp/config` (add `?download=1` for a
+filename), `POST /__lpp/config`, and `POST /__lpp/config/inspect` to see what an import
+would do without doing it.
+
+**Why:** a rig is two halves. The `.awc` restores the processor and holds nothing about
+the surface driving it; we hold the cue stack, layer groups, layer names and the patch.
+Restore the `.awc` alone and the show comes back with no cue list. Showbook now carries
+both — in a `.showbook` bundle, or with this file embedded inside the `.awc` itself
+(a LivePremier accepts that; see showbook's `docs/NOTES.md` for the measurements).
+
+**The three sections are `storage.js`'s own split and must stay apart:**
+
+| section | files | keyed by device |
+| --- | --- | --- |
+| `installation` | `settings`, `matrices` | no |
+| `show` | `stack`, `groups`, `names` | yes |
+| `rig` | `patch` | yes |
+
+Two judgements worth not undoing:
+
+- **`DEFAULT_IMPORT` deliberately omits `settings`.** It carries the OSC port and bind, so
+  applying it can close a port a lighting desk is sending to. Someone tidying it into "all
+  of them" fails `test/config-file.test.js`.
+- **An absent section is not an empty one.** `buildConfig` leaves a section out rather than
+  writing `null`, so an importer can tell "this export had no patch" from "this export had
+  an empty patch" — the difference between leaving a cable schedule alone and wiping it.
+
+`applyConfig` writes the device-keyed sections under whatever `deviceKey` it is given, not
+the one in the file, which is what makes a restore onto a backup frame work; the file
+records `device.address` so the importer knows what it is remapping from, and the report
+says `remapped: true` when they differ. `settings` is merged rather than replaced, so a key
+this build knows and an older export predates is not reset to its default.
+
+12 tests in `test/config-file.test.js`.
+
 ## RENAMED + RE-ARCHITECTED 2026-08-21 — read this first
 
 **It is `livepremier-plus` now, and it is NOT an extension.** Both the repo and

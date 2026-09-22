@@ -40,6 +40,10 @@ import { createOscServer } from './osc.js';
 import { loopbackRedirect } from './local-client.js';
 import { MatrixSupervisor } from './matrix/index.js';
 import {
+  buildConfig, applyConfig, summarise as summariseConfig,
+  validate as validateConfig, DEFAULT_IMPORT,
+} from './config-file.js';
+import {
   normaliseMatrices, normalisePatch, validate as validatePatch,
   feed as patchFeed, send as patchSend, groupCrosspoints, toPortList,
   resolveMatrixOsc,
@@ -126,6 +130,9 @@ function decode(buf, encoding) {
 export async function createProxy({
   device = null, devicePort = 80, root, storage = null,
   extraModules = [], extraFiles = {}, log = () => {},
+  /* Recorded in an exported configuration file, so a document says which
+     build wrote it. Cosmetic; an empty string is fine. */
+  appVersion = '',
   /* The port a loopback listener answers on, when this server is also bound
      to a LAN address — see local-client.js. Null means never redirect. */
   loopbackPort = null
@@ -705,6 +712,76 @@ export async function createProxy({
         return sendJson(res, 200, { ok: true });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
+    }
+
+    /*
+     * The portable configuration file — everything this app holds, in one
+     * document. See `server/config-file.js` for what is in it and why it is
+     * split three ways.
+     *
+     * GET  ?download=1  sets a filename so a browser saves rather than shows it.
+     * POST body `{ doc, sections?, device? }` applies one. `sections` defaults
+     *      to DEFAULT_IMPORT, which deliberately leaves `settings` out — see
+     *      the note in config-file.js about the OSC port.
+     */
+    if (rest === '/config') {
+      if (!storage) return sendJson(res, 501, { error: 'no storage configured' });
+      if (req.method === 'GET') {
+        const doc = await buildConfig({
+          storage,
+          deviceKey: state.device,
+          appVersion,
+          deviceInfo: { platform: state.platform || '' }
+        });
+        if (url.searchParams.get('download')) {
+          const buf = Buffer.from(JSON.stringify(doc, null, 2));
+          res.writeHead(200, {
+            'content-type': 'application/json; charset=utf-8',
+            'content-disposition': 'attachment; filename="livepremier-plus.json"',
+            'content-length': buf.length,
+            'cache-control': 'no-store'
+          });
+          return res.end(buf);
+        }
+        return sendJson(res, 200, { doc, summary: summariseConfig(doc) });
+      }
+      if (req.method === 'PUT' || req.method === 'POST') {
+        const body = await collect(req, 8 * 1024 * 1024);
+        let parsed;
+        try { parsed = JSON.parse(body.toString('utf8')); }
+        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+        /* Accept the document either bare or wrapped, because a file dropped
+           on the page and a call from our own UI arrive in different shapes. */
+        const doc = parsed && parsed.doc !== undefined ? parsed.doc : parsed;
+        try {
+          const report = await applyConfig({
+            storage,
+            deviceKey: (parsed && parsed.device) || state.device,
+            doc,
+            sections: parsed && parsed.sections
+          });
+          return sendJson(res, 200, { ok: true, ...report });
+        } catch (err) {
+          return sendJson(res, 400, { error: err.message });
+        }
+      }
+      return sendJson(res, 405, { error: 'method not allowed' });
+    }
+
+    /* What an import would do, without doing it. */
+    if (rest === '/config/inspect' && (req.method === 'POST' || req.method === 'PUT')) {
+      const body = await collect(req, 8 * 1024 * 1024);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); }
+      catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+      const doc = parsed && parsed.doc !== undefined ? parsed.doc : parsed;
+      const problem = validateConfig(doc);
+      if (problem) return sendJson(res, 400, { error: problem });
+      return sendJson(res, 200, {
+        summary: summariseConfig(doc),
+        defaultSections: DEFAULT_IMPORT,
+        device: state.device
+      });
     }
 
     /* Anything a caller registered explicitly, by exact path. Nothing here is

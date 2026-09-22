@@ -300,6 +300,57 @@ touched.
 
 ---
 
+## Saving and restoring your setup
+
+A `.awc` from the switcher restores the *processor* — inputs, outputs, screens, memories.
+It holds nothing about this app: your cue stack, your layer groups, the names you gave
+layers, the patch to the external routers. Restore a `.awc` on its own onto a fresh frame
+and the show comes back with no cue list.
+
+So this app can write all of that into one file:
+
+```
+curl -o livepremier-plus.json 'http://127.0.0.1:8535/__lpp/config?download=1'
+```
+
+It is plain JSON — readable, diffable, fine in a git repo. It carries which switcher it
+was written against, and three separate groups:
+
+- **installation** — app settings (console language, OSC port and bind) and your external
+  routers. Not tied to a switcher.
+- **show** — the cue stack, layer groups and layer names. Tied to the switcher they were
+  built on, because they name screens and layer slots like `S1/2`.
+- **rig** — the patch between the frame and the routers.
+
+To restore, POST it back:
+
+```
+curl -X POST -H 'content-type: application/json' \
+     --data-binary @livepremier-plus.json \
+     http://127.0.0.1:8535/__lpp/config
+```
+
+By default that restores the show and the rig and your routers, and **leaves the app
+settings alone** — a restore should not quietly change the OSC port a lighting desk is
+sending to. Ask for them explicitly if you want them:
+
+```
+{ "doc": { … }, "sections": ["stack", "groups", "names", "patch", "settings"] }
+```
+
+**Onto a different frame.** The device-keyed parts land under whichever switcher this app
+is currently pointed at, so failing over to a backup frame at another address is just:
+point the app at the backup, then POST the file. Add `"device": "192.168.2.141"` to send it
+somewhere else again. To see what a file would do before doing it, POST it to
+`/__lpp/config/inspect`.
+
+**Both halves in one file.** [Showbook](https://stoatworks-labs.com/software/showbook/)
+keeps this file beside the `.awc` for the same show and exports the pair as one
+`.showbook` bundle — or, if you want a single file you can restore straight from the
+switcher's own Web RCS, it can put this configuration *inside* the `.awc`. The switcher
+accepts it and ignores it; this app reads it back out. Note the switcher does not keep it:
+a `.awc` you export from Web RCS afterwards will not contain it.
+
 ## If something is wrong
 
 | Symptom | Cause |

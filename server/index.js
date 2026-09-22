@@ -13,6 +13,7 @@
  */
 
 import http from 'node:http';
+import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -85,10 +86,17 @@ const storage = new StackStore(dataDir);
  */
 const device = args.device || process.env.LPP_DEVICE || (await storage.loadDevice());
 
+/* The version is read off package.json rather than hard-coded, so an exported
+   configuration file always names the build that actually wrote it. */
+const appVersion = await readFile(join(ROOT, 'package.json'), 'utf8')
+  .then((t) => JSON.parse(t).version || '')
+  .catch(() => '');
+
 const server = await createProxy({
   device,
   root: ROOT,
   storage,
+  appVersion,
   log: (msg) => console.log(`[lpp] ${msg}`),
   loopbackPort: redirectLocal ? port : null
 });
