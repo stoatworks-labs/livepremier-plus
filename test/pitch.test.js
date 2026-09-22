@@ -28,7 +28,7 @@ import {
   screenOutputs, toProject, pitchWrites, alreadyApplied, outputPitch, outputPitchCommit
 } from '../src/core/pitch.js';
 import { compensate } from '../src/vendor/pitch-engine.js';
-import { parsePitch } from '../src/ui/pitch-panel.js';
+import { parsePitch } from '../plugins/pitch/panel.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 

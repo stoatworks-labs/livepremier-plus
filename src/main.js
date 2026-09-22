@@ -16,9 +16,7 @@ import { Session } from './core/session.js';
 import { CueStack } from './core/cuestack.js';
 import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
-import { createVpuPanel } from './ui/vpu-panel.js';
 import { createMatrixPanel } from './ui/matrix-panel.js';
-import { createPitchPanel } from './ui/pitch-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
 import { installMathFields } from './ui/math-fields.js';
 import { TabHost, watchVendorTabs } from './ui/tabs.js';
@@ -298,11 +296,9 @@ async function boot() {
     refresh();
   });
 
-  const vpu = createVpuPanel({ session, platform, onRefresh: refresh });
   const matrix = createMatrixPanel({ session, onRefresh: refresh });
   const timeline = createTimelinePanel({ session, stack, storage, timecode, chase, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
-  const pitch = createPitchPanel({ session, onRefresh: refresh });
   const midi = createMidiPanel({ session, onRefresh: refresh });
   const settings = createSettingsPanel({ session, platform, timecode, onRefresh: refresh });
   /*
@@ -449,10 +445,9 @@ async function boot() {
   const shell = new Shell({
     title: 'PLUS',
     /* Ordered by `order`, in tens so a plugin can put itself between two of
-       these. Companion, a plugin, asks for 60: after Matrix Routing. */
+       these. The hosted ones already do: VPU Map asks for 20, Companion for
+       60 and Pitch Compensation for 80 — see `plugins/`. */
     entries: byOrder([
-      /* Midra 4K and Alta 4K have no VPU to map — their processing is fixed
-         rather than allocated — so on those the entry is simply not there. */
       /*
        * The Edit page is first, and it is a page rather than a tab.
        *
@@ -463,7 +458,7 @@ async function boot() {
        * operator will open before the show rather than during it.
        */
       { id: 'edit', label: 'Edit', icon: ['properties-18', 'layer-stacked-18'], order: 10, enabled: () => can('layerProperties') && on('edit'), render: () => edit.render() },
-      { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', order: 20, enabled: () => can('vpuMap') && on('vpu-map'), render: () => vpu.render() },
+      /* VPU Map comes here, at 20 — from its plugin, `plugins/vpu-map/`. */
       /* The three memory banks, which are a whole-device view like the VPU map
          and unlike everything on the Screens / Aux. strip: master memories
          cover every screen at once, and the screen bank is one flat list of
@@ -482,10 +477,8 @@ async function boot() {
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
       { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', order: 70, enabled: () => on('midi'), render: () => midi.render() },
-      /* Under Preconfig because that is literally where the two fields it
-         fills in live — Preconfig > Canvas > Pitch. A panel that computes a
-         number you then type in one flyout over belongs in the same flyout. */
-      { id: 'pitch', label: 'Pitch Compensation', submenuOf: 'Preconfig', order: 80, enabled: () => can('pitchCompensation') && on('pitch'), render: () => pitch.render() },
+      /* Pitch Compensation comes here, at 80 in the Preconfig flyout — from
+         its plugin, `plugins/pitch/`. */
       /* Nor is this one: settings for the installation go where the device's
          own installation settings are, inside the Preconfig flyout. */
       { id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig', order: 90, render: () => settings.render() },

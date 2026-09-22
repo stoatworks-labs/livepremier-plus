@@ -11,8 +11,8 @@ plugins arrive.
 |---|---|---|
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
-| 2 | The self-contained features moved: Pixelhue, Edit page, VPU Map, Pitch, MIDI, Memories, Layer, layer names | planned |
-| 3 | Contribution points, then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing | planned |
+| 2 | The self-contained features moved: VPU Map and Pitch Compensation (**done**), Pixelhue, Edit page | in progress |
+| 3 | Contribution points, then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing — and MIDI, Memories, Layer and layer names, which turned out to share more than they looked (MIDI's port feeds the timecode source; Memories and Layer ride the pop-out machinery; layer names are read by five surfaces) | planned |
 | 4 | **User plugins** loaded from the data directory; this guide finished; an example plugin | planned |
 
 ## Switching features on and off
@@ -39,7 +39,7 @@ of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins); Companion was the first to move there.
+A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map and Pitch Compensation.
 
 ```
 plugins/companion/

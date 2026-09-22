@@ -16,7 +16,8 @@
  * - **Hosted**: moved into `plugins/<id>/` with a `server` and/or `client`
  *   half, and loaded through the plugin hosts (`server/plugin-host.js`,
  *   `src/ui/plugin-host.js`) exactly as a plugin written by somebody else
- *   will be. Its manifest names those halves. Companion was the first.
+ *   will be. Its manifest names those halves. Companion was the first;
+ *   VPU Map and Pitch Compensation followed.
  *
  * ## Present, and active
  *
@@ -73,7 +74,8 @@ export const BUILTINS = [
     name: 'VPU Map',
     where: 'Sidebar, under PLUS',
     description: 'Which mixers each screen is using, running against staged.',
-    requires: { capabilities: ['vpuMap'] }
+    requires: { capabilities: ['vpuMap'] },
+    client: 'client.js'
   },
   {
     id: 'console',
@@ -143,7 +145,8 @@ export const BUILTINS = [
     name: 'Pitch Compensation',
     where: 'Preconfig flyout',
     description: 'The H and V ratios for a screen spanning LED walls of different pitches.',
-    requires: { capabilities: ['pitchCompensation'] }
+    requires: { capabilities: ['pitchCompensation'] },
+    client: 'client.js'
   },
   {
     id: 'osc-input',

@@ -25,14 +25,14 @@
  * readOnly in the device's own model.
  */
 
-import { h, button, readout, sectionTitle } from './dom.js';
-import { panel } from './shell.js';
-import { whyNot } from '../core/platform.js';
-import { screenColour } from './theme.js';
+import { h, button, readout, sectionTitle } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
+import { whyNot } from '../../src/core/platform.js';
+import { screenColour } from '../../src/ui/theme.js';
 import {
   readSide, diffSides, inspectMapping, layerLabel, layerShort, stackVpus, screenOutputLinks,
   LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY
-} from '../core/vpu.js';
+} from '../../src/core/vpu.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 

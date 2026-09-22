@@ -67,7 +67,10 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
 
 - **Hosted** — moved into `plugins/<id>/` with a server half and/or a page half,
   loaded by `server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a
-  plugin written elsewhere will be. **Companion** is the one so far.
+  plugin written elsewhere will be. **Companion**, **VPU Map** and **Pitch
+  Compensation** so far; a built-in may import `src/` directly, and the two
+  page-only ones keep their shared engines (`core/vpu.js`, the vendored
+  models) where the rest of the app can still reach them.
 - **In place** — still wired into `src/main.js` and `server/proxy.js` by hand and
   gated there with `isEnabled`. Everything else, until its phase.
 

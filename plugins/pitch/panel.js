@@ -20,12 +20,12 @@
  * and adapts the store through `../core/pitch.js`.
  */
 
-import { h, button, readout, sectionTitle } from './dom.js';
-import { panel } from './shell.js';
-import { listDestinations } from '../core/screens.js';
-import { screenOutputs, toProject, pitchWrites, alreadyApplied } from '../core/pitch.js';
-import { dialectFor } from '../core/dialect.js';
-import { compensate, PITCH_UNITY, UI_LOCATION } from '../vendor/pitch-engine.js';
+import { h, button, readout, sectionTitle } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
+import { listDestinations } from '../../src/core/screens.js';
+import { screenOutputs, toProject, pitchWrites, alreadyApplied } from '../../src/core/pitch.js';
+import { dialectFor } from '../../src/core/dialect.js';
+import { compensate, PITCH_UNITY, UI_LOCATION } from '../../src/vendor/pitch-engine.js';
 
 export function createPitchPanel({ session, onRefresh }) {
   /* Typed pitches, keyed by output. Deliberately NOT persisted to the device —
