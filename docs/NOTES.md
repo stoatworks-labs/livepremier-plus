@@ -1033,3 +1033,143 @@ open on a box: the order of a screen's links over several outputs**, and the `ma
 box lives in aquilon-vpu-map: `docs/CAPTURE-GUIDE.md` → "Validate on real hardware",
 `scripts/probe-hardware.mjs` step 6.
 
+
+## The Edit page, and a way into the memory bank that misses both buses (2026-09-22)
+
+An operator building a look has only program and preview to build it in, and
+preview is where the next cue is parked. The Edit page is the third place: the
+Screens / Aux. layout with one EDIT row per destination instead of the PGM/PRW
+pair, and that row lives in this process.
+
+### What was asked of the device first, and what it answered
+
+Everything below was measured over AWJ against a **LivePremier Simulator
+6.2.73**, with every probe calibrated against a deliberately bogus path (which
+gets no reply) so that "no reply" could be read as "no such node".
+
+**A screen has three preset buffers.** `screenList/items/S1/presetList` carries
+`A`, `B` and `C`, each with 129 layer slots. `C` is `presetPrevious`.
+
+**You cannot save from C, so it is not a programmer.**
+
+```text
+presetBank/control/save/screenList/items/S1/presetList/items/   -> PROGRAM, PREVIEW
+  .../items/PROGRAM/slotList/items/1/pp/xRequest   -> false   (exists)
+  .../items/C/slotList/items/1/pp/xRequest         -> no reply (does not)
+presetBank/control/load/slotList/items/1/screenList/items/S1/presetList/items/
+                                                   -> PROGRAM, PREVIEW
+```
+
+And the device overwrites C on every take, which is what step-back steps back
+to. Two independent reasons, either one fatal.
+
+**A memory's contents are not in the store.** A bank slot publishes `isValid`,
+`label`, `categoryFilter`, `layerFilter`, `screenAuxWidth`, `screenAuxHeight`
+and `transitionDuration`. `presetBank/bankList/items/1/screenList/...` is not a
+node. So "load memory 44 into the programmer" cannot be answered from the
+mirror, however long you look.
+
+### But the bank has an export and an import, and the file is JSON
+
+Not in Web RCS 6.2.73's UI — the bundle has no source file for it and no
+upload route for one — and not in the protocol guide. It is in the object
+model:
+
+```text
+presetBank/export/cmd/pp/{selection[1000], path, xRequest}
+presetBank/export/status/pp/{fileName, status}
+presetBank/import/extract/cmd/pp/{path, xRequest}
+presetBank/import/extract/status/pp/status
+presetBank/import/load/$bank/@items/<n>/pp/{isValid, label, orgIndex, dstIndex}
+presetBank/import/load/cmd/pp/xRequest
+```
+
+**Export wants a DIRECTORY and import wants a FILE**, and both say so badly:
+a file name on export is `ERROR_INVALID_PATH`, a directory on import is
+`ERROR_INVALID_FILE`, and `/tmp` without the slash is `ERROR_COPY`. The file is
+always called `Preset.json`, reported back in `export/status/pp/fileName`.
+
+One memory, all filters open:
+
+```json
+[{ "BankSlot": 990,
+   "Layer": { "0": { "xPEMEM_BANK_INPUTNUM": "LIVE_5", "xPEMEM_BANK_POSH": 960, … } },
+   "xPEMEM_BANK_LABEL": "", "xPEMEM_BANK_DURATION": 10,
+   "xPEMEM_BANK_FILTER_CATEGORY": [ …14… ], "xPEMEM_BANK_FILTER_LAYER": [ …129… ],
+   "xPEMEM_BANK_SCREEN_WIDTH": 1920, "xPEMEM_BANK_SCREEN_HEIGHT": 1080 }]
+```
+
+- **NATIVE is layer `0`**; the rest are `1`..`128` under their own numbers.
+- **The filters say what the memory contains, not what it may do.** Slot 1 on
+  the simulator was saved with `["SOURCE","POS"]` and carries twelve fields per
+  layer; the same screen saved with all fourteen carries **72**. A memory this
+  app composes declares all fourteen, because it supplies all of them.
+- **66 of those 72 are the catalogue's writable parameters** under other names
+  — `POSH`, `SIZEH`, `BORDER_SHADOW_POS_H` for `border.shadow.sizeH`, the whole
+  cut-and-fill subtree spelled `MASK_*` while `cropping.mask.*` is `CROP_MASK_*`.
+  The table is in `core/preset-file.js` and it was **checked, not guessed**: a
+  memory saved with every filter open, compared field-for-field against the live
+  preset node for the same three layers — 198 pairs, 95 on a non-default value,
+  **none disagreeing**. The fixture is that comparison, trimmed to three layers.
+- **The six with no catalogue parameter** are `LAYER_CAPABILITY` (the screen's
+  own `layerList/items/<k>/status/pp/capability`, not a preset property at all)
+  and `ROTH`, `ROTV`, `ROTZ`, `BEZIER_PT1_POSZ`, `BEZIER_PT2_POSZ`, which have
+  no node anywhere in the live preset tree on this firmware. Carried verbatim
+  on the way in, emitted at the device's own values on the way out.
+- The catalogue's one read-only parameter, `source.status.inputNum`, is
+  correctly absent from every memory.
+
+**The round trip was proven before a line of the page was written**: export
+slot 1, hand-edit `BankSlot`, label, duration and a position, extract, set
+`dstIndex`, load — and the device reported slot 900 valid with exactly what was
+typed into the file. No buffer written, no take fired. Then deleted.
+
+### ⚠️ The path is the device's filesystem
+
+This is the one thing not answered. `extract/cmd/pp/path` is resolved by the
+machine running the device software. On a simulator that is this machine, which
+is why the direct save works here. **On a real Aquilon it is the switcher's own
+disk**, and nothing yet establishes how to put a file there — Web RCS's only
+upload routes are `/device/hardware/config/upload`, `/device/images/upload` and
+`/device/lut-libraries/upload`, none of them presets. Hence
+`settings.memoryImportDir`, and hence the second route.
+
+### The second route, and what it costs
+
+`core/save-look.js` also saves by borrowing preview: write the look into the
+preview buffer, fire the ordinary save, then write the whole buffer back
+property-for-property from a deep copy taken before anything was sent. Program
+never moves. It is refused mid-take, for the reason `core/properties.js` gives.
+It is the only route on Midra 4K and Alta 4K, whose banks have no import.
+
+What it does **not** restore is the bank's opinion: `isNotModified` goes false
+on the first write and putting the values back does not put the flag back. The
+device is right that the buffer was modified, so the page says so rather than
+hiding it.
+
+A visible difference between the two, seen on the simulator: the direct route's
+`layerFilter` is exactly the layers the look carried (`["1","2"]`), while the
+preview route's is whatever the device's own save filters say (all 129) —
+because those filters are the vendor UI's to set and this app deliberately does
+not touch them.
+
+### Driven end to end (simulator, through the proxy)
+
+All three of S1's preset buffers — every layer's source, position, size and
+opacity, plus the transition — read over AWJ before and after a full editing
+session (seed from program, a source onto a layer, a drag), and **identical**.
+Slot 900 saved by the direct route with the buffers still identical; that memory
+read back into an emptied programmer, 132 properties, the dragged geometry
+exactly where it was left; slot 901 by the preview route, preview restored.
+Both slots deleted afterwards and the simulator left as found.
+
+### Two traps met while building the page
+
+- **`view.dest`/`view.layer` are null until somebody picks, and null means "the
+  first one".** Reading them raw is how the page came to say "pick a layer
+  first" with a layer visibly selected in the rail beside it.
+- **The device's read-only echoes have no meaning in a programmer.** A seeded
+  buffer carried `source/status/pp/inputNum` from wherever it was copied, so the
+  Layer panel reported a look as "(showing IN5)" while it plainly held IN2.
+  `core/programmer.js` strips every read-only parameter on seed; absent is the
+  honest value and the panel already draws nothing for it.

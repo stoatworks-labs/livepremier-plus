@@ -12,6 +12,11 @@ A local app that adds panels to an Analog Way **LivePremier** Web RCS session,
 drawn in Web RCS's own design language so they read as part of the product
 rather than as a bolt-on:
 
+- **Edit** — the Screens / Aux. page with one row instead of two: a programmer
+  buffer that is on neither bus. Build a look with the same sources, the same 67
+  layer parameters and the same memory bank, and nothing reaches the switcher
+  until you save it — at which point it goes straight into a real memory slot,
+  with no preset buffer written and no take fired.
 - **VPU Map** — the device's mixing-resource allocation, drawn as a budget.
   Which units are fitted, who holds them, what is spare, and what a staged
   preconfig would change.
@@ -53,6 +58,25 @@ to install in the browser.
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
 > is tested against that capture, including Optimized mode, interleaved output
 > links, and a staged preconfig that differs from the running one.
+>
+> **The Edit page was driven on a simulator on 2026-09-22**, and the thing it
+> claims was measured rather than asserted: all three of S1's preset buffers
+> were read over AWJ before and after a full editing session — seed from
+> program, a source dropped on a layer, a layer dragged and resized — and came
+> back **byte-identical**. A look was then saved into memory 900 by the direct
+> route and the device reported the slot valid with the operator's label, with
+> those three buffers still identical; the memory was read back into an emptied
+> programmer, 132 properties, the dragged position exactly where it had been
+> left; and a second look went into 901 by the preview route, with preview
+> restored property-for-property afterwards. Both test slots were deleted.
+>
+> ⚠️ **The direct route has an open question on real hardware.** The path the
+> device extracts the memory file from is the *switcher's* filesystem. On a
+> simulator that is the same machine, which is why it works here; on an Aquilon
+> it is the box's own disk, and Web RCS 6.2.73 exposes no memory import and no
+> upload route for one. That is exactly why the preview route exists as well —
+> it is also the only route on Midra 4K and Alta 4K, whose banks have no import
+> at all — and why the directory is a setting rather than a constant.
 >
 > **Layer groups and the send-to menu were driven on a simulator on
 > 2026-09-21**, against a preconfig staged for the purpose: two screens on

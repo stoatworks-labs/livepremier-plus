@@ -4,6 +4,10 @@ LivePremier Plus is a **local app that puts extra panels inside an Analog Way Li
 session**, drawn in Web RCS's own design language so they read as part of the product rather than
 as a bolt-on.
 
+- **Edit** — the Screens / Aux. page with one row instead of two, and that row is a *programmer*:
+  a buffer that is on neither preview nor program. Build a look with the same sources, the same
+  layer parameters and the same memory bank, and the switcher sees none of it until you save it
+  into a memory.
 - **VPU Map** — the device's mixing-resource allocation, drawn as a budget. Which units are fitted,
   who holds them, what is spare, and what a staged preconfig would change. The link grid reads top
   to bottom the way an output link runs: a screen's native layer in a band above the eight layer
@@ -77,6 +81,59 @@ There is a desktop app too — a tray launcher with an interface and port picker
 **If you open the switcher's own address directly, the panels are not there and MIDI will not
 work.** Web MIDI is a secure-context API; `http://127.0.0.1:<port>` counts as one and a plain-HTTP
 LAN address does not. The panel says so rather than failing silently.
+
+---
+
+## Edit — programming a look off the buses
+
+**PLUS ▸ Edit.** The Screens / Aux. page, with one row per destination instead of two. Sources on
+the left, the destinations in the middle, the layer panel on the right — the vendor's own layout,
+so everything is where you already look for it. The difference is the row: it is marked **EDIT**
+in amber rather than PGM in red or PRW in green, because it is on neither bus.
+
+**Nothing you do here reaches the switcher.** There is no TAKE, no T-bar and no padlock, because
+there is nothing to transition and nothing to protect.
+
+### Building a look
+
+Each card starts empty. Three ways to fill it, and none of them asks the device for anything:
+
+| | |
+|---|---|
+| **From PGM** | copy what is on air into the programmer |
+| **From PRW** | copy what is cued |
+| **Empty** | every layer full-frame with no source, which is what an untouched preset looks like |
+
+Then work the way you would on the real page:
+
+- **click a layer** on the card, or a row in the strip beneath it, to select it;
+- **drag it** to move, or take one of the eight handles to resize — the numbers land in the Layer
+  panel as you go, clamped to the switcher's own limits;
+- **click a source** on the left to put it on the selected layer;
+- **Layer** on the right is the full parameter set — all sixty-seven of them, the same panel the
+  vendor's tab strip carries, pointed at the programmer.
+
+**Discard** forgets a destination's buffer entirely; **Empty** keeps it and clears it.
+
+### Saving it into a memory
+
+The **Memory** tab is the one control on this page that touches the switcher. Name a slot, give it
+a label, and choose a route:
+
+- **Direct** — writes the memory bank itself. No preset buffer is written and no take is fired, so
+  neither preview nor program moves. This needs the switcher to be able to read a file this app
+  writes, which it can when both are on the same machine — a simulator, or an installation where
+  `memoryImportDir` points at a share they both see.
+- **Via preview** — puts the look into the preview buffer, fires the switcher's own save, then puts
+  preview back property-for-property. **Program never moves.** Preview shows the look for about a
+  second, and afterwards the bank will call it *modified* even though the content is identical —
+  the switcher is right that the buffer was written to. Refused while a take is in flight. This
+  route works on any switcher, and it is the only one on Midra 4K and Alta 4K.
+
+**Load into the programmer** reads a slot back the other way. A memory's contents are not in the
+device's own data — a slot only publishes its name, its canvas and what categories it holds — so
+reading it out is the only way to see inside one, and it is how you pick up yesterday's look and
+change it.
 
 ---
 

@@ -451,6 +451,70 @@ full screen, and layer 2 does not exist. The preset says *where*; the screen's
 own `layerList/items/<n>/status/pp/capability` says *whether*. Drawing the
 preset alone covers every screen in stale full-frame layers.
 
+### The Edit page, and the two things that decide its whole shape
+
+The Edit page is the Screens / Aux. layout with one row instead of two: a
+programmer buffer per destination that is on neither bus. Two device facts
+decide everything about how it is built, and both were measured on a
+LivePremier Simulator 6.2.73 on 2026-09-22 rather than reasoned about.
+
+**A screen really does have three preset buffers, and C is not the answer.**
+`presetList` carries `A`, `B` and `C`, each a full 129-slot layer tree, and
+only two of them are program and preview at any moment. C is `presetPrevious`.
+It fails on two independent counts:
+
+- **You cannot save a memory from it.** `presetBank/control/save/screenList/
+  items/S1/presetList/items/` has exactly `PROGRAM` and `PREVIEW`. An AWJ `get`
+  of the same path spelled with `C` returns **no reply at all** — the same
+  answer a deliberately bogus path gives, against `false` for the two real
+  ones. A look built in C could never become a memory.
+- **Every TAKE clobbers it**, because that is what step-back steps back to.
+
+So the programmer is ours: `core/programmer.js`, a session-shaped overlay whose
+buffer key is `EDIT`. It is small only because two things were already true —
+every panel drives a session through exactly `{store, send}`, and a layer
+property is addressed by an **opaque buffer key** that `bankLetter()` already
+passed literals through. The Layer panel, the stage composer and the send-to
+machinery therefore drive it with no changes to any of them. Reads inside the
+buffer are answered locally; everything else falls through to the live mirror,
+so the programmer is never stale about the desk it is programming.
+
+**The memory bank has an export and an import, and the file is plain JSON.**
+This is the part nothing else in the ecosystem seems to know about: Web RCS
+6.2.73 exposes no memory import in its UI at all, and the protocol guide does
+not mention the facility.
+
+```text
+presetBank/export/cmd/pp/{selection[1000], path, xRequest}   path is a DIRECTORY
+presetBank/export/status/pp/{fileName, status}               fileName is Preset.json
+presetBank/import/extract/cmd/pp/{path, xRequest}            path is a FILE
+presetBank/import/load/$bank/@items/<n>/pp/{isValid, label, orgIndex, dstIndex}
+presetBank/import/load/cmd/pp/xRequest
+```
+
+A memory is `{BankSlot, Layer: {"0": {...}}, xPEMEM_BANK_*}`, **NATIVE is layer
+`0`**, and the two filters say what the memory *contains* — one saved with
+`["SOURCE","POS"]` carries twelve fields per layer where all fourteen
+categories carry seventy-two. Sixty-six of those seventy-two are the
+catalogue's own writable parameters under different names;
+`core/preset-file.js` holds the table and `test/preset-file.test.js` proves it
+against a memory exported beside the live preset node it was saved from —
+198 pairs, 95 on a non-default value, none disagreeing.
+
+⚠️ **Only `presetBank` has it.** `masterPresetBank`, `layerBank`, `keyerBank`
+and `monitoringBank` carry only `control` and `bankList`, and no bank on
+Midra 4K or Alta 4K has it either.
+
+⚠️ **And the path is the device's, not ours.** `extract/cmd/pp/path` is
+resolved on the machine running the device software. On a simulator that is
+this machine, which is the whole reason the direct save works there; on a real
+Aquilon it is the switcher's own disk and **how to put a file there is not
+established**. That is why `core/save-look.js` builds the preview route as
+well — write the look into preview, fire the ordinary save, put preview back
+property-for-property — and why the directory is a setting. If you are about
+to delete the preview route as redundant, it is the only route on Midra and
+Alta and the only one proven to work on a box.
+
 ## There are two platforms, and the panels now speak both
 
 Read off the simulators' own `webapp-bundle/bundle.json` and confirmed against
