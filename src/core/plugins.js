@@ -1,0 +1,273 @@
+/*
+ * Plugins: what this app is made of, and which parts are switched on.
+ *
+ * Every feature is described here as a **plugin** — an id, what it is, where
+ * it lives, and what it needs — and whether it is on is a setting like any
+ * other. Phase 0 of the plugin work (see the design in docs/PLUGINS.md): the
+ * built-in features are registered *in place*, so nothing about how they are
+ * built has moved; what is new is that each one can be switched off, and that
+ * the list an operator sees in the app is generated from this table rather
+ * than written a second time by hand. The in-app list had drifted nine
+ * features behind the code before this existed.
+ *
+ * ## Present, and active
+ *
+ * Two different switches, and both stay. A plugin being **enabled** means the
+ * feature exists at all: its sidebar entry or tab, its routes, its background
+ * service. Some features also have their own **active** switch — "Listen for
+ * OSC", "Connect to a Companion" — which only means anything while the plugin
+ * is enabled. Disabling OSC input removes the listener and its settings card;
+ * enabling it brings the card back with the listener still off, as it always
+ * starts.
+ *
+ * ## What is not a plugin
+ *
+ * The proxy and socket relay, the setup page, the store mirror, the settings
+ * page itself, `/__lpp/status`, `/__lpp/device`, `/__lpp/settings` and
+ * `/__lpp/awj`. Switching any of those off would leave no way to switch it back
+ * on, or no app.
+ *
+ * `core/` runs in the browser and in Node, so this file has no DOM and no I/O:
+ * the server consults it to gate routes and services, and the page consults it
+ * to gate panels and page decorations.
+ */
+
+/** The plugin API this build speaks. A plugin asking for a newer one is refused. */
+export const API_VERSION = 1;
+
+/**
+ * The built-in plugins, in the order the app presents them.
+ *
+ * `requires.capabilities` are platform facts (`core/platform.js`): a feature
+ * the switcher cannot support is not offered whatever this says.
+ * `requires.plugins` are other plugins this one cannot work without; switch one
+ * of those off and this one goes with it, and says why.
+ */
+export const BUILTINS = [
+  {
+    id: 'edit',
+    name: 'Edit',
+    where: 'Sidebar, under PLUS',
+    description: 'The Screens / Aux. layout with one row, on neither bus. Programme a look, then save it into a real memory.',
+    requires: { capabilities: ['layerProperties'] }
+  },
+  {
+    id: 'companion',
+    name: 'Companion',
+    where: 'Sidebar, under PLUS',
+    description: 'A Bitfocus Companion on this address — its buttons, web buttons and emulator — and the connections that belong in the show for this switcher.'
+  },
+  {
+    id: 'vpu-map',
+    name: 'VPU Map',
+    where: 'Sidebar, under PLUS',
+    description: 'Which mixers each screen is using, running against staged.',
+    requires: { capabilities: ['vpuMap'] }
+  },
+  {
+    id: 'console',
+    name: 'Console',
+    where: 'Screens / Aux., beside Properties',
+    description: 'A command line over the device — takes, preset recalls, layer moves.',
+    requires: { capabilities: ['console'] }
+  },
+  {
+    id: 'timeline',
+    name: 'Timeline',
+    where: 'Screens / Aux., beside Properties',
+    description: 'A theatre cue stack with GO, fades and a standby cue.',
+    requires: { capabilities: ['cueStack'] }
+  },
+  {
+    id: 'timecode',
+    name: 'Timecode',
+    where: 'Settings, and the Timeline',
+    description: 'Fire cues from MIDI Time Code, LTC on an audio input, or a timecode pushed to this app.',
+    requires: { capabilities: ['cueStack'], plugins: ['timeline'] }
+  },
+  {
+    id: 'memories',
+    name: 'Memories',
+    where: 'Sidebar, under PLUS',
+    description: 'Every memory bank in one list, with recall, save, rename and erase — and a window of its own.',
+    requires: { capabilities: ['cueStack'] }
+  },
+  {
+    id: 'layer',
+    name: 'Layer',
+    where: 'Screens / Aux., beside Properties',
+    description: 'Every property of a named layer, generated from the device’s own parameter catalogue.',
+    requires: { capabilities: ['layerProperties'] }
+  },
+  {
+    id: 'layer-names',
+    name: 'Layer names',
+    where: 'The Layer tab, and every layer list',
+    description: 'Name a layer and the name shows in the vendor’s own lists — the switcher has nowhere to keep one.',
+    requires: { capabilities: ['layerGroups'] }
+  },
+  {
+    id: 'layer-groups',
+    name: 'Layer Groups',
+    where: 'Sidebar, under PLUS, and a Groups tab',
+    description: 'Several layers, across screens, driven as one — and a gang that follows a change to any of them.',
+    requires: { capabilities: ['layerGroups'] }
+  },
+  {
+    id: 'send-to',
+    name: 'Send to',
+    where: 'The … on every source card',
+    description: 'Route an input to a layer or a whole group, in preview or program, without a drag.',
+    requires: { capabilities: ['layerGroups'], plugins: ['layer-groups'] }
+  },
+  {
+    id: 'matrix-routing',
+    name: 'Matrix Routing',
+    where: 'Sidebar, under PLUS, and the vendor’s input and output pages',
+    description: 'Patch the frame to a Videohub, Lightware or Turtle AV router and route through it.',
+    requires: { capabilities: ['matrixRouting'] }
+  },
+  {
+    id: 'pitch',
+    name: 'Pitch Compensation',
+    where: 'Preconfig flyout',
+    description: 'The H and V ratios for a screen spanning LED walls of different pitches.',
+    requires: { capabilities: ['pitchCompensation'] }
+  },
+  {
+    id: 'osc-input',
+    name: 'OSC input',
+    where: 'Settings',
+    description: 'QLab, TouchOSC or a lighting desk driving the switcher over UDP, with no browser open.'
+  },
+  {
+    id: 'midi',
+    name: 'MIDI Mapping',
+    where: 'Sidebar, under Virtual RC400T',
+    description: 'A MIDI control surface driving the switcher from this page.',
+    requires: { capabilities: ['console'] }
+  },
+  {
+    id: 'pixelhue',
+    name: 'Pixelhue panel',
+    where: 'Settings (preview)',
+    description: 'A Pixelhue U5, U5 Pro or U5 mini driving the switcher. Never yet run against a console.'
+  },
+  {
+    id: 'setup-file',
+    name: 'Setup file',
+    where: '/__lpp/config',
+    description: 'Cue stack, groups, layer names, router patch and settings as one JSON file, and back.'
+  },
+  {
+    id: 'arithmetic',
+    name: 'Field arithmetic',
+    where: 'Every numeric field in Web RCS',
+    description: 'Type 1080-80 in a layer width and get 1000.'
+  }
+].map((p) => ({
+  apiVersion: API_VERSION,
+  builtIn: true,
+  enabledByDefault: true,
+  ...p,
+  requires: { capabilities: [], plugins: [], ...(p.requires || {}) }
+}));
+
+const byId = new Map(BUILTINS.map((p) => [p.id, p]));
+
+/** The manifest for a plugin id, or null. */
+export const manifestOf = (id) => byId.get(id) || null;
+
+/**
+ * Coerce the stored `plugins` setting into `{ [id]: { enabled } }`.
+ *
+ * Unknown ids are KEPT, not dropped. An entry for a user plugin that is not
+ * installed right now — a folder moved, a disk not mounted — must survive a
+ * settings save, or reinstalling it silently resets it to off. Anything that is
+ * not a boolean is dropped, so a hand-edited file cannot enable something by
+ * accident with `"enabled": "no"`.
+ */
+export function normalisePlugins(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [id, entry] of Object.entries(raw)) {
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(id)) continue;
+    if (entry && typeof entry === 'object' && typeof entry.enabled === 'boolean') {
+      out[id] = { enabled: entry.enabled };
+    }
+  }
+  return out;
+}
+
+/**
+ * Whether a plugin is switched on, before its dependencies are considered.
+ * A plugin nobody has touched takes its manifest's default.
+ */
+export function isSwitchedOn(plugins, id) {
+  const entry = plugins && plugins[id];
+  if (entry && typeof entry.enabled === 'boolean') return entry.enabled;
+  const manifest = manifestOf(id);
+  return manifest ? manifest.enabledByDefault : false;
+}
+
+/**
+ * Whether a plugin is on, all things considered, and if not, why.
+ *
+ * `can` answers platform capabilities; leave it out and capabilities are not
+ * checked (the server gates on the switch and the dependencies alone — the
+ * device store it would need to answer capabilities lives in the page).
+ *
+ * @returns {{on: boolean, reason: string|null}}
+ */
+export function status(plugins, id, can = null, seen = new Set()) {
+  const manifest = manifestOf(id);
+  if (!manifest) return { on: false, reason: 'not installed' };
+  if (!isSwitchedOn(plugins, id)) return { on: false, reason: 'switched off' };
+  if (can) {
+    const missing = manifest.requires.capabilities.find((cap) => !can(cap));
+    if (missing) return { on: false, reason: 'not on this switcher' };
+  }
+  /* A cycle would be a mistake in the table above; treat it as "off" rather
+     than recursing until the stack gives out. */
+  if (seen.has(id)) return { on: false, reason: 'depends on itself' };
+  seen.add(id);
+  for (const dep of manifest.requires.plugins) {
+    if (!status(plugins, dep, can, seen).on) {
+      return { on: false, reason: `needs ${manifestOf(dep)?.name || dep}` };
+    }
+  }
+  return { on: true, reason: null };
+}
+
+/** Shorthand for the common question. */
+export const isEnabled = (plugins, id, can = null) => status(plugins, id, can).on;
+
+/**
+ * Which plugin owns an `/__lpp/…` route, or null for the core's own.
+ *
+ * Longest prefix first, so `/timecode/stream` is timecode's and not a
+ * shorter match's. Kept here rather than in the proxy so that the table of
+ * what a plugin owns lives in one place.
+ */
+const ROUTES = [
+  ['/companion', 'companion'],
+  ['/memory', 'edit'],
+  ['/matrix', 'matrix-routing'],
+  ['/osc/stream', 'osc-input'],
+  ['/timecode', 'timecode'],
+  ['/stack', 'timeline'],
+  ['/timeline', 'timeline'],
+  ['/groups', 'layer-groups'],
+  ['/layer-names', 'layer-names'],
+  ['/config', 'setup-file'],
+  ['/console', 'console'],
+  ['/memories', 'memories'],
+  ['/properties', 'layer']
+].sort((a, b) => b[0].length - a[0].length);
+
+export function routeOwner(rest) {
+  for (const [prefix, id] of ROUTES) {
+    if (rest === prefix || rest.startsWith(prefix + '/')) return id;
+  }
+  return null;
+}

@@ -72,6 +72,11 @@ rather than as a bolt-on:
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
   layer width and get 1000, the way you can in every other tool on the desk.
 
+**Every one of these is a plugin you can switch off**, in Preconfig ▸
+LivePremier Plus → Plugins; a switched-off feature leaves no menu entry, route or
+background service behind. Plugins you write yourself are on the way —
+[docs/PLUGINS.md](docs/PLUGINS.md) has the design and where it stands.
+
 Point it at a switcher, open the address it prints, and you get the vendor's
 own Web RCS with the extra panels already in it. The panels ride the vendor
 app's own WebSocket — no second Web RCS connection to the device, no replacement

@@ -683,3 +683,48 @@ test('the timecode stream hands over what it already knows, then the next push',
     await close(proxy);
   }
 });
+
+/* ------------------------------------------------------------ plugin switches */
+
+/*
+ * A plugin switched off must leave no surface: its routes answer 404 with the
+ * reason, and switching it back on over /__lpp/settings brings them back at once
+ * — the server half of a switch needs no restart. Companion is the example
+ * because its mount is the widest surface any plugin has.
+ */
+test('a switched-off plugin answers 404 on every route it owns, and comes back when switched on', async () => {
+  let saved = { plugins: { companion: { enabled: false } } };
+  const storage = {
+    loadSettings: async () => saved,
+    saveSettings: async (s) => { saved = s; }
+  };
+  await withProxy({ storage }, async ({ base }) => {
+    for (const path of ['/__lpp/companion/state', '/__lpp/companion/ui/buttons']) {
+      const res = await fetch(base + path);
+      assert.equal(res.status, 404, path);
+      const body = await res.json();
+      assert.equal(body.plugin, 'companion');
+      assert.match(body.error, /switched off/);
+    }
+
+    /* The core's own routes are nobody's to switch off. */
+    assert.equal((await fetch(base + '/__lpp/settings')).status, 200);
+
+    const put = await fetch(base + '/__lpp/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plugins: { companion: { enabled: true } } })
+    });
+    assert.equal(put.status, 200);
+    assert.deepEqual(saved.plugins, { companion: { enabled: true } }, 'the switch was saved');
+
+    const back = await fetch(base + '/__lpp/companion/state');
+    assert.equal(back.status, 200, 'on again, with no restart');
+  });
+});
+
+test('an untouched install has every plugin on', async () => {
+  await withProxy({}, async ({ base }) => {
+    assert.equal((await fetch(base + '/__lpp/companion/state')).status, 200);
+    assert.equal((await fetch(base + '/__lpp/matrix')).status, 200);
+  });
+});

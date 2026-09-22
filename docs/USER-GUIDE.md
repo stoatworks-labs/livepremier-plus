@@ -643,6 +643,23 @@ touched.
 
 ---
 
+## Switching features off
+
+**Preconfig ▸ LivePremier Plus → Plugins** lists every feature this app adds, each with a switch.
+Everything is on until you switch it off.
+
+- A switched-off feature is **gone, not hidden**: no sidebar entry or tab, nothing added to the
+  vendor's page, and no background service — an OSC listener closes, router and Companion
+  connections hang up.
+- **Reload the page** after a change. The server side applies straight away; the page picks it up
+  on the next load, and the card reminds you.
+- Some features need others. **Send to** needs **Layer Groups**: switch Groups off and Send to goes
+  with it, marked *needs Layer Groups*, and comes back when Groups does.
+- A feature's own switch is separate. Switching **OSC input** on as a plugin brings its settings
+  back; the listener itself still starts off until you tick *Listen for OSC*.
+
+---
+
 ## Saving and restoring your setup
 
 A `.awc` from the switcher restores the *processor* — inputs, outputs, screens, memories.

@@ -39,6 +39,7 @@ import { normalise as normaliseNames, withName } from './core/layer-names.js';
 import { installSendTo } from './ui/send-to.js';
 import { createGang } from './core/groups.js';
 import { detectPlatform, supports } from './core/platform.js';
+import { isEnabled as pluginOn } from './core/plugins.js';
 import { dialectFor } from './core/dialect.js';
 import { commandsFor } from './core/commands.js';
 import { createTimecodeSource } from './ui/timecode-source.js';
@@ -180,7 +181,20 @@ async function boot() {
    * panels, because it is useful on its own: it improves the stock UI whether
    * or not anyone ever opens a panel of ours.
    */
-  installMathFields();
+  const pluginState = await fetch('/__lpp/settings', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((body) => (body && body.settings && body.settings.plugins) || {})
+    .catch(() => ({}));
+  /*
+   * Whether a plugin is switched on, with its dependencies — see
+   * `core/plugins.js`. The platform half stays where it was, in each entry's
+   * own `can(...)`, so the two questions compose rather than one replacing the
+   * other. A change to a switch applies on the next load; the settings page
+   * says so beside the switch.
+   */
+  const on = (id) => pluginOn(pluginState, id);
+
+  if (on('arithmetic')) installMathFields();
 
   const session = new Session(transport);
   const storage = makeStorage();
@@ -274,7 +288,7 @@ async function boot() {
    * that is left here is noticing that the feed has *gone*, which no reading
    * will ever announce, and being late to that costs nothing.
    */
-  setInterval(() => timecode.clock.poll(), 250);
+  if (on('timecode')) setInterval(() => timecode.clock.poll(), 250);
   chase.addEventListener('fired', (ev) => {
     console.info(TAG, 'timecode fired cue', ev.detail.cue.number || ev.detail.cue.id);
     refresh();
@@ -297,7 +311,10 @@ async function boot() {
    * `ui/memories-panel.js` and `ui/properties-panel.js`.
    */
   memories = createMemoriesPanel({ session, onRefresh: refresh });
-  properties = createPropertiesPanel({ session, onRefresh: refresh, names: () => names(), onRename: (...a) => rename(...a) });
+  properties = createPropertiesPanel({
+    session, onRefresh: refresh, names: () => names(),
+    onRename: on('layer-names') ? (...a) => rename(...a) : null
+  });
   /*
    * Layer groups, and the two things that read them.
    *
@@ -326,7 +343,7 @@ async function boot() {
     onRefresh: refresh,
     popoutEnabled: false,
     names: () => names(),
-    onRename: (...a) => rename(...a),
+    onRename: on('layer-names') ? (...a) => rename(...a) : null,
     /* The programmer's buffer is the only one this panel offers, and the
        roles are off with it: EDIT is on neither bus and never can be. */
     buffers: [EDIT],
@@ -379,8 +396,8 @@ async function boot() {
          read as neither one thing nor the other. */
       /* `mini-list-14` is LivePremier's sprite; Midra's has no list glyph and
          `bars-14` is the nearest it draws. `icon()` takes the first the page has. */
-      { id: 'console', label: 'Console', short: 'Cmd', icon: ['mini-list-14', 'bars-14'], enabled: () => can('console'), render: () => consolePanel.render() },
-      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', enabled: () => can('cueStack'), render: () => timeline.render() },
+      { id: 'console', label: 'Console', short: 'Cmd', icon: ['mini-list-14', 'bars-14'], enabled: () => can('console') && on('console'), render: () => consolePanel.render() },
+      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', enabled: () => can('cueStack') && on('timeline'), render: () => timeline.render() },
       /*
        * "Layer" and not "Properties": the vendor's own Properties tab is two
        * along in the same strip, and two tabs with one name is a worse problem
@@ -392,7 +409,7 @@ async function boot() {
        * whole-device view — 1000 screen slots and 500 master ones are not
        * per-screen — so they sit in the sidebar beside the VPU map instead.
        */
-      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', enabled: () => can('layerProperties'), render: () => properties.render() },
+      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', enabled: () => can('layerProperties') && on('layer'), render: () => properties.render() },
       /*
        * Layer Groups is on the strip *as well as* in the sidebar, which no
        * other panel is.
@@ -410,7 +427,7 @@ async function boot() {
        * did. That is the cost, and it is why a fifth would need a better
        * argument than this one had.
        */
-      { id: 'groups', label: 'Groups', short: 'Grps', icon: ['group-14', 'layer-stacked-14'], enabled: () => can('layerGroups'), render: () => groups.render() }
+      { id: 'groups', label: 'Groups', short: 'Grps', icon: ['group-14', 'layer-stacked-14'], enabled: () => can('layerGroups') && on('layer-groups'), render: () => groups.render() }
     ]
   });
 
@@ -428,22 +445,22 @@ async function boot() {
        * hold. It leads the section because it is the only entry here an
        * operator will open before the show rather than during it.
        */
-      { id: 'edit', label: 'Edit', icon: ['properties-18', 'layer-stacked-18'], enabled: () => can('layerProperties'), render: () => edit.render() },
-      { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', enabled: () => can('vpuMap'), render: () => vpu.render() },
+      { id: 'edit', label: 'Edit', icon: ['properties-18', 'layer-stacked-18'], enabled: () => can('layerProperties') && on('edit'), render: () => edit.render() },
+      { id: 'vpu', label: 'VPU Map', icon: 'hardware-18', enabled: () => can('vpuMap') && on('vpu-map'), render: () => vpu.render() },
       /* The three memory banks, which are a whole-device view like the VPU map
          and unlike everything on the Screens / Aux. strip: master memories
          cover every screen at once, and the screen bank is one flat list of
          1000 slots that any screen can recall from. */
-      { id: 'memories', label: 'Memories', icon: 'shotbox-18', enabled: () => can('cueStack'), render: () => memories.render() },
+      { id: 'memories', label: 'Memories', icon: 'shotbox-18', enabled: () => can('cueStack') && on('memories'), render: () => memories.render() },
       /* Also a whole-device view, and for the sharpest version of the reason:
          a group exists precisely because it crosses screens, so it could not
          live on a per-screen tab strip even if that strip had room. */
-      { id: 'groups', label: 'Layer Groups', icon: ['group-18', 'layer-stacked-18'], enabled: () => can('layerGroups'), render: () => groups.render() },
+      { id: 'groups', label: 'Layer Groups', icon: ['group-18', 'layer-stacked-18'], enabled: () => can('layerGroups') && on('layer-groups'), render: () => groups.render() },
       /* Also a whole-device view, and for the same reason as the VPU map: it
          is about the back of the frame rather than about one screen. It is
          the only panel here that reads something other than the store — an
          external router is not in the store and never will be. */
-      { id: 'matrix', label: 'Matrix Routing', icon: ['connector-gpio-18', 'gpio-18'], enabled: () => can('matrixRouting'), render: () => matrix.render() },
+      { id: 'matrix', label: 'Matrix Routing', icon: ['connector-gpio-18', 'gpio-18'], enabled: () => can('matrixRouting') && on('matrix-routing'), render: () => matrix.render() },
       /*
        * Companion sits in PLUS rather than beside MIDI Mapping, and the call
        * was close enough to be worth writing down. MIDI is anchored to the
@@ -458,14 +475,14 @@ async function boot() {
        * is in the show and what this app would add to it, which is a whole-rig
        * configuration view of exactly the kind the rest of this section holds.
        */
-      { id: 'companion', label: 'Companion', icon: ['gpio-18', 'connector-gpio-18'], render: () => companion.render() },
+      { id: 'companion', label: 'Companion', icon: ['gpio-18', 'connector-gpio-18'], enabled: () => on('companion'), render: () => companion.render() },
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
-      { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', render: () => midi.render() },
+      { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', enabled: () => on('midi'), render: () => midi.render() },
       /* Under Preconfig because that is literally where the two fields it
          fills in live — Preconfig > Canvas > Pitch. A panel that computes a
          number you then type in one flyout over belongs in the same flyout. */
-      { id: 'pitch', label: 'Pitch Compensation', submenuOf: 'Preconfig', enabled: () => can('pitchCompensation'), render: () => pitch.render() },
+      { id: 'pitch', label: 'Pitch Compensation', submenuOf: 'Preconfig', enabled: () => can('pitchCompensation') && on('pitch'), render: () => pitch.render() },
       /* Nor is this one: settings for the installation go where the device's
          own installation settings are, inside the Preconfig flyout. */
       { id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig', render: () => settings.render() }
@@ -485,14 +502,14 @@ async function boot() {
    * says what it matches and why, and reports what it is managing to label so
    * a firmware that moves a list shows up as a number rather than as silence.
    */
-  const labels = installLayerLabels({ names, enabled: () => can('layerGroups') });
+  const labels = installLayerLabels({ names, enabled: () => can('layerGroups') && on('layer-names') });
   /*
    * A Router tab on the vendor's own input and output pages, and a Router box
    * in Preconfig ▸ Inputs / Outputs: one socket's slice of the matrix panel,
    * where that socket is already being configured. `ui/router-box.js` says
    * what it matches, and why a socket it cannot identify gets no box at all.
    */
-  const routerBoxes = installRouterSurfaces({ session, enabled: () => can('matrixRouting') });
+  const routerBoxes = installRouterSurfaces({ session, enabled: () => can('matrixRouting') && on('matrix-routing') });
 
   session.addEventListener('frame', refresh);
   stack.addEventListener('changed', refresh);
@@ -514,7 +531,8 @@ async function boot() {
     send: (cmd) => session.send(cmd),
     onActivity: (report) => { groups.reportActivity(report); }
   });
-  session.addEventListener('frame', (ev) => gang.onFrame(ev.detail));
+  /* A switched-off Layer Groups plugin must not go on ganging in the background. */
+  if (on('layer-groups')) session.addEventListener('frame', (ev) => gang.onFrame(ev.detail));
 
   /* The sidebar may not exist yet - the vendor app mounts React after its own
      bundle runs. Retry briefly rather than racing it. */
@@ -538,7 +556,7 @@ async function boot() {
    * document outright and drops every `<img>` that is no longer connected, so
    * a closed page leaves it iterating an empty set.
    */
-  edit.start();
+  if (on('edit')) edit.start();
 
   await session.start();
 
@@ -570,7 +588,7 @@ async function boot() {
     session,
     groups,
     names,
-    enabled: () => can('layerGroups'),
+    enabled: () => can('layerGroups') && on('send-to'),
     /*
      * A send aimed at a whole group has already written every member, so the
      * echoes are that send landing — not one member drifting for the rest to

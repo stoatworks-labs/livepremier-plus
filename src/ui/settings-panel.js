@@ -37,6 +37,7 @@ import { h, button, readout, sectionTitle } from './dom.js';
 import { panel } from './shell.js';
 import { readIdentity } from '../core/identity.js';
 import { detectPlatform, CAPABILITIES } from '../core/platform.js';
+import { BUILTINS, status as pluginStatus, isSwitchedOn } from '../core/plugins.js';
 import { SOURCE_KINDS } from './timecode-source.js';
 import { formatTimecode } from '../core/timecode.js';
 import {
@@ -44,126 +45,6 @@ import {
 } from '../core/settings.js';
 import { OSC_ROOT } from '../vendor/mynah-lang.mjs';
 import { insecureContextAdvice } from '../core/secure-context.js';
-
-/*
- * What is installed, and where to find it.
- *
- * Written down here rather than derived from the shell because it is a map for
- * a person: an operator who has just met this app wants to know that a cue
- * stack exists and that it is a tab on the Screens page, and no amount of
- * introspection over `Shell.entries` says that as well as a sentence does.
- */
-const FEATURES = [
-  {
-    name: 'Edit',
-    where: 'Sidebar, under PLUS',
-    what: 'The Screens / Aux. layout with one row, on neither bus. Programme a look, '
-      + 'then save it into a real memory.',
-    needs: 'layerProperties'
-  },
-  {
-    name: 'Companion',
-    where: 'Sidebar, under PLUS',
-    what: 'A Bitfocus Companion on this address — its buttons, web buttons and emulator — '
-      + 'and the connections that belong in the show for this switcher.'
-    /* No `needs`: Companion knows nothing of which platform the switcher is,
-       and the panel is as useful beside a Midra as beside a LivePremier. */
-  },
-  {
-    name: 'VPU Map',
-    where: 'Sidebar, under PLUS',
-    what: 'Which mixers each screen is using, running against staged.',
-    /* Which capability has to hold for this to be on the sidebar at all. A
-       feature with no `needs` is platform-independent. */
-    needs: 'vpuMap'
-  },
-  {
-    name: 'Console',
-    where: 'Screens / Aux., beside Properties',
-    what: 'A command line over the device — takes, preset recalls, layer moves.',
-    needs: 'console'
-  },
-  {
-    name: 'Timeline',
-    where: 'Screens / Aux., beside Properties',
-    what: 'A theatre cue stack with GO, fades and a standby cue.',
-    needs: 'cueStack'
-  },
-  {
-    name: 'Memories',
-    where: 'Sidebar, under PLUS',
-    what: 'Every memory bank in one list, with recall, save, rename and erase — and a window of its own.',
-    needs: 'cueStack'
-  },
-  {
-    name: 'Layer',
-    where: 'Screens / Aux., beside Properties',
-    what: 'Every property of a named layer, generated from the device\u2019s own parameter catalogue.',
-    needs: 'layerProperties'
-  },
-  {
-    name: 'Layer names',
-    where: 'The Layer tab, and every layer list',
-    what: 'Name a layer and the name shows in the vendor\u2019s own lists \u2014 the switcher has nowhere to keep one.',
-    needs: 'layerGroups'
-  },
-  {
-    name: 'Layer Groups',
-    where: 'Sidebar, under PLUS, and a Groups tab',
-    what: 'Several layers, across screens, driven as one \u2014 and a gang that follows a change to any of them.',
-    needs: 'layerGroups'
-  },
-  {
-    name: 'Send to',
-    where: 'The \u2026 on every source card',
-    what: 'Route an input to a layer or a whole group, in preview or program, without a drag.',
-    needs: 'layerGroups'
-  },
-  {
-    name: 'Matrix Routing',
-    where: 'Sidebar, under PLUS',
-    what: 'Patch the frame to a Videohub, Lightware or Turtle AV router and route through it.',
-    needs: 'matrixRouting'
-  },
-  {
-    name: 'Pitch Compensation',
-    where: 'Preconfig flyout',
-    what: 'The H and V ratios for a screen spanning LED walls of different pitches.',
-    needs: 'pitchCompensation'
-  },
-  {
-    name: 'OSC input',
-    where: 'This page',
-    what: 'QLab, TouchOSC or a lighting desk driving the switcher over UDP, with no browser open.'
-  },
-  {
-    name: 'Timecode',
-    where: 'This page, and the Timeline',
-    what: 'Fire cues from MIDI Time Code, LTC on an audio input, or a timecode pushed to this app.',
-    needs: 'cueStack'
-  },
-  {
-    name: 'MIDI Mapping',
-    where: 'Sidebar, under Virtual RC400T',
-    what: 'A MIDI control surface driving the switcher from this page.',
-    needs: 'console'
-  },
-  {
-    name: 'Pixelhue panel',
-    where: 'This page (preview)',
-    what: 'A Pixelhue U5, U5 Pro or U5 mini driving the switcher. Never yet run against a console.'
-  },
-  {
-    name: 'Setup file',
-    where: '/__lpp/config',
-    what: 'Cue stack, groups, layer names, router patch and settings as one JSON file, and back.'
-  },
-  {
-    name: 'Field arithmetic',
-    where: 'Every numeric field in Web RCS',
-    what: 'Type 1080-80 in a layer width and get 1000.'
-  }
-];
 
 /*
  * The settings this page is being built to hold.
@@ -449,31 +330,52 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
     onRefresh();
   }
 
-  /* ------------------------------------------------------------- features */
+  /* ------------------------------------------------------------- plugins */
 
-  function featureSection() {
+  /**
+   * Every feature this app is made of, and a switch for each.
+   *
+   * Generated from the manifests in `core/plugins.js` — this card used to be a
+   * table written by hand, and had drifted nine features behind the app. A
+   * feature the switcher cannot support is dimmed and says so; one switched off
+   * says what it takes with it. A switch applies on the next load, because a
+   * page that grew and lost sidebar entries under an operator's pointer would be
+   * worse than one that asks for a reload.
+   */
+  function pluginSection() {
     const here = platform ? platform() : detectPlatform(session.store);
-    /*
-     * A feature this switcher does not get is dimmed and said to be absent,
-     * not quietly listed as though it were there. The compatibility card above
-     * gives the reason; this one is the map of where things are, and a map
-     * that marks a room which does not exist is worse than no map.
-     */
-    return card('What this adds',
+    const can = (cap) => !(here.ready && here.capabilities[cap] && here.capabilities[cap].supported === false);
+    const plugins = (state.settings && state.settings.plugins) || {};
+
+    const toggle = (id, enabled) => put({ plugins: { ...plugins, [id]: { enabled } } })
+      .then(() => { state.pluginsChanged = true; onRefresh(); });
+
+    return card('Plugins',
       h('div', { class: 'aw-flex-col aw-gap-row-medium' },
-        FEATURES.map((f) => {
-          const off = f.needs && here.ready && here.capabilities[f.needs] &&
-            here.capabilities[f.needs].supported === false;
+        state.pluginsChanged
+          ? note('warn', 'Reload the page to apply — a switch takes effect on the next load, and the server half has already changed.')
+          : null,
+        BUILTINS.map((plugin) => {
+          const switched = isSwitchedOn(plugins, plugin.id);
+          const verdict = pluginStatus(plugins, plugin.id, can);
+          const dim = !verdict.on;
           return h('div', {
             class: 'aw-flex-row aw-gap-col-large aw-flex-wrap',
-            style: off ? { opacity: '0.45' } : null
+            style: dim ? { opacity: '0.55' } : null
           },
-          h('div', { class: 'aw-font-body-1-bold', style: { minWidth: '11rem' } },
-            f.name, off ? ' ' : null, off ? h('span', { class: 'wru-tag', text: 'not here' }) : null),
+          h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { minWidth: '13rem', cursor: 'pointer' } },
+            h('input', {
+              type: 'checkbox',
+              checked: switched ? 'checked' : null,
+              disabled: state.saving ? 'disabled' : null,
+              onChange: (ev) => { void toggle(plugin.id, ev.target.checked); }
+            }),
+            h('span', { class: 'aw-font-body-1-bold', text: plugin.name }),
+            verdict.on ? null : h('span', { class: 'wru-tag', text: verdict.reason })),
           h('div', { class: 'aw-flex-col aw-gap-row-mini', style: { flex: '1 1 20rem' } },
-            h('div', { class: 'aw-font-body-1', text: f.what }),
+            h('div', { class: 'aw-font-body-1', text: plugin.description }),
             h('div', { class: 'aw-font-caption aw-text-tertiary',
-              text: off ? 'Not available on this switcher' : f.where })));
+              text: plugin.builtIn ? `${plugin.where} · built in` : plugin.where })));
         })));
   }
 
@@ -785,18 +687,22 @@ export function createSettingsPanel({ session, platform = null, timecode = null,
         + 'on any switcher.'));
   }
 
+  /* A feature's own settings card goes with its plugin: there is nothing to
+     configure about a listener that cannot run. */
+  const shown = (id) => pluginStatus((state.settings && state.settings.plugins) || {}, id).on;
+
   function render() {
     loadStatus();
     const body = h('div', { class: 'aw-flex-col aw-gap-row-large' },
       deviceSection(),
       compatibilitySection(),
       consoleSection(),
-      oscSection(),
-      memorySection(),
-      pixelhueSection(),
-      timecodeSection(),
+      shown('osc-input') ? oscSection() : null,
+      shown('edit') ? memorySection() : null,
+      shown('pixelhue') ? pixelhueSection() : null,
+      shown('timecode') ? timecodeSection() : null,
       proxySection(),
-      featureSection(),
+      pluginSection(),
       plannedSection());
     return panel({ toolbar: toolbar(), body });
   }

@@ -29,6 +29,7 @@
  */
 
 import { DEFAULT_COMPANION, normaliseCompanion } from './companion.js';
+import { normalisePlugins } from './plugins.js';
 
 export const LANGUAGE_CHOICES = [
   {
@@ -120,6 +121,9 @@ export const DEFAULT_SETTINGS = {
      about, and the address has to be typed before it could anyway.
      See `src/core/companion.js`. */
   ...DEFAULT_COMPANION,
+  /* Which features are switched on, as `{ id: { enabled } }`. Empty means
+     every built-in at its default, which is on — see `core/plugins.js`. */
+  plugins: {},
 };
 
 /**
@@ -170,6 +174,7 @@ export function normalise(raw) {
        allowed to be is a fact about Companion, and the panel that draws the
        field imports the same function. */
     ...normaliseCompanion(input),
+    plugins: normalisePlugins(input.plugins),
   };
 }
 

@@ -38,6 +38,7 @@ import {
   normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged, pixelhueChanged,
 } from '../src/core/settings.js';
 import { companionChanged } from '../src/core/companion.js';
+import { isEnabled as pluginOn, routeOwner } from '../src/core/plugins.js';
 import {
   CompanionLink, API as COMPANION_API, MOUNT as COMPANION_MOUNT,
   addConnections, listConnections, proxyToCompanion, relayUpgradeToCompanion,
@@ -211,6 +212,15 @@ export async function createProxy({
    */
   let settings = normaliseSettings(storage && storage.loadSettings ? await storage.loadSettings() : {});
 
+  /*
+   * Whether a plugin is switched on — see `src/core/plugins.js`. Read per call,
+   * never captured, so switching one off in the settings page is seen by the
+   * next request and the next apply. The platform half of the question lives in
+   * the page (it needs the device store); here it is the switch and the
+   * dependencies.
+   */
+  const on = (id) => pluginOn(settings.plugins, id);
+
   /* Ring buffer of what the OSC listener has heard, so a console opened after
      a message arrived can still show it. Small on purpose — this is a tail for
      debugging a sender, not a log. */
@@ -238,7 +248,7 @@ export async function createProxy({
    */
   async function applyOsc() {
     if (osc) { await osc.stop(); osc = null; }
-    if (!settings.oscEnabled) return;
+    if (!settings.oscEnabled || !on('osc-input')) return;
     osc = createOscServer({
       port: settings.oscPort,
       address: settings.oscBind,
@@ -282,7 +292,8 @@ export async function createProxy({
 
   let matrixConfig = normaliseMatrices(
     storage && storage.loadMatrices ? await storage.loadMatrices() : []);
-  matrices.apply(matrixConfig);
+  const applyMatrices = () => matrices.apply(on('matrix-routing') ? matrixConfig : []);
+  applyMatrices();
 
   /*
    * The link to a Companion.
@@ -294,7 +305,9 @@ export async function createProxy({
    * matrix argument rather than the AWJ one.
    */
   const companion = new CompanionLink(log);
-  companion.apply(settings);
+  const applyCompanion = () =>
+    companion.apply(on('companion') ? settings : { ...settings, companionEnabled: false });
+  applyCompanion();
 
   /*
    * Pages watching the Companion show.
@@ -421,7 +434,9 @@ export async function createProxy({
       try { listener.write(line); } catch { pixelhueListeners.delete(listener); }
     }
   });
-  await pixelhue.apply(settings);
+  const applyPixelhue = () =>
+    pixelhue.apply(on('pixelhue') ? settings : { ...settings, pixelhueEnabled: false });
+  await applyPixelhue();
 
   /*
    * Timecode pushed in from outside.
@@ -450,6 +465,11 @@ export async function createProxy({
 
   async function serveOwn(req, res, url) {
     const rest = url.pathname.slice(NS.length) || '/';
+
+    const owner = routeOwner(rest);
+    if (owner && !on(owner)) {
+      return sendJson(res, 404, { error: `the ${owner} plugin is switched off`, plugin: owner });
+    }
 
     /*
      * Companion, mounted whole under our own origin.
@@ -636,11 +656,13 @@ export async function createProxy({
            Companion link — or a Pixelhue panel — that nobody touched. */
         const needsPanel = pixelhueChanged(settings, next);
         const needsRedial = companionChanged(settings, next);
+        const needsPlugins = JSON.stringify(settings.plugins) !== JSON.stringify(next.plugins);
         settings = next;
         if (storage && storage.saveSettings) await storage.saveSettings(settings);
-        if (needsRebind) await applyOsc();
-        if (needsPanel) await pixelhue.apply(settings);
-        if (needsRedial) companion.apply(settings);
+        if (needsRebind || needsPlugins) await applyOsc();
+        if (needsPanel || needsPlugins) await applyPixelhue();
+        if (needsRedial || needsPlugins) applyCompanion();
+        if (needsPlugins) applyMatrices();
 
         return sendJson(res, 200, {
           ok: true, settings, osc: osc ? osc.state : null, pixelhue: pixelhue.describe(),
@@ -820,7 +842,7 @@ export async function createProxy({
         if (storage && storage.saveMatrices) await storage.saveMatrices(matrixConfig);
         /* Diff-based: a router whose address did not change keeps its socket
            and its grid. See `MatrixSupervisor.apply`. */
-        matrices.apply(matrixConfig);
+        applyMatrices();
         return sendJson(res, 200, { ok: true, ...matrixSnapshot() });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
