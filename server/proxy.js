@@ -676,6 +676,37 @@ export async function createProxy({
       return sendJson(res, 405, { error: 'method not allowed' });
     }
 
+    /*
+     * Layer names.
+     *
+     * ⚠️ This route is the **only** way anything outside this browser tab can
+     * see a layer name, because the switcher has no field for one — see
+     * `src/core/layer-names.js`. A Companion module, a second operator's
+     * dashboard or a script reads it from here or not at all, and everything
+     * that does gains a dependency on this app being up. That is a real cost
+     * and it was chosen deliberately over the alternative, which was for the
+     * names not to exist.
+     *
+     * GET is deliberately unauthenticated like every other route here; the
+     * proxy is loopback by default and the note in `server/index.js` about
+     * binding it wider applies to this as much as to the rest.
+     */
+    if (rest === '/layer-names') {
+      if (!storage || !storage.loadNames) return sendJson(res, 501, { error: 'no storage configured' });
+      if (req.method === 'GET') {
+        return sendJson(res, 200, { data: await storage.loadNames(state.device) });
+      }
+      if (req.method === 'PUT' || req.method === 'POST') {
+        const body = await collect(req, 256 * 1024);
+        let parsed;
+        try { parsed = JSON.parse(body.toString('utf8')); }
+        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+        await storage.saveNames(state.device, parsed && parsed.data !== undefined ? parsed.data : parsed);
+        return sendJson(res, 200, { ok: true });
+      }
+      return sendJson(res, 405, { error: 'method not allowed' });
+    }
+
     /* Anything a caller registered explicitly, by exact path. Nothing here is
        derived from the request, so there is no traversal surface — the demo
        environment uses it to serve a capture and its seed script. */

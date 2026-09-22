@@ -181,4 +181,28 @@ export class StackStore {
     await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
     await rename(tmp, file);
   }
+
+  /*
+   * Layer names, which the device has nowhere to keep.
+   *
+   * Keyed by device like the stacks and the groups, and for a sharper version
+   * of the same reason: `S1/2` is a slot in one box's preconfig, and a name
+   * written against a four-layer screen means nothing pointed at a frame
+   * whose screen 1 has one. See `src/core/layer-names.js`.
+   */
+  async loadNames(deviceKey) {
+    try {
+      return JSON.parse(await readFile(this._file(deviceKey, 'names'), 'utf8'));
+    } catch {
+      return null;
+    }
+  }
+
+  async saveNames(deviceKey, data) {
+    await mkdir(this.dir, { recursive: true });
+    const file = this._file(deviceKey, 'names');
+    const tmp = `${file}.${process.pid}.tmp`;
+    await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+    await rename(tmp, file);
+  }
 }

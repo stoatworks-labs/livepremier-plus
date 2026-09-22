@@ -35,6 +35,7 @@ import {
   layerSections, valuesFor, readValue, writeCmd, coerce, fittedLayers, bankLetter
 } from '../core/properties.js';
 import { label as paramLabel } from '../vendor/surface/catalogue.js';
+import { layerLabel, nameOf, MAX_NAME } from '../core/layer-names.js';
 
 /** Groups that are open the first time the panel is drawn. */
 const OPEN_BY_DEFAULT = new Set(['source', 'position', 'opacity']);
@@ -44,7 +45,8 @@ const OPEN_BY_DEFAULT = new Set(['source', 'position', 'opacity']);
  *          doc?: Document}} opts
  */
 export function createPropertiesPanel({
-  session, onRefresh = () => {}, popoutEnabled = true, doc = document
+  session, onRefresh = () => {}, popoutEnabled = true, doc = document,
+  names = () => ({}), onRename = null
 } = {}) {
   /*
    * Rebuilt per render rather than once: the catalogue is the platform's, and
@@ -63,10 +65,12 @@ export function createPropertiesPanel({
     showReadOnly: false,
     /* {id, text} while a numeric field is being typed into. */
     editing: null,
+    /* {id, layer, text} while a layer name is being typed into. */
+    naming: null,
     note: null
   };
 
-  const busy = () => view.editing != null;
+  const busy = () => view.editing != null || view.naming != null;
   const store = () => session.store;
 
   function destinations() {
@@ -163,7 +167,8 @@ export function createPropertiesPanel({
           }, ...destinations().map((d) => h('option', {
             value: d.id, selected: dest && d.id === dest.id ? 'selected' : null
           }, d.label ? `${d.id} — ${d.label}` : d.id)))),
-        layerPicker(dest, target)),
+        layerPicker(dest, target),
+        namePicker(dest, target && target.layer)),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small lpp-controls aw-flex-wrap' },
         bufferChips(target),
         popoutEnabled
@@ -185,7 +190,47 @@ export function createPropertiesPanel({
         onChange: (ev) => { view.layer = ev.target.value; onRefresh(); }
       }, ...layers.map((l) => h('option', {
         value: l.key, selected: target && l.key === target.layer ? 'selected' : null
-      }, l.key === 'NATIVE' ? 'Native' : `L${l.key}`))));
+      }, dest ? layerLabel(names(), dest.id, l.key) : (l.key === 'NATIVE' ? 'NATIVE' : 'L' + l.key)))));
+  }
+
+  /**
+   * The field a layer is named in.
+   *
+   * This panel is where it belongs: it is the one surface that already makes
+   * you name a destination, a buffer and a layer outright, so the thing being
+   * renamed is never in doubt. Everywhere else a name only ever appears.
+   *
+   * ⚠️ The name is not device state — the switcher has no field for one, see
+   * `core/layer-names.js` — so this writes to the launcher and not to the
+   * socket. It is deliberately outside the buffer machinery below for that
+   * reason: a name belongs to the layer slot, not to A, B or C, and renaming
+   * mid-take is harmless where a property write would not be.
+   */
+  function namePicker(dest, layer) {
+    if (!onRename || !dest || layer == null) return null;
+    const current = nameOf(names(), dest.id, layer) || '';
+    const editing = view.naming && view.naming.id === dest.id && view.naming.layer === layer;
+    return h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
+      h('span', { class: 'aw-font-overline aw-text-tertiary', text: 'Name' }),
+      h('input', {
+        class: 'wru-input',
+        type: 'text',
+        maxlength: String(MAX_NAME),
+        placeholder: 'unnamed',
+        value: editing ? view.naming.text : current,
+        title: 'Kept by LivePremier Plus, not by the switcher — it has no layer-name property.',
+        onInput: (ev) => { view.naming = { id: dest.id, layer, text: ev.target.value }; },
+        onKeyDown: (ev) => {
+          if (isEnter(ev)) { ev.preventDefault(); ev.target.blur(); }
+          if (ev.key === 'Escape') { view.naming = null; onRefresh(); }
+        },
+        onBlur: (ev) => {
+          const text = String(ev.target.value);
+          view.naming = null;
+          if (text.trim() !== current) onRename(dest.id, layer, text);
+          else onRefresh();
+        }
+      }));
   }
 
   /**

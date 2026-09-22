@@ -41,6 +41,7 @@ import { fittedLayers, bankLetter, readValue } from '../core/properties.js';
 import {
   normalise, newId, addMember, memberKey, resolveMembers, sourceSpec, GROUPS_VERSION
 } from '../core/groups.js';
+import { layerLabel } from '../core/layer-names.js';
 
 /** How many recently-used targets the `…` menu is offered. */
 const RECENT_MAX = 5;
@@ -49,7 +50,7 @@ const RECENT_MAX = 5;
  * @param {{session: object, storage: {load: Function, save: Function},
  *          onRefresh: Function}} opts
  */
-export function createGroupsPanel({ session, storage, onRefresh = () => {} } = {}) {
+export function createGroupsPanel({ session, storage, onRefresh = () => {}, names = () => ({}) } = {}) {
   /* The whole stored document: groups, and the `…` menu's recent targets.
      One file, because both are "where this operator routes things on this
      box" and neither means anything pointed at another one. */
@@ -269,7 +270,7 @@ export function createGroupsPanel({ session, storage, onRefresh = () => {} } = {
     const label = (v) => (v && v !== 'NONE' ? (sourceLabel(v, store()) || v) : '—');
     return h('tr', { class: member.fitted ? null : 'wru-groups-member--absent' },
       h('td', { class: 'aw-font-body-1-bold' },
-        `${member.id} ${member.layer === 'NATIVE' ? 'NATIVE' : 'L' + member.layer}`,
+        `${member.id} ${layerLabel(names(), member.id, member.layer)}`,
         member.fitted ? null : h('span', { class: 'wru-tag wru-tag--warn aw-font-caption aw-margin-left-small', text: 'not fitted' })),
       h('td', { class: 'wru-groups-src', text: label(sources.program) }),
       h('td', { class: 'wru-groups-src', text: label(sources.preview) }),
@@ -303,7 +304,7 @@ export function createGroupsPanel({ session, storage, onRefresh = () => {} } = {
           class: 'wru-select',
           onChange: (ev) => { view.adding.set(group.id, { id: dest.id, layer: ev.target.value }); onRefresh(); }
         }, ...layers.map((l) => h('option', { value: l.key, selected: layer && l.key === layer.key ? 'selected' : null },
-          l.key === 'NATIVE' ? 'Native' : `L${l.key}`)))
+          layerLabel(names(), dest.id, l.key))))
         : h('div', { class: 'aw-text-tertiary aw-font-caption', text: 'no fitted layers' }),
       button('Add', {
         iconId: ['add-12', 'add-18'],

@@ -59,6 +59,7 @@ import { listDestinations, sourceLabel } from '../core/screens.js';
 import { fittedLayers } from '../core/properties.js';
 import { sourceCommands, resolveMembers } from '../core/groups.js';
 import { lockedFor, ROLE_LABEL } from './preset-lock.js';
+import { layerLabel, nameOf } from '../core/layer-names.js';
 
 /**
  * The popover's own classes.
@@ -97,7 +98,8 @@ const CARDS_SEL = '[class*="sources-container__c__sections___"] .aw-card';
  *   can be told when a whole group has already been written.
  */
 export function installSendTo({
-  session, groups, enabled = () => true, onSent = () => {}, onWrote = () => {}, doc = document
+  session, groups, enabled = () => true, onSent = () => {}, onWrote = () => {},
+  names = () => ({}), doc = document
 } = {}) {
   let menu = null;
   let observer = null;
@@ -311,14 +313,18 @@ export function installSendTo({
    * confirmation step. The chips below abbreviate NATIVE further because they
    * are three characters wide, and that is the only place that does.
    */
-  const layerLabel = (layer) => (layer === 'NATIVE' ? 'NATIVE' : 'L' + layer);
+  const slotLabel = (layer) => (layer === 'NATIVE' ? 'NATIVE' : 'L' + layer);
 
   function layerChip(state, id, layer) {
+    const name = nameOf(names(), id, layer);
     return h('button', {
       class: 'wru-sendto-chip aw-font-caption',
       type: 'button',
+      /* The chip is three characters wide, so a name goes in the tooltip
+         rather than in it. Every other surface has room and prints it. */
+      title: name ? `${id} ${slotLabel(layer)} — ${name}` : `${id} ${slotLabel(layer)}`,
       onClick: () => choose(state, { kind: 'layer', id, layer })
-    }, layer === 'NATIVE' ? 'NAT' : layerLabel(layer));
+    }, layer === 'NATIVE' ? 'NAT' : slotLabel(layer));
   }
 
   function targetRow(state, target, meta = {}) {
@@ -408,7 +414,10 @@ export function installSendTo({
      * what was clicked; a single layer is already its own name, so it is not
      * said twice.
      */
-    const where = plan.cmds.map((c) => `${screenOfPath(c.path)} ${layerLabel(layerOfPath(c.path))}`).join(' · ');
+    const where = plan.cmds.map((c) => {
+      const id = screenOfPath(c.path);
+      return `${id} ${layerLabel(names(), id, layerOfPath(c.path))}`;
+    }).join(' · ');
     const named = target.kind === 'group' ? `${(describeTarget(target) || {}).label} — ${where}` : where;
 
     return h('div', { class: 'wru-sendto-body' },
@@ -444,14 +453,14 @@ export function installSendTo({
   }
 
   function describeTarget(target) {
-    if (target.kind === 'layer') return { label: `${target.id} ${layerLabel(target.layer)}` };
+    if (target.kind === 'layer') return { label: `${target.id} ${layerLabel(names(), target.id, target.layer)}` };
     const group = (groups.list() || []).find((g) => g.id === target.id);
     if (!group) return null;
     return { label: group.name, hint: describeMembers(resolveMembers(store(), group)), badge: group.gang ? 'GANG' : null };
   }
 
   const describeMembers = (members) =>
-    members.map((m) => `${m.id} ${layerLabel(m.layer)}`).join(' · ');
+    members.map((m) => `${m.id} ${layerLabel(names(), m.id, m.layer)}`).join(' · ');
 
   /** Recently used targets that still resolve to something. */
   function recentTargets() {

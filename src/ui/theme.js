@@ -564,6 +564,14 @@ body > .lpp-banner { position: absolute; top: 0; left: 0; right: 0; z-index: 50;
 .wru-sendto-warn { background: rgba(246,71,71,0.08); border-left: 0.166667rem solid #F64747; }
 .wru-sendto-result--ok { color: #00FF7F; }
 .wru-sendto-result--warn { color: #F39910; }
+
+/* A layer name written into one of the vendor's own rows. Deliberately quiet:
+   it is an annotation beside the slot, not a control and not the identifier,
+   so it takes the tertiary colour and sits a size down from the row it joins. */
+.wru-layer-name {
+  margin-left: 0.5rem; font-size: 0.916667rem; font-style: italic;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 12rem;
+}
 `;
 
 /**

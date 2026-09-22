@@ -28,6 +28,8 @@ import { createSettingsPanel } from './ui/settings-panel.js';
 import { createMemoriesPanel } from './ui/memories-panel.js';
 import { createPropertiesPanel } from './ui/properties-panel.js';
 import { createGroupsPanel } from './ui/groups-panel.js';
+import { installLayerLabels } from './ui/layer-labels.js';
+import { normalise as normaliseNames, withName } from './core/layer-names.js';
 import { installSendTo } from './ui/send-to.js';
 import { createGang } from './core/groups.js';
 import { detectPlatform, supports } from './core/platform.js';
@@ -229,7 +231,7 @@ async function boot() {
    * `ui/memories-panel.js` and `ui/properties-panel.js`.
    */
   memories = createMemoriesPanel({ session, onRefresh: refresh });
-  properties = createPropertiesPanel({ session, onRefresh: refresh });
+  properties = createPropertiesPanel({ session, onRefresh: refresh, names: () => names(), onRename: (...a) => rename(...a) });
   /*
    * Layer groups, and the two things that read them.
    *
@@ -239,7 +241,27 @@ async function boot() {
    * the list while the other two are running and a snapshot would gang the
    * arrangement the page was opened with. See `core/groups.js`.
    */
-  groups = createGroupsPanel({ session, storage: makeStorage('/__lpp/groups'), onRefresh: refresh });
+  groups = createGroupsPanel({ session, storage: makeStorage('/__lpp/groups'), onRefresh: refresh, names: () => names() });
+
+  /*
+   * Layer names.
+   *
+   * A flat `{ 'S1/2': 'IMAG' }` map held here rather than inside a panel,
+   * because four surfaces read it — the Layer panel that edits it, the groups
+   * panel, the `…` menu, and `ui/layer-labels.js` writing into the vendor's
+   * own lists — and a copy per surface is a copy that goes stale the moment
+   * somebody renames. See `core/layer-names.js` for why the device cannot
+   * hold these itself.
+   */
+  const namesStorage = makeStorage('/__lpp/layer-names');
+  let layerNames = {};
+  const names = () => layerNames;
+  const rename = (id, layer, value) => {
+    layerNames = withName(layerNames, id, layer, value);
+    namesStorage.save({ version: 1, names: layerNames });
+    labels.refresh();
+    refresh();
+  };
 
   /*
    * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
@@ -329,6 +351,17 @@ async function boot() {
     console.info(TAG, 'session', ev.detail.state, ev.detail.error || '');
     refresh();
   });
+  /*
+   * Names into the vendor's own layer lists.
+   *
+   * ⚠️ The most fragile thing in the app — it writes into the middle of Web
+   * RCS's own markup rather than owning its own — and the only way a layer
+   * name appears anywhere an operator is already looking. `ui/layer-labels.js`
+   * says what it matches and why, and reports what it is managing to label so
+   * a firmware that moves a list shows up as a number rather than as silence.
+   */
+  const labels = installLayerLabels({ names, enabled: () => can('layerGroups') });
+
   session.addEventListener('frame', refresh);
   stack.addEventListener('changed', refresh);
 
@@ -390,9 +423,12 @@ async function boot() {
    * is the same answer the sidebar entry gives.
    */
   await groups.load();
+  layerNames = normaliseNames(await namesStorage.load()).names;
+  labels.refresh();
   const sendTo = installSendTo({
     session,
     groups,
+    names,
     enabled: () => can('layerGroups'),
     /*
      * A send aimed at a whole group has already written every member, so the
@@ -407,7 +443,7 @@ async function boot() {
   });
 
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo };
+  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));
