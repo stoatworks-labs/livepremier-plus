@@ -23,7 +23,8 @@ rather than as a bolt-on:
 - **Console** — Mynah's command line, a lighting-desk grammar for a video
   switcher. `Recall Screen 1 Memory 5`, `R Sc 1 Th 4 Me 5 Pre`, `Take Screen 1`.
   It also takes raw AWJ, raw Web RCS store writes and OSC addresses, says what a
-  line will do before Enter, and pops out into a window of its own.
+  line will do before Enter, and pops out into a window of its own. On a Midra
+  4K or Alta 4K it routes audio as well: `Set Audio Patch Input 3 To Screen 1`.
 - **Timeline** — a theatre-style cue stack. A numbered list that advances on
   one GO, with per-cue fade, delay and follow times, driving the switcher's
   preset recalls and TAKE. A cue can also carry a **timecode** and fire when
@@ -72,9 +73,11 @@ rather than as a bolt-on:
   layer width and get 1000, the way you can in every other tool on the desk.
 
 Point it at a switcher, open the address it prints, and you get the vendor's
-own Web RCS with the extra panels already in it. It rides the vendor app's own
-WebSocket — no second connection to the device, no replacement UI, and nothing
-to install in the browser.
+own Web RCS with the extra panels already in it. The panels ride the vendor
+app's own WebSocket — no second Web RCS connection to the device, no replacement
+UI, and nothing to install in the browser. (OSC input, the Pixelhue panel and
+the Edit page's direct save each open a brief AWJ connection of their own when
+they act, and AWJ has a budget of five clients on the switcher.)
 
 It runs as a desktop tray app for macOS, Windows and Linux, as a Docker image,
 or from the command line with Node 20. It works on a **LivePremier** and — for
@@ -306,6 +309,31 @@ npm start -- --device 192.168.2.142
 
 There is a desktop app too — a tray launcher with an interface and port picker,
 in the fleet's usual shape. See [launcher/](launcher/).
+
+### In Docker
+
+An image is published to `ghcr.io/stoatworks-labs/livepremier-plus` on every
+push to `main`, as `:latest` and as the commit's SHA. There is no per-version
+tag, so **`:latest` can be ahead of the last release** — to pin one, use the
+SHA its tag points at. The repo's `docker-compose.yml` runs it with the cue
+stacks and the remembered switcher kept in `./config`:
+
+```bash
+docker compose up -d
+```
+
+or on its own:
+
+```bash
+docker run -d -p 127.0.0.1:8535:8535 -v "$PWD/config:/config" \
+  ghcr.io/stoatworks-labs/livepremier-plus:latest
+```
+
+Inside the container it has to listen on `0.0.0.0` to be reachable at all, so
+where it is reachable *from* is decided by the port you publish.
+**`docker-compose.yml` publishes `8535:8535` — every interface on the host** —
+which is the binding-wide case below; change it to `127.0.0.1:8535:8535` unless
+the whole network is meant to reach it. Set `LPP_DEVICE` to skip the setup page.
 
 <!-- Nothing between the markers is hand-written: gen-downloads.py owns it,
      heading and all, and rewrites it wholesale at each release. -->

@@ -11,7 +11,7 @@ as a bolt-on.
 - **VPU Map** — the device's mixing-resource allocation, drawn as a budget: which units are
   fitted, who holds them, what is spare, and what a staged preconfig would change.
 - **Console** — a lighting-desk command grammar for a video switcher, which also takes raw AWJ,
-  store writes and OSC addresses.
+  store writes and OSC addresses — and, on a Midra 4K or Alta 4K, routes audio.
 - **Timeline** — a theatre-style cue stack that advances on one GO, with per-cue fade, delay and
   follow times — and cues that fire from MIDI Time Code, LTC or a pushed timecode.
 - **Memories** — every memory bank in one searchable list, showing which buffer holds each one.
@@ -38,8 +38,10 @@ as a bolt-on.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a layer width and get
   1000.
 
-It rides the vendor app's own WebSocket. **No second connection to the device, no replacement UI,
-and nothing to install in the browser.**
+The panels ride the vendor app's own WebSocket. **No second Web RCS connection to the device, no
+replacement UI, and nothing to install in the browser.** OSC input, the Pixelhue panel and the Edit
+page's direct save each open a brief AWJ connection of their own when they act — worth knowing,
+because the switcher allows five AWJ clients at once.
 
 > **Before you rely on this:** the panels render inside a real Web RCS session and the device store
 > mirrors live — verified through this proxy against **LivePremier Simulator 6.2.73**, along with
@@ -88,6 +90,22 @@ npm start -- --device 192.168.2.142
 | `--data <dir>` | where cue stacks are kept |
 
 There is a desktop app too — a tray launcher with an interface and port picker.
+
+### In Docker
+
+An image is published to `ghcr.io/stoatworks-labs/livepremier-plus` on every change to the main
+branch. `:latest` is the newest of those, which can be ahead of the last release; each image is
+also tagged with its commit, so a release can be pinned by the commit its tag points at.
+
+```bash
+docker run -d -p 127.0.0.1:8535:8535 -v "$PWD/config:/config" \
+  ghcr.io/stoatworks-labs/livepremier-plus:latest
+```
+
+The repo's `docker-compose.yml` does the same with `docker compose up -d`, **but it publishes the
+port on every interface of the host** — change `8535:8535` to `127.0.0.1:8535:8535` unless the whole
+network is meant to reach it (see *On binding wide* below). `./config` keeps your cue stacks and the
+remembered switcher; set `LPP_DEVICE` to skip the setup page.
 
 > **On binding wide.** The default is loopback for a reason: **this proxy is an unauthenticated
 > route to a switcher's entire control surface** — and, once a Companion is linked, to that
