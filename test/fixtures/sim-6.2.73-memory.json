@@ -1,0 +1,835 @@
+{
+ "_": "A screen memory exported from a LivePremier Simulator 6.2.73 on 2026-09-22, beside the live preset node it was saved from. Trimmed from the full 129-layer export to NATIVE and the two fitted layers; nothing else was altered. `memory` is the device's own file, `preset` is what the store held for the same three layers of S1's preview buffer at the moment it was saved, and the two are asserted field-for-field by test/preset-file.test.js.",
+ "device": "NLC_CMAX",
+ "firmware": "6.2.73",
+ "screen": "S1",
+ "previewLetter": "B",
+ "capability": {
+  "NATIVE": "OFF",
+  "1": "DUAL",
+  "2": "DUAL"
+ },
+ "memory": [
+  {
+   "BankSlot": 990,
+   "xPEMEM_BANK_DURATION": 10,
+   "xPEMEM_BANK_FILTER_CATEGORY": [
+    "SOURCE",
+    "POS",
+    "SIZE",
+    "OPACITY",
+    "CROPPING",
+    "BORDER",
+    "TRANSITIONS",
+    "EFFECTS",
+    "FLYING_CURVE",
+    "TIMING",
+    "SPEED",
+    "CUT_AND_FILL",
+    "MASK",
+    "KEYER"
+   ],
+   "xPEMEM_BANK_FILTER_LAYER": [
+    "NATIVE",
+    "1",
+    "2"
+   ],
+   "xPEMEM_BANK_LABEL": "",
+   "xPEMEM_BANK_SCREEN_HEIGHT": 1080,
+   "xPEMEM_BANK_SCREEN_WIDTH": 1920,
+   "Layer": {
+    "0": {
+     "xPEMEM_BANK_ANCHOR": "MIDDLE_CENTER",
+     "xPEMEM_BANK_ASPECT_OVERRIDE": "NONE",
+     "xPEMEM_BANK_BEZIER_PT1_POSH": 0,
+     "xPEMEM_BANK_BEZIER_PT1_POSV": 0,
+     "xPEMEM_BANK_BEZIER_PT1_POSZ": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSH": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSV": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSZ": 0,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_BLUE": 136,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_GREEN": 56,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_RED": 1,
+     "xPEMEM_BANK_BORDER_EDGE_FLAGS": [],
+     "xPEMEM_BANK_BORDER_EDGE_OPACITY": 255,
+     "xPEMEM_BANK_BORDER_EDGE_RADIUS": 255,
+     "xPEMEM_BANK_BORDER_EDGE_SIZE_H": 10,
+     "xPEMEM_BANK_BORDER_EDGE_SIZE_V": 10,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_BLUE": 136,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_GREEN": 56,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_RED": 1,
+     "xPEMEM_BANK_BORDER_SHADOW_FLAGS": [],
+     "xPEMEM_BANK_BORDER_SHADOW_OPACITY": 255,
+     "xPEMEM_BANK_BORDER_SHADOW_POS_H": 0,
+     "xPEMEM_BANK_BORDER_SHADOW_POS_V": 0,
+     "xPEMEM_BANK_BORDER_SHADOW_RADIUS": 255,
+     "xPEMEM_BANK_CLOSING_END_OFFSET": 65535,
+     "xPEMEM_BANK_CLOSING_START_OFFSET": 0,
+     "xPEMEM_BANK_CLOSING_TRANSITION": "FADE",
+     "xPEMEM_BANK_CLOSING_TRANSITION_WAY": "LEFT_TO_RIGHT",
+     "xPEMEM_BANK_COLOR_BLUE": 0,
+     "xPEMEM_BANK_COLOR_GREEN": 0,
+     "xPEMEM_BANK_COLOR_RED": 0,
+     "xPEMEM_BANK_CROP_BOTTOM": 0,
+     "xPEMEM_BANK_CROP_LEFT": 0,
+     "xPEMEM_BANK_CROP_MASK_BOTTOM": 0,
+     "xPEMEM_BANK_CROP_MASK_LEFT": 0,
+     "xPEMEM_BANK_CROP_MASK_RIGHT": 0,
+     "xPEMEM_BANK_CROP_MASK_TOP": 0,
+     "xPEMEM_BANK_CROP_RIGHT": 0,
+     "xPEMEM_BANK_CROP_TOP": 0,
+     "xPEMEM_BANK_EFFECT_FLAGS": [],
+     "xPEMEM_BANK_FLYING_TYPE": "LINEAR",
+     "xPEMEM_BANK_INPUTNUM": "NONE",
+     "xPEMEM_BANK_LAYER_CAPABILITY": "OFF",
+     "xPEMEM_BANK_LAYER_KEYER_BANK_SELECT": "NONE",
+     "xPEMEM_BANK_LAYER_KEYER_ENABLE": false,
+     "xPEMEM_BANK_MASK_CROP_BOTTOM": 0,
+     "xPEMEM_BANK_MASK_CROP_LEFT": 0,
+     "xPEMEM_BANK_MASK_CROP_RIGHT": 0,
+     "xPEMEM_BANK_MASK_CROP_TOP": 0,
+     "xPEMEM_BANK_MASK_CURVE": 16711935,
+     "xPEMEM_BANK_MASK_EFFECT_FLAGS": [],
+     "xPEMEM_BANK_MASK_INPUTNUM": "NONE",
+     "xPEMEM_BANK_MASK_TYPE": "NONE",
+     "xPEMEM_BANK_OPACITY": 256,
+     "xPEMEM_BANK_OPENING_CLOSING_RATIO": 32768,
+     "xPEMEM_BANK_OPENING_END_OFFSET": 65535,
+     "xPEMEM_BANK_OPENING_START_OFFSET": 0,
+     "xPEMEM_BANK_OPENING_TRANSITION": "FADE",
+     "xPEMEM_BANK_OPENING_TRANSITION_WAY": "LEFT_TO_RIGHT",
+     "xPEMEM_BANK_POSH": 960,
+     "xPEMEM_BANK_POSV": 540,
+     "xPEMEM_BANK_POSZ": 0,
+     "xPEMEM_BANK_ROTH": 0,
+     "xPEMEM_BANK_ROTV": 0,
+     "xPEMEM_BANK_ROTZ": 0,
+     "xPEMEM_BANK_SIZEH": 1920,
+     "xPEMEM_BANK_SIZEV": 1080,
+     "xPEMEM_BANK_STROBE_FRAME": 2,
+     "xPEMEM_BANK_TBAR_BEZIER_PT1": 0,
+     "xPEMEM_BANK_TBAR_BEZIER_PT2": 255,
+     "xPEMEM_BANK_TBAR_TYPE": "SMOOTH_TRANSITION",
+     "xPEMEM_BANK_TRANSITION_FLAGS": [
+      "FORCE_TRANSITION"
+     ]
+    },
+    "1": {
+     "xPEMEM_BANK_ANCHOR": "MIDDLE_CENTER",
+     "xPEMEM_BANK_ASPECT_OVERRIDE": "NONE",
+     "xPEMEM_BANK_BEZIER_PT1_POSH": 0,
+     "xPEMEM_BANK_BEZIER_PT1_POSV": 0,
+     "xPEMEM_BANK_BEZIER_PT1_POSZ": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSH": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSV": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSZ": 0,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_BLUE": 136,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_GREEN": 56,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_RED": 1,
+     "xPEMEM_BANK_BORDER_EDGE_FLAGS": [],
+     "xPEMEM_BANK_BORDER_EDGE_OPACITY": 255,
+     "xPEMEM_BANK_BORDER_EDGE_RADIUS": 255,
+     "xPEMEM_BANK_BORDER_EDGE_SIZE_H": 10,
+     "xPEMEM_BANK_BORDER_EDGE_SIZE_V": 10,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_BLUE": 136,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_GREEN": 56,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_RED": 1,
+     "xPEMEM_BANK_BORDER_SHADOW_FLAGS": [],
+     "xPEMEM_BANK_BORDER_SHADOW_OPACITY": 255,
+     "xPEMEM_BANK_BORDER_SHADOW_POS_H": 0,
+     "xPEMEM_BANK_BORDER_SHADOW_POS_V": 0,
+     "xPEMEM_BANK_BORDER_SHADOW_RADIUS": 255,
+     "xPEMEM_BANK_CLOSING_END_OFFSET": 65535,
+     "xPEMEM_BANK_CLOSING_START_OFFSET": 0,
+     "xPEMEM_BANK_CLOSING_TRANSITION": "FADE",
+     "xPEMEM_BANK_CLOSING_TRANSITION_WAY": "LEFT_TO_RIGHT",
+     "xPEMEM_BANK_COLOR_BLUE": 0,
+     "xPEMEM_BANK_COLOR_GREEN": 0,
+     "xPEMEM_BANK_COLOR_RED": 0,
+     "xPEMEM_BANK_CROP_BOTTOM": 0,
+     "xPEMEM_BANK_CROP_LEFT": 0,
+     "xPEMEM_BANK_CROP_MASK_BOTTOM": 0,
+     "xPEMEM_BANK_CROP_MASK_LEFT": 0,
+     "xPEMEM_BANK_CROP_MASK_RIGHT": 0,
+     "xPEMEM_BANK_CROP_MASK_TOP": 0,
+     "xPEMEM_BANK_CROP_RIGHT": 0,
+     "xPEMEM_BANK_CROP_TOP": 0,
+     "xPEMEM_BANK_EFFECT_FLAGS": [],
+     "xPEMEM_BANK_FLYING_TYPE": "LINEAR",
+     "xPEMEM_BANK_INPUTNUM": "LIVE_5",
+     "xPEMEM_BANK_LAYER_CAPABILITY": "DUAL",
+     "xPEMEM_BANK_LAYER_KEYER_BANK_SELECT": "NONE",
+     "xPEMEM_BANK_LAYER_KEYER_ENABLE": false,
+     "xPEMEM_BANK_MASK_CROP_BOTTOM": 0,
+     "xPEMEM_BANK_MASK_CROP_LEFT": 0,
+     "xPEMEM_BANK_MASK_CROP_RIGHT": 0,
+     "xPEMEM_BANK_MASK_CROP_TOP": 0,
+     "xPEMEM_BANK_MASK_CURVE": 16711935,
+     "xPEMEM_BANK_MASK_EFFECT_FLAGS": [],
+     "xPEMEM_BANK_MASK_INPUTNUM": "NONE",
+     "xPEMEM_BANK_MASK_TYPE": "NONE",
+     "xPEMEM_BANK_OPACITY": 256,
+     "xPEMEM_BANK_OPENING_CLOSING_RATIO": 32768,
+     "xPEMEM_BANK_OPENING_END_OFFSET": 65535,
+     "xPEMEM_BANK_OPENING_START_OFFSET": 0,
+     "xPEMEM_BANK_OPENING_TRANSITION": "FADE",
+     "xPEMEM_BANK_OPENING_TRANSITION_WAY": "LEFT_TO_RIGHT",
+     "xPEMEM_BANK_POSH": 960,
+     "xPEMEM_BANK_POSV": 540,
+     "xPEMEM_BANK_POSZ": 0,
+     "xPEMEM_BANK_ROTH": 0,
+     "xPEMEM_BANK_ROTV": 0,
+     "xPEMEM_BANK_ROTZ": 0,
+     "xPEMEM_BANK_SIZEH": 1920,
+     "xPEMEM_BANK_SIZEV": 1080,
+     "xPEMEM_BANK_STROBE_FRAME": 2,
+     "xPEMEM_BANK_TBAR_BEZIER_PT1": 0,
+     "xPEMEM_BANK_TBAR_BEZIER_PT2": 255,
+     "xPEMEM_BANK_TBAR_TYPE": "SMOOTH_TRANSITION",
+     "xPEMEM_BANK_TRANSITION_FLAGS": [
+      "FORCE_TRANSITION"
+     ]
+    },
+    "2": {
+     "xPEMEM_BANK_ANCHOR": "MIDDLE_CENTER",
+     "xPEMEM_BANK_ASPECT_OVERRIDE": "NONE",
+     "xPEMEM_BANK_BEZIER_PT1_POSH": 0,
+     "xPEMEM_BANK_BEZIER_PT1_POSV": 0,
+     "xPEMEM_BANK_BEZIER_PT1_POSZ": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSH": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSV": 0,
+     "xPEMEM_BANK_BEZIER_PT2_POSZ": 0,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_BLUE": 136,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_GREEN": 56,
+     "xPEMEM_BANK_BORDER_EDGE_COLOR_RED": 1,
+     "xPEMEM_BANK_BORDER_EDGE_FLAGS": [],
+     "xPEMEM_BANK_BORDER_EDGE_OPACITY": 255,
+     "xPEMEM_BANK_BORDER_EDGE_RADIUS": 255,
+     "xPEMEM_BANK_BORDER_EDGE_SIZE_H": 10,
+     "xPEMEM_BANK_BORDER_EDGE_SIZE_V": 10,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_BLUE": 136,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_GREEN": 56,
+     "xPEMEM_BANK_BORDER_SHADOW_COLOR_RED": 1,
+     "xPEMEM_BANK_BORDER_SHADOW_FLAGS": [],
+     "xPEMEM_BANK_BORDER_SHADOW_OPACITY": 255,
+     "xPEMEM_BANK_BORDER_SHADOW_POS_H": 0,
+     "xPEMEM_BANK_BORDER_SHADOW_POS_V": 0,
+     "xPEMEM_BANK_BORDER_SHADOW_RADIUS": 255,
+     "xPEMEM_BANK_CLOSING_END_OFFSET": 65535,
+     "xPEMEM_BANK_CLOSING_START_OFFSET": 0,
+     "xPEMEM_BANK_CLOSING_TRANSITION": "FADE",
+     "xPEMEM_BANK_CLOSING_TRANSITION_WAY": "LEFT_TO_RIGHT",
+     "xPEMEM_BANK_COLOR_BLUE": 0,
+     "xPEMEM_BANK_COLOR_GREEN": 0,
+     "xPEMEM_BANK_COLOR_RED": 0,
+     "xPEMEM_BANK_CROP_BOTTOM": 0,
+     "xPEMEM_BANK_CROP_LEFT": 0,
+     "xPEMEM_BANK_CROP_MASK_BOTTOM": 0,
+     "xPEMEM_BANK_CROP_MASK_LEFT": 0,
+     "xPEMEM_BANK_CROP_MASK_RIGHT": 0,
+     "xPEMEM_BANK_CROP_MASK_TOP": 0,
+     "xPEMEM_BANK_CROP_RIGHT": 0,
+     "xPEMEM_BANK_CROP_TOP": 0,
+     "xPEMEM_BANK_EFFECT_FLAGS": [],
+     "xPEMEM_BANK_FLYING_TYPE": "LINEAR",
+     "xPEMEM_BANK_INPUTNUM": "LIVE_44",
+     "xPEMEM_BANK_LAYER_CAPABILITY": "DUAL",
+     "xPEMEM_BANK_LAYER_KEYER_BANK_SELECT": "NONE",
+     "xPEMEM_BANK_LAYER_KEYER_ENABLE": false,
+     "xPEMEM_BANK_MASK_CROP_BOTTOM": 0,
+     "xPEMEM_BANK_MASK_CROP_LEFT": 0,
+     "xPEMEM_BANK_MASK_CROP_RIGHT": 0,
+     "xPEMEM_BANK_MASK_CROP_TOP": 0,
+     "xPEMEM_BANK_MASK_CURVE": 16711935,
+     "xPEMEM_BANK_MASK_EFFECT_FLAGS": [],
+     "xPEMEM_BANK_MASK_INPUTNUM": "NONE",
+     "xPEMEM_BANK_MASK_TYPE": "NONE",
+     "xPEMEM_BANK_OPACITY": 256,
+     "xPEMEM_BANK_OPENING_CLOSING_RATIO": 32768,
+     "xPEMEM_BANK_OPENING_END_OFFSET": 65535,
+     "xPEMEM_BANK_OPENING_START_OFFSET": 0,
+     "xPEMEM_BANK_OPENING_TRANSITION": "FADE",
+     "xPEMEM_BANK_OPENING_TRANSITION_WAY": "LEFT_TO_RIGHT",
+     "xPEMEM_BANK_POSH": 960,
+     "xPEMEM_BANK_POSV": 540,
+     "xPEMEM_BANK_POSZ": 0,
+     "xPEMEM_BANK_ROTH": 0,
+     "xPEMEM_BANK_ROTV": 0,
+     "xPEMEM_BANK_ROTZ": 0,
+     "xPEMEM_BANK_SIZEH": 1920,
+     "xPEMEM_BANK_SIZEV": 1080,
+     "xPEMEM_BANK_STROBE_FRAME": 2,
+     "xPEMEM_BANK_TBAR_BEZIER_PT1": 0,
+     "xPEMEM_BANK_TBAR_BEZIER_PT2": 255,
+     "xPEMEM_BANK_TBAR_TYPE": "SMOOTH_TRANSITION",
+     "xPEMEM_BANK_TRANSITION_FLAGS": [
+      "FORCE_TRANSITION"
+     ]
+    }
+   }
+  }
+ ],
+ "preset": {
+  "NATIVE": {
+   "source": {
+    "pp": {
+     "inputNum": "NONE"
+    },
+    "status": {
+     "pp": {
+      "inputNum": "NONE"
+     }
+    },
+    "color": {
+     "pp": {
+      "red": 0,
+      "green": 0,
+      "blue": 0
+     }
+    }
+   },
+   "position": {
+    "pp": {
+     "anchor": "MIDDLE_CENTER",
+     "posH": 960,
+     "posV": 540,
+     "sizeH": 1920,
+     "sizeV": 1080
+    },
+    "stereo3d": {
+     "pp": {
+      "posZ": 0
+     }
+    }
+   },
+   "opacity": {
+    "pp": {
+     "opacity": 256
+    }
+   },
+   "effects": {
+    "pp": {
+     "flags": []
+    },
+    "strobe": {
+     "pp": {
+      "frames": 2
+     }
+    }
+   },
+   "cropping": {
+    "classic": {
+     "pp": {
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "aspectOverride": "NONE"
+     }
+    },
+    "mask": {
+     "pp": {
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0
+     }
+    }
+   },
+   "border": {
+    "edge": {
+     "pp": {
+      "style": [],
+      "radius": 255,
+      "sizeH": 10,
+      "sizeV": 10,
+      "opacity": 255
+     },
+     "color": {
+      "pp": {
+       "red": 1,
+       "green": 56,
+       "blue": 136
+      }
+     }
+    },
+    "shadow": {
+     "pp": {
+      "style": [],
+      "radius": 255,
+      "sizeH": 0,
+      "sizeV": 0,
+      "opacity": 255
+     },
+     "color": {
+      "pp": {
+       "red": 1,
+       "green": 56,
+       "blue": 136
+      }
+     }
+    }
+   },
+   "transition": {
+    "pp": {
+     "flags": [
+      "FORCE_TRANSITION"
+     ]
+    },
+    "opening": {
+     "pp": {
+      "type": "FADE",
+      "way": "LEFT_TO_RIGHT"
+     }
+    },
+    "closing": {
+     "pp": {
+      "type": "FADE",
+      "way": "LEFT_TO_RIGHT"
+     }
+    }
+   },
+   "flying": {
+    "pp": {
+     "type": "LINEAR"
+    },
+    "point1": {
+     "pp": {
+      "posH": 0,
+      "posV": 0
+     }
+    },
+    "point2": {
+     "pp": {
+      "posH": 0,
+      "posV": 0
+     }
+    }
+   },
+   "timing": {
+    "pp": {
+     "ratio": 32768
+    },
+    "opening": {
+     "pp": {
+      "start": 0,
+      "end": 65535
+     }
+    },
+    "closing": {
+     "pp": {
+      "start": 0,
+      "end": 65535
+     }
+    }
+   },
+   "speed": {
+    "pp": {
+     "type": "SMOOTH_TRANSITION",
+     "point1": 0,
+     "point2": 255
+    }
+   },
+   "cutNFill": {
+    "pp": {
+     "type": "NONE"
+    },
+    "cut": {
+     "pp": {
+      "inputNum": "NONE",
+      "curve": 16711935,
+      "flags": []
+     },
+     "cropping": {
+      "pp": {
+       "top": 0,
+       "bottom": 0,
+       "left": 0,
+       "right": 0
+      }
+     }
+    }
+   },
+   "keying": {
+    "pp": {
+     "enable": false,
+     "source": "NONE"
+    }
+   }
+  },
+  "1": {
+   "source": {
+    "pp": {
+     "inputNum": "LIVE_5"
+    },
+    "status": {
+     "pp": {
+      "inputNum": "LIVE_5"
+     }
+    },
+    "color": {
+     "pp": {
+      "red": 0,
+      "green": 0,
+      "blue": 0
+     }
+    }
+   },
+   "position": {
+    "pp": {
+     "anchor": "MIDDLE_CENTER",
+     "posH": 960,
+     "posV": 540,
+     "sizeH": 1920,
+     "sizeV": 1080
+    },
+    "stereo3d": {
+     "pp": {
+      "posZ": 0
+     }
+    }
+   },
+   "opacity": {
+    "pp": {
+     "opacity": 256
+    }
+   },
+   "effects": {
+    "pp": {
+     "flags": []
+    },
+    "strobe": {
+     "pp": {
+      "frames": 2
+     }
+    }
+   },
+   "cropping": {
+    "classic": {
+     "pp": {
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "aspectOverride": "NONE"
+     }
+    },
+    "mask": {
+     "pp": {
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0
+     }
+    }
+   },
+   "border": {
+    "edge": {
+     "pp": {
+      "style": [],
+      "radius": 255,
+      "sizeH": 10,
+      "sizeV": 10,
+      "opacity": 255
+     },
+     "color": {
+      "pp": {
+       "red": 1,
+       "green": 56,
+       "blue": 136
+      }
+     }
+    },
+    "shadow": {
+     "pp": {
+      "style": [],
+      "radius": 255,
+      "sizeH": 0,
+      "sizeV": 0,
+      "opacity": 255
+     },
+     "color": {
+      "pp": {
+       "red": 1,
+       "green": 56,
+       "blue": 136
+      }
+     }
+    }
+   },
+   "transition": {
+    "pp": {
+     "flags": [
+      "FORCE_TRANSITION"
+     ]
+    },
+    "opening": {
+     "pp": {
+      "type": "FADE",
+      "way": "LEFT_TO_RIGHT"
+     }
+    },
+    "closing": {
+     "pp": {
+      "type": "FADE",
+      "way": "LEFT_TO_RIGHT"
+     }
+    }
+   },
+   "flying": {
+    "pp": {
+     "type": "LINEAR"
+    },
+    "point1": {
+     "pp": {
+      "posH": 0,
+      "posV": 0
+     }
+    },
+    "point2": {
+     "pp": {
+      "posH": 0,
+      "posV": 0
+     }
+    }
+   },
+   "timing": {
+    "pp": {
+     "ratio": 32768
+    },
+    "opening": {
+     "pp": {
+      "start": 0,
+      "end": 65535
+     }
+    },
+    "closing": {
+     "pp": {
+      "start": 0,
+      "end": 65535
+     }
+    }
+   },
+   "speed": {
+    "pp": {
+     "type": "SMOOTH_TRANSITION",
+     "point1": 0,
+     "point2": 255
+    }
+   },
+   "cutNFill": {
+    "pp": {
+     "type": "NONE"
+    },
+    "cut": {
+     "pp": {
+      "inputNum": "NONE",
+      "curve": 16711935,
+      "flags": []
+     },
+     "cropping": {
+      "pp": {
+       "top": 0,
+       "bottom": 0,
+       "left": 0,
+       "right": 0
+      }
+     }
+    }
+   },
+   "keying": {
+    "pp": {
+     "enable": false,
+     "source": "NONE"
+    }
+   }
+  },
+  "2": {
+   "source": {
+    "pp": {
+     "inputNum": "LIVE_44"
+    },
+    "status": {
+     "pp": {
+      "inputNum": "LIVE_44"
+     }
+    },
+    "color": {
+     "pp": {
+      "red": 0,
+      "green": 0,
+      "blue": 0
+     }
+    }
+   },
+   "position": {
+    "pp": {
+     "anchor": "MIDDLE_CENTER",
+     "posH": 960,
+     "posV": 540,
+     "sizeH": 1920,
+     "sizeV": 1080
+    },
+    "stereo3d": {
+     "pp": {
+      "posZ": 0
+     }
+    }
+   },
+   "opacity": {
+    "pp": {
+     "opacity": 256
+    }
+   },
+   "effects": {
+    "pp": {
+     "flags": []
+    },
+    "strobe": {
+     "pp": {
+      "frames": 2
+     }
+    }
+   },
+   "cropping": {
+    "classic": {
+     "pp": {
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0,
+      "aspectOverride": "NONE"
+     }
+    },
+    "mask": {
+     "pp": {
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0
+     }
+    }
+   },
+   "border": {
+    "edge": {
+     "pp": {
+      "style": [],
+      "radius": 255,
+      "sizeH": 10,
+      "sizeV": 10,
+      "opacity": 255
+     },
+     "color": {
+      "pp": {
+       "red": 1,
+       "green": 56,
+       "blue": 136
+      }
+     }
+    },
+    "shadow": {
+     "pp": {
+      "style": [],
+      "radius": 255,
+      "sizeH": 0,
+      "sizeV": 0,
+      "opacity": 255
+     },
+     "color": {
+      "pp": {
+       "red": 1,
+       "green": 56,
+       "blue": 136
+      }
+     }
+    }
+   },
+   "transition": {
+    "pp": {
+     "flags": [
+      "FORCE_TRANSITION"
+     ]
+    },
+    "opening": {
+     "pp": {
+      "type": "FADE",
+      "way": "LEFT_TO_RIGHT"
+     }
+    },
+    "closing": {
+     "pp": {
+      "type": "FADE",
+      "way": "LEFT_TO_RIGHT"
+     }
+    }
+   },
+   "flying": {
+    "pp": {
+     "type": "LINEAR"
+    },
+    "point1": {
+     "pp": {
+      "posH": 0,
+      "posV": 0
+     }
+    },
+    "point2": {
+     "pp": {
+      "posH": 0,
+      "posV": 0
+     }
+    }
+   },
+   "timing": {
+    "pp": {
+     "ratio": 32768
+    },
+    "opening": {
+     "pp": {
+      "start": 0,
+      "end": 65535
+     }
+    },
+    "closing": {
+     "pp": {
+      "start": 0,
+      "end": 65535
+     }
+    }
+   },
+   "speed": {
+    "pp": {
+     "type": "SMOOTH_TRANSITION",
+     "point1": 0,
+     "point2": 255
+    }
+   },
+   "cutNFill": {
+    "pp": {
+     "type": "NONE"
+    },
+    "cut": {
+     "pp": {
+      "inputNum": "NONE",
+      "curve": 16711935,
+      "flags": []
+     },
+     "cropping": {
+      "pp": {
+       "top": 0,
+       "bottom": 0,
+       "left": 0,
+       "right": 0
+      }
+     }
+    }
+   },
+   "keying": {
+    "pp": {
+     "enable": false,
+     "source": "NONE"
+    }
+   }
+  }
+ }
+}
