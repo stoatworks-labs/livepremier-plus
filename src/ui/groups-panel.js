@@ -204,7 +204,12 @@ export function createGroupsPanel({ session, storage, onRefresh = () => {} } = {
 
   function groupCard(group) {
     const members = resolveMembers(store(), group);
-    return h('div', { class: 'wru-groups-card aw-card aw-padding-medium aw-flex-col aw-gap-row-medium' },
+    /* ⚠️ Not `aw-card`, for the reason `ui/send-to.js` sets out at length: the
+       vendor's card lightens on hover, which says "click me" about a container
+       that is only holding other controls — and on a floating surface the same
+       rule turns it see-through. `.wru-groups-card` carries the background and
+       the border itself. */
+    return h('div', { class: 'wru-groups-card aw-padding-medium aw-flex-col aw-gap-row-medium' },
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-flex-wrap' },
         nameField(group),
         h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-margin-left-auto' },

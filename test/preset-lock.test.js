@@ -195,3 +195,24 @@ test('a literal buffer letter is not a role, so there is no lock to respect', ()
 test('the roles are spelled the way the vendor spells them', () => {
   assert.deepEqual(ROLE_LABEL, { PROGRAM: 'PGM', PREVIEW: 'PRW' });
 });
+
+/*
+ * The popover is not an `aw-card`.
+ *
+ * The house rule everywhere else is "reach for an `aw-` class first", and
+ * following it here produced a menu that went see-through under the pointer:
+ * `.aw-card:hover` replaces the background with a translucent white highlight,
+ * which is right for a card lying on the page and wrong for a popover floating
+ * over one. It also wins on specificity (0-2-0 against `.wru-sendto`'s 0-1-0),
+ * so no amount of ordering in our own stylesheet would have held it off.
+ *
+ * Pinned rather than merely commented because the next person to read the rule
+ * will reach for the same class for the same good reason.
+ */
+test('the send-to popover does not wear the vendor card class', async () => {
+  const { SENDTO_MENU_CLASS } = await import('../src/ui/send-to.js');
+  const classes = SENDTO_MENU_CLASS.split(/\s+/);
+  assert.ok(classes.includes('wru-sendto'), 'it still carries its own class');
+  assert.ok(!classes.includes('aw-card'),
+    'aw-card lightens on hover, which turns a floating surface transparent');
+});

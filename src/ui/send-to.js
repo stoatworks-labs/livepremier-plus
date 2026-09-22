@@ -60,6 +60,27 @@ import { fittedLayers } from '../core/properties.js';
 import { sourceCommands, resolveMembers } from '../core/groups.js';
 import { lockedFor, ROLE_LABEL } from './preset-lock.js';
 
+/**
+ * The popover's own classes.
+ *
+ * ⚠️ **Not `aw-card`**, and this is the one exception to "reach for an `aw-`
+ * class first" in the whole file. The vendor's card carries
+ *
+ *     .aw-card:hover { background-color: rgba(255, 255, 255, 0.08); … }
+ *
+ * — a translucent white *highlight*, which is right for a card lying on the
+ * page and wrong for anything floating over it. A popover wearing it turned
+ * see-through the moment the pointer landed on it, showing the layer stack
+ * straight through the menu, and it beat our own opaque background on
+ * specificity (`.aw-card:hover` is 0-2-0 against `.wru-sendto`'s 0-1-0) so no
+ * amount of ordering would have fixed it. `aw-card` also dims the text to 70%
+ * and forces its own `box-shadow` with `!important`.
+ *
+ * `.wru-sendto` already sets the background, border, radius and a stronger
+ * shadow, so the class was contributing nothing but the bug.
+ */
+const MENU_CLASS = 'wru-sendto aw-border-radius aw-padding-none';
+
 /** Put on our button so a re-render cannot end up with two of them. */
 const MARK = 'data-lpp-sendto';
 /** The vendor's own tools slot at a card header's right. */
@@ -166,7 +187,7 @@ export function installSendTo({
     closeMenu();
     const state = { source, mode: 'PREVIEW', stage: 'pick', plan: null, result: null };
     const el = h('div', {
-      class: 'wru-sendto aw-card aw-border-radius aw-padding-none',
+      class: MENU_CLASS,
       role: 'dialog',
       'aria-label': 'Send to'
     });
@@ -487,3 +508,4 @@ export function installSendTo({
 /** Exported for the tests: the selector a card list is found by. */
 export const SOURCE_CARDS_SELECTOR = CARDS_SEL;
 export const SENDTO_MARK = MARK;
+export const SENDTO_MENU_CLASS = MENU_CLASS;
