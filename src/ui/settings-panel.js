@@ -62,6 +62,14 @@ const FEATURES = [
     needs: 'layerProperties'
   },
   {
+    name: 'Companion',
+    where: 'Sidebar, under PLUS',
+    what: 'A Bitfocus Companion on this address — its buttons, web buttons and emulator — '
+      + 'and the connections that belong in the show for this switcher.'
+    /* No `needs`: Companion knows nothing of which platform the switcher is,
+       and the panel is as useful beside a Midra as beside a LivePremier. */
+  },
+  {
     name: 'VPU Map',
     where: 'Sidebar, under PLUS',
     what: 'Which mixers each screen is using, running against staged.',

@@ -24,6 +24,9 @@ as a bolt-on.
 - **Matrix Routing** — patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
   Videohub, a Lightware or a Turtle AV router, and route through it from the panel, a cue, the
   Console or OSC.
+- **Companion** — a Bitfocus Companion served inside this app, on the same address as Web RCS:
+  its button editor, web buttons and emulator, plus a panel that knows which switcher you are on
+  and offers to add the connections that belong in the show.
 - **MIDI Mapping** — a control surface driving the switcher, from the page itself.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a layer width and get
   1000.
@@ -73,7 +76,8 @@ npm start -- --device 192.168.2.142
 There is a desktop app too — a tray launcher with an interface and port picker.
 
 > **On binding wide.** The default is loopback for a reason: **this proxy is an unauthenticated
-> route to a switcher's entire control surface.** `--host 0.0.0.0` hands that to everyone on the
+> route to a switcher's entire control surface** — and, once a Companion is linked, to that
+> Companion's admin UI too. `--host 0.0.0.0` hands that to everyone on the
 > network. Do it deliberately, not by habit.
 
 ### Open it through the proxy, not at the switcher
@@ -281,6 +285,58 @@ describes that frame's own sockets.
 > The Lightware and Turtle AV drivers are written from their vendors' protocol documents and
 > **have never spoken to the hardware at all**. `docs/MATRIX.md` gives a short procedure for
 > proving each on your own kit before a show.
+
+---
+
+## Companion
+
+**PLUS ▸ Companion.** A [Bitfocus Companion](https://bitfocus.io/companion) (5.0 or newer) served
+through this app, so its pages open on the same address as Web RCS — no second port to allow
+through a firewall, and nothing to switch between.
+
+### Connecting
+
+Tick **Connect to a Companion**, give its address, and press **Connect**. The port is Companion's
+own admin port — 8000 unless it has been changed in Companion's settings. The link is off until you
+turn it on: an app that reached for a machine on the show network the moment it started would not
+be one you could reason about.
+
+### What is in the show
+
+The panel lists the show's connections — label, module and status — and **follows them live**, so
+a connection added or disabled in Companion (including in the pages embedded below) shows up
+without a reload. The two it has an opinion about are highlighted:
+
+- **AWJ** — the switcher itself: sources, presets, takes, layers.
+- **LivePremier Plus** — this app: cue stack, timeline, layer groups, matrix routing.
+
+What it does with them is an **offer, never a sync**:
+
+- a connection already in the show is **used as it is** — its settings are left alone, whatever it
+  is labelled;
+- two of the same module is **reported, not resolved** — a show with a main and a backup frame is a
+  correct show, and the panel will not pick one for you;
+- a missing one is listed under **Not in the show yet**, with the address it would be pointed at,
+  and **Add … to the show** creates it and configures it for the switcher you are on. Nothing is
+  written until you press it.
+
+> **The LivePremier Plus connection cannot be added yet.** It needs a LivePremier Plus module in
+> Companion, and there is not one yet — the panel says so in those words. The AWJ connection works
+> today.
+
+**If you opened this app on 127.0.0.1**, that is the address the LivePremier Plus connection would
+be given, and a Companion on another machine cannot dial it. The panel warns you; open this app by
+its network address first if Companion is somewhere else.
+
+### Companion's own pages
+
+**Buttons**, **Web buttons** and **Emulator** open Companion's real pages in the panel — the button
+editor itself, the touch surface a tablet would see, and a Stream Deck on screen. They are
+Companion, not a copy of it, so they are always the version you have installed.
+
+> **Linking a Companion widens what this app exposes.** Everything below `/__lpp/companion` is
+> Companion's admin UI, reachable by anyone who can reach this app. On the default loopback binding
+> that is only this machine; see *On binding wide* above before you change that.
 
 ---
 

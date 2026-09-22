@@ -42,6 +42,11 @@ rather than as a bolt-on:
   Blackmagic Videohub, a Lightware or a Turtle AV router, and route through it
   from the panel, a cue, the Console or OSC. You describe the cable; the
   direction inverts on its own.
+- **Companion** — a Bitfocus Companion served inside this app's own origin: its
+  admin pages, web buttons and emulator on the same address as Web RCS, with no
+  second port and no CORS. A panel lists the show's real connections, follows
+  them live, and offers to add the AWJ and LivePremier Plus connections pointed
+  at whichever switcher you are on — saying what it will create before it does.
 - **MIDI Mapping** — a control surface driving the switcher, from the page
   itself. Faders to opacity, encoders to size and position, buttons to select.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
@@ -77,6 +82,20 @@ to install in the browser.
 > upload route for one. That is exactly why the preview route exists as well —
 > it is also the only route on Midra 4K and Alta 4K, whose banks have no import
 > at all — and why the directory is a setting rather than a constant.
+>
+> **Companion was driven against a running Companion 5.0.5 and a LivePremier
+> simulator on 2026-09-22**: the mounted Buttons page loaded same-origin with its
+> grid drawn and one socket relayed; the panel listed the show's three real
+> connections with live status, and its feed followed a connection being
+> disabled and re-enabled; and an AWJ connection was added, configured and
+> reported `good`.
+> The cross-origin WebSocket check was confirmed live — `101` for the page we
+> served and for a client sending no Origin, `403` for a forged origin and for
+> the `null` a sandboxed iframe sends. **The LivePremier Plus connection cannot
+> be added yet**, because there is no LivePremier Plus Companion module yet: the
+> panel says so in those words. Merged into 0.11.0 after the Edit page; the
+> merged proxy, settings and panels were re-checked through the proxy, but not
+> against a live Companion a second time.
 >
 > **Layer groups and the send-to menu were driven on a simulator on
 > 2026-09-21**, against a preconfig staged for the purpose: two screens on
@@ -300,8 +319,9 @@ macOS builds are signed and notarised and open normally. The Windows builds are 
 <!-- downloads:end -->
 
 > **On binding wide.** The default is loopback for a reason: this proxy is an
-> unauthenticated route to a switcher's entire control surface. `--host 0.0.0.0`
-> hands that to everyone on the network. Do it deliberately, not by habit.
+> unauthenticated route to a switcher's entire control surface — and, once a
+> Companion is linked, to that Companion's admin UI too. `--host 0.0.0.0` hands
+> both to everyone on the network. Do it deliberately, not by habit.
 
 ## Console
 

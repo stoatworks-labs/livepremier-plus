@@ -1173,3 +1173,79 @@ Both slots deleted afterwards and the simulator left as found.
   Layer panel reported a look as "(showing IN5)" while it plainly held IN2.
   `core/programmer.js` strips every read-only parameter on seed; absent is the
   honest value and the panel already draws nothing for it.
+
+## Companion, mounted inside our origin (built 2026-09-22 morning, merged for 0.11.0)
+
+Built on its own branch in the morning and left unmerged when that session
+ended; merged the same evening after the Edit page, and released as 0.11.0. The
+commit messages carry the full account and are worth reading in order —
+`cde96fe`, `771c699`, `00aaaa9`, `1ef9bf1` — so this is the short version.
+
+### What Companion does that makes the mount possible
+
+Companion 4.1+ serves under a sub-path by rewriting a `/ROOT_URL_HERE` token
+through every HTML, CSS and JS response, driven by a `companion-custom-prefix`
+request header. Checked on 5.0.5, not taken from the docs: assets come back as
+`/__lpp/companion/ui/assets/…` and the bundle's socket helper dials
+`/__lpp/companion/ui/trpc`.
+
+- **Strip the prefix from the request line; announce it only in the header.**
+  Companion's Express routes match the unprefixed path and `isTrpcUpgradeRequest`
+  matches the pathname `/trpc` exactly. The failure for getting it wrong is a
+  socket that opens and says nothing.
+- **Its CSWSH check has to be re-made, not bypassed.** See AGENTS.md. Live
+  results: `101` for our page and for no Origin; `403` for a forged origin and for
+  the `null` a sandboxed iframe sends.
+
+### Companion facts found against a live 5.0.5
+
+| What | What it looks like | What is true |
+|---|---|---|
+| `instances.connections.add` with `versionId: null` | "Invalid or malformed input provided for instances.connections.add/mutation" | the tRPC schema is `z.string()`; the null-handling code behind it is unreachable |
+| a module lookup by bare id | "not installed" | modules are keyed `connection:<id>` in `instances.modules.watch` |
+| `instances.modules.watch` | — | a subscription with no one-shot form; take `init` and hang up |
+| `setConfig` refusing | a resolved promise | it resolves with a *string* on refusal and `null` on success |
+| adding a second "AWJ" | the label you sent | `makeLabelUnique` makes it "AWJ 2", and `setConfig` requires the real one |
+| `installModuleTar` | refused | only for a client on Companion's own machine — *this process*, not the browser |
+
+`pickVersion` prefers `stableVersion` (Companion's own `getLatestVersionOfModule`
+order), then beta, then the last installed, with `dev` last.
+
+### What was proven, and when
+
+On the branch, against Companion 5.0.5 and a LivePremier simulator: the
+mounted Buttons page loaded same-origin (`contentDocument` readable, grid drawn,
+one socket relayed); the panel listed the show's three real connections with live
+status and raised the loopback warning; the feed produced events when a
+connection was disabled and re-enabled through Companion's own HTTP API; and AWJ
+was added at `2.5.1-customfix-jt`, configured, and reported status good.
+
+**The LivePremier Plus half is expected to fail**, and does, with a sentence:
+there is no `livepremier-plus` Companion module yet.
+
+### The merge (2026-09-22 evening)
+
+Replayed onto main by cherry-pick, keeping the linear history. Three conflicts,
+every one of them the Pixelhue console (landed on main after the branch was
+cut) and Companion adding to the same place — the settings defaults and
+`normalise`, the proxy's imports, `/settings` responses and `closeRelays`, and
+the test list. One needed care: main's side of the settings conflict ran past
+the `};` closing `DEFAULT_SETTINGS` and into `hostOrNothing`, so a plain
+keep-both would have put `...DEFAULT_COMPANION` inside a function.
+
+The six Companion-only files are byte-identical to the branch. The suite passed
+at the first replayed commit and at the last (522 tests, 0 failures).
+
+**Re-checked through the merged proxy, not against a live Companion.** The
+Companion that had been used was still running but bound to `192.168.12.85:8000`,
+a bench interface this Mac no longer had, so it was unreachable. A second,
+throwaway instance was ruled out: Companion has no flag to disable USB, and a
+second one would contend with the first for the operator's Stream Deck. What was
+checked instead: `/__lpp/settings` reports both the Pixelhue and Companion links
+and still carries the Edit page's `memoryImportDir`; `/__lpp/companion/state`
+answers with the unconfigured facts; the mount answers `503 no Companion
+configured`; enabling the link at a dead loopback port redials and reports
+`ECONNREFUSED`, and switching it off restores the defaults (whether a change to
+some *other* setting leaves the link alone is decided by `companionChanged`,
+which its own test pins); and both the Edit page and the Companion panel mount
+and work side by side.

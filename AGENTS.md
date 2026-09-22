@@ -515,6 +515,61 @@ property-for-property — and why the directory is a setting. If you are about
 to delete the preview route as redundant, it is the only route on Midra and
 Alta and the only one proven to work on a box.
 
+### Companion, mounted inside us, and the five things that make it honest
+
+A Bitfocus Companion is served at `/__lpp/companion/ui` on our own origin, and a
+PLUS ▸ Companion panel manages the show beside it. The reasoning is in the heads
+of `server/companion.js` and `src/core/companion.js`; these are the parts that
+break quietly if "simplified".
+
+- **The prefix is stripped, not forwarded.** Companion (4.1+) serves under a
+  sub-path by rewriting a `/ROOT_URL_HERE` token according to a
+  `companion-custom-prefix` request header — but its own routes match the
+  *unprefixed* path and its WebSocket server matches `/trpc` exactly. Forward
+  the mounted path verbatim and the socket opens and then says nothing, with no
+  error at either end.
+- **The cross-origin check is moved, never removed.** Companion refuses a
+  cross-origin upgrade to stop Cross-Site WebSocket Hijacking, and a WebSocket
+  gets no CORS preflight, so that check is the only thing between a loopback
+  Companion and any page the operator has open. Mounted under us, Origin is us
+  and Host is Companion, so everything is refused. **Do not overwrite Origin in
+  the relay** — it works, and it hands every page on the internet a laundered
+  route to the operator's Companion. We make the comparison ourselves (Origin
+  must match the Host the browser used to reach us) and only then restate
+  Origin as Companion's own. Verified live: 101 for our page and for no Origin,
+  403 for a forged origin and for a sandboxed iframe's `null`.
+- **`server/ws-client.js` exists because there can be no dependency.** This repo
+  has none, and CI runs Node 20, where there is no global WebSocket. It is the
+  smallest thing RFC 6455 allows; its tests drive it from a server written in
+  the test file so fragmentation, interleaved pings and both extended-length
+  forms can each be produced on purpose.
+- **Listing uses the documented HTTP API; only writes use tRPC.** `GET
+  /api/connections` is the one supported answer here, so a Companion whose
+  internals have moved can still draw the panel. The tRPC
+  `instances.connections.watch` subscription is used as a **doorbell only** —
+  every frame means "re-read", and its deltas are never parsed, because they are
+  a second reader of the same facts in the less stable of the two dialects.
+- **Three Companion behaviours that read as success and are not**, each found
+  against a live 5.0.5: `instances.connections.add` declares `versionId:
+  z.string()` (not nullable) in front of code that accepts null, so a null comes
+  back as a generic "malformed input" naming the procedure rather than the
+  field — a version is resolved first, from `instances.modules.watch`, where
+  modules are keyed `connection:<id>`; `setConfig` **resolves** with a string
+  when it refuses and with null on success; and `makeLabelUnique` renames a
+  colliding "AWJ" to "AWJ 2" on the way in, so the adds happen first, the show is
+  read back, and each connection is configured under the label it actually got.
+
+This link holds a socket open, which `server/awj.js` refuses to do. That
+argument is about the store mirror and does not reach here: nothing in the store
+has heard of a Companion show, the show changes without us, and the five-client
+budget is the switcher's, not Companion's. `server/companion.js` says so at
+length — read it before "fixing" the open socket.
+
+⚠️ **The LivePremier Plus connection has no module to add.** The panel offers
+both AWJ and a `livepremier-plus` Companion module, and the second does not
+exist anywhere yet; the panel reports it as not installed, in a sentence. That is
+the expected answer until someone writes the module.
+
 ## There are two platforms, and the panels now speak both
 
 Read off the simulators' own `webapp-bundle/bundle.json` and confirmed against
