@@ -61,35 +61,47 @@
  *
  * Verified on Companion 5.0.5 rather than taken from the documentation:
  * `<script src="/assets/polyfills-….js">` comes back as
- * `/__lpp/companion/assets/polyfills-….js`, and the bundle's socket helper
- * comes back as ``Wu([`/__lpp/companion`, e])`` so the UI dials
- * `/__lpp/companion/trpc`.
+ * `/__lpp/companion/ui/assets/polyfills-….js`, and the bundle's socket helper
+ * comes back as ``Wu([`/__lpp/companion/ui`, e])`` so the UI dials
+ * `/__lpp/companion/ui/trpc`.
  *
  * **The trap:** Companion's own Express routes match the *unprefixed* path,
  * and its WebSocket server matches the pathname `/trpc` exactly
  * (`isTrpcUpgradeRequest` in its `UI/Handler.ts`). So the prefix must be
  * stripped from the request line before forwarding and announced only in the
- * header. Forwarding `/__lpp/companion/trpc` verbatim gets a socket that
- * hangs with no error anywhere.
+ * header. Forwarding the mounted path verbatim gets a socket that opens and
+ * then says nothing, with no error at either end.
  */
 
 import http from 'node:http';
 import net from 'node:net';
 
 import { WsClient } from './ws-client.js';
-import { originAllowed, parseFrames, request, stopRequest } from '../src/core/companion.js';
+import {
+  addInput, originAllowed, parseFrames, request, stopRequest,
+} from '../src/core/companion.js';
 
-/** The path under the app's namespace that Companion is mounted at. */
-export const MOUNT = '/companion';
+/**
+ * The path under the app's namespace that Companion is mounted at.
+ *
+ * A level deeper than it looks like it needs to be, so that `/__lpp/companion`
+ * itself stays ours. Everything below the mount belongs to Companion and is
+ * forwarded unread — which means the moment this app wants a route of its own
+ * about Companion, it has nowhere to put it unless the mount is a sub-path.
+ * `/state` and `/connections` live beside `/ui`, not underneath it.
+ */
+export const API = '/companion';
+export const MOUNT = API + '/ui';
 
 /**
  * The prefix as Companion wants to be told it, with **no leading slash**.
  *
  * Its `getCustomPrefixHeader` builds `/${header}` itself, and refuses any
  * value containing `://` or `..`. Sending a leading slash produces `//…` in
- * every rewritten URL, which mostly works and occasionally does not.
+ * every rewritten URL, which mostly works and occasionally does not. More
+ * than one segment deep is fine — it is substituted as a string, not walked.
  */
-export const PREFIX_HEADER = '__lpp/companion';
+export const PREFIX_HEADER = `__lpp${MOUNT}`;
 
 /* How long to wait before redialling, and the ceiling.
  *
@@ -292,6 +304,119 @@ export class CompanionLink {
     }
     if (ws) ws.close();
   }
+}
+
+/* ------------------------------------------------------------- the two jobs */
+
+/**
+ * Read the show's connection list.
+ *
+ * Over the **documented** HTTP API rather than the tRPC socket, deliberately.
+ * `GET /api/connections` is published, CORS-enabled and stable across
+ * releases; `instances.connections.watch` returns the same thing over an
+ * interface Companion is free to change between point releases. Listing is
+ * the one thing here that has a supported answer, so it uses it — and a
+ * Companion whose internals have moved can still draw the panel.
+ */
+export function listConnections(target, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    if (!target) return reject(new Error('no Companion configured'));
+    const req = http.request(
+      { host: target.host, port: target.port, path: '/api/connections', method: 'GET' },
+      (res) => {
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          if (res.statusCode !== 200) return reject(new Error(`Companion answered ${res.statusCode}`));
+          try {
+            const parsed = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+            resolve(Array.isArray(parsed) ? parsed : []);
+          } catch (err) {
+            reject(new Error(`Companion's connection list did not parse: ${err.message}`));
+          }
+        });
+      }
+    );
+    req.on('error', (err) => reject(new Error(`could not reach Companion: ${err.message}`)));
+    req.setTimeout(timeoutMs, () => { req.destroy(new Error('Companion did not answer in time')); });
+    req.end();
+  });
+}
+
+/**
+ * Create the connections a plan says are missing, and report what happened.
+ *
+ * Never throws for one module's sake: a show where the AWJ module is present
+ * and ours is not should end up with ours added and a clear note about the
+ * other, rather than with an exception and no way to tell which half ran.
+ *
+ * Config is written only for a connection **we just created**. An adopted one
+ * is somebody else's, possibly pointed at a backup frame on purpose, and this
+ * is not the place to have an opinion about it — `planConnections` says why.
+ */
+export async function addConnections(link, plan, facts, want, target) {
+  const results = [];
+  const wanted = new Set(want && want.length ? want : plan.add.map((a) => a.key));
+
+  /* Add first, configure second, with a read of the show in between.
+   *
+   * Not one pass, because of `makeLabelUnique`: Companion renames a colliding
+   * label on the way in, so a show that already has something called "AWJ"
+   * gets ours as "AWJ 2" — and `setConfig` *requires* a label, so sending the
+   * one we asked for would either rename the wrong thing or be refused as a
+   * duplicate. The only way to know what a connection is actually called is
+   * to look. */
+  for (const { key, spec } of plan.add) {
+    if (!wanted.has(key)) continue;
+    try {
+      const created = await link.call('mutation', 'instances.connections.add', addInput(spec));
+      /* The mutation answers with the new connection's id, as a bare string. */
+      const id = typeof created === 'string' ? created : created?.id;
+      results.push({ key, spec, ok: !!id, id: id ?? null, configured: false, note: id ? null : 'added, but Companion named no id' });
+    } catch (err) {
+      results.push({ key, spec, ok: false, id: null, configured: false, note: err.message });
+    }
+  }
+
+  const added = results.filter((r) => r.ok && r.id);
+  if (added.length) {
+    /* Labels as Companion actually assigned them. A failure to read them back
+       is not a failure of the adds, which have already happened. */
+    let labels = new Map();
+    try {
+      const list = await listConnections(target);
+      labels = new Map(list.map((c) => [c.id, c.label]));
+    } catch (err) {
+      for (const r of added) r.note = `added, but the show could not be re-read to configure it: ${err.message}`;
+    }
+
+    for (const r of added) {
+      const label = labels.get(r.id);
+      if (!label) continue;
+      try {
+        /* ⚠️ `setConfig` does NOT throw on refusal — it *resolves* with a
+           string explaining itself, and resolves with null on success. A
+           truthy answer here is a failure wearing the shape of a result, and
+           treating it as success is how a connection ends up pointed at
+           nothing while the panel says it worked. */
+        const refusal = await link.call('mutation', 'instances.connections.setConfig', {
+          connectionId: r.id,
+          label,
+          config: r.spec.configure(facts),
+        });
+        if (refusal) r.note = `added, but its address was refused: ${refusal}`;
+        else r.configured = true;
+      } catch (err) {
+        /* A connection that exists but is pointed nowhere is still progress,
+           and it is visible in Companion where somebody can finish it. */
+        r.note = `added, but its address could not be set: ${err.message}`;
+      }
+    }
+  }
+
+  /* `spec` was carried through for `configure()` and is not the caller's
+     business — it is a function table, not a result. */
+  return results.map(({ spec: _spec, ...rest }) => rest);
 }
 
 /* ------------------------------------------------------------------ the mount */

@@ -39,8 +39,10 @@ import {
 } from '../src/core/settings.js';
 import { companionChanged } from '../src/core/companion.js';
 import {
-  CompanionLink, MOUNT as COMPANION_MOUNT, proxyToCompanion, relayUpgradeToCompanion,
+  CompanionLink, API as COMPANION_API, MOUNT as COMPANION_MOUNT,
+  addConnections, listConnections, proxyToCompanion, relayUpgradeToCompanion,
 } from './companion.js';
+import { MODULES, planConnections } from '../src/core/companion.js';
 import { exchange as awjExchange } from './awj.js';
 import { importMemories, exportMemories } from './memory-import.js';
 import { createOscServer } from './osc.js';
@@ -294,6 +296,43 @@ export async function createProxy({
   const companion = new CompanionLink(log);
   companion.apply(settings);
 
+  /**
+   * The facts a module needs to be pointed at something: the switcher, and us.
+   *
+   * ## Why our own address comes off the request rather than out of a config
+   *
+   * This process genuinely does not know how it is reachable. It may be bound
+   * to loopback, to one LAN address, or to everything; it may be behind the
+   * launcher, a tunnel, or a container's port mapping. The one address known
+   * to work is **the one the request in hand arrived on**, because a browser
+   * just used it — so that is what is offered.
+   *
+   * That is right rather than merely convenient for the AWJ module too: it
+   * gets pointed at the *switcher*, which this process does know, because the
+   * module talks to the box and not to us.
+   *
+   * ⚠️ **It can still be the wrong answer, and the panel has to say so.** An
+   * operator with the page open on the same machine as this process sends
+   * `Host: 127.0.0.1:8535`, and telling a Companion on another machine to dial
+   * that points it at itself. `selfIsLoopback` is that warning, and it is left
+   * for the panel to phrase rather than being silently fixed up here — there
+   * is no address this process could substitute that it would not be guessing.
+   */
+  function companionFacts(req) {
+    /* `splitDevice` rather than a regex written here: a Host header and a
+       switcher address are the same shape, and this app already has one
+       opinion about what that shape is. It rejects the bracketed IPv6 form,
+       which `validHost` rejects everywhere else too — consistent beats
+       clever, and nothing in this app has ever accepted one. */
+    const self = splitDevice(String(req.headers.host || ''), 80);
+    return {
+      device: state.device || null,
+      selfHost: self ? self.host : null,
+      selfPort: self ? self.port : null,
+      selfIsLoopback: !!self && (self.host === '127.0.0.1' || self.host === 'localhost'),
+    };
+  }
+
   let patch = normalisePatch(
     storage && storage.loadPatch ? await storage.loadPatch(state.device) : []);
 
@@ -402,6 +441,92 @@ export async function createProxy({
     if (rest === COMPANION_MOUNT || rest.startsWith(COMPANION_MOUNT + '/')) {
       const below = rest.slice(COMPANION_MOUNT.length) || '/';
       return proxyToCompanion(req, res, below + (url.search || ''), companion.target, log);
+    }
+
+    /*
+     * What this app knows about that Companion, which is not the same as what
+     * Companion knows about itself.
+     *
+     * The connection list comes from Companion's **documented** HTTP API
+     * rather than from the tRPC socket — see `listConnections`. The plan on
+     * top of it is entirely ours, and it is the part that decides what this
+     * app is willing to do to a show it did not create.
+     */
+    if (rest === COMPANION_API + '/state') {
+      if (req.method !== 'GET') return sendJson(res, 405, { error: 'method not allowed' });
+
+      const body = {
+        link: companion.state,
+        /* The three stored fields, so the address form has something to draw
+           without a second round trip to `/settings` — and so that what the
+           form shows and what the link is using cannot disagree. */
+        settings: {
+          companionEnabled: settings.companionEnabled,
+          companionHost: settings.companionHost,
+          companionPort: settings.companionPort,
+        },
+        /* The address our own module should be pointed at, so the panel can
+           show it before anybody commits to it. `null` when this process
+           cannot work out how it is reachable — see `selfAddress`. */
+        facts: companionFacts(req),
+        modules: Object.fromEntries(
+          Object.entries(MODULES).map(([k, m]) => [k, { moduleId: m.moduleId, label: m.label, what: m.what }])),
+        connections: null,
+        plan: null,
+        error: null,
+      };
+      if (!companion.target) return sendJson(res, 200, body);
+
+      try {
+        body.connections = await listConnections(companion.target);
+        body.plan = planConnections(body.connections);
+      } catch (err) {
+        body.error = err.message;
+      }
+      return sendJson(res, 200, body);
+    }
+
+    /*
+     * Put the two connections in the show.
+     *
+     * A POST rather than a PUT: this creates, and it is emphatically not
+     * idempotent in the "make it look like this" sense — a second call adds
+     * nothing, because the plan is recomputed from what is actually there
+     * first. That recomputation is the whole safety property, so it happens
+     * HERE and not from whatever the panel last drew: a show can have gained
+     * a connection since the panel loaded.
+     */
+    if (rest === COMPANION_API + '/connections') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' });
+      if (!companion.target) return sendJson(res, 409, { error: 'no Companion configured' });
+      if (!companion.state.connected) return sendJson(res, 409, { error: 'not connected to Companion' });
+
+      const raw = await collect(req, 4096);
+      let parsed = {};
+      if (raw.length) {
+        try { parsed = JSON.parse(raw.toString('utf8')); }
+        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+      }
+      const want = Array.isArray(parsed.keys) ? parsed.keys.filter((k) => k in MODULES) : null;
+
+      let connections;
+      try { connections = await listConnections(companion.target); }
+      catch (err) { return sendJson(res, 502, { error: err.message }); }
+
+      const plan = planConnections(connections);
+      const results = await addConnections(
+        companion, plan, companionFacts(req), want, companion.target);
+
+      /* Read back rather than reporting what we meant to do. */
+      let after = connections;
+      try { after = await listConnections(companion.target); } catch { /* the adds still happened */ }
+
+      return sendJson(res, 200, {
+        ok: results.every((r) => r.ok),
+        results,
+        connections: after,
+        plan: planConnections(after),
+      });
     }
 
     if (rest === '/timecode') {

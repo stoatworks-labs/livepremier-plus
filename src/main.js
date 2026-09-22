@@ -18,6 +18,7 @@ import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
 import { createVpuPanel } from './ui/vpu-panel.js';
 import { createMatrixPanel } from './ui/matrix-panel.js';
+import { createCompanionPanel } from './ui/companion-panel.js';
 import { createPitchPanel } from './ui/pitch-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
 import { installMathFields } from './ui/math-fields.js';
@@ -280,6 +281,7 @@ async function boot() {
 
   const vpu = createVpuPanel({ session, platform, onRefresh: refresh });
   const matrix = createMatrixPanel({ session, onRefresh: refresh });
+  const companion = createCompanionPanel({ onRefresh: refresh });
   const timeline = createTimelinePanel({ session, stack, storage, timecode, chase, onRefresh: refresh });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
   const pitch = createPitchPanel({ session, onRefresh: refresh });
@@ -441,6 +443,21 @@ async function boot() {
          the only panel here that reads something other than the store — an
          external router is not in the store and never will be. */
       { id: 'matrix', label: 'Matrix Routing', icon: ['connector-gpio-18', 'gpio-18'], enabled: () => can('matrixRouting'), render: () => matrix.render() },
+      /*
+       * Companion sits in PLUS rather than beside MIDI Mapping, and the call
+       * was close enough to be worth writing down. MIDI is anchored to the
+       * vendor's Virtual RC400T because both are control surfaces, and a
+       * Companion is a control surface too — by that argument this belongs
+       * there.
+       *
+       * Two things beat it. An anchored entry needs its vendor item to exist,
+       * and Virtual RC400T is not on every platform, so anchoring would make
+       * this quietly absent on a Midra 4K — which has just as much use for a
+       * Companion. And half of this panel is not a surface at all: it is what
+       * is in the show and what this app would add to it, which is a whole-rig
+       * configuration view of exactly the kind the rest of this section holds.
+       */
+      { id: 'companion', label: 'Companion', icon: ['gpio-18', 'connector-gpio-18'], render: () => companion.render() },
       /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
          remote-panel page, because both are about control surfaces. */
       { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', render: () => midi.render() },
