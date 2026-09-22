@@ -82,6 +82,9 @@ export function createCompanionPanel({ onRefresh }) {
      whole web app booting behind a panel nobody had opened yet. */
   let view = null;
 
+  /* The live subscription, opened once the panel has been looked at. */
+  let stream = null;
+
   async function load() {
     try {
       const res = await fetch(`${API}/state`, { cache: 'no-store' });
@@ -92,6 +95,36 @@ export function createCompanionPanel({ onRefresh }) {
       error = `Could not reach the launcher: ${err.message}`;
     }
     onRefresh && onRefresh();
+  }
+
+  /**
+   * Follow the show rather than sampling it.
+   *
+   * The same argument `ui/matrix-panel.js` makes about a router, and here it
+   * is sharper: Companion's own Connections page is embedded a few lines
+   * below, so the most likely way for this list to change is the operator
+   * changing it inside our own iframe. A panel that only refreshed when it
+   * was opened would contradict the page sitting underneath it.
+   *
+   * EventSource reconnects by itself, so a launcher restart heals without
+   * anybody reloading Web RCS.
+   */
+  function listen() {
+    if (stream) return;
+    try {
+      stream = new EventSource(`${API}/stream`);
+      stream.addEventListener('show', (ev) => {
+        try {
+          const next = JSON.parse(ev.data);
+          if (!data) return;
+          data = { ...data, connections: next.connections, plan: next.plan, link: next.link };
+          /* A write that has just reported itself is not stale news, but the
+             show it reported on has moved since — so the results stay and the
+             list under them updates. */
+          onRefresh && onRefresh();
+        } catch { /* a malformed frame is not worth taking the panel down */ }
+      });
+    } catch { /* no EventSource: the panel still works, just not live */ }
   }
 
   async function saveAddress(next) {
@@ -365,6 +398,10 @@ export function createCompanionPanel({ onRefresh }) {
 
   function render() {
     if (!data && !error) load();
+    /* Opened once, on the first look. Not at module load: a subscription to
+       a Companion nobody has asked about yet is a socket held open for a
+       panel that may never be opened this show. */
+    listen();
 
     return panel({
       toolbar: sectionTitle('Companion',

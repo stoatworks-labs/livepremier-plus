@@ -75,6 +75,7 @@
 
 import http from 'node:http';
 import net from 'node:net';
+import { EventEmitter } from 'node:events';
 
 import { WsClient } from './ws-client.js';
 import {
@@ -122,15 +123,18 @@ const CALL_TIMEOUT_MS = 10000;
  * the same reason: settings are saved as a whole, so a change to the OSC port
  * must not drop a Companion link that did not change.
  */
-export class CompanionLink {
+export class CompanionLink extends EventEmitter {
   /** @param {(msg: string) => void} log */
   constructor(log = () => {}) {
+    super();
     this.log = log;
     this.config = { companionEnabled: false, companionHost: '', companionPort: 0 };
     this.ws = null;
     this.retry = null;
     this.retryMs = RETRY_MIN_MS;
     this.nextId = 0;
+    /** Cancels the show subscription; null while there is no socket. */
+    this.unwatch = null;
     /** id -> {resolve, reject, timer, subscription, onValue} */
     this.pending = new Map();
 
@@ -188,6 +192,25 @@ export class CompanionLink {
       this.call('query', 'appInfo.version')
         .then((info) => { this.state.version = info?.appVersion ?? null; })
         .catch(() => { /* reported by the call itself */ });
+
+      /*
+       * Watch the show, and use it only as a doorbell.
+       *
+       * The frames this yields are an init followed by deltas in a shape that
+       * is Companion's to change — and this app has already decided that the
+       * *truth* about the connection list comes from the documented HTTP API
+       * (see `listConnections`). Parsing the deltas as well would be a second
+       * reader of the same facts, in the less stable of the two dialects, for
+       * no gain.
+       *
+       * So every frame means only "something moved", and whoever cares
+       * re-reads. That matters because the show genuinely changes without us:
+       * the operator has Companion's own Connections page embedded in the
+       * panel, two clicks away from adding one.
+       */
+      this.unwatch = this.subscribe('instances.connections.watch', undefined, () => {
+        this.emit('showChanged');
+      });
     });
 
     ws.on('message', (text) => this.#onMessage(text));
@@ -200,6 +223,9 @@ export class CompanionLink {
     ws.on('close', () => {
       if (this.ws !== ws) return;             /* superseded by a newer dial */
       this.ws = null;
+      /* The subscription died with the socket; forget it so the next dial
+         does not stack a second one on top. */
+      this.unwatch = null;
       this.state.connected = false;
       this.state.version = null;
       /* Everything in flight is now never going to answer. Failing them is
@@ -295,6 +321,7 @@ export class CompanionLink {
     if (this.retry) { clearTimeout(this.retry); this.retry = null; }
     const ws = this.ws;
     this.ws = null;
+    this.unwatch = null;
     this.state.connected = false;
     this.state.version = null;
     for (const [id, entry] of this.pending) {

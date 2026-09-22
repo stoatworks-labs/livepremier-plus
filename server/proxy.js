@@ -296,6 +296,32 @@ export async function createProxy({
   const companion = new CompanionLink(log);
   companion.apply(settings);
 
+  /*
+   * Pages watching the Companion show.
+   *
+   * Exactly the arrangement the matrices use, and for the reason
+   * `server/matrix/index.js` gives: a panel that only updated when you
+   * touched it would be a panel that was right when it was opened. This one
+   * has the sharpest version of that problem — Companion's own Connections
+   * page is embedded in the panel, so the most likely way for the show to
+   * change is the operator changing it two clicks away, inside our own
+   * iframe.
+   */
+  const companionListeners = new Set();
+  companion.on('showChanged', () => {
+    if (!companionListeners.size) return;
+    /* Re-read over the documented API rather than forwarding whatever the
+       subscription said — the link uses that only as a doorbell. */
+    listConnections(companion.target).then((connections) => {
+      const line = `event: show\ndata: ${JSON.stringify({
+        connections, plan: planConnections(connections), link: companion.state,
+      })}\n\n`;
+      for (const listener of companionListeners) {
+        try { listener.write(line); } catch { companionListeners.delete(listener); }
+      }
+    }).catch(() => { /* the next change will try again */ });
+  });
+
   /**
    * The facts a module needs to be pointed at something: the switcher, and us.
    *
@@ -484,6 +510,19 @@ export async function createProxy({
         body.error = err.message;
       }
       return sendJson(res, 200, body);
+    }
+
+    if (rest === COMPANION_API + '/stream') {
+      res.writeHead(200, {
+        'content-type': 'text/event-stream',
+        'cache-control': 'no-store',
+        connection: 'keep-alive',
+        'x-accel-buffering': 'no'
+      });
+      res.write(': companion stream open\n\n');
+      companionListeners.add(res);
+      req.on('close', () => companionListeners.delete(res));
+      return undefined;   /* held open deliberately */
     }
 
     /*
@@ -1305,6 +1344,8 @@ export async function createProxy({
     /* And the Companion link, which holds both a socket and a redial timer
        for exactly the reasons the matrices do. */
     companion.stop();
+    for (const listener of companionListeners) { try { listener.end(); } catch { /* gone */ } }
+    companionListeners.clear();
   };
 
   return server;
