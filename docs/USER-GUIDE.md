@@ -394,6 +394,24 @@ another operator. A Videohub answers a route it will not make with an acknowledg
 unchanged crosspoints, so a panel that showed your request back to you would look right and be
 wrong — during exactly the minute that matters.
 
+### On the input and output pages
+
+You do not have to leave the socket you are working on. **Inputs ▸ an input** and **Outputs ▸ an
+output** carry a **Router** tab beside Signal, Aspect and the rest, and **Preconfig ▸ Inputs /
+Outputs** shows a **Router** box under the selected card's own boxes.
+
+Each says which router port the cable is on — and if it is not patched yet, patch it right there —
+then shows the router's ports twice: as a **grid of tiles** and as a **list** with the router's own
+port names.
+
+- **An input** picks one source. Click a tile or a row and it routes at once.
+- **An output** picks any number of destinations. Clicking builds a selection (a dashed outline),
+  and **Route** sends it. A solid blue tile is one the router already has on this output; the list
+  shows what every other destination is showing now, which is what a route there would replace.
+
+> ⚠️ **In Preconfig this is live, not part of Apply.** The route goes to the router straight away;
+> Apply only concerns the switcher.
+
 ### From a cue, the Console and OSC
 
 A cue can carry a matrix route beside its recalls and takes. It goes out ahead of the take, so the

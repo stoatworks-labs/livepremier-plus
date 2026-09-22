@@ -84,7 +84,7 @@ or from the command line with Node 20. It works on a **LivePremier** and — for
 the Timeline, Console, Memories, Layer and Pitch Compensation — on a **Midra 4K
 or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 
-> **Status: field testing — v0.11.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.12.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -199,6 +199,15 @@ or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.12.0 (2026-09-22).** **Router routing on the vendor's own pages.** A
+> **Router** tab on Inputs ▸ an input and Outputs ▸ an output, and a **Router**
+> box in Preconfig ▸ Inputs / Outputs. Each shows which router port the cable
+> is on (patchable in place) and the router's ports as a grid of tiles and as a
+> list: an input picks one source and routes on the click, an output picks any
+> number of destinations and sends them on **Route**. Nothing lights until the
+> router reports it. Proven against the simulator and a Videohub emulator — not
+> yet against a real router.
 >
 > **0.11.0 (2026-09-22).** **Companion**, served inside this app. A Bitfocus
 > Companion's admin pages, web buttons and emulator open on the same address as
