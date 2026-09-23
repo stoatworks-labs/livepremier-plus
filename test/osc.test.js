@@ -633,6 +633,24 @@ test('every HyperDeck command has a dictionary entry the parser accepts', () => 
   }
 });
 
+/*
+ * docs/OSC.md rule 2 holds for the plugins' subtrees too: a surface sends 1 on
+ * press and 0 on release, and one press of `next` must not skip two clips.
+ */
+test('a HyperDeck trigger ignores its release; a value argument is still a value', () => {
+  for (const e of HYPERDECK_OSC.filter((x) => x.command !== 'clip')) {
+    const address = e.address.replace('{deck}', 'all');
+    assert.equal(parseDeckOsc(address, [0]).released, true, `${e.address} 0`);
+    assert.equal(parseDeckOsc(address, [false]).released, true, `${e.address} false`);
+    assert.equal(parseDeckOsc(address, []).released, undefined, `${e.address} with no argument fires`);
+  }
+  assert.equal(parseDeckOsc('/hyperdeck/1/next', ['0']).released, true, 'mynah reads "0" as a release');
+  assert.equal(parseDeckOsc('/hyperdeck/1/next', [1]).released, undefined);
+  assert.equal(parseDeckOsc('/hyperdeck/1/play', [1]).step.loop, true, '1 still loops');
+  assert.equal(parseDeckOsc('/hyperdeck/1/clip', [0]).released, undefined, 'a clip number is a value');
+  assert.equal(parseDeckOsc('/hyperdeck/1/record', ['0']).step.name, '0', 'a record name "0" is a name');
+});
+
 test('plugin entries are in the dictionary shape, under their own prefix', () => {
   for (const { prefix, entries } of PLUGIN_OSC) {
     assert.ok(entries.length > 0, prefix);

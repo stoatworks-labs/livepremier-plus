@@ -181,6 +181,8 @@ export default async function activate(ctx) {
     async handle(address, args) {
       const parsed = parseDeckOsc(address, args);
       if (parsed.error) return { ok: false, error: parsed.error };
+      // A release is logged, not counted as a failure — mynah's own wording.
+      if (parsed.released) return { ok: true, summary: `${address} — released, nothing sent`, count: 0 };
       const { ref, step } = parsed;
       const r = await run(ref, [step]);
       return r.ok ? { ok: true, summary: `${ref} ${step.command}`, count: r.results.length } : { ok: false, error: r.error };

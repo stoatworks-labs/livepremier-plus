@@ -138,6 +138,11 @@ Like every contributed cue action, these run as the cue fires, before its take.
 `/hyperdeck/<deck>/<command> [argument]`, over UDP and typed at the Console alike —
 [docs/OSC.md](OSC.md#hyperdecks) lists them.
 
+Every command but `clip` is a trigger and keeps the switcher's rule 2: a `0` (or `false`)
+argument is a button's release and is logged as *released, nothing sent*, so one press of
+`next` cues one clip, not two. `clip`'s number is a value; so is a `record` name, which is why
+only a typed `0`, never the string `"0"`, is a release there.
+
 ## Proving it on your own deck
 
 Once per deck model and firmware, before a show:

@@ -296,6 +296,13 @@ test('the plugin saves decks, commands one by name, and answers OSC', async (t) 
   const stopped = await osc.handle('/hyperdeck/1/stop', []);
   assert.equal(stopped.ok, true);
   assert.equal(sim.state.status, 'stopped');
+  await osc.handle('/hyperdeck/1/play', []);
+  assert.ok(await until(() => sim.state.status === 'play'));
+  const released = await osc.handle('/hyperdeck/1/stop', [0]);
+  assert.deepEqual(released, { ok: true, summary: '/hyperdeck/1/stop — released, nothing sent', count: 0 });
+  assert.equal(sim.state.status, 'play', 'the release of a stop button stops nothing');
+  await osc.handle('/hyperdeck/1/stop', [1]);
+  assert.ok(await until(() => sim.state.status === 'stopped'));
   const refused = await osc.handle('/hyperdeck/nobody/play', []);
   assert.equal(refused.ok, false);
 

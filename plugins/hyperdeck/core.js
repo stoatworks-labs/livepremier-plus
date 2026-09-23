@@ -155,7 +155,7 @@ export function resolveDecks(decks, ref) {
  * step for `run()`. The handler and the test share this, so the dictionary
  * below is checked against what the handler actually accepts.
  *
- * @returns {{ref: string, step: object}|{error: string}}
+ * @returns {{ref: string, step: object, released?: true}|{error: string}}
  */
 export function parseDeckOsc(address, args) {
   const m = /^\/hyperdeck\/([^/]+)\/([a-z]+)$/i.exec(String(address ?? ''));
@@ -164,6 +164,17 @@ export function parseDeckOsc(address, args) {
   const command = word.toLowerCase();
   const arg = args && args.length ? args[0] : undefined;
   const step = { command };
+  /*
+   * docs/OSC.md rule 2: a surface sends 1 on press and 0 on release, and the
+   * release must do nothing — or one press of `next` skips two clips. Read
+   * exactly as mynah's `trigger()` reads it. `clip` is exempt, its argument
+   * is a value; so is a *name* for `record`, which is why only a typed 0 or
+   * false counts as a release there, never the string "0".
+   */
+  const released = command === 'clip' ? false
+    : command === 'record' ? arg === 0 || arg === false
+    : arg === 0 || arg === false || arg === '0' || arg === 'false';
+  if (released) return { ref: decodeURIComponent(ref), step, released: true };
   if (command === 'clip') step.clip = Number(arg);
   if (command === 'record' && arg != null) step.name = String(arg);
   if (command === 'play' && arg != null && Number(arg) === 1) step.loop = true;
