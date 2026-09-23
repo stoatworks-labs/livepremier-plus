@@ -14,7 +14,7 @@ and read [Adding your own](#adding-your-own) below.
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
 | 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to and the Edit page | **done** |
-| 3 | [Contribution points and services](#extending-each-other), then the entangled features: the Timeline and Timecode (**done**), OSC input, Matrix Routing and the setup file | in progress |
+| 3 | [Contribution points and services](#extending-each-other), then the entangled features: the Timeline, Timecode and OSC input (**done**), Matrix Routing and the setup file | in progress |
 | 4 | **User plugins** loaded from the data directory; this guide; an example plugin | **done** — ahead of phase 3, on the phase-1 API |
 
 ## Switching features on and off
@@ -41,7 +41,7 @@ of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to, the Edit page, the Timeline and Timecode.
+A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to, the Edit page, the Timeline, Timecode and OSC input.
 
 ```
 plugins/companion/
@@ -176,7 +176,7 @@ Its **schema** — `export const settings` from the server half — says what is
   namespace. They are lifted into the namespace wherever they appear — an old `settings.json`, an old
   setup file, a caller still sending the old shape — and a lifted value wins, because it can only be
   there because it is newer. Companion's three fields were the first; the Edit page's
-  `memoryImportDir` followed.
+  `memoryImportDir` and OSC input's `oscEnabled`, `oscPort` and `oscBind` followed.
 
 A switch never wipes a plugin's settings, and saving its settings never flips its switch: a
 settings save is merged one level deeper for `plugins`. A plugin that is not installed keeps its
@@ -230,8 +230,8 @@ The rules, each one there to stop a plugin quietly taking something over:
   `oscAddress` made from a page half, each saying which file it belongs in.
 - **Switching a plugin off takes its contributions with it**, the same moment its routes go.
 
-What is answered on an install, and by whom, is at `GET /__lpp/osc/addresses`; the Console reads it,
-and sends a line in one of those subtrees to `POST /__lpp/osc/run` so a typed line and a UDP packet
+What is answered on an install, and by whom, is at `GET /__lpp/addresses`; the Console reads it,
+and sends a line in one of those subtrees to `POST /__lpp/addresses/run` so a typed line and a UDP packet
 take the same path.
 
 ### Services
@@ -379,6 +379,9 @@ Added in Phase 3, for the same review:
 12. **A plugin's own windows get the whole object; everybody else gets a service.** `ctx.share` is
     for a popout of the same plugin — the Timeline's cue editor needs the stack itself — so the
     narrow `stack` service did not have to grow an editing API to serve one window.
+13. **The Console's path to plugins' addresses is the app's own, at `/__lpp/addresses`.** It was
+    `/__lpp/osc/…` until OSC input became a plugin with `/__lpp/osc` as its base: under it, switching
+    the UDP listener off would have cut the Console off from Matrix Routing too.
 
 Still open, and decided in the phase that needs them: a section in the one-file setup for a
 plugin's documents (the setup file still reads the built-ins' files directly); and how a

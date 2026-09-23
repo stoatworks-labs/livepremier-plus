@@ -35,14 +35,13 @@ import { readFile } from 'node:fs/promises';
 import { join, extname, normalize } from 'node:path';
 
 import {
-  normalise as normaliseSettings, DEFAULT_SETTINGS, oscChanged,
+  normalise as normaliseSettings, DEFAULT_SETTINGS,
   liftLegacy, mergeSettings,
 } from '../src/core/settings.js';
 import { API_VERSION, isEnabled as pluginOn, routeOwner } from '../src/core/plugins.js';
 import { createPluginHost } from './plugin-host.js';
 import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
-import { createOscServer } from './osc.js';
 import { loopbackRedirect } from './local-client.js';
 import { MatrixSupervisor } from './matrix/index.js';
 import {
@@ -230,50 +229,6 @@ export async function createProxy({
    */
   const on = (id) => pluginOn(settings.plugins, id);
 
-  /* Ring buffer of what the OSC listener has heard, so a console opened after
-     a message arrived can still show it. Small on purpose — this is a tail for
-     debugging a sender, not a log. */
-  const OSC_HISTORY = 100;
-  const oscHistory = [];
-  const oscListeners = new Set();
-  let osc = null;
-
-  function noteOsc(entry) {
-    oscHistory.unshift(entry);
-    if (oscHistory.length > OSC_HISTORY) oscHistory.length = OSC_HISTORY;
-    const line = `event: osc\ndata: ${JSON.stringify(entry)}\n\n`;
-    for (const listener of oscListeners) {
-      try { listener.write(line); } catch { oscListeners.delete(listener); }
-    }
-  }
-
-  /**
-   * Bring the OSC listener into line with the settings.
-   *
-   * Always stops first, even when only the port changed: rebinding a UDP
-   * socket that is still open fails with EADDRINUSE against *itself*, which
-   * reads as somebody else holding the port and sends whoever is debugging it
-   * a long way in the wrong direction.
-   */
-  async function applyOsc() {
-    if (osc) { await osc.stop(); osc = null; }
-    if (!settings.oscEnabled || !on('osc-input')) return;
-    osc = createOscServer({
-      port: settings.oscPort,
-      address: settings.oscBind,
-      /* Read per message, not captured — re-pointing at a backup frame must
-         re-point the OSC input too, and an input still driving the old box
-         would be the worst possible version of that feature. */
-      deviceHost: () => (target ? target.host : null),
-      /* The address subtrees plugins answer — Matrix Routing's `/lp/matrix/`
-         among them. Read per message for the same reason `deviceHost` is: a
-         plugin can be switched on or off under a listener that is bound. */
-      addresses: () => host.contributions('oscAddress'),
-      onActivity: noteOsc,
-      log,
-    });
-    await osc.start();
-  }
   /*
    * The external routers, and the cable schedule to them.
    *
@@ -363,7 +318,6 @@ export async function createProxy({
     }
   }, 'matrix-routing');
 
-  await applyOsc();
 
   /* The hosted plugins, started after the app's own services so that anything
      a plugin asks of the app is already there to answer. A user plugin's
@@ -416,7 +370,7 @@ export async function createProxy({
      */
     if (rest === '/settings') {
       if (req.method === 'GET') {
-        return sendJson(res, 200, { settings, osc: osc ? osc.state : null });
+        return sendJson(res, 200, { settings });
       }
       if (req.method === 'PUT' || req.method === 'POST') {
         const body = await collect(req, 16 * 1024);
@@ -432,22 +386,19 @@ export async function createProxy({
            plugin's on the way in. See `core/settings.js`. */
         const patch = liftLegacy(parsed.settings ?? parsed, host.schemas);
         const next = normaliseSettings(mergeSettings(settings, patch), host.schemas);
-        /* Diffed for the same reason the matrices are: settings are saved as
-           a whole, so a change to the console language must not rebind an OSC
-           socket nobody touched. The hosted plugins are diffed by the host,
-           each by its own schema. */
-        const needsRebind = oscChanged(settings, next);
+        /* The hosted plugins are diffed by the host, each by its own schema —
+           settings are saved as a whole, so a change to the console language
+           must not rebind the OSC listener's socket. */
         const needsPlugins = JSON.stringify(switches(settings.plugins)) !== JSON.stringify(switches(next.plugins));
         settings = next;
         if (storage && storage.saveSettings) await storage.saveSettings(settings);
-        if (needsRebind || needsPlugins) await applyOsc();
         if (needsPlugins) applyMatrices();
         await host.sync(settings);
         /* A user plugin switched on just now has only now brought its schema:
            fill its defaults in, so the page is sent what the plugin reads. */
         settings = normaliseSettings(settings, host.schemas);
 
-        return sendJson(res, 200, { ok: true, settings, osc: osc ? osc.state : null });
+        return sendJson(res, 200, { ok: true, settings });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
     }
@@ -504,14 +455,14 @@ export async function createProxy({
      * command that works from QLab and not from the Console — which is a
      * miserable thing to debug on a show. The app's own; nobody switches it off.
      */
-    if (rest === '/osc/addresses') {
+    if (rest === '/addresses') {
       return sendJson(res, 200, {
         addresses: host.contributions('oscAddress').map((c) => ({
           prefix: c.prefix, describe: c.describe || '', owner: c.owner
         }))
       });
     }
-    if (rest === '/osc/run') {
+    if (rest === '/addresses/run') {
       if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' });
       const body = await collect(req, 16 * 1024);
       let parsed;
@@ -528,29 +479,11 @@ export async function createProxy({
       return sendJson(res, answer.ok ? 200 : 409, { ...answer, owner: owner.owner });
     }
 
-    /* What the OSC listener has heard. The tail first, then a live stream, so
-       a console opened after a message arrived still shows it. */
-    if (rest === '/osc/stream') {
-      res.writeHead(200, {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-store',
-        connection: 'keep-alive',
-        'x-accel-buffering': 'no'
-      });
-      res.write(': osc stream open\n\n');
-      for (const entry of [...oscHistory].reverse()) {
-        res.write(`event: osc\ndata: ${JSON.stringify(entry)}\n\n`);
-      }
-      oscListeners.add(res);
-      req.on('close', () => oscListeners.delete(res));
-      return undefined;   /* held open deliberately */
-    }
-
 
     if (rest === '/status') {
       return sendJson(res, 200, {
         ...state, ok: true, configured: !!target,
-        settings, osc: osc ? osc.state : null,
+        settings,
         matrices: matrices.describe()
       });
     }
@@ -1008,15 +941,6 @@ export async function createProxy({
 
   server.closeRelays = () => {
     hangUpVendorRelays();
-
-    /* The UDP socket is invisible to `server.close()` for the same reason an
-       upgraded socket is — it was never the HTTP server's to begin with. A
-       bound datagram socket keeps the event loop alive, so leaving it open
-       here would hang the launcher's Stop button exactly as an un-hung-up
-       relay does. Fire-and-forget: teardown must not wait on it. */
-    if (osc) { const closing = osc; osc = null; void closing.stop(); }
-    for (const listener of oscListeners) { try { listener.end(); } catch { /* gone */ } }
-    oscListeners.clear();
 
     /* Every matrix socket is invisible to `server.close()` for exactly the
        same reason, and each one holds a reconnect timer that would go on

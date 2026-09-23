@@ -109,7 +109,7 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
   /** Which subtrees the plugins answer. Asked once; switching a plugin applies on reload. */
   async function loadAddresses() {
     try {
-      const res = await fetch('/__lpp/osc/addresses', { cache: 'no-store' });
+      const res = await fetch('/__lpp/addresses', { cache: 'no-store' });
       if (res.ok) state.addresses = (await res.json()).addresses || [];
     } catch { /* without the list, every line is mynah's — as it always was */ }
   }
@@ -361,7 +361,7 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
     onRefresh();
 
     try {
-      const res = await fetch('/__lpp/osc/run', {
+      const res = await fetch('/__lpp/addresses/run', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ address, args })

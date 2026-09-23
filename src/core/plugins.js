@@ -172,7 +172,13 @@ export const BUILTINS = [
     id: 'osc-input',
     name: 'OSC input',
     where: 'Settings',
-    description: 'QLab, TouchOSC or a lighting desk driving the switcher over UDP, with no browser open.'
+    description: 'QLab, TouchOSC or a lighting desk driving the switcher over UDP, with no browser open.',
+    /* `/__lpp/osc/stream`, where the listener's tail always was. The app's
+       own `/__lpp/addresses` is not under it, so switching OSC input off
+       leaves the Console's path to plugins' addresses alone. */
+    routeBase: '/osc',
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'midi',
@@ -337,7 +343,6 @@ export const isEnabled = builtins.isEnabled;
  */
 const ROUTES = [
   ['/matrix', 'matrix-routing'],
-  ['/osc/stream', 'osc-input'],
   ['/config', 'setup-file'],
   ...BUILTINS.filter((p) => p.hosted).map((p) => [routeBase(p), p.id])
 ].sort((a, b) => b[0].length - a[0].length);
@@ -358,7 +363,7 @@ export function routeOwner(rest) {
  * switched off. Every built-in's id and route base is reserved too.
  */
 const CORE_SEGMENTS = [
-  'awj', 'config', 'console', 'demo', 'device', 'groups', 'layer-names', 'matrix',
+  'addresses', 'awj', 'config', 'console', 'demo', 'device', 'groups', 'layer-names', 'matrix',
   'memory', 'memories', 'osc', 'plugins', 'properties', 'settings', 'src', 'stack',
   'status', 'timecode', 'timeline'
 ];

@@ -17,9 +17,10 @@
  * ## Most of it is still a readout, and the rest is real
  *
  * Device identity, firmware, where each panel lives, whether the session is
- * up — all read. Two groups are genuinely settings and are written through
- * `PUT /__lpp/settings`: how the console reads a typed line, and whether this
- * process is listening for OSC. Anything still on the roadmap is listed by
+ * up — all read. The app's own settings are written through
+ * `PUT /__lpp/settings` — how the console reads a typed line, above all — and
+ * each plugin draws its own card below them (OSC input's, the Edit page's,
+ * Timecode's). Anything still on the roadmap is listed by
  * name and plainly marked as not yet arrived, because a toggle that silently
  * fails is worse than a row that says what it is waiting for.
  *
@@ -39,9 +40,8 @@ import { readIdentity } from '../core/identity.js';
 import { detectPlatform, CAPABILITIES } from '../core/platform.js';
 import { BUILTINS, status as pluginStatus, isSwitchedOn } from '../core/plugins.js';
 import {
-  AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES, OSC_BIND_CHOICES
+  AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES
 } from '../core/settings.js';
-import { OSC_ROOT } from '../vendor/mynah-lang.mjs';
 import { insecureContextAdvice } from '../core/secure-context.js';
 
 /*
@@ -85,7 +85,6 @@ export function createSettingsPanel({
        is honest — they are what is in force when nothing has been chosen — and
        it avoids a page that flickers between empty and populated. */
     settings: { ...DEFAULT_SETTINGS },
-    osc: null,
     saveError: null,
     saving: false,
     /* The server's own list of plugins, by id — see `loadPlugins`. */
@@ -100,7 +99,6 @@ export function createSettingsPanel({
       if (!res.ok) throw new Error('HTTP ' + res.status);
       state.status = await res.json();
       if (state.status.settings) state.settings = state.status.settings;
-      state.osc = state.status.osc || null;
     } catch (err) {
       state.statusError = err.message;
     }
@@ -148,7 +146,6 @@ export function createSettingsPanel({
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'HTTP ' + res.status);
       state.settings = body.settings;
-      state.osc = body.osc || null;
       window.dispatchEvent(new CustomEvent('lpp:settings', { detail: state.settings }));
     } catch (err) {
       state.saveError = err.message;
@@ -417,86 +414,6 @@ export function createSettingsPanel({
       ...notes);
   }
 
-  /* ------------------------------------------------------------------ OSC */
-
-  /**
-   * The OSC listener.
-   *
-   * The only setting on this page that opens a port, which is why it is off by
-   * default, binds loopback unless told otherwise, and says in as many words
-   * what the other option means. This fires takes on a video switcher.
-   */
-  function oscSection() {
-    const on = state.settings.oscEnabled;
-    const live = state.osc;
-
-    const toggle = h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { cursor: 'pointer' } },
-      h('input', {
-        type: 'checkbox',
-        checked: on ? 'checked' : null,
-        disabled: state.saving ? 'disabled' : null,
-        onChange: (ev) => put({ oscEnabled: ev.target.checked })
-      }),
-      h('span', { class: 'aw-font-body-1', text: 'Listen for OSC' }));
-
-    const port = h('div', { class: 'aw-flex-col aw-gap-row-mini' },
-      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'UDP port' }),
-      h('input', {
-        class: 'wru-input', type: 'text', value: String(state.settings.oscPort),
-        style: { maxWidth: '7rem' },
-        disabled: state.saving ? 'disabled' : null,
-        /* Committed on blur and on Enter, not per keystroke: rebinding a UDP
-           socket on the way from 8000 to 9000 would bind 900 first. */
-        onBlur: (ev) => commitPort(ev.target.value),
-        onKeyDown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); } }
-      }));
-
-    const rows = live
-      ? h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
-        readout('State', live.listening ? `listening on ${live.address}:${live.port}` : 'not listening',
-          { tone: live.listening ? null : 'tertiary' }),
-        readout('Received', String(live.received)),
-        readout('Writes sent', String(live.sent)),
-        readout('Refused', String(live.failed), { tone: live.failed ? null : 'tertiary' }),
-        /* Which platform the addresses are spelled for. The listener asks
-           the switcher on the first packet; until then it has not decided. */
-        readout('Spelled for', live.platform || 'asked on the first message',
-          { tone: live.platform ? null : 'tertiary' }))
-      : null;
-
-    const notes = [];
-    if (live && live.lastError) notes.push(note('warn', live.lastError));
-    if (on) {
-      notes.push(note('info',
-        `Addresses start ${OSC_ROOT}/ — the full dictionary is in docs/OSC.md. `
-        + 'Messages are written to the switcher over AWJ on TCP 10606, which works with no '
-        + 'browser open; that port can be switched off in the Web RCS security settings.'));
-      notes.push(note('info',
-        'preview and program are refused here and answered only in the console: naming a '
-        + 'buffer needs the device’s take state, which this process does not hold. Address a '
-        + 'buffer directly — /a, /b or /c.'));
-    }
-
-    return card('OSC input',
-      h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' },
-        toggle, port,
-        picker('Accept from', OSC_BIND_CHOICES, state.settings.oscBind, (v) => put({ oscBind: v }))),
-      rows, ...notes);
-  }
-
-  function commitPort(raw) {
-    const n = Number(raw);
-    if (!Number.isInteger(n) || n <= 1024 || n >= 65536) {
-      /* Refused rather than clamped, and the field is repainted with what is
-         actually in force — a silently corrected port is one an operator will
-         spend an hour sending to. */
-      state.saveError = `${raw} is not a usable port — pick something above 1024`;
-      return onRefresh();
-    }
-    if (n === state.settings.oscPort) return;
-    void put({ oscPort: n });
-  }
-
   /* -------------------------------------------------------------- planned */
 
   function plannedSection() {
@@ -547,7 +464,6 @@ export function createSettingsPanel({
       deviceSection(),
       compatibilitySection(),
       consoleSection(),
-      shown('osc-input') ? oscSection() : null,
       pluginCards(),
       proxySection(),
       pluginSection(),

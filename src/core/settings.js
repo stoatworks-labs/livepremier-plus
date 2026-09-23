@@ -92,11 +92,6 @@ export const DEFAULT_SETTINGS = {
   /* The transport that works everywhere and spends no AWJ client slot.
      Someone who wants the wire-truthful one is being deliberate. */
   awjTransport: 'store',
-  /* Off. An open UDP port that fires takes on a switcher is not something to
-     turn on for somebody. */
-  oscEnabled: false,
-  oscPort: 8000,
-  oscBind: '127.0.0.1',
   /* Which features are switched on, and each plugin's own settings, as
      `{ id: { enabled, settings } }`. Empty means every built-in at its
      default, which is on — see `core/plugins.js`. */
@@ -196,16 +191,34 @@ export function normalise(raw, schemas = {}) {
     plugins[id] = { ...entry, settings: schema.normalise(entry.settings || {}) };
   }
 
-  const port = Number(input.oscPort);
   return {
     consoleLanguage: pick(input.consoleLanguage, LANGUAGE_CHOICES, DEFAULT_SETTINGS.consoleLanguage),
     awjTransport: pick(input.awjTransport, AWJ_TRANSPORTS, DEFAULT_SETTINGS.awjTransport),
+    plugins,
+  };
+}
+
+/**
+ * The OSC input plugin's settings. They were top-level settings until OSC
+ * input was a plugin; its schema lifts them from there.
+ */
+export const OSC_DEFAULTS = Object.freeze({
+  /* Off. An open UDP port that fires takes on a switcher is not something to
+     turn on for somebody. */
+  oscEnabled: false,
+  oscPort: 8000,
+  oscBind: '127.0.0.1'
+});
+
+export function normaliseOsc(raw) {
+  const input = isPlainObject(raw) ? raw : {};
+  const port = Number(input.oscPort);
+  return {
     oscEnabled: input.oscEnabled === true,
     /* Above 1024 so it never needs privilege to bind, which would be a
        surprising thing for this app to ask for. */
-    oscPort: Number.isInteger(port) && port > 1024 && port < 65536 ? port : DEFAULT_SETTINGS.oscPort,
-    oscBind: pick(input.oscBind, OSC_BIND_CHOICES, DEFAULT_SETTINGS.oscBind),
-    plugins,
+    oscPort: Number.isInteger(port) && port > 1024 && port < 65536 ? port : OSC_DEFAULTS.oscPort,
+    oscBind: ids(OSC_BIND_CHOICES).includes(input.oscBind) ? input.oscBind : OSC_DEFAULTS.oscBind
   };
 }
 

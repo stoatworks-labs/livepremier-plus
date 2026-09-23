@@ -147,6 +147,12 @@ export function decode(buf) {
  * @param {(entry: object) => void} [opts.onActivity]  every message and what
  *   became of it, for the console log
  * @param {(msg: string) => void} [opts.log]
+ * @param {(messages: object[]) => Promise<object[]>} [opts.awj]  one AWJ
+ *   exchange — the OSC input plugin hands its own `ctx.awj`, which knows how
+ *   the app reaches the switcher. Without one, a connection is opened to
+ *   `deviceHost()` on the AWJ port, which is what the tests do. `deviceHost`
+ *   is still asked either way: it says whether there is a switcher at all, and
+ *   which one the platform was learned from.
  * @param {() => Array<{prefix: string, handle: Function}>} [opts.addresses]
  *   the address subtrees plugins answer — `oscAddress` contributions, see
  *   `src/core/contributions.js`. Read per message, so a plugin switched on or
@@ -163,7 +169,9 @@ export function createOscServer({
   /* The device's AWJ port. Fixed by the vendor; overridable so a test can
      stand a fake device up on an ephemeral port. */
   awjPort = AWJ_PORT,
+  awj = null,
 }) {
+  const talk = (host, messages) => (awj ? awj(messages) : exchange({ host, port: awjPort, messages }));
   const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
   const state = {
     listening: false, port, address, received: 0, sent: 0, failed: 0, lastError: null,
@@ -192,11 +200,7 @@ export function createOscServer({
   };
   async function platformFor(host) {
     if (known.host === host && known.platform) return known.platform;
-    const replies = await exchange({
-      host,
-      port: awjPort,
-      messages: [{ op: 'get', path: IDENTITY.nlc }, { op: 'get', path: IDENTITY.mng }]
-    });
+    const replies = await talk(host, [{ op: 'get', path: IDENTITY.nlc }, { op: 'get', path: IDENTITY.mng }]);
     /* A path the device has answers with that path echoed and a value; one it
        does not have answers with an empty path and null. Matching on the
        echoed path is what makes this a fact about the device rather than a
@@ -339,11 +343,7 @@ export function createOscServer({
     }
 
     try {
-      await exchange({
-        host,
-        port: awjPort,
-        messages: resolved.ops.map((op) => ({ op: 'replace', path: op.path.toAwj(), value: op.value })),
-      });
+      await talk(host, resolved.ops.map((op) => ({ op: 'replace', path: op.path.toAwj(), value: op.value })));
       state.sent += resolved.ops.length;
       note({
         from,

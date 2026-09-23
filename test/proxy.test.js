@@ -851,20 +851,21 @@ test('pointing the app at another switcher leaves the plugins and the OSC listen
     const probe = dgram.createSocket('udp4');
     probe.bind(0, '127.0.0.1', () => { const p = probe.address().port; probe.close(() => resolve(p)); });
   });
+  /* The shape settings had before OSC input was a plugin — lifted into it. */
   let saved = { oscEnabled: true, oscPort: free };
   const storage = { loadSettings: async () => saved, saveSettings: async (s) => { saved = s; } };
   const proxy = await createProxy({ device: `127.0.0.1:${portA}`, root: ROOT, storage, log: () => {} });
   const port = await listen(proxy);
   const base = `http://127.0.0.1:${port}`;
   try {
-    assert.equal((await (await fetch(base + '/__lpp/settings')).json()).osc.listening, true);
+    assert.equal((await (await fetch(base + '/__lpp/osc/state')).json()).listening, true);
 
     await fetch(`${base}${NS}/device`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ device: `127.0.0.1:${portB}` })
     });
 
-    assert.equal((await (await fetch(base + '/__lpp/settings')).json()).osc.listening, true, 'OSC still listening');
+    assert.equal((await (await fetch(base + '/__lpp/osc/state')).json()).listening, true, 'OSC still listening');
     const { plugins } = await (await fetch(base + '/__lpp/plugins')).json();
     assert.equal(plugins.find((p) => p.id === 'companion').on, true, 'Companion still running');
     assert.equal((await fetch(base + '/__lpp/companion/state')).status, 200);
@@ -965,12 +966,12 @@ test('the Console’s path to a plugin’s addresses: listed, run, and gone when
   let saved = {};
   const storage = { loadSettings: async () => saved, saveSettings: async (s) => { saved = s; } };
   await withProxy({ storage }, async ({ base }) => {
-    const { addresses } = await (await fetch(base + '/__lpp/osc/addresses')).json();
+    const { addresses } = await (await fetch(base + '/__lpp/addresses')).json();
     assert.deepEqual(addresses.map((a) => [a.prefix, a.owner]), [['/lp/matrix/', 'matrix-routing']]);
 
     /* Matrix Routing's own answer, through the same path a UDP message takes:
        with nothing patched, a route is refused with the reason. */
-    const refused = await fetch(base + '/__lpp/osc/run', {
+    const refused = await fetch(base + '/__lpp/addresses/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: '/lp/matrix/input/1/source', args: [3] })
     });
@@ -980,7 +981,7 @@ test('the Console’s path to a plugin’s addresses: listed, run, and gone when
     assert.equal(why.owner, 'matrix-routing');
     assert.ok(why.error);
 
-    const nobody = await fetch(base + '/__lpp/osc/run', {
+    const nobody = await fetch(base + '/__lpp/addresses/run', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ address: '/nobody/here', args: [] })
     });
@@ -990,7 +991,7 @@ test('the Console’s path to a plugin’s addresses: listed, run, and gone when
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plugins: { 'matrix-routing': { enabled: false } } })
     });
-    const after = await (await fetch(base + '/__lpp/osc/addresses')).json();
+    const after = await (await fetch(base + '/__lpp/addresses')).json();
     assert.deepEqual(after.addresses, [], 'switched off, its addresses are nobody’s');
   });
 });

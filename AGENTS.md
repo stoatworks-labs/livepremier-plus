@@ -70,7 +70,8 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
   plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
   Compensation**, the **Pixelhue panel**, the **Console**, **Memories**, **MIDI
   Mapping**, **Field arithmetic**, **Layer**, **Layer names**, **Layer Groups**,
-  **Send to**, the **Edit page**, the **Timeline** and **Timecode** so far; a
+  **Send to**, the **Edit page**, the **Timeline**, **Timecode** and **OSC input**
+  so far; a
   built-in may import `src/` directly, and shared engines and components stay
   in `src/` where every plugin can reach them (`core/vpu.js`, `ui/stage.js`,
   `ui/properties-panel.js` — the Layer tab and the Edit page both draw it —

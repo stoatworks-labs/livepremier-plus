@@ -459,7 +459,7 @@ A plugin written elsewhere may not answer anything under `/lp/` — that is
 the switcher's address space, and a plugin that could answer `/lp/screen/…`
 could quietly take it over — and no two plugins may overlap. What is
 answered on a given install, and by whom, is at
-`GET /__lpp/osc/addresses`.
+`GET /__lpp/addresses`.
 ---
 
 ## How a message reaches the switcher

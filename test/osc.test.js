@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { decode, createOscServer } from '../server/osc.js';
 import { exchange } from '../server/awj.js';
 import { PARAMS, PROVENANCE, paramsFor } from '../src/core/osc-dictionary.js';
-import { normalise, DEFAULT_SETTINGS, oscChanged } from '../src/core/settings.js';
+import { normalise, DEFAULT_SETTINGS, normaliseOsc, OSC_DEFAULTS, oscChanged } from '../src/core/settings.js';
 import { oscDictionary, resolveOsc, run, MIDRA } from '../src/vendor/mynah-lang.mjs';
 import { generate } from '../tools/gen-osc-docs.mjs';
 
@@ -381,6 +381,39 @@ test('a switcher that names its platform gets Midra addresses', async () => {
   }
 });
 
+test('given an exchange, the listener talks through it and opens nothing of its own', async () => {
+  /* How the OSC input plugin runs it: with `ctx.awj`, which knows how the app
+     reaches the switcher. Everything the listener says to the device goes
+     through the function handed in, and nothing else is dialled. */
+  const said = [];
+  const awj = async (messages) => {
+    said.push(...messages);
+    return messages.map((m) => (m.op === 'get' && m.path.endsWith('$device/@items/1/@props/dev')
+      ? { path: m.path, value: 'NLC_C' }
+      : { path: m.op === 'get' ? '' : m.path, value: null }));
+  };
+  const entries = [];
+  let resolveDone;
+  const done = new Promise((r) => { resolveDone = r; });
+  const osc = createOscServer({
+    port: 0, address: '127.0.0.1',
+    deviceHost: () => 'switcher.example:80',
+    awj,
+    onActivity: (e) => { entries.push(e); resolveDone(e); }
+  });
+  await osc.start();
+  try {
+    const client = dgram.createSocket('udp4');
+    await new Promise((r) => client.send(omsg('/lp/screen/1/take', 'i', oint(1)), osc.state.port, '127.0.0.1', () => { client.close(); r(); }));
+    await Promise.race([done, new Promise((_, rej) => setTimeout(() => rej(new Error('nothing heard')), 3000))]);
+    assert.equal(entries[0].error, undefined, entries[0].error);
+    assert.equal(osc.state.platform, 'LivePremier');
+    assert.ok(said.some((m) => m.op === 'replace' && m.path.endsWith('xTake')), 'the take went through the exchange');
+  } finally {
+    await osc.stop();
+  }
+});
+
 test('a switcher with a device list gets LivePremier addresses', async () => {
   const device = await fakeAwj({
     answers: (path) => (path.endsWith('$device/@items/1/@props/dev') ? 'NLC_C' : undefined),
@@ -445,23 +478,26 @@ test('the listener stops cleanly, so nothing keeps the process alive', async () 
 /* ============================================================== settings == */
 
 test('a settings file a person has edited is coerced, not rejected', () => {
-  const s = normalise({ consoleLanguage: 'klingon', awjTransport: 'carrier pigeon', oscPort: 'yes' });
+  const s = normalise({ consoleLanguage: 'klingon', awjTransport: 'carrier pigeon' });
   assert.deepEqual(s, DEFAULT_SETTINGS);
+  assert.deepEqual(normaliseOsc({ oscPort: 'yes', oscEnabled: 'please' }), OSC_DEFAULTS);
 });
 
+/* The OSC input plugin's settings — `plugins/osc-input/server.js` reads them
+   through these, and lifts them from the top level where an older file has them. */
 test('the OSC port must be one that needs no privilege', () => {
-  assert.equal(normalise({ oscPort: 80 }).oscPort, DEFAULT_SETTINGS.oscPort);
-  assert.equal(normalise({ oscPort: 70000 }).oscPort, DEFAULT_SETTINGS.oscPort);
-  assert.equal(normalise({ oscPort: 9000 }).oscPort, 9000);
+  assert.equal(normaliseOsc({ oscPort: 80 }).oscPort, OSC_DEFAULTS.oscPort);
+  assert.equal(normaliseOsc({ oscPort: 70000 }).oscPort, OSC_DEFAULTS.oscPort);
+  assert.equal(normaliseOsc({ oscPort: 9000 }).oscPort, 9000);
 });
 
 test('the bind address is a closed list, because one option opens a port to the network', () => {
-  assert.equal(normalise({ oscBind: '192.168.1.5' }).oscBind, '127.0.0.1');
-  assert.equal(normalise({ oscBind: '0.0.0.0' }).oscBind, '0.0.0.0');
+  assert.equal(normaliseOsc({ oscBind: '192.168.1.5' }).oscBind, '127.0.0.1');
+  assert.equal(normaliseOsc({ oscBind: '0.0.0.0' }).oscBind, '0.0.0.0');
 });
 
 test('only the OSC fields ask for a rebind', () => {
-  const base = { ...DEFAULT_SETTINGS };
+  const base = { ...OSC_DEFAULTS, consoleLanguage: 'all' };
   assert.equal(oscChanged(base, { ...base, consoleLanguage: 'osc' }), false);
   assert.equal(oscChanged(base, { ...base, oscPort: 9000 }), true);
   assert.equal(oscChanged(base, { ...base, oscEnabled: true }), true);
