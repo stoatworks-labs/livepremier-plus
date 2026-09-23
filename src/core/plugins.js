@@ -163,6 +163,15 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'hyperdeck',
+    name: 'HyperDecks',
+    where: 'Sidebar, under PLUS',
+    description: 'Play, cue and record HyperDecks and decks that emulate one, such as Mitti — with rules that play a deck when it goes on air and take when its clip ends.',
+    requires: { capabilities: [] },
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'pitch',
     name: 'Pitch Compensation',
     where: 'Preconfig flyout',

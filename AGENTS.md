@@ -340,6 +340,25 @@ input 1 and the first input card depending on the field. `core/connectors.js`
 absorbs it; nothing above it should learn it. `slot` repeats within a card, so
 (card, slot) is never an identity — `physical` is.
 
+### HyperDecks (`plugins/hyperdeck/`) — never met a real deck
+
+Blackmagic HyperDecks and anything that answers their TCP 9993 protocol; Mitti is the reference,
+both as a deck (its HyperDeck emulation: plays, never records — a *profile*, not a special case)
+and as the rule set (its ATEM integration: play on program; pause, rewind or next when taken off;
+take or cut at a clip's end). `docs/HYPERDECK.md` is the design and the proving procedure.
+
+- **The rules run in the page, not the server**, because the page has the store and the server
+  must not grow a mirror. One page holds a lease (`POST /__lpp/hyperdeck/runner`, the Pixelhue
+  panel's pattern); a page that takes the lease primes `prev` and acts only on later changes, so a
+  reload never plays a deck already on air. Do not "fix" this by subscribing on the server
+  without beating `awj.js`'s argument in writing.
+- **On air includes the arriving buffer while a transition is unsettled** (`airState` in
+  `core.js`), so a deck rolls as the take starts.
+- **A clip end is inferred**: the transport stopping by itself, or the clip id moving on while
+  playing — unless we sent a stop or goto in the last 1.5 s (`lastOurs` in `link.js`). The lead
+  time is the page's, off the streamed countdown; both paths fire once per `run`.
+- `tools/hyperdeck-sim.mjs` is the only deck anything here has spoken to.
+
 ### A Pixelhue console (`plugins/pixelhue/`) — **preview**
 
 A U-series event controller driving the switcher. The whole subsystem turns on

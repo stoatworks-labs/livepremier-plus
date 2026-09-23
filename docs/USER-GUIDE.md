@@ -24,6 +24,9 @@ as a bolt-on.
 - **Matrix Routing** — patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
   Videohub, a Lightware or a Turtle AV router, and route through it from the panel, a cue, the
   Console or OSC.
+- **HyperDecks** — Blackmagic HyperDecks, and Mitti through its HyperDeck control, played, cued
+  and recorded from the panel, a cue or OSC; linked to the input they feed, with rules that play a
+  deck when it goes on air, load its next clip when it comes off, and take when its clip ends.
 - **Companion** — a Bitfocus Companion linked to this app: its buttons drawn and pressable here,
   a Companion trigger on cues and memory recalls, its own editor on the same address as Web RCS,
   and a panel that knows which switcher you are on and offers to add the connections that belong
@@ -468,6 +471,39 @@ describes that frame's own sockets.
 > The Lightware and Turtle AV drivers are written from their vendors' protocol documents and
 > **have never spoken to the hardware at all**. `docs/MATRIX.md` gives a short procedure for
 > proving each on your own kit before a show.
+
+---
+
+## HyperDecks
+
+**PLUS ▸ HyperDecks.** Blackmagic HyperDecks — and anything that answers their protocol, Mitti
+included — played, cued and recorded from the switcher's own UI, and made to follow the show.
+
+1. **Add a deck** at the foot of the panel: a name, its address, port 9993, its kind (HyperDeck,
+   Mitti, or other) and its role (player, recorder or both). For Mitti, switch HyperDeck control
+   on in Mitti's own preferences first.
+2. Open **Settings and rules** on its card and pick the input it **plays into** — the plug on
+   the back of the frame its output is cabled to. A recorder can name the output that **feeds**
+   it.
+3. Its card now shows what the deck is doing — clip, elapsed, remaining, **ON AIR** / **PVW** —
+   and drives it: Prev, Top, Play, Stop, Next, a clip to cue, and Record on a recorder. **Record
+   all** and **Stop recorders** are in the toolbar.
+4. Tick **Follow the switcher** and choose what happens when its input is put on program (play),
+   put in preview (rewind), taken off (pause, rewind or load the next clip), and when a clip ends
+   (take or cut the screens it is on air on, optionally a few seconds early so the mix lands on
+   the last frame). Tick screens to narrow it; none means all.
+
+> **The rules run in an open page.** One page at a time runs them — the panel says which — and a
+> page that starts running them acts only on what changes after, so opening one never plays a
+> deck that is already on air. With no Web RCS page open, the buttons, cues and OSC still work,
+> but nothing follows the switcher.
+
+In a cue, the **HyperDeck** field takes `VT 1 clip 3; VT 1 play; recorders record Act 1`. Over OSC,
+`/hyperdeck/<deck>/play` and the rest — docs/OSC.md.
+
+> ⚠️ **Written from Blackmagic's published protocol and proven against an emulation of it — not
+> yet against a real HyperDeck or Mitti.** `docs/HYPERDECK.md` has a short procedure for proving
+> it on your own deck before a show.
 
 ---
 

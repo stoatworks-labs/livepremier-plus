@@ -1097,7 +1097,8 @@ test('the Console’s path to a plugin’s addresses: listed, run, and gone when
   const storage = { loadSettings: async () => saved, saveSettings: async (s) => { saved = s; } };
   await withProxy({ storage }, async ({ base }) => {
     const { addresses } = await (await fetch(base + '/__lpp/addresses')).json();
-    assert.deepEqual(addresses.map((a) => [a.prefix, a.owner]), [['/lp/matrix/', 'matrix-routing']]);
+    assert.deepEqual(addresses.map((a) => [a.prefix, a.owner]),
+      [['/lp/matrix/', 'matrix-routing'], ['/hyperdeck/', 'hyperdeck']]);
 
     /* Matrix Routing's own answer, through the same path a UDP message takes:
        with nothing patched, a route is refused with the reason. */
@@ -1122,6 +1123,6 @@ test('the Console’s path to a plugin’s addresses: listed, run, and gone when
       body: JSON.stringify({ plugins: { 'matrix-routing': { enabled: false } } })
     });
     const after = await (await fetch(base + '/__lpp/addresses')).json();
-    assert.deepEqual(after.addresses, [], 'switched off, its addresses are nobody’s');
+    assert.deepEqual(after.addresses.map((a) => a.owner), ['hyperdeck'], 'switched off, its addresses are nobody’s');
   });
 });

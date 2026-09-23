@@ -49,6 +49,11 @@ rather than as a bolt-on:
   Blackmagic Videohub, a Lightware or a Turtle AV router, and route through it
   from the panel, a cue, the Console or OSC. You describe the cable; the
   direction inverts on its own.
+- **HyperDecks** — Blackmagic HyperDecks, and Mitti through its HyperDeck
+  control, played, cued and recorded from a panel, a cue or OSC. Link a deck to
+  the input it feeds and it can follow the show the way Mitti follows an ATEM:
+  play when put on air, load the next clip when taken off, and take when its
+  clip ends — a set number of seconds early, so the mix lands on the last frame.
 - **Companion** — a Bitfocus Companion linked to this app: its pages of buttons
   drawn in the app's own look, live and pressable, and poppable onto a second
   monitor; a **Companion trigger** on any cue and on any memory recall, so the

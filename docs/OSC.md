@@ -446,6 +446,26 @@ choosing a different source for it, and there is no answer to which.
 
 ---
 
+## HyperDecks
+
+The HyperDecks plugin's addresses — [HYPERDECK.md](HYPERDECK.md). `<deck>` is a deck's name
+(lower case, spaces as `-`), its id, its 1-based position in the list, or `all`, `players` or
+`recorders`.
+
+| Address | Argument | Does |
+|---|---|---|
+| `/hyperdeck/<deck>/play` | `1` to loop (optional) | Play |
+| `/hyperdeck/<deck>/stop` | — | Stop (a recorder stops recording) |
+| `/hyperdeck/<deck>/record` | clip name (optional) | Record — refused on a deck that cannot |
+| `/hyperdeck/<deck>/clip` | clip number | Cue that clip |
+| `/hyperdeck/<deck>/next` · `/prev` | — | Cue the next or previous clip |
+| `/hyperdeck/<deck>/rewind` | — | Back to the start of the clip |
+
+A group is sent only what each member can do: `/hyperdeck/all/record` starts the recorders and
+leaves the players alone.
+
+---
+
 ## Addresses a plugin adds
 
 A plugin may answer a subtree of addresses of its own — the
