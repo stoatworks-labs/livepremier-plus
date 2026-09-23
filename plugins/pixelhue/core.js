@@ -55,7 +55,9 @@ export const AREA = Object.freeze({
 /**
  * The commands a console reports. Read out of Unico's own
  * `pages/editor1/common/enum.ts` and confirmed against a live UCenter for the
- * ones marked ✓ — the rest are the vendor's own numbering, unexercised.
+ * ones marked ✓ — the rest are the vendor's own numbering, unexercised. The
+ * names are the vendor's too: pixelhue-re's press inspector checks every one
+ * against PixelFlow's source maps and flags any that drift.
  */
 export const COMMAND = Object.freeze({
   deviceSelect: 0,
@@ -76,10 +78,10 @@ export const COMMAND = Object.freeze({
   inputSwitch: 300,         // ✓
   savePreset: 400,          // ✓ — SAVE TO armed, then a preset key
   playPreset: 401,          // ✓
-  timeAdd: 509,             // ✓ TIME
+  layerEffectTimeAdd: 509,  // ✓ TIME
   screenFreeze: 517,        // ✓
   screenFTB: 518,           // ✓
-  presetSaveMode: 520,      // ✓ SAVE TO arms / disarms
+  presetSave: 520,          // ✓ SAVE TO arms / disarms
   switchDel: 521,           // ✓ DEL arms / disarms
   matchPGM: 529,            // ✓
   pgmEdit: 530,             // ✓

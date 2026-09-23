@@ -388,7 +388,7 @@ export class PixelhueSupervisor extends EventEmitter {
     const intent = readIntent(report);
     const code = report && report.command;
     if (!intent) {
-      this.#note({ kind: 'ignored', command: commandName(code) });
+      this.#note({ kind: 'ignored', command: commandName(code), code });
       return;
     }
 
@@ -396,6 +396,7 @@ export class PixelhueSupervisor extends EventEmitter {
       this.#note({
         kind: 'noted',
         command: commandName(code),
+        code,
         note: `refused — ${intent.destination || 'that screen'} is not one this app published`,
       });
       return;
@@ -411,7 +412,7 @@ export class PixelhueSupervisor extends EventEmitter {
          and named, so the new memory shows on the bus. */
       const slot = this.#facts && this.#facts.freeSlots && this.#facts.freeSlots[0];
       if (!slot) {
-        this.#note({ kind: 'noted', command: commandName(code), note: `refused — no free memory slot in 1–${MEMORIES}` });
+        this.#note({ kind: 'noted', command: commandName(code), code, note: `refused — no free memory slot in 1–${MEMORIES}` });
         return;
       }
       action = { ...intent, slot, label: `Memory ${slot}` };
@@ -425,7 +426,7 @@ export class PixelhueSupervisor extends EventEmitter {
       if (intent.kind === 'ftb' && this.#dialect) faded = await this.#fadedFor(this.selection.list);
       if (intent.kind === 'freeze' && this.#dialect) freeze = await this.#freezeFor(this.selection.list);
     } catch (err) {
-      this.#note({ kind: 'error', command: commandName(code), error: err.message });
+      this.#note({ kind: 'error', command: commandName(code), code, error: err.message });
       return;
     }
 
@@ -441,22 +442,22 @@ export class PixelhueSupervisor extends EventEmitter {
     });
 
     if (!writes.length) {
-      this.#note({ kind: 'noted', command: commandName(code), note });
+      this.#note({ kind: 'noted', command: commandName(code), code, note });
       if (selectionMoved) void this.#republish();
       return;
     }
 
     const host = this.deviceHost();
-    if (!host) { this.#note({ kind: 'error', command: commandName(code), error: 'no switcher configured' }); return; }
+    if (!host) { this.#note({ kind: 'error', command: commandName(code), code, error: 'no switcher configured' }); return; }
     try {
       await exchange({
         host,
         port: this.awjPort,
         messages: writes.map((w) => ({ op: 'replace', path: toAwj(w.path), value: w.value })),
       });
-      this.#note({ kind: 'sent', command: commandName(code), note, writes: writes.length });
+      this.#note({ kind: 'sent', command: commandName(code), code, note, writes: writes.length, sent: sentDetail(writes) });
     } catch (err) {
-      this.#note({ kind: 'error', command: commandName(code), error: err.message });
+      this.#note({ kind: 'error', command: commandName(code), code, error: err.message });
     }
     /* A new memory, or an FTB / freeze lamp, is device state the model has to
        be read again for; a selection change only needs the model re-sent. */
@@ -516,6 +517,7 @@ export class PixelhueSupervisor extends EventEmitter {
     });
     try {
       if (writes.length) {
+        stroke.lastSent = sentDetail(writes);
         await exchange({
           host: this.deviceHost(),
           port: this.awjPort,
@@ -527,7 +529,9 @@ export class PixelhueSupervisor extends EventEmitter {
     }
     stroke.busy = false;
     if (progress >= 1) {
-      this.#note({ kind: 'sent', command: 'tbar', note: `T-bar completed on ${stroke.ids.join(' ')}` });
+      this.#note({
+        kind: 'sent', command: 'tbar', note: `T-bar completed on ${stroke.ids.join(' ')}`, sent: stroke.lastSent || [],
+      });
       this.#endStroke();
       return;
     }
@@ -623,6 +627,15 @@ export class PixelhueSupervisor extends EventEmitter {
  * same identifier means screen 1 of `screenList` keyed plain `1`. Asking the
  * dialect rather than spelling either is the whole point of `core/dialect.js`.
  */
+/**
+ * What went to the switcher, spelled as AWJ paths, for the history. The
+ * settings card shows only the note; this is for anyone checking what a key
+ * really did — pixelhue-re's press inspector reads it off `/state`.
+ */
+function sentDetail(writes) {
+  return writes.map((w) => ({ path: toAwj(w.path), value: w.value }));
+}
+
 /* Intents after which the model must be read again, not just re-sent. */
 const REREAD = new Set(['store', 'ftb', 'freeze']);
 
