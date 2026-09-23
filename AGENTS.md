@@ -899,6 +899,20 @@ no benefit. Read `wru` as "the panels".
   then `Shell.refresh` / `TabHost.refresh` leave it mounted. Anything with state
   in its DOM — an iframe above all, which reloads when detached — must use this:
   build the frame once, refill the parts that change.
+- **The operator's place survives every repaint — `ui/keep-focus.js`.** Panels
+  are immediate-mode and repaint on every switcher frame, about once a second,
+  so every swap of a panel's DOM (`Shell.refresh`, `TabHost.refresh`, the
+  pop-outs' `repaint`) notes the focused field first and gives the caret,
+  selection and typed text back to its counterpart after; an open `<select>`
+  holds the swap instead, since a replaced dropdown closes. Measured
+  2026-09-23: before it, every text field and dropdown in the Edit page,
+  Memories, Matrix Routing, Pitch, Companion, Timeline and Layer was replaced
+  within 2.6 s of being focused. "Counterpart" is the field's `data-lpp-key`
+  if it has one, else its shape and position — give a field in a list whose
+  rows can move under the caret a key. Do not add another per-panel "busy
+  while focused" flag for this; and never focus a field on every render, the
+  way the Console used to — it stole the caret from the vendor's own fields
+  once a second.
 - **Take the stream marker before fetching the snapshot**, not after. See
   `core/session.js` and [docs/TRANSPORT.md](docs/TRANSPORT.md). Getting this
   backwards makes the mirror quietly stale in a way nothing reports.

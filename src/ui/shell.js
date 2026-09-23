@@ -25,6 +25,7 @@
 
 import { h, icon } from './dom.js';
 import { installStyles } from './theme.js';
+import { captureFocus, restoreFocus, trackDropdowns } from './keep-focus.js';
 
 /*
  * The sidebar, in both of Analog Way's spellings.
@@ -112,6 +113,7 @@ export class Shell {
 
   start() {
     installStyles();
+    trackDropdowns();
     this._mount();
     /* React re-renders the sidebar on navigation; put it back when it does.
        Both placements are checked — an anchored entry can be lost on its own
@@ -402,20 +404,27 @@ export class Shell {
    * back would reload anything stateful inside it — an iframe above all, which
    * reloads the moment it is detached. The Companion panel embeds one, and
    * before this rule its editor reloaded on every frame the switcher sent.
+   *
+   * Either way the operator keeps their place: the field with the caret gets
+   * it back, and an open dropdown holds the redraw off — see `keep-focus.js`.
    */
   refresh() {
     if (this.active == null) return;
     const entry = this.entries.find((e) => e.id === this.active);
     const overlay = document.getElementById('wru-overlay');
     if (!entry || !overlay) return;
+    const place = captureFocus(overlay);
+    if (place && place.hold) return;
     const scroll = overlay.querySelector('.wru-body');
     const top = scroll ? scroll.scrollTop : 0;
     const next = entry.render();
-    if (overlay.children.length === 1 && overlay.children[0] === next) return;
-    overlay.textContent = '';
-    overlay.append(next);
-    const again = overlay.querySelector('.wru-body');
-    if (again) again.scrollTop = top;
+    if (!(overlay.children.length === 1 && overlay.children[0] === next)) {
+      overlay.textContent = '';
+      overlay.append(next);
+      const again = overlay.querySelector('.wru-body');
+      if (again) again.scrollTop = top;
+    }
+    restoreFocus(overlay, place);
   }
 
   _syncNav() {

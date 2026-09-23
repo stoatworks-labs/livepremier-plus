@@ -42,6 +42,7 @@
 
 import { h, button } from './dom.js';
 import { installStyles } from './theme.js';
+import { repaint, trackDropdowns } from './keep-focus.js';
 import { createConsolePanel } from './console-panel.js';
 import { createPreviewWall } from './preview.js';
 import { createSyntaxPanel, createMacroPanel } from './syntax-panel.js';
@@ -194,6 +195,7 @@ function buildSolo(doc, bridge, create) {
   const { session } = bridge;
   const host = h('div', { class: 'lpp-popout lpp-solo' });
   doc.body.append(host);
+  trackDropdowns(doc);
 
   /* No Pop out button in here — this is where it pops out to. */
   const view = create({ session, onRefresh: () => paint(), popoutEnabled: false, doc });
@@ -206,8 +208,8 @@ function buildSolo(doc, bridge, create) {
      */
     const scroller = host.querySelector('.wru-body');
     const top = scroller ? scroller.scrollTop : 0;
-    host.textContent = '';
-    host.append(view.render());
+    /* And the caret is the operator's too — see `keep-focus.js`. */
+    if (!repaint(host, () => view.render())) return;
     const again = host.querySelector('.wru-body');
     if (again) again.scrollTop = top;
   }
@@ -281,24 +283,21 @@ function buildConsole(doc, bridge) {
     consoleHost);
 
   doc.body.append(root);
+  trackDropdowns(doc);
 
   /* --------------------------------------------------------------- paint */
 
   function paintWall() {
-    wallControls.textContent = '';
-    wallControls.append(wall.controls());
+    repaint(wallControls, () => wall.controls());
     /* Scroll position is the operator's, not ours — the device store is
        chatty and a repaint that jumped the wall back to the top mid-show
-       would be its own bug. */
+       would be its own bug. The caret is theirs too; see `keep-focus.js`. */
     const top = wallBody.scrollTop;
-    wallBody.textContent = '';
-    wallBody.append(wall.render());
-    wallBody.scrollTop = top;
+    if (repaint(wallBody, () => wall.render())) wallBody.scrollTop = top;
   }
 
   function paintConsole() {
-    consoleHost.textContent = '';
-    consoleHost.append(consolePanel.render());
+    repaint(consoleHost, () => consolePanel.render());
   }
 
   function paintSide() {
@@ -310,9 +309,8 @@ function buildConsole(doc, bridge) {
         onClick: () => { activeTab = tab.id; paintSide(); }
       }, tab.label));
     }
-    sideBody.textContent = '';
     const tab = tabs.find((t) => t.id === activeTab) || tabs[0];
-    sideBody.append(tab.panel.render());
+    repaint(sideBody, () => tab.panel.render());
   }
 
   paintWall();

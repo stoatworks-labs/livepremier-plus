@@ -27,6 +27,7 @@
  */
 
 import { h, icon } from './dom.js';
+import { captureFocus, restoreFocus, trackDropdowns } from './keep-focus.js';
 
 /* The strip is Semantic UI's `ui tabular menu`. Structure is the fallback:
    a menu holding anchors that each carry a label and switch a pane. */
@@ -83,6 +84,7 @@ export class TabHost {
   }
 
   start() {
+    trackDropdowns();
     this._mount();
     this._observer = new MutationObserver(() => {
       /* Cheap guard: only look properly when our tabs are absent — and only
@@ -378,15 +380,21 @@ export class TabHost {
     if (this.active == null || !this._pane || !this._pane.isConnected) return;
     const tab = this.tabs.find((t) => t.id === this.active);
     if (!tab) return;
+    /* The operator keeps their place — the same rule, and the same reason,
+       as `Shell.refresh`; see `keep-focus.js`. */
+    const place = captureFocus(this._pane);
+    if (place && place.hold) return;
     const scroll = this._pane.querySelector('.wru-body');
     const top = scroll ? scroll.scrollTop : 0;
     const next = tab.render();
     /* Redrawn in place — the same rule, and the same reason, as `Shell.refresh`. */
-    if (this._pane.children.length === 1 && this._pane.children[0] === next) return;
-    this._pane.textContent = '';
-    this._pane.append(next);
-    const again = this._pane.querySelector('.wru-body');
-    if (again) again.scrollTop = top;
+    if (!(this._pane.children.length === 1 && this._pane.children[0] === next)) {
+      this._pane.textContent = '';
+      this._pane.append(next);
+      const again = this._pane.querySelector('.wru-body');
+      if (again) again.scrollTop = top;
+    }
+    restoreFocus(this._pane, place);
   }
 
   /**

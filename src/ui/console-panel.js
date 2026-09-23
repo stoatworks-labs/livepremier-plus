@@ -501,8 +501,25 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
         ? h('div', { class: 'wru-console-log aw-flex-col' }, state.log.map(logRow))
         : h('div', { class: 'wru-empty', text: 'Nothing run yet. Enter executes; Tab completes; ↑ recalls.' }));
 
-    /* Focus after the panel is in the document, or the caret goes nowhere. */
-    queueMicrotask(() => { try { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } catch {} });
+    /*
+     * Focus after the panel is in the document, or the caret goes nowhere —
+     * but only when the operator is not somewhere else.
+     *
+     * This used to take the caret on every repaint, which is every frame the
+     * switcher sends: with the Console open, a vendor field beside it — the
+     * transition time, say — lost the caret to the Console about once a
+     * second, and a line being edited in the middle had its caret thrown to the
+     * end each time. Keeping the caret across a repaint is `keep-focus.js`'s
+     * job now; this only puts it in the line when it is nowhere worth keeping.
+     */
+    queueMicrotask(() => {
+      const doc = input.ownerDocument;
+      const now = doc && doc.activeElement;
+      if (now === input) return;
+      const elsewhere = now && now !== doc.body && now.matches && now.matches('input, textarea, select, [contenteditable]');
+      if (elsewhere) return;
+      try { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } catch { /* not mounted after all */ }
+    });
 
     return panel({ toolbar: toolbar(), body });
   }
