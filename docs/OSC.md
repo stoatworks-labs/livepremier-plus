@@ -416,9 +416,9 @@ published in two places is one nobody can check.
 
 | Address | Argument | What it does |
 |---|---|---|
-| `/lp/matrix/input/<n>/source` | int | Feed switcher input `n` from that router input. One crosspoint. |
-| `/lp/matrix/output/<n>/destinations` | ints, or one string | Send switcher output `n` to those router outputs. One crosspoint each. |
-| `/lp/matrix/<router>/route/<out>` | int | Raw crosspoint on a named router. Consults no patch. |
+| `/lp/matrix/input/{n}/source` | int — a router input | Feed switcher input n from that router input. One crosspoint. Needs input n patched to a router. |
+| `/lp/matrix/output/{n}/destinations` | ints, or one string such as "1-4" or "1,2,5-8" | Send switcher output n to those router outputs, one crosspoint each. Adds and never takes away. Needs output n patched to a router. |
+| `/lp/matrix/{router}/route/{out}` | int — a router input | Raw crosspoint on the router with that id: output out takes that input. Consults no patch. |
 
 ```text
   /lp/matrix/input/5/source        7        switcher input 5 now sees router input 7
@@ -448,21 +448,22 @@ choosing a different source for it, and there is no answer to which.
 
 ## HyperDecks
 
-The HyperDecks plugin's addresses — [HYPERDECK.md](HYPERDECK.md). `<deck>` is a deck's name
+The HyperDecks plugin's addresses — [HYPERDECK.md](HYPERDECK.md). `{deck}` is a deck's name
 (lower case, spaces as `-`), its id, its 1-based position in the list, or `all`, `players` or
-`recorders`.
+`recorders`. A group is sent only what each member can do: `/hyperdeck/all/record` starts the
+recorders and leaves the players alone.
 
-| Address | Argument | Does |
+| Address | Argument | What it does |
 |---|---|---|
-| `/hyperdeck/<deck>/play` | `1` to loop (optional) | Play |
-| `/hyperdeck/<deck>/stop` | — | Stop (a recorder stops recording) |
-| `/hyperdeck/<deck>/record` | clip name (optional) | Record — refused on a deck that cannot |
-| `/hyperdeck/<deck>/clip` | clip number | Cue that clip |
-| `/hyperdeck/<deck>/next` · `/prev` | — | Cue the next or previous clip |
-| `/hyperdeck/<deck>/rewind` | — | Back to the start of the clip |
-
-A group is sent only what each member can do: `/hyperdeck/all/record` starts the recorders and
-leaves the players alone.
+| `/hyperdeck/{deck}/play` | none, or 1 to loop | Play the cued clip. A group plays only its players. |
+| `/hyperdeck/{deck}/stop` | none | Stop. A recorder that is recording stops recording. |
+| `/hyperdeck/{deck}/record` | none, or a clip name | Start recording. Refused on a deck that cannot record; a group starts only its recorders. |
+| `/hyperdeck/{deck}/clip` | int — a clip number | Cue that clip. |
+| `/hyperdeck/{deck}/next` | none | Cue the next clip. |
+| `/hyperdeck/{deck}/prev` | none | Cue the previous clip. |
+| `/hyperdeck/{deck}/rewind` | none | Back to the start of the clip. |
+| `/hyperdeck/{deck}/end` | none | To the end of the clip. |
+| `/hyperdeck/{deck}/preview` | none | Show the deck’s input rather than its disk — what a recorder shows while armed. Refused on a deck that cannot record; a group sends it only to its recorders. |
 
 ---
 

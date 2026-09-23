@@ -578,6 +578,33 @@ export function resolveMatrixOsc(address, args, patch) {
   return { ok: false, error: `no such matrix address: ${address}` };
 }
 
+/**
+ * The dictionary entries for the addresses above, in mynah's own entry shape
+ * so one table renderer does both. Beside the resolver on purpose:
+ * `test/osc.test.js` runs each one through `resolveMatrixOsc`, and
+ * `tools/gen-osc-docs.mjs` and the website publish them from here.
+ */
+export const MATRIX_OSC = [
+  {
+    group: 'External matrix routing',
+    address: '/lp/matrix/input/{n}/source',
+    args: 'int — a router input',
+    summary: 'Feed switcher input n from that router input. One crosspoint. Needs input n patched to a router.',
+  },
+  {
+    group: 'External matrix routing',
+    address: '/lp/matrix/output/{n}/destinations',
+    args: 'ints, or one string such as "1-4" or "1,2,5-8"',
+    summary: 'Send switcher output n to those router outputs, one crosspoint each. Adds and never takes away. Needs output n patched to a router.',
+  },
+  {
+    group: 'External matrix routing',
+    address: '/lp/matrix/{router}/route/{out}',
+    args: 'int — a router input',
+    summary: 'Raw crosspoint on the router with that id: output out takes that input. Consults no patch.',
+  },
+];
+
 /** The logical number in a connector key, either spelling. See core/connectors.js. */
 const keyIndex = (key) => {
   const match = /^(?:IN_|OUT_)?(\d+)$/.exec(String(key));

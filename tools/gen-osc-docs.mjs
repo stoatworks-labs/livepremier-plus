@@ -29,6 +29,18 @@ import { fileURLToPath } from 'node:url';
 
 import { oscDictionary, OSC_ROOT, VERIFIED_FIRMWARE, MIDRA } from '../src/vendor/mynah-lang.mjs';
 import { PARAMS, PROVENANCE, paramsFor } from '../src/core/osc-dictionary.js';
+import { MATRIX_OSC } from '../src/core/patch.js';
+import { HYPERDECK_OSC } from '../plugins/hyperdeck/core.js';
+
+/**
+ * The built-in plugins' own subtrees, from the entries each keeps beside its
+ * parser. Exported for the website's copy of this dictionary, which should no
+ * more transcribe these than it transcribes mynah's.
+ */
+export const PLUGIN_OSC = [
+  { plugin: 'matrix-routing', prefix: '/lp/matrix/', entries: MATRIX_OSC },
+  { plugin: 'hyperdeck', prefix: '/hyperdeck/', entries: HYPERDECK_OSC.map(({ command, ...e }) => e) },
+];
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, '..', 'docs', 'OSC.md');
@@ -47,6 +59,15 @@ function grouped(entries) {
     g.rows.push(e);
   }
   return groups;
+}
+
+function table(lines, rows) {
+  lines.push('| Address | Argument | What it does |');
+  lines.push('|---|---|---|');
+  for (const r of rows) {
+    lines.push(`| \`${cell(r.address)}\` | ${cell(r.args)} | ${cell(r.summary)} |`);
+  }
+  lines.push('');
 }
 
 function tables(lines, groups, level = '##') {
@@ -88,6 +109,14 @@ export function generate() {
   tables(lines, grouped(midra), '###');
 
   lines.push(MATRIX.trim());
+  lines.push('');
+  table(lines, MATRIX_OSC);
+  lines.push(MATRIX_NOTES.trim());
+  lines.push('');
+  lines.push(HYPERDECKS.trim());
+  lines.push('');
+  table(lines, PLUGIN_OSC.find((p) => p.plugin === 'hyperdeck').entries);
+  lines.push(PLUGINS.trim());
   lines.push(FOOTER.trim());
   lines.push('');
   return lines.join('\n');
@@ -227,12 +256,9 @@ device store has never heard of it. So these are this app's own, defined in
 \`src/core/patch.js\`, and they are listed here because an address space
 published in two places is one nobody can check.
 
-| Address | Argument | What it does |
-|---|---|---|
-| \`/lp/matrix/input/<n>/source\` | int | Feed switcher input \`n\` from that router input. One crosspoint. |
-| \`/lp/matrix/output/<n>/destinations\` | ints, or one string | Send switcher output \`n\` to those router outputs. One crosspoint each. |
-| \`/lp/matrix/<router>/route/<out>\` | int | Raw crosspoint on a named router. Consults no patch. |
+`;
 
+const MATRIX_NOTES = `
 \`\`\`text
   /lp/matrix/input/5/source        7        switcher input 5 now sees router input 7
   /lp/matrix/output/2/destinations "1-4"    switcher output 2 out of router outputs 1-4
@@ -257,26 +283,20 @@ and leaves output 5 alone even if it was showing this source a moment ago. A
 router output always shows *something*, so "removing" a destination would mean
 choosing a different source for it, and there is no answer to which.
 
+`;
+
+const HYPERDECKS = `
 ---
 
 ## HyperDecks
 
-The HyperDecks plugin's addresses — [HYPERDECK.md](HYPERDECK.md). \`<deck>\` is a deck's name
+The HyperDecks plugin's addresses — [HYPERDECK.md](HYPERDECK.md). \`{deck}\` is a deck's name
 (lower case, spaces as \`-\`), its id, its 1-based position in the list, or \`all\`, \`players\` or
-\`recorders\`.
+\`recorders\`. A group is sent only what each member can do: \`/hyperdeck/all/record\` starts the
+recorders and leaves the players alone.
+`;
 
-| Address | Argument | Does |
-|---|---|---|
-| \`/hyperdeck/<deck>/play\` | \`1\` to loop (optional) | Play |
-| \`/hyperdeck/<deck>/stop\` | — | Stop (a recorder stops recording) |
-| \`/hyperdeck/<deck>/record\` | clip name (optional) | Record — refused on a deck that cannot |
-| \`/hyperdeck/<deck>/clip\` | clip number | Cue that clip |
-| \`/hyperdeck/<deck>/next\` · \`/prev\` | — | Cue the next or previous clip |
-| \`/hyperdeck/<deck>/rewind\` | — | Back to the start of the clip |
-
-A group is sent only what each member can do: \`/hyperdeck/all/record\` starts the recorders and
-leaves the players alone.
-
+const PLUGINS = `
 ---
 
 ## Addresses a plugin adds

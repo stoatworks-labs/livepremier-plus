@@ -21,7 +21,10 @@ import { exchange } from '../server/awj.js';
 import { PARAMS, PROVENANCE, paramsFor } from '../src/core/osc-dictionary.js';
 import { normalise, DEFAULT_SETTINGS, normaliseOsc, OSC_DEFAULTS, oscChanged } from '../src/core/settings.js';
 import { oscDictionary, resolveOsc, run, MIDRA } from '../src/vendor/mynah-lang.mjs';
-import { generate } from '../tools/gen-osc-docs.mjs';
+import { generate, PLUGIN_OSC } from '../tools/gen-osc-docs.mjs';
+import { MATRIX_OSC, resolveMatrixOsc } from '../src/core/patch.js';
+import { HYPERDECK_OSC, parseDeckOsc } from '../plugins/hyperdeck/core.js';
+import { COMMAND_NAMES } from '../plugins/hyperdeck/protocol.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const EOT = 0x04;
@@ -595,5 +598,47 @@ test('a contributed address subtree is answered over UDP, and a declined address
     assert.notEqual(entries[1].summary, 'greeted 1');
   } finally {
     await osc.stop();
+  }
+});
+
+/* ------------------------------------------- the plugins' own addresses */
+
+/* A published address the handler would refuse is the failure the generated
+   dictionary exists to prevent, so each plugin entry is run through the same
+   parser its handler uses, with its placeholders filled in. */
+
+test('every matrix address in the dictionary is one the resolver answers', () => {
+  const patch = [
+    { side: 'input', key: 'IN_5', matrix: 'hub', port: 7 },
+    { side: 'output', key: '2', matrix: 'hub', port: 1 },
+  ];
+  const fill = { n: { input: '5', output: '2' }, router: 'hub', out: '3' };
+  for (const e of MATRIX_OSC) {
+    const side = e.address.includes('/input/') ? 'input' : 'output';
+    const address = e.address
+      .replace('{n}', fill.n[side]).replace('{router}', fill.router).replace('{out}', fill.out);
+    const args = e.address.endsWith('/destinations') ? ['1-4'] : [9];
+    const r = resolveMatrixOsc(address, args, patch);
+    assert.ok(r && r.ok, `${e.address} → ${r && r.error}`);
+  }
+});
+
+test('every HyperDeck command has a dictionary entry the parser accepts', () => {
+  assert.deepEqual(HYPERDECK_OSC.map((e) => e.command).sort(), [...COMMAND_NAMES].sort(),
+    'a command in protocol.js with no dictionary entry, or an entry for no command');
+  for (const e of HYPERDECK_OSC) {
+    const r = parseDeckOsc(e.address.replace('{deck}', 'all'), e.command === 'clip' ? [3] : []);
+    assert.equal(r.error, undefined, e.address);
+    assert.equal(r.step.command, e.command);
+  }
+});
+
+test('plugin entries are in the dictionary shape, under their own prefix', () => {
+  for (const { prefix, entries } of PLUGIN_OSC) {
+    assert.ok(entries.length > 0, prefix);
+    for (const e of entries) {
+      assert.deepEqual(Object.keys(e).sort(), ['address', 'args', 'group', 'summary'], e.address);
+      assert.ok(e.address.startsWith(prefix), `${e.address} is outside ${prefix}`);
+    }
   }
 });

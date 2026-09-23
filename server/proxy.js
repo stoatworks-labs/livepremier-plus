@@ -375,7 +375,8 @@ export async function createProxy({
     if (rest === '/addresses') {
       return sendJson(res, 200, {
         addresses: host.contributions('oscAddress').map((c) => ({
-          prefix: c.prefix, describe: c.describe || '', owner: c.owner
+          prefix: c.prefix, describe: c.describe || '', owner: c.owner,
+          entries: Array.isArray(c.entries) ? c.entries : []
         }))
       });
     }

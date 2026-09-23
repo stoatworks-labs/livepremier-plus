@@ -148,6 +148,46 @@ export function resolveDecks(decks, ref) {
   return [];
 }
 
+/* ----------------------------------------------------------- OSC address */
+
+/**
+ * `/hyperdeck/<deck>/<command> [argument]` read into a deck reference and one
+ * step for `run()`. The handler and the test share this, so the dictionary
+ * below is checked against what the handler actually accepts.
+ *
+ * @returns {{ref: string, step: object}|{error: string}}
+ */
+export function parseDeckOsc(address, args) {
+  const m = /^\/hyperdeck\/([^/]+)\/([a-z]+)$/i.exec(String(address ?? ''));
+  if (!m) return { error: `use /hyperdeck/<deck>/<${COMMAND_NAMES.join('|')}>` };
+  const [, ref, word] = m;
+  const command = word.toLowerCase();
+  const arg = args && args.length ? args[0] : undefined;
+  const step = { command };
+  if (command === 'clip') step.clip = Number(arg);
+  if (command === 'record' && arg != null) step.name = String(arg);
+  if (command === 'play' && arg != null && Number(arg) === 1) step.loop = true;
+  return { ref: decodeURIComponent(ref), step };
+}
+
+/**
+ * The dictionary entries for `/hyperdeck/…`, in mynah's entry shape. `{deck}`
+ * is a deck's name (lower case, spaces as `-`), its id, its 1-based position,
+ * or `all`, `players` or `recorders`. One per command in `COMMANDS` —
+ * `test/osc.test.js` fails when a command has no entry.
+ */
+export const HYPERDECK_OSC = [
+  ['play', 'none, or 1 to loop', 'Play the cued clip. A group plays only its players.'],
+  ['stop', 'none', 'Stop. A recorder that is recording stops recording.'],
+  ['record', 'none, or a clip name', 'Start recording. Refused on a deck that cannot record; a group starts only its recorders.'],
+  ['clip', 'int — a clip number', 'Cue that clip.'],
+  ['next', 'none', 'Cue the next clip.'],
+  ['prev', 'none', 'Cue the previous clip.'],
+  ['rewind', 'none', 'Back to the start of the clip.'],
+  ['end', 'none', 'To the end of the clip.'],
+  ['preview', 'none', 'Show the deck’s input rather than its disk — what a recorder shows while armed. Refused on a deck that cannot record; a group sends it only to its recorders.'],
+].map(([command, args, summary]) => ({ group: 'HyperDecks', address: `/hyperdeck/{deck}/${command}`, args, summary, command }));
+
 /* ------------------------------------------------------------- cue field */
 
 const COMMAND_WORDS = new Map([

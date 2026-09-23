@@ -19,7 +19,7 @@
  * | point           | where  | keyed by | a contribution is |
  * |-----------------|--------|----------|-------------------|
  * | `cueAction`     | page   | `kind`   | `{ kind, label, run(action, { cue }), describe?(action), field? }` |
- * | `oscAddress`    | server | `prefix` | `{ prefix, describe?, handle(address, args) }` |
+ * | `oscAddress`    | server | `prefix` | `{ prefix, describe?, entries?, handle(address, args) }` |
  * | `configSection` | server | `key`    | `{ key, group, label, perDevice?, byDefault?, export(device), import(data, device) }` |
  *
  * `cueAction.run` is called while the cue fires, in the order the cue lists
@@ -40,6 +40,11 @@
  * and from a line typed in the Console alike. It answers
  * `{ ok: true, summary?, count? }`, `{ ok: false, error }`, or null to decline
  * an address after all — which lets it fall through to the switcher's own.
+ *
+ * `oscAddress.entries`, when given, is the subtree's dictionary — rows of
+ * `{ group, address, args, summary }`, mynah's own entry shape, with
+ * placeholders in braces (`/hyperdeck/{deck}/play`). `GET /__lpp/addresses`
+ * lists them, so what a given install answers can be read off it.
  *
  * `configSection` is a section of the one-file setup, `livepremier-plus.json`
  * (the Setup file plugin writes and reads it). `group` is where it sits in the

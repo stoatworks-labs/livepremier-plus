@@ -24,7 +24,7 @@
 
 import { EventEmitter } from 'node:events';
 import { DeckLink } from './link.js';
-import { normaliseDecks, resolveDecks, plays, records } from './core.js';
+import { normaliseDecks, resolveDecks, plays, records, parseDeckOsc, HYPERDECK_OSC } from './core.js';
 import { COMMANDS, RECORD_COMMANDS } from './protocol.js';
 
 const RUNNER_LEASE_MS = 12000;
@@ -177,18 +177,13 @@ export default async function activate(ctx) {
   ctx.contribute('oscAddress', {
     prefix: '/hyperdeck/',
     describe: 'Play, stop, record and cue the HyperDecks — docs/HYPERDECK.md',
+    entries: HYPERDECK_OSC,
     async handle(address, args) {
-      const m = /^\/hyperdeck\/([^/]+)\/([a-z]+)$/i.exec(address);
-      if (!m) return { ok: false, error: 'use /hyperdeck/<deck>/<play|stop|record|clip|next|prev|rewind>' };
-      const [, ref, word] = m;
-      const command = word.toLowerCase();
-      const arg = args && args.length ? args[0] : undefined;
-      const step = { command };
-      if (command === 'clip') step.clip = Number(arg);
-      if (command === 'record' && arg != null) step.name = String(arg);
-      if (command === 'play' && arg != null && Number(arg) === 1) step.loop = true;
-      const r = await run(decodeURIComponent(ref), [step]);
-      return r.ok ? { ok: true, summary: `${ref} ${command}`, count: r.results.length } : { ok: false, error: r.error };
+      const parsed = parseDeckOsc(address, args);
+      if (parsed.error) return { ok: false, error: parsed.error };
+      const { ref, step } = parsed;
+      const r = await run(ref, [step]);
+      return r.ok ? { ok: true, summary: `${ref} ${step.command}`, count: r.results.length } : { ok: false, error: r.error };
     },
   });
 }

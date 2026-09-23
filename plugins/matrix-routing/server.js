@@ -24,7 +24,7 @@ import { MatrixSupervisor } from './routers/index.js';
 import {
   normaliseMatrices, normalisePatch, validate as validatePatch,
   feed as patchFeed, send as patchSend, groupCrosspoints, toPortList,
-  resolveMatrixOsc, normalisePlan, planCrosspoints
+  resolveMatrixOsc, MATRIX_OSC, normalisePlan, planCrosspoints
 } from '../../src/core/patch.js';
 
 export default async function activate(ctx) {
@@ -295,6 +295,7 @@ export default async function activate(ctx) {
   ctx.contribute('oscAddress', {
     prefix: '/lp/matrix/',
     describe: 'Route through the external routers — docs/OSC.md',
+    entries: MATRIX_OSC,
     async handle(address, args) {
       const routed = resolveMatrixOsc(address, args, await currentPatch());
       if (!routed) return null;
