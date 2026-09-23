@@ -631,10 +631,19 @@ that is what you are seeing.
 A Pixelhue **U5**, **U5 Pro** or **U5 mini** event controller, driving the switcher. Off until you
 turn it on in **Preconfig ▸ LivePremier Plus → Pixelhue panel**.
 
-It does not map keys. The console is handed a model of this switcher — its screens, inputs and
+The buses are not mapped. The console is handed a model of this switcher — its screens, inputs and
 memories — and labels, lights and pages its own keys from it; what comes back is what the operator
 meant: *select screen S2*, *put input 2 on the selected layer*, *take*. So there is nothing to remap
 when a firmware moves a key.
+
+Everything else is, on **Pixelhue Mapping** — in the sidebar under Virtual RC400T, beside MIDI
+Mapping. It draws the console in the Virtual RC400T's look, the buses showing what the console
+shows, and every function key, fader and encoder carrying what it does. Click one to change it:
+any key can take, cut, fade to black, step the layer, run the cue stack, **recall a memory to
+preview** or **press a Companion button**, among others; a fader can follow its own layer or the
+selected one; an encoder can move, size or fade the selected layer. Press a key on the console and
+it lights up on the page and opens, so you can find it. A changed control has a blue dot, and
+**Reset** puts everything back.
 
 - A **U5 mini** answers on the network, so it is driven from wherever this app already runs.
 - A **U5** or **U5 Pro** serves its control port to itself only, so this app has to run on the

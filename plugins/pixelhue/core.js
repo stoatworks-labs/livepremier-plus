@@ -32,6 +32,8 @@
  * air.
  */
 
+import { actionOf, encoderStep, normaliseMap } from './mapping.js';
+
 /**
  * The consoles this understands, and where their control service listens.
  *
@@ -697,8 +699,8 @@ export const MIDI_BINDINGS = Object.freeze([
   ...Array.from({ length: FADERS }, (_, i) => ({ unique: `lpp.fader.${i + 1}`, type: 2, index: i + 1 })),
   ...Array.from({ length: ENCODERS }, (_, i) => ({ unique: `lpp.encoder.${i + 1}`, type: 1, index: i + 1 })),
 ]);
-const ENCODER_PARAMS = { 1: 'posH', 2: 'posV', 3: 'sizeH', 4: 'sizeV' };
-/* Pixels per detent. */
+/* Pixels per detent, for the four defaults. What each control does is the
+   Pixelhue Mapping page's to change: `mapping.js`. */
 export const ENCODER_STEP = 8;
 
 /** One 0x0010031c report, as this app's own control, or null. */
@@ -743,8 +745,11 @@ export function midiWrite(move, ctx) {
   const { dialect, destination, letter } = ctx || {};
   if (!move || !dialect || !destination || !letter) return { note: 'nothing to move' };
   const isFader = move.control === 'fader';
-  const name = isFader ? 'opacity' : ENCODER_PARAMS[move.index];
-  const layer = isFader ? move.index : ctx.layer;
+  const action = ctx.action || actionOf(null, `${move.control}.${move.index}`);
+  if (!action || action === 'none') return { note: `${move.control} ${move.index} is mapped to nothing` };
+  const name = isFader ? 'opacity' : action;
+  const layer = isFader && action === 'layerOpacity' ? move.index : ctx.layer;
+  const step = isFader ? 0 : encoderStep(action);
   const spec = name && layerParam(dialect, name);
   if (!spec) return { param: name, layer, note: `${name || 'that control'} is not mapped on this platform` };
   const clamp = (v) => Math.min(spec.max ?? v, Math.max(spec.min ?? v, v));
@@ -753,7 +758,7 @@ export function midiWrite(move, ctx) {
     value = Math.round(((spec.max ?? 100) * move.percent) / 100);
   } else {
     if (!Number.isFinite(ctx.current)) return { param: name, layer, note: `refused — could not read ${name}` };
-    value = clamp(ctx.current + move.ticks * ENCODER_STEP);
+    value = clamp(ctx.current + move.ticks * step);
   }
   return {
     param: name,
@@ -860,6 +865,8 @@ export const DEFAULT_PIXELHUE = {
   pixelhueTransport: 'cues',
   pixelhueCompanionPage: 1,
   pixelhueCompanionRow: 0,
+  /* Overrides only — a control not in here does its default. `mapping.js`. */
+  pixelhueMap: {},
 };
 
 /**
@@ -880,6 +887,7 @@ export function normalisePixelhue(raw) {
       ? input.pixelhueTransport : DEFAULT_PIXELHUE.pixelhueTransport,
     pixelhueCompanionPage: wholeIn(input.pixelhueCompanionPage, 1, 99, DEFAULT_PIXELHUE.pixelhueCompanionPage),
     pixelhueCompanionRow: wholeIn(input.pixelhueCompanionRow, 0, 99, DEFAULT_PIXELHUE.pixelhueCompanionRow),
+    pixelhueMap: normaliseMap(input.pixelhueMap),
   };
 }
 

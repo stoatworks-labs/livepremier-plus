@@ -18,6 +18,7 @@
  */
 
 import { CONSOLE_MODELS, TRANSPORT_TARGETS } from './core.js';
+import { createMapPage } from './map-page.js';
 
 /* How often an open page renews its claim to run the panel's page-side
    actions. Well inside the server's lease, so one missed beat loses nothing. */
@@ -229,8 +230,9 @@ export default function activate(ctx) {
     if (on) {
       notes.push(note('info',
         'The console is handed a model of this switcher — its screens, inputs and memories — '
-        + 'and labels, lights and pages its own keys from it. What comes back is what the '
-        + 'operator meant, so there is no key mapping to keep. docs/PIXELHUE.md has the rest.'));
+        + 'and labels, lights and pages its own keys from it, so the buses need no mapping. '
+        + 'What the function keys, faders and encoders do is on the Pixelhue Mapping page, '
+        + 'under Virtual RC400T. docs/PIXELHUE.md has the rest.'));
       notes.push(note('info',
         'A recall from the panel always lands in preview, whatever PGM EDIT is doing, for the '
         + 'same reason every other recall in this app does. Fade to black and freeze are '
@@ -282,4 +284,28 @@ export default function activate(ctx) {
   }
 
   ctx.ui.settingsSection({ id: 'pixelhue', order: 10, render });
+
+  /* The console drawn, and what every control does on it — beside MIDI
+     Mapping under Virtual RC400T, for the reason MIDI Mapping is there. */
+  const mapping = createMapPage({
+    ctx,
+    settings: () => settings,
+    live: () => live,
+    put: async (patch) => {
+      settings = await ctx.settings.set(patch);
+      await load();
+    },
+  });
+  ctx.ui.sidebar({
+    id: 'pixelhue-map',
+    label: 'Pixelhue Mapping',
+    icon: ['rc400t-18', 'desktop-18'],
+    after: 'Virtual RC400T',
+    order: 68,   // anchored entries stack upwards: below MIDI Mapping (70) and the Speed Editor (69)
+    render: () => {
+      if (!asked) { asked = true; void load(); }
+      listen();
+      return mapping.render();
+    },
+  });
 }

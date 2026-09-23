@@ -529,7 +529,7 @@ test('the panel’s settings live in its own plugin entry, lifted from where the
   const s = normaliseSettings({ pixelhueEnabled: true, pixelhueHost: '10.0.0.9' }, { pixelhue: schema });
   assert.deepEqual(s.plugins.pixelhue.settings, {
     pixelhueEnabled: true, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5mini',
-    pixelhueTransport: 'cues', pixelhueCompanionPage: 1, pixelhueCompanionRow: 0,
+    pixelhueTransport: 'cues', pixelhueCompanionPage: 1, pixelhueCompanionRow: 0, pixelhueMap: {},
   });
   assert.equal('pixelhueHost' in s, false);
   /* Renaming nothing does not redial a console somebody is holding. */

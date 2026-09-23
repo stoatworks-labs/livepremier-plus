@@ -46,6 +46,9 @@ import {
   MIDI_BINDINGS, readMidi, midiWrite, layerParam,
   stepLayer, companionLocation, SILENT_KEY_MODES,
 } from './core.js';
+import {
+  mappedIntent, controlForKeyMode, controlById, actionOf, intentOf, resolvedMap,
+} from './mapping.js';
 
 export { CONSOLE_MODELS };
 
@@ -70,6 +73,9 @@ const SILENT_KEY_WAIT_MS = 400;
    this old has lapsed (the page was closed). */
 const RUNNER_LEASE_MS = 12000;
 const HISTORY = 40;
+/* A held key repeats about every 125 ms. A repeat after a gap this long is
+   the start of a new hold. */
+const REPEAT_GAP_MS = 400;
 
 /* A console that has lost the model shows a panel with no labels. Noticing
    that and publishing again is bounded so two publishers on one UCenter cannot
@@ -103,6 +109,11 @@ export class PixelhueSupervisor extends EventEmitter {
   #lastCommandAt = 0;
   #lastInput = null;
   #runner = null;
+  /* What the console shows on each key, as it last said: key code →
+     `{text, state, page}`. The Pixelhue Mapping page draws from it. */
+  #keys = new Map();
+  #lastPress = null;
+  #repeatAt = new Map();
 
   /**
    * @param {object} opts
@@ -153,6 +164,8 @@ export class PixelhueSupervisor extends EventEmitter {
     this.selection.reset();
     this.#sourceKind = 'LIVE';
     this.#locked = false;
+    this.#keys = new Map();
+    this.#lastPress = null;
     if (!want) { this.#note({ kind: 'stopped' }); return this.describe(); }
 
     const link = new UCenterLink({ host: want.host, port: want.port, log: this.log });
@@ -161,7 +174,11 @@ export class PixelhueSupervisor extends EventEmitter {
     link.on('close', () => this.#note({ kind: 'disconnected' }));
     link.on('failure', (err) => this.#note({ kind: 'error', error: err.message }));
     link.on('command', (report) => { void this.#onCommand(report); });
-    link.on('keystate', (items) => { this.#watchForWipe(items); this.#watchSilentKeys(items); });
+    link.on('keystate', (items) => {
+      this.#watchForWipe(items);
+      this.#watchSilentKeys(items);
+      this.#mirrorKeys(items);
+    });
     link.on('tbar', (report) => this.#onTbar(report));
     link.on('midi', (report) => this.#onMidi(report));
     link.start();
@@ -469,11 +486,34 @@ export class PixelhueSupervisor extends EventEmitter {
   /* ----------------------------------------------------------------- intents */
 
   async #onCommand(report) {
-    const intent = readIntent(report);
     const code = report && report.command;
     if (code) this.#lastCommandAt = Date.now();
+    /* A function key goes through the mapping table (`mapping.js`); a bus
+       key, a mode key and the rest are what the console says they are. */
+    const mapped = mappedIntent(this.#current().pixelhueMap, code);
+    if (mapped && mapped.repeat) {
+      const now = Date.now();
+      const last = this.#repeatAt.get(mapped.control) || 0;
+      this.#repeatAt.set(mapped.control, now);
+      if (now - last < REPEAT_GAP_MS) return;
+    }
+    const intent = mapped || readIntent(report);
     if (!intent) {
-      this.#note({ kind: 'ignored', command: commandName(code), code });
+      this.#note({ kind: 'ignored', command: nameOf(code), code });
+      return;
+    }
+    await this.#perform(intent, code);
+  }
+
+  /**
+   * Act on one intent. `code` is the command that asked for it, or the name
+   * of a key that reports none (MVR, SOURCE BACKUP) — it is only ever used to
+   * say, in the history, which key did this.
+   */
+  async #perform(intent, code) {
+    if (intent.kind === 'none') {
+      const c = intent.control && controlById(intent.control);
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: `${c ? c.label : 'that key'} is mapped to nothing` });
       return;
     }
 
@@ -481,11 +521,11 @@ export class PixelhueSupervisor extends EventEmitter {
        nothing but the lock. */
     if (intent.kind === 'lock') {
       this.#locked = !this.#locked;
-      this.#note({ kind: 'noted', command: commandName(code), code, note: this.#locked ? 'panel locked' : 'panel unlocked' });
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: this.#locked ? 'panel locked' : 'panel unlocked' });
       return;
     }
     if (this.#locked) {
-      this.#note({ kind: 'noted', command: commandName(code), code, note: 'ignored — the panel is locked' });
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: 'ignored — the panel is locked' });
       return;
     }
 
@@ -493,12 +533,15 @@ export class PixelhueSupervisor extends EventEmitter {
       const kinds = (this.#facts && this.#facts.sourceKinds) || ['LIVE'];
       const next = kinds[(kinds.indexOf(this.#sourceKind) + 1) % kinds.length] || 'LIVE';
       this.#sourceKind = next;
-      this.#note({ kind: 'noted', command: commandName(code), code, note: `input bus shows ${next.toLowerCase()} sources` });
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: `input bus shows ${next.toLowerCase()} sources` });
       void this.refresh();
       return;
     }
 
     if (intent.kind === 'transport') { await this.#transport(intent.action, code); return; }
+    if (intent.kind === 'page') { this.#toPage({ type: intent.type, path: intent.path }, intent.what, code); return; }
+    if (intent.kind === 'inputBackup') { this.#openBackup(code); return; }
+    if (intent.kind === 'companion') { await this.#pressCompanion(intent.location, code, 'Companion'); return; }
     if (intent.kind === 'layerStep') { this.#stepLayer(intent.to, code); return; }
     if (intent.kind === 'source' && this.#sourceKind === 'LIVE' && intent.input) this.#lastInput = intent.input;
 
@@ -522,7 +565,7 @@ export class PixelhueSupervisor extends EventEmitter {
          and named, so the new memory shows on the bus. */
       const slot = this.#facts && this.#facts.freeSlots && this.#facts.freeSlots[0];
       if (!slot) {
-        this.#note({ kind: 'noted', command: commandName(code), code, note: `refused — no free memory slot in 1–${MEMORIES}` });
+        this.#note({ kind: 'noted', command: nameOf(code), code, note: `refused — no free memory slot in 1–${MEMORIES}` });
         return;
       }
       action = { ...intent, slot, label: `Memory ${slot}` };
@@ -542,7 +585,7 @@ export class PixelhueSupervisor extends EventEmitter {
         copyModes = await this.#readEach(this.selection.list, (id) => this.#dialect.copyModePath(id));
       }
     } catch (err) {
-      this.#note({ kind: 'error', command: commandName(code), code, error: err.message });
+      this.#note({ kind: 'error', command: nameOf(code), code, error: err.message });
       return;
     }
 
@@ -561,22 +604,22 @@ export class PixelhueSupervisor extends EventEmitter {
     });
 
     if (!writes.length) {
-      this.#note({ kind: 'noted', command: commandName(code), code, note });
+      this.#note({ kind: 'noted', command: nameOf(code), code, note });
       if (selectionMoved) void this.#republish();
       return;
     }
 
     const host = this.deviceHost();
-    if (!host) { this.#note({ kind: 'error', command: commandName(code), code, error: 'no switcher configured' }); return; }
+    if (!host) { this.#note({ kind: 'error', command: nameOf(code), code, error: 'no switcher configured' }); return; }
     try {
       await exchange({
         host,
         port: this.awjPort,
         messages: writes.map((w) => ({ op: 'replace', path: toAwj(w.path), value: w.value })),
       });
-      this.#note({ kind: 'sent', command: commandName(code), code, note, writes: writes.length, sent: sentDetail(writes) });
+      this.#note({ kind: 'sent', command: nameOf(code), code, note, writes: writes.length, sent: sentDetail(writes) });
     } catch (err) {
-      this.#note({ kind: 'error', command: commandName(code), code, error: err.message });
+      this.#note({ kind: 'error', command: nameOf(code), code, error: err.message });
     }
     /* A new memory, or an FTB / freeze lamp, is device state the model has to
        be read again for; a selection change only needs the model re-sent. */
@@ -684,11 +727,11 @@ export class PixelhueSupervisor extends EventEmitter {
   #toPage(payload, what, code) {
     const r = this.#runner;
     if (!r || Date.now() - r.at > RUNNER_LEASE_MS) {
-      this.#note({ kind: 'noted', command: commandName(code), code, note: `refused — no page is open to ${what}` });
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: `refused — no page is open to ${what}` });
       return false;
     }
     this.emit('page', { ...payload, runner: r.id });
-    this.#note({ kind: 'sent', command: commandName(code), code, note: `${what} (in the open page)` });
+    this.#note({ kind: 'sent', command: nameOf(code), code, note: `${what} (in the open page)` });
     return true;
   }
 
@@ -700,45 +743,60 @@ export class PixelhueSupervisor extends EventEmitter {
     const st = this.#current();
     const target = st.pixelhueTransport || 'cues';
     if (target === 'off') {
-      this.#note({ kind: 'noted', command: commandName(code), code, note: `cue ${action} — transport is off` });
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: `cue ${action} — transport is off` });
       return;
     }
     if (target === 'companion') {
-      const svc = this.companion();
       const loc = companionLocation(action, st.pixelhueCompanionPage ?? 1, st.pixelhueCompanionRow ?? 0);
-      if (!svc || !loc) {
-        this.#note({ kind: 'noted', command: commandName(code), code, note: `cue ${action} — the Companion plugin is off` });
-        return;
-      }
-      try {
-        const r = await svc.press([loc]);
-        const where = `${loc.pageNumber}/${loc.row}/${loc.column}`;
-        if (r && r.ok) this.#note({ kind: 'sent', command: commandName(code), code, note: `cue ${action} → Companion button ${where}` });
-        else this.#note({ kind: 'error', command: commandName(code), code, error: `Companion ${where}: ${(r && r.error) || 'refused'}` });
-      } catch (err) {
-        this.#note({ kind: 'error', command: commandName(code), code, error: `Companion: ${err.message}` });
-      }
+      await this.#pressCompanion(loc, code, `cue ${action}`);
       return;
     }
     this.#toPage({ type: 'transport', action }, `cue ${action}`, code);
+  }
+
+  /** One Companion button, through the Companion plugin's server. */
+  async #pressCompanion(loc, code, what) {
+    const svc = this.companion();
+    if (!svc || !loc) {
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: `${what} — the Companion plugin is off` });
+      return;
+    }
+    const where = `${loc.pageNumber}/${loc.row}/${loc.column}`;
+    try {
+      const r = await svc.press([loc]);
+      if (r && r.ok) this.#note({ kind: 'sent', command: nameOf(code), code, note: `${what} → Companion button ${where}` });
+      else this.#note({ kind: 'error', command: nameOf(code), code, error: `Companion ${where}: ${(r && r.error) || 'refused'}` });
+    } catch (err) {
+      this.#note({ kind: 'error', command: nameOf(code), code, error: `Companion: ${err.message}` });
+    }
+  }
+
+  /** The backup menu of the last input pressed on the panel, in the open page. */
+  #openBackup(code) {
+    const input = this.#lastInput;
+    if (!input) {
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: 'SOURCE BACKUP — press an input on the panel first, so it knows which' });
+      return;
+    }
+    this.#toPage({ type: 'inputBackup', input }, `open the backup menu of input ${input}`, code);
   }
 
   /** LAYER UP / DOWN: the selected layer moves through the active screen's. */
   #stepLayer(to, code) {
     const active = this.selection.list[this.selection.list.length - 1];
     if (!active) {
-      this.#note({ kind: 'noted', command: commandName(code), code, note: 'no screen selected on the panel' });
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: 'no screen selected on the panel' });
       return;
     }
     const fitted = ((this.#facts && this.#facts.layers) || []).filter((l) => l.destination === active).map((l) => l.key);
     const next = stepLayer(fitted, this.selection.layer, to);
     if (!next) {
-      this.#note({ kind: 'noted', command: commandName(code), code, note: `${active} has no layers to step through` });
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: `${active} has no layers to step through` });
       return;
     }
     const moved = next !== this.selection.layer;
     this.selection.layer = next;
-    this.#note({ kind: 'noted', command: commandName(code), code, note: `layer ${next} of ${active} selected` });
+    this.#note({ kind: 'noted', command: nameOf(code), code, note: `layer ${next} of ${active} selected` });
     if (moved) void this.#republish();
   }
 
@@ -753,8 +811,8 @@ export class PixelhueSupervisor extends EventEmitter {
       const keys = new Map();
       for (const area of (json.data && json.data.areaList) || []) {
         for (const k of area.keyList || []) {
-          const mode = SILENT_KEY_MODES[k.keyMode];
-          if (mode) keys.set(Number(k.keyCode), mode);
+          const control = SILENT_KEY_MODES[k.keyMode] && controlForKeyMode(k.keyMode);
+          if (control) keys.set(Number(k.keyCode), control.id);
         }
       }
       this.#silentKeys = keys;
@@ -766,21 +824,16 @@ export class PixelhueSupervisor extends EventEmitter {
   #watchSilentKeys(items) {
     if (!Array.isArray(items) || items.length !== 1 || !this.#silentKeys.size) return;
     const { key, state } = items[0] || {};
-    const mode = this.#silentKeys.get(Number(key));
-    if (!mode || (state !== 0 && state !== 1)) return;
+    const id = this.#silentKeys.get(Number(key));
+    if (!id || (state !== 0 && state !== 1)) return;
     if (state === 0) { this.#keyDownAt.set(key, Date.now()); return; }
     const downAt = this.#keyDownAt.get(key) || Date.now();
     setTimeout(() => {
-      if (this.#lastCommandAt >= downAt || this.#locked) return;
-      if (mode === 'mvr') this.#toPage({ type: 'navigate', path: '/live/multiviewers' }, 'open the multiviewers page', 0);
-      if (mode === 'sourceBackup') {
-        const input = this.#lastInput;
-        if (!input) {
-          this.#note({ kind: 'noted', note: 'SOURCE BACKUP — press an input on the panel first, so it knows which' });
-          return;
-        }
-        this.#toPage({ type: 'inputBackup', input }, `open the backup menu of input ${input}`, 0);
-      }
+      if (this.#lastCommandAt >= downAt) return;
+      const control = controlById(id);
+      const action = actionOf(this.#current().pixelhueMap, control);
+      const intent = intentOf(action);
+      if (intent) void this.#perform({ ...intent, control: id, mapping: action }, control.label);
     }, SILENT_KEY_WAIT_MS).unref?.();
   }
 
@@ -796,6 +849,7 @@ export class PixelhueSupervisor extends EventEmitter {
     const move = readMidi(report);
     if (!move) return;
     const key = `${move.control}.${move.index}`;
+    if (actionOf(this.#current().pixelhueMap, key) === 'none') return;
     let c = this.#controls.get(key);
     if (!c) { c = { busy: false, pending: null, ticks: 0, last: null, timer: null }; this.#controls.set(key, c); }
     if (move.control === 'fader') c.pending = move;
@@ -820,10 +874,10 @@ export class PixelhueSupervisor extends EventEmitter {
       if (!destination) return;
       const letters = await this.#lettersFor([destination]);
       const letter = letters.get(destination);
+      const action = actionOf(this.#current().pixelhueMap, `${move.control}.${move.index}`);
       let current;
       if (move.control === 'encoder') {
-        const name = { 1: 'posH', 2: 'posV', 3: 'sizeH', 4: 'sizeV' }[move.index];
-        const spec = layerParam(this.#dialect, name);
+        const spec = layerParam(this.#dialect, action);
         if (spec && letter) {
           const path = this.#dialect.layerParamPath(destination, letter, this.selection.layer, spec.path);
           const got = await this.#read([path]);
@@ -831,7 +885,7 @@ export class PixelhueSupervisor extends EventEmitter {
         }
       }
       const w = midiWrite(move, {
-        dialect: this.#dialect, destination, letter, layer: this.selection.layer, current,
+        dialect: this.#dialect, destination, letter, layer: this.selection.layer, current, action,
       });
       if (!w.path) { c.last = { note: w.note, sent: [] }; return; }
       await exchange({
@@ -846,6 +900,29 @@ export class PixelhueSupervisor extends EventEmitter {
       c.busy = false;
       if (c.pending) void this.#pumpControl(c);
     }
+  }
+
+  /* ------------------------------------------------------ the key mirror */
+
+  /**
+   * What each key shows, for the Mapping page to draw. A one-key batch with
+   * state 0 or 1 is a press (down / up), not a lamp, so it is kept apart —
+   * the page lights the key it names for a moment.
+   */
+  #mirrorKeys(items) {
+    if (!Array.isArray(items) || !items.length) return;
+    if (items.length === 1 && (items[0].state === 0 || items[0].state === 1)) {
+      if (items[0].state === 0) {
+        this.#lastPress = { key: Number(items[0].key), at: Date.now() };
+        this.emit('activity', null);
+      }
+      return;
+    }
+    for (const k of items) {
+      if (!k || !Number.isFinite(Number(k.key))) continue;
+      this.#keys.set(Number(k.key), { text: k.text || '', state: k.state, page: k.page });
+    }
+    this.emit('activity', null);
   }
 
   /* ------------------------------------------------------ a wiped console */
@@ -909,6 +986,9 @@ export class PixelhueSupervisor extends EventEmitter {
       transport: this.#current().pixelhueTransport || 'cues',
       runner: this.#runner && Date.now() - this.#runner.at <= RUNNER_LEASE_MS ? this.#runner.id : null,
       history: this.history.slice(0, 12),
+      map: resolvedMap(this.#current().pixelhueMap),
+      keys: Object.fromEntries(this.#keys),
+      lastPress: this.#lastPress,
     };
   }
 
@@ -940,6 +1020,11 @@ export class PixelhueSupervisor extends EventEmitter {
  * settings card shows only the note; this is for anyone checking what a key
  * really did — pixelhue-re's press inspector reads it off `/state`.
  */
+/** A command's name for the history, or a silent key's own name. */
+function nameOf(code) {
+  return typeof code === 'string' ? code : commandName(code);
+}
+
 function sentDetail(writes) {
   return writes.map((w) => ({ path: toAwj(w.path), value: w.value }));
 }

@@ -201,7 +201,7 @@ export const BUILTINS = [
   {
     id: 'pixelhue',
     name: 'Pixelhue panel',
-    where: 'Settings (preview)',
+    where: 'Settings (preview), and Pixelhue Mapping under Virtual RC400T',
     description: 'A Pixelhue U5, U5 Pro or U5 mini driving the switcher. Never yet run against a console.',
     server: 'server.js',
     client: 'client.js'

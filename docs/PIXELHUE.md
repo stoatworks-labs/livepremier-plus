@@ -23,7 +23,7 @@ is the wrong shape here. A U-series console is not a keyboard. It already knows
 what a screen, a layer, a source and a memory are, and its control service
 speaks a protocol about exactly those things.
 
-So this does not paint keys and has no key map:
+So this does not paint keys, and the buses have no key map:
 
 ```text
   LivePremier Plus                                   the console
@@ -44,6 +44,10 @@ So this does not paint keys and has no key map:
 comes back as `id: 7`. There is no table mapping key 65 to "input 2" to keep in
 step with a firmware, because the console is told what its keys mean and
 remembers.
+
+What *is* a table is everything off the buses — TAKE, FTB, the cluster, the
+faders and encoders — and it is by **function**, not by key: TAKE reports
+`531` on a U5, a U5 Pro and a U5 mini alike. See [the mapping page](#the-mapping-page).
 
 ---
 
@@ -152,6 +156,55 @@ an encoder's detents add up — and the history gets one line per gesture.
 **Deleting and creating are never acted on.** A screen key pressed with DEL
 armed reports `104` (delete that screen); an empty layer key reports `200`
 (create a layer). Neither is something this app offers from a panel.
+
+---
+
+## The mapping page
+
+**Pixelhue Mapping**, in the sidebar under Virtual RC400T beside MIDI Mapping,
+draws the console in the Virtual RC400T's own look — its chassis, key caps,
+lamp gradients and section headings, read off that page's stylesheet — with
+what each control does written on it.
+
+- **The buses** show what the console shows: each key's text and lamp are the
+  key states the console pushes (the supervisor mirrors them; `/state`'s
+  `keys`), so S1 lit amber there is S1 selected on the panel. Empty positions
+  show their number. A bus key is not mapped — see above — and its inspector
+  says what sits there and why.
+- **Every function key, fader and encoder** carries its action as its legend,
+  with a blue dot where it differs from the default. Click one and pick what
+  it does; *Back to the default* and *Reset n changes* undo.
+- **Press a key on the console** and it flashes here and opens in the
+  inspector — the quickest way to find out which key is which.
+- The tall **PAGE** key in the lower-left cluster pages the drawing through the
+  cluster's four pages (layer tools, cue transport, —, SOURCE BACKUP), as it
+  does the console.
+
+What a key can be given: take, cut, program to preview, swap, take time ±,
+FTB, freeze, PGM EDIT, signal source, the layer steps, the five cue transport
+actions, open Multiviewers, open the last input's backup menu, lock, **recall
+memory *n* to preview**, **press Companion button *page/row/column***, or
+nothing. A fader: its own layer's opacity (the default), the selected layer's,
+or nothing. An encoder: the selected layer's X, Y, width, height (8 px a
+detent) or opacity (2 a detent), or nothing.
+
+The table is `plugins/pixelhue/mapping.js` and the drawing
+`plugins/pixelhue/layout.js`; the setting is `pixelhueMap`, which stores only
+overrides, so a control nobody changed follows whatever its default becomes.
+With nothing changed every key does exactly what it did before the table
+existed — `test/pixelhue-mapping.test.js` pins each default against
+`readIntent`.
+
+⚠️ **A held key repeats, and a hold reports only the repeat.** TIME held sends
+`510` about eight times a second and never `509`. So while TIME is mapped to
+something that is not a take time, the supervisor acts on the first repeat of a
+hold and drops the rest: TIME mapped to TAKE takes once, not eight times a
+second.
+
+⚠️ **The drawing is a U5's default layout** (from PixelFlow's virtual U5). A U5
+Pro or U5 mini is mapped by the same table — it is by function — but drawn as
+a U5 until their layouts are added. Controls a U5's default layout has no key
+for (FULL SCREEN, LAYER TOP / BOTTOM, CUTOUT) are listed under the drawing.
 
 ---
 
@@ -269,10 +322,10 @@ worth doing.
 
   | key | sends |
   |---|---|
-  | SWITCH DEVICE | `586` deviceSwitch, payload all empty (`{id: 0, uid: "", type: 0, text: ""}`); PixelFlow moves the input bus to the next switcher's sources |
+  | SWITCH DEVICE | `586` deviceSwitch, payload all empty (`{id: 0, uid: "", type: 0, text: ""}`); PixelFlow moves the input bus to the next switcher's sources — *nothing by default; assignable on the mapping page* |
   | MEDIA | no command — tag `0x0030032e` `{"mediaState": 620}`, and the lower-left cluster's lamps change |
   | CTRL alone | nothing; it is a modifier (CTRL + TIME is `512`) |
-  | cluster page 0, the rest | `501` full output, `502` copy, `503` mirror (and `500` full screen, `508` cutout on layouts that have them) |
+  | cluster page 0, the rest | `501` full output, `502` copy, `503` mirror (and `500` full screen, `508` cutout on layouts that have them) — *nothing by default; assignable on the mapping page* |
   | cluster pages 2 and 3 | nothing on this layout, bar SOURCE BACKUP |
   | the seven unbound keys | nothing; a key layout can give them any function |
   | DEL, then a screen | `104` screenDelete — deliberately never acted on |
