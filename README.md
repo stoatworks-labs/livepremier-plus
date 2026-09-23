@@ -42,6 +42,12 @@ rather than as a bolt-on:
   Layer 2 on screen 1 with layer 1 on screens 2 and 3 is *the side screens*, and
   a ganged group follows a source change made to any of its members, wherever
   that change came from.
+- **Layer Lock** — lock a layer and a take leaves it where it is; or take one
+  layer, or one group, alone. The switcher has neither: a take swaps the whole
+  preset buffer. So a locked layer's preview copy is kept equal to program, and
+  every TAKE or CUT sent from this page — the vendor's own button included — is
+  held for the moment it takes to line it up. Takes from the front panel, a
+  T-bar or OSC are not held, and the panel says so.
 - **Send to** — a `…` on every source card that routes it without a drag:
   preview or program, then a screen and layer or a whole group. It respects the
   vendor's own PGM padlock, asking before it steps past one.
@@ -878,6 +884,7 @@ PLUS                 <- ours
   VPU Map
   Memories
   Layer Groups
+  Layer Lock
   Matrix Routing
   Companion
 ```

@@ -144,6 +144,15 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'layer-lock',
+    name: 'Layer Lock',
+    where: 'Sidebar, under PLUS',
+    description: 'Lock a layer so a take leaves it where it is, or take one layer (or one group) alone.',
+    requires: { capabilities: ['layerGroups'] },
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'send-to',
     name: 'Send to',
     where: 'The … on every source card',

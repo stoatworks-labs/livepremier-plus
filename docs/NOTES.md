@@ -1249,3 +1249,71 @@ configured`; enabling the link at a dead loopback port redials and reports
 some *other* setting leaves the link alone is decided by `companionChanged`,
 which its own test pins); and both the Edit page and the Companion panel mount
 and work side by side.
+
+## Layer Lock and partial takes (2026-09-23)
+
+Asked for: "only transition a specified layer, or lock a specified layer from
+transitioning with everything else." The switcher has neither.
+
+### What the device has, and what it does not
+
+Searched in the whole 6.2.73 simulator store (124 MB) and the vendor bundle:
+
+- **No per-layer take, no layer lock.** `screenAuxGroupList/items/<S>/control`
+  carries `xTake`, `xCut`, `xTakeUp`, `xTakeDown`, `xTakeAbort`, `xStepBack`,
+  `copyMode` and `xCopyProgramToPreview` — all whole-screen.
+- **A per-preset, per-layer `transition` node**:
+  `presetList/items/<A|B>/layerList/items/<k>/transition/{pp/flags, opening/pp, closing/pp}`.
+  `flags` is a map of `PE_TRANSITION_FLAGS` — `FORCE_TRANSITION` (vendor
+  comment: "Avoid cross transition", the default on every layer),
+  `FORCE_CROSS`, `DEPTH_CUT_START`, `DEPTH_CUT_MIDDLE`. How a layer changes,
+  not whether. `system/userPref` has `layerForceTransition` /
+  `layerForceCross` defaults.
+- **The device's verdict per layer**: `screenList/items/<S>/layerList/items/<k>/status/pp/up|down`,
+  enum `LAYER_STATUS` — OFF, OPEN, CLOSE, CROSS, FLYING, FLYING_DEPTH,
+  PREEMPTED, MASK, OUT_OF_CAPACITY, UNAVAILABLE_SOURCE ("Layer will do a …
+  transition"). The Aquilon C capture (`aquilon-6.2.73-memories.json`) has
+  `CROSS` for LIVE_2 vs LIVE_8 at identical geometry and `OFF` for NONE in
+  both. **The simulator answers `OFF` for every layer, always** — changing
+  both buffers over AWJ never moved it.
+- The simulator's output snapshot is a static "OUT1" placeholder PNG, so
+  nothing on a simulator can show a layer standing still.
+
+### What was built
+
+Lock = keep preview equal to program (a follower, plus a gate in the hook that
+holds a TAKE/CUT for as long as it takes to line up an out-of-step locked
+layer); take only = hold every other layer, take, restore their preview looks.
+AGENTS.md has the rules.
+
+### Driven on the simulator through the proxy
+
+- The switcher echoes a page write in **~3.5 ms**, same path, to the sender.
+- **Lock** S1 L1: preview L1 went NONE → LIVE_2 to match program in one
+  write; the lock survived a reload (`/__lpp/layer-lock`).
+- **Follower**: a preview edit to L1 (source + posH) was written straight
+  back, preview letter only.
+- **Recall + vendor TAKE in one tick**, the take sent on the app socket through
+  `WebSocket.prototype.send` as the vendor's button does: L1's fix went out,
+  was echoed, THEN the take — new program L1 unchanged, L2 took the new
+  source. First run exposed the path-only echo match (the take left before the
+  lock's echo); fixed to path + value, re-run clean.
+- **Take only** S1 L2 with L1 unlocked and a pending look in preview: three
+  writes — hold L1, TAKE, restore L1 into the new preview. Program L1 stayed,
+  L2 changed, preview L1 had its pending look back.
+- **Take only across two screens** (S1 L2 + S2 L1) through the `locks`
+  service: both took, S1 L1 held and restored.
+
+⚠️ Another client on the shared simulator was taking S1 during the session;
+twice the letters flipped between a read and a write. The engine resolves
+letters at the moment it writes, which is why it was right; a hand-written
+test that cached "preview is A" was not.
+
+### Not proven
+
+- Any real frame. In particular: that a locked layer with a *live* source is
+  truly still through a take (the verdict should read `OFF` there), and which
+  of `up`/`down` is "next".
+- Midra 4K / Alta 4K: the code is dialect-generic (takes are recognised
+  through `dialect.takeControl`, layers through `layerParamPath`), no
+  simulator was run and there is no verdict field there.

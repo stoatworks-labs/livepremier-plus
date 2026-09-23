@@ -555,6 +555,56 @@ falls back card → master pair → **locked**, because a screen whose card is n
 on screen is the one case that cannot be checked and so must be the one that
 asks.
 
+### Layer Lock and partial takes (`core/layer-lock.js`, `plugins/layer-lock/`, the hook's gate)
+
+The switcher has **no per-layer take and no layer lock** — searched for in
+the 6.2.73 store and the vendor bundle on 2026-09-23. A take swaps whole
+buffers. Each preset layer has a `transition` node (opening/closing effect,
+flags `FORCE_TRANSITION` "avoid cross transition", `FORCE_CROSS`,
+`DEPTH_CUT_*`), which chooses *how* a layer changes, never *whether*.
+`xCopyProgramToPreview` exists but is whole-screen.
+
+Both features stand on one fact: **a layer identical in program and preview
+has nothing to transition.** Lock = keep preview equal to program; take only
+= make every other layer equal, take, put their preview looks back.
+
+The device's own verdict is `…/layerList/items/<k>/status/pp/up|down` —
+`OFF`/`OPEN`/`CLOSE`/`CROSS`/`FLYING`/… ("Layer will do a … transition", the
+vendor's comment). A real Aquilon C capture read `CROSS` for LIVE_2 vs LIVE_8
+at the same geometry and `OFF` for NONE in both. ⚠️ **The simulator reports
+`OFF` for every layer always**, so it cannot confirm a lock; and **no real frame
+has been asked about a locked layer with a live source.** Which of up/down is
+"next" is inferred (AT_DOWN → up) and unconfirmed.
+
+Four things are load-bearing:
+
+- ⚠️ **The hook now has an outbound gate, and it is the only thing in this app
+  between the vendor's UI and its socket.** `hook.setGate(fn)`: `fn(raw,
+  release)` returning true holds the frame; the hook sends it itself after
+  750 ms whatever the gate does, sends at most once, and a throwing gate lets
+  the frame straight through. That cap lives in `ws-hook.js`, not the plugin,
+  on purpose — a plugin bug may delay a TAKE, never swallow one. The lock
+  engine holds only a take on a destination whose locked layers are out of
+  line; an in-line take is untouched. There is one gate, not a list; a second
+  user needs a design, not a second `setGate`.
+- ⚠️ **Echoes are matched on path AND value.** Found on the simulator: a
+  recall writes preview L1, the lock writes the same path back, and the
+  recall's echo arrives first — path-only matching released the TAKE before
+  the lock's write was acknowledged. The switcher echoes a write in ~3.5 ms.
+- **A second TAKE while one is held queues behind it** — with the fix already
+  mirrored it would find nothing to hold, go first, and the held one would
+  take twice.
+- **The follower is the gang's cousin and keeps its rules**: role not letter,
+  nothing mid-take, only on live frames (never on found state — except when a
+  lock is *set*, which is the operator asking), and convergent because only
+  differing properties are written.
+
+⚠️ **Only takes leaving this page are gated.** Front panel, T-bar (a stream
+of positions — there is no honest moment to hold one), `server/osc.js`'s AWJ
+take, Companion speaking AWJ, another browser. The panel says so on every
+render. Proven on the simulator only (2026-09-23): lock + follower, a
+recall-and-vendor-TAKE in one tick, take-only on one and on two screens.
+
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 
 There are four — the Console's, the Timeline's cue editor, Memories' and

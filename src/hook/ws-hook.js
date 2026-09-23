@@ -91,6 +91,45 @@
   /** Subscribe to frames. Returns an unsubscribe function. */
   hook.on = (fn) => { hook.listeners.add(fn); return () => hook.listeners.delete(fn); };
 
+  /*
+   * The outbound gate: one function, installed later by a plugin, that may
+   * HOLD an outbound Analog Way frame for a moment before it leaves — the
+   * layer lock's way of getting preview into line before a TAKE, whoever
+   * pressed it. `gate(raw, release)` returns true to hold and calls
+   * `release()` when done; anything else sends the frame at once, as a
+   * throwing gate does.
+   *
+   * ⚠️ A held frame is never lost. `release` sends it at most once, and this
+   * file sends it itself after GATE_MAX_MS whatever the gate did — a bug in a
+   * plugin may delay a take, never swallow one. It is the only place in this
+   * app that stands between the vendor's own UI and its socket, so the cap
+   * lives here rather than in the plugin that asked for it.
+   */
+  const GATE_MAX_MS = 750;
+  hook.gate = null;
+  hook.setGate = (fn) => {
+    hook.gate = typeof fn === 'function' ? fn : null;
+    return () => { if (hook.gate === fn) hook.gate = null; };
+  };
+
+  function gated(raw, socket) {
+    const gate = hook.gate;
+    if (!gate || !looksAW(raw)) return false;
+    let sent = false;
+    const release = () => {
+      if (sent) return;
+      sent = true;
+      if (socket.readyState !== 1 /* OPEN */) return;
+      nativeSend.call(socket, raw);
+      try { record('out', raw, socket); } catch (_) { /* never break the host app */ }
+    };
+    let held = false;
+    try { held = gate(raw, release) === true; } catch (err) { console.error('[wru] gate threw', err); }
+    if (!held) return false;
+    setTimeout(release, GATE_MAX_MS);
+    return true;
+  }
+
   /** Every frame at or after `fromSeq`, for catching up after a snapshot fetch. */
   hook.since = (fromSeq) => hook.ring.filter((f) => f.seq >= fromSeq);
 
@@ -104,6 +143,7 @@
   hook.send = (raw) => {
     const s = hook.appSocket;
     if (!s || s.readyState !== 1 /* OPEN */) return false;
+    if (gated(raw, s)) return true;
     nativeSend.call(s, raw);
     record('out', raw, s);
     return true;
@@ -123,6 +163,7 @@
   /* Patch send on the prototype rather than per instance so we also catch
      frames the app sends before we have identified which socket is its own. */
   Native.prototype.send = function (data) {
+    try { if (gated(data, this)) return undefined; } catch (_) { /* never break the host app */ }
     try { record('out', data, this); } catch (_) { /* never break the host app */ }
     return nativeSend.apply(this, arguments);
   };

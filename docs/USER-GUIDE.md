@@ -371,6 +371,40 @@ get that frame's groups.
 
 ---
 
+## Layer Lock — a take that leaves a layer alone
+
+**PLUS ▸ Layer Lock.** One card per screen or aux, one row per fitted layer, each with **Lock** and
+**Take only**. When Layer Groups is on, each group gets the same two buttons at the top.
+
+The switcher has no per-layer take: TAKE swaps the whole program and preview buffers. What this uses
+instead is that **a layer that is the same in program and preview has nothing to transition.**
+
+- **Lock** keeps the layer's preview copy equal to its program copy. Change it in preview — the
+  vendor's properties, a memory recall — and it is put straight back; change it on program and
+  preview follows. Every TAKE and CUT sent from this page, the vendor's own buttons included, is
+  held for the few milliseconds it takes to line a locked layer up if it has drifted, then sent.
+  Locks are kept per switcher and survive a reload.
+- **Take only** takes that layer (or that group, on each of its screens) alone: every other layer
+  on the screen is set equal to program, the take is sent, and once it has landed the other layers'
+  preview looks are put back into what is now preview. A locked layer cannot be taken this way —
+  unlock it first.
+
+**Next take** is the switcher's own word for what each layer will do on the next take —
+*stays*, *opens*, *closes*, *crosses*, *flies*. On a real frame, *stays* beside a locked layer is
+the switcher agreeing. A simulator says *stays* for every layer whatever the buffers hold.
+
+> ⚠️ **Only takes sent from this page are held.** The front panel, a T-bar, an OSC take, a
+> Companion button speaking AWJ straight to the switcher and another operator's browser go straight
+> to the switcher. Between takes a locked layer is kept in line, so it usually stays put anyway —
+> but a recall and a take from outside in the same instant will move it. The panel says this at the
+> top every time.
+
+> ⚠️ **Proven on the simulator only.** No real frame has yet been asked what it does with a locked
+> layer that has a live source on it. The first time you use this on a frame, lock a layer in
+> rehearsal, take, and watch it.
+
+---
+
 ## Matrix Routing
 
 **PLUS ▸ Matrix Routing.** Patch the switcher's own sockets to ports on an external router —
@@ -885,7 +919,7 @@ was written against, and three separate groups:
 
 - **installation** — app settings (console language, OSC port and bind) and your external
   routers. Not tied to a switcher.
-- **show** — the cue stack, layer groups, layer names and Companion memory triggers. Tied to the switcher they were
+- **show** — the cue stack, layer groups, layer names, layer locks and Companion memory triggers. Tied to the switcher they were
   built on, because they name screens and layer slots like `S1/2`.
 - **rig** — the patch between the frame and the routers.
 
