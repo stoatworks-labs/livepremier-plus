@@ -219,6 +219,18 @@ export const CAPABILITIES = [
     },
     needs: 'its audio routing tree',
     absent: 'This switcher reports no audio routing this app knows how to address.'
+  },
+  {
+    id: 'inputGroups',
+    label: 'Mosaic inputs',
+    /* An input group (2X1, 2X2) under `preconfig/inputs`, and per-plug EDID
+       writes — both read off a LivePremier simulator 6.2.73. Midra 4K and
+       Alta 4K have plug EDIDs but no input groups that anyone has seen. */
+    probes: {
+      nlc: [ROOT, 'preconfig', 'inputs', 'current', 'inputList', 'items', '*', 'status', 'pp', 'groupValidity']
+    },
+    needs: 'input groups in its preconfig',
+    absent: 'This switcher has no input groups, so it cannot take a Mac\'s plugs back in as one picture.'
   }
 ];
 

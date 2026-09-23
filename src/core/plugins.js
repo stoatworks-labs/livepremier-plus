@@ -241,6 +241,14 @@ export const BUILTINS = [
     where: 'Every numeric field in Web RCS',
     description: 'Type 1080-80 in a layer width and get 1000.',
     client: 'client.js'
+  },
+  {
+    id: 'edid-mosaic',
+    name: 'Mosaic inputs',
+    where: 'Mosaic mode of the EDID editor',
+    description: 'Groups inputs 2X1 or 2X2 and loads each plug with its tile EDID, so a Mac joins its outputs into one frame-synced display.',
+    requires: { capabilities: ['inputGroups'] },
+    client: 'client.js'
   }
 ].map((p) => withDefaults(p));
 

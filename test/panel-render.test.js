@@ -94,7 +94,7 @@ function renders(name, panel) {
 const noStorage = { load: async () => null, save: async () => {} };
 
 /** Page halves that put nothing in the sidebar or on a strip. */
-const DECORATIONS = new Set(['arithmetic', 'layer-names', 'send-to']);
+const DECORATIONS = new Set(['arithmetic', 'layer-names', 'send-to', 'edid-mosaic']);
 
 for (const [storeName, makeStore] of Object.entries(STORES)) {
   test(`every panel in src/ui renders against ${storeName === 'empty' ? 'an empty store' : 'the simulator’s store'}`, async () => {
@@ -173,7 +173,8 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
         };
         await activate(ctx);
         /* Field arithmetic and the layer names decorate the vendor's own
-           page, and the names are a service: neither registers an entry. */
+           page, and the names and Mosaic inputs are services: none of them
+           registers an entry. */
         if (!DECORATIONS.has(id)) assert.ok(registered.length, `${id} registered nothing`);
         for (const entry of registered) renders(`${id}’s ${entry.id || 'entry'}`, entry);
       }
