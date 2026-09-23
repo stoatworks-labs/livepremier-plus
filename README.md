@@ -97,6 +97,12 @@ rather than as a bolt-on:
   the bytes the vendor's pages would otherwise pull, and every Web RCS tab gets
   it without a change to the vendor's code. It has never yet run against a real
   frame.
+- **Multiviewer thumbnails** *(preview, off by default)* — the switcher's
+  multiviewer, captured or streamed into the browser, cut into its sources and
+  put into every thumbnail in place of the once-a-second PNGs: live pictures at
+  up to 25 frames a second. The store gives each tile's position, so nothing is
+  calibrated by hand. On a Midra 4K or Alta 4K the switcher's own H.264 streamer
+  can be the feed. It has never yet met a real multiviewer.
 - **Your setup in one file** — the cue stack, layer groups, layer names, router
   patch and settings, written as one plain JSON file and read back the same way,
   so a rig restores with its `.awc` rather than half of it.
@@ -865,6 +871,51 @@ are hot, and how often each source's picture really changed.
 > LivePremier Simulator with a stand-in serving hardware-shaped thumbnails.
 > `node tools/snapshot-probe.mjs --device <ip>` measures how often a real
 > switcher rewrites a thumbnail — the number that decides what comes next.
+
+## Multiviewer thumbnails — preview
+
+The switcher already draws every source, live, on its multiviewer, and the
+device store says to the pixel where each one sits: an Aquilon C's multiviewer
+1 was a 5×4 grid of 384×270 widgets carrying `IN_1`…`IN_20`. Put that
+multiviewer into a browser and this plugin cuts each source out and puts it into
+the page's thumbnails — the vendor's source cards, the screen and aux canvases,
+this app's own — at up to 25 frames a second instead of one.
+
+Where the picture comes from is chosen **in each browser**, on the plugin's
+card in Preconfig ▸ LivePremier Plus:
+
+- **Capture device** — a capture card on that machine carrying the multiviewer
+  output: anything the browser sees as a webcam. Needs `localhost` or https.
+- **Stream (WHEP)** — WebRTC from [MediaMTX](https://github.com/bluenviron/mediamtx),
+  re-serving an encoder that carries the multiviewer. Works from any machine,
+  a tablet on the show Wi-Fi included.
+- **Test pattern** — a multiviewer drawn in the page from the store's own layout,
+  for a simulator, which has no multiviewer output.
+
+**On a Midra 4K or Alta 4K the switcher can be its own feed.** Its H.264
+streamer takes the multiviewer (`OUTPUT_MTVW`) as a picture — a real Pulse 4K
+offers it — and pushes RTMP. Point it at a MediaMTX (`rtmp://<host>:1935/<path>`)
+and the page plays the same path back over WHEP (`http://<host>:8889/<path>/whep`,
+worked out for you). The card's **Stream the multiviewer here** writes one
+destination slot (10 by default), sets the picture and starts it — only when you
+press it, after a confirmation, and never while the streamer is carrying
+something else. It is the unit's only streamer, and the stream is 720p30 and a
+second or so behind: slower than a capture card, far quicker than the PNGs.
+
+The card draws the capture with every cut outlined, so the three things not yet
+seen on a real output can be checked by eye: whether the picture is 16:9 inside
+its widget, where it sits (centre, top, bottom) with the label band beside it,
+and whether a tally border needs trimming. Only inputs (and, on a LivePremier,
+stills) have thumbnails to replace; a source not on the multiviewer keeps the
+switcher's picture. Three seconds without a new frame and every thumbnail is
+handed back to the switcher.
+
+> ⚠️ **Preview: never yet against a real multiviewer or a real streamer.**
+> Proven against the LivePremier Simulator with the test pattern — the vendor's
+> own source cards drawing the cut pictures, a source leaving the layout and a
+> dead capture both handing back — and the Midra geometry and streamer plan
+> checked against a real Pulse 4K's store. Starting the streamer has never been
+> seen to work: the simulators never start a stream.
 
 ## Pixelhue panel — preview
 

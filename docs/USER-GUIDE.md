@@ -852,6 +852,50 @@ Its card on this settings page has the five settings and what the relay is doing
 > fast that is — run it against a moving source before raising **Hot refresh**. The switcher still
 > sends each thumbnail it is asked for in full; the saving is largest for a page on another machine.
 
+## Multiviewer thumbnails (preview)
+
+Off until you switch it on in **Preconfig ▸ LivePremier Plus → Plugins**.
+
+The switcher already shows every source live on its multiviewer. Bring that multiviewer into the
+browser and this plugin cuts each source out of it and puts it into the thumbnails — the Sources
+panel, the screen and aux cards, this app's own pages — many times a second, instead of the
+once-a-second pictures the switcher sends. It knows where each source sits from the switcher itself,
+so there is nothing to line up.
+
+**Choose the picture on each browser**, on the plugin's card on this settings page:
+
+| This browser's picture | |
+|---|---|
+| **Off** | the switcher's own thumbnails, as always |
+| **Capture device** | a capture card on this computer, plugged into the multiviewer output. Open the app at `localhost` on that computer. |
+| **Stream (WHEP)** | the multiviewer as a stream from MediaMTX — from an encoder, or from a Midra 4K / Alta 4K's own streamer. Works on any computer or tablet. |
+| **Test pattern** | a made-up multiviewer, for trying it on a simulator |
+
+Then check the picture on the card: every green box should sit exactly on a source's picture, clear of
+its label. If they do not, change **Picture in a widget**, **Sits** or **Trim** until they do.
+
+| Setting | |
+|---|---|
+| **Multiviewer** | which of a LivePremier's multiviewers is on the capture |
+| **Picture in a widget** | 16:9 or 4:3 fitted inside each widget, or the whole widget |
+| **Sits** | where a fitted picture is — centre, top or bottom |
+| **Trim** | taken off every edge, for a tally border drawn over the picture |
+| **Frames a second** | how often the thumbnails are redrawn, 1–25 |
+| **Max width** | how large a thumbnail is drawn |
+
+**Midra 4K and Alta 4K: using the switcher's streamer.** Run MediaMTX on a computer on the show
+network, put its address in **RTMP address** (`rtmp://<computer>:1935/lpp-mv`), and press **Stream
+the multiviewer here**. It asks first, writes one of the streamer's ten destinations (10 unless you
+change it), sets the multiviewer as the picture and starts it. It will not touch a streamer that is
+already streaming something else — it is the unit's only one. Set the browsers to **Stream (WHEP)**.
+The pictures run about a second behind the switcher.
+
+If the capture stops, or a source leaves the multiviewer, its thumbnails go back to the switcher's own
+within three seconds. Set a browser to **Off** at any time to have them all back.
+
+> ⚠️ **Proven on the simulator only**, with the test pattern. It has never seen a real multiviewer
+> output, and the simulators never start a stream, so starting the streamer is untested.
+
 ---
 
 ## Arithmetic in numeric fields

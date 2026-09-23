@@ -253,6 +253,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'mv-slicer',
+    name: 'Multiviewer thumbnails',
+    where: 'Settings (preview), and every source thumbnail',
+    description: 'Source thumbnails cut live from the switcher’s multiviewer — a capture card, a stream, or a Midra’s own streamer — in place of the once-a-second PNGs. Never yet run against a real multiviewer.',
+    /* Off until it has been: like the relay, it sits in front of every
+       thumbnail the vendor's own pages draw. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'setup-file',
     name: 'Setup file',
     where: '/__lpp/config',

@@ -21,7 +21,7 @@ import {
 /* Built-ins that arrived switched off, because nobody had them before and they
    have not yet run against a real switcher. Anyone upgrading loses nothing. A
    feature leaves this list when it is proved, and is on from then. */
-const OFF_UNTIL_TESTED = new Set(['snapshot-relay']);
+const OFF_UNTIL_TESTED = new Set(['snapshot-relay', 'mv-slicer']);
 
 test('every built-in is described once, on the current API, and on by default', () => {
   const ids = BUILTINS.map((p) => p.id);
