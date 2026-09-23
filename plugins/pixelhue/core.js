@@ -78,7 +78,24 @@ export const COMMAND = Object.freeze({
   inputSwitch: 300,         // ✓
   savePreset: 400,          // ✓ — SAVE TO armed, then a preset key
   playPreset: 401,          // ✓
-  layerEffectTimeAdd: 509,  // ✓ TIME
+  /* Layer tools, on page 0 of a U5's lower-left cluster. Never acted on: a
+     LivePremier layer's stacking is its number, and the rest want a decision. */
+  layerFullscreen: 500,
+  layerFullOutput: 501,     // ✓
+  layerCopy: 502,           // ✓
+  layerMirror: 503,         // ✓
+  layerTop: 504,
+  layerUp: 505,             // ✓
+  layerBottom: 506,
+  layerDown: 507,           // ✓
+  layerCutout: 508,
+  layerEffectTimeAdd: 509,  // ✓ TIME, a click
+  layerEffectTimeQuickAddStart: 510,   // ✓ TIME, held (repeats)
+  LayerEffectTimeQuickAddEnd: 511,
+  layerEffectTimeMinus: 512,           // ✓ CTRL + TIME
+  layerEffectTimeQuickMinusStart: 513,
+  layerEffectTimeQuickMinusEnd: 514,
+  ctrl: 519,
   screenFreeze: 517,        // ✓
   screenFTB: 518,           // ✓
   presetSave: 520,          // ✓ SAVE TO arms / disarms
@@ -88,8 +105,18 @@ export const COMMAND = Object.freeze({
   take: 531,                // ✓
   cut: 532,                 // ✓
   swap: 533,                // ✓
+  lockPanel: 523,           // ✓ LOCK PANEL, a long press
+  unlockPanel: 524,
   pageUp: 549,
   pageDown: 550,
+  /* Cue transport, on page 1 of the lower-left cluster. */
+  playCue: 569,             // ✓
+  startAnewCue: 570,        // ✓
+  stopCue: 571,             // ✓
+  previousCue: 572,         // ✓
+  nextCue: 573,             // ✓
+  deviceSwitch: 586,        // ✓ SWITCH DEVICE
+  inputTypeSwitch: 587,     // ✓ SIGNAL SOURCE
 });
 
 const NAMES = Object.fromEntries(Object.entries(COMMAND).map(([k, v]) => [v, k]));
@@ -307,6 +334,17 @@ export function readIntent(report) {
     case COMMAND.pgmEdit:  return { kind: 'pgmEdit' };
     case COMMAND.screenFTB:    return { kind: 'ftb' };
     case COMMAND.screenFreeze: return { kind: 'freeze' };
+    case COMMAND.layerEffectTimeAdd:
+    case COMMAND.layerEffectTimeQuickAddStart:
+      return { kind: 'time', delta: 1 };
+    case COMMAND.layerEffectTimeMinus:
+    case COMMAND.layerEffectTimeQuickMinusStart:
+      return { kind: 'time', delta: -1 };
+    case COMMAND.swap: return { kind: 'swap' };
+    case COMMAND.inputTypeSwitch: return { kind: 'sourceType' };
+    case COMMAND.lockPanel:
+    case COMMAND.unlockPanel:
+      return { kind: 'lock' };
     default: return null;
   }
 }
@@ -368,7 +406,10 @@ export function writesFor(intent, ctx) {
       if (!intent.input) return { ...out, note: 'a source change with no input' };
       const spec = sourceSpec(dialect);
       if (!spec) return { ...out, note: 'this platform has no source parameter' };
-      const value = dialect.id === 'nlc' ? `LIVE_${intent.input}` : `INPUT_${intent.input}`;
+      /* SIGNAL SOURCE moves the input bus between live inputs, stills and
+         screens; the key's id is the number within whichever it shows. */
+      const kind = ctx.sourceKind || 'LIVE';
+      const value = dialect.id === 'nlc' ? `${kind}_${intent.input}` : `INPUT_${intent.input}`;
       for (const id of selected) {
         const letter = ctx.letterFor ? ctx.letterFor(id) : null;
         if (!letter) {
@@ -406,6 +447,45 @@ export function writesFor(intent, ctx) {
       if (intent.label) out.writes.push(dialect.label('screen', intent.slot, intent.label));
       out.note = `store ${buffer} of ${from} to memory ${intent.slot}`
         + (intent.label ? ` as "${intent.label}"` : '');
+      break;
+    }
+    case 'time': {
+      /*
+       * TIME adds 0.1 s to the take time, CTRL + TIME takes it off, and a held
+       * TIME repeats. Clamped to PixelFlow's own range, 0.1 s to 10 s
+       * (`FuncsCommand.ts`: SWITCH_MIN_TIME / SWITCH_MAX_TIME), each screen
+       * from where it is now.
+       */
+      if (!dialect.fadeTimePath || !dialect.fadeCmds) {
+        return { ...out, note: 'transition time is not mapped on this platform yet' };
+      }
+      const now = selected.map((id) => (ctx.timeOf ? ctx.timeOf(id) : null));
+      if (now.some((v) => !Number.isFinite(v))) {
+        return { ...out, note: 'refused — could not read the take time' };
+      }
+      const next = now.map((v) => Math.min(TIME_MAX, Math.max(TIME_MIN, v + (intent.delta || 0))));
+      selected.forEach((id, i) => out.writes.push(...dialect.fadeCmds(id, next[i])));
+      const shown = [...new Set(next)].map((t) => `${(t / 10).toFixed(1)} s`).join(' / ');
+      out.note = `take time ${shown} on ${selected.join(' ')}`;
+      break;
+    }
+    case 'swap': {
+      /*
+       * SWAP is a latch: on, a take swaps preview and program; off, preview
+       * keeps a copy of what went on air. A LivePremier keeps the same switch
+       * per take group, the other way up, as `copyMode`. One answer for the
+       * selection: if every screen swaps, all of them stop; otherwise all swap.
+       */
+      if (!dialect.copyModePath || !dialect.copyModePath(selected[0])) {
+        return { ...out, note: 'swap is not mapped on this platform yet' };
+      }
+      const now = selected.map((id) => (ctx.copyModeOf ? ctx.copyModeOf(id) : null));
+      if (now.some((v) => typeof v !== 'boolean')) {
+        return { ...out, note: 'refused — could not read the take mode' };
+      }
+      const swapping = now.every((v) => v === false);
+      for (const id of selected) out.writes.push({ path: dialect.copyModePath(id), value: swapping });
+      out.note = `${swapping ? 'swap off — a take copies' : 'swap on — a take swaps'} on ${selected.join(' ')}`;
       break;
     }
     case 'ftb': {
@@ -462,8 +542,12 @@ export function writesFor(intent, ctx) {
   return out;
 }
 
+/* PixelFlow's take-time range, in tenths. */
+const TIME_MIN = 1;
+const TIME_MAX = 100;
+
 const NEEDS_DESTINATION = new Set([
-  'take', 'cut', 'matchProgram', 'recall', 'store', 'source', 'ftb', 'freeze',
+  'take', 'cut', 'matchProgram', 'recall', 'store', 'source', 'ftb', 'freeze', 'time', 'swap',
 ]);
 
 /**
@@ -499,6 +583,99 @@ export function tbarWrites(report, ctx) {
 }
 
 /** The path tail of the layer parameter naming a source, from the catalogue. */
+/* ------------------------------------------------------ faders and encoders */
+
+/**
+ * What this app binds the console's faders and encoders to.
+ *
+ * ⚠️ A U5's faders and encoders report NOTHING until something is bound to
+ * them: UCenter drops the moves. A client binds with `POST
+ * ucenter/video-station/midi/binding {attributes:[{unique, type, index}]}`
+ * (type 2 fader, 1 encoder), and from then on every move of a bound control
+ * reaches every client on tag 0x0010031c as `{unique, value, type,
+ * frameValue}` — a fader's value is its position in percent, an encoder's
+ * `frameValue` is ±1 per detent. Found 2026-09-23 on the Mac UCenter; the
+ * binding table is UCenter's and shared, so PixelFlow binding its own
+ * controls takes them back.
+ *
+ * What each control DOES here is a first answer, meant to be replaced:
+ * fader n is the opacity of layer n on the active screen, and the four
+ * encoders move and size the selected layer — both on the buffer the panel
+ * edits.
+ */
+export const FADERS = 8;
+export const ENCODERS = 4;
+export const MIDI_BINDINGS = Object.freeze([
+  ...Array.from({ length: FADERS }, (_, i) => ({ unique: `lpp.fader.${i + 1}`, type: 2, index: i + 1 })),
+  ...Array.from({ length: ENCODERS }, (_, i) => ({ unique: `lpp.encoder.${i + 1}`, type: 1, index: i + 1 })),
+]);
+const ENCODER_PARAMS = { 1: 'posH', 2: 'posV', 3: 'sizeH', 4: 'sizeV' };
+/* Pixels per detent. */
+export const ENCODER_STEP = 8;
+
+/** One 0x0010031c report, as this app's own control, or null. */
+export function readMidi(report) {
+  const m = /^lpp\.(fader|encoder)\.(\d+)$/.exec(String((report && report.unique) || ''));
+  if (!m) return null;
+  const index = Number(m[2]);
+  if (m[1] === 'fader') {
+    const value = Number(report.value);
+    return Number.isFinite(value) ? { control: 'fader', index, percent: Math.min(100, Math.max(0, value)) } : null;
+  }
+  const ticks = Number(report.frameValue);
+  return Number.isFinite(ticks) && ticks !== 0 ? { control: 'encoder', index, ticks } : null;
+}
+
+/** The catalogue entry for a named layer parameter, spelled either platform's way. */
+const PARAM_IDS = {
+  opacity: ['opacity.opacity'],
+  posH: ['position.posH'],
+  posV: ['position.posV'],
+  sizeH: ['position.sizeH', 'size.sizeH'],
+  sizeV: ['position.sizeV', 'size.sizeV'],
+};
+export function layerParam(dialect, name) {
+  const list = (dialect && dialect.catalogue && dialect.catalogue.layer) || [];
+  for (const id of PARAM_IDS[name] || []) {
+    const found = list.find((p) => p.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+/**
+ * What a control move writes. A fader is absolute; an encoder is relative to
+ * `current`, which the caller reads from the device.
+ *
+ * @param {{control, index, percent?, ticks?}} move   from `readMidi`
+ * @param {object} ctx `{dialect, destination, letter, layer, current?}`
+ * @returns {{param: string, layer: number, path?: string[], value?: number, note: string}}
+ */
+export function midiWrite(move, ctx) {
+  const { dialect, destination, letter } = ctx || {};
+  if (!move || !dialect || !destination || !letter) return { note: 'nothing to move' };
+  const isFader = move.control === 'fader';
+  const name = isFader ? 'opacity' : ENCODER_PARAMS[move.index];
+  const layer = isFader ? move.index : ctx.layer;
+  const spec = name && layerParam(dialect, name);
+  if (!spec) return { param: name, layer, note: `${name || 'that control'} is not mapped on this platform` };
+  const clamp = (v) => Math.min(spec.max ?? v, Math.max(spec.min ?? v, v));
+  let value;
+  if (isFader) {
+    value = Math.round(((spec.max ?? 100) * move.percent) / 100);
+  } else {
+    if (!Number.isFinite(ctx.current)) return { param: name, layer, note: `refused — could not read ${name}` };
+    value = clamp(ctx.current + move.ticks * ENCODER_STEP);
+  }
+  return {
+    param: name,
+    layer,
+    path: dialect.layerParamPath(destination, letter, layer, spec.path),
+    value: clamp(value),
+    note: `${name} of layer ${layer} on ${destination} = ${clamp(value)}`,
+  };
+}
+
 function sourceSpec(dialect) {
   const list = (dialect.catalogue && dialect.catalogue.layer) || [];
   const found = list.find((p) => p.id === dialect.sourceParam);

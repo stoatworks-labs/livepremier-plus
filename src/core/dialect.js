@@ -345,6 +345,20 @@ export const NLC = {
     return [ROOT, 'screenList', 'items', id, 'layerList', 'items', String(key), 'control', 'pp', 'freeze'];
   },
 
+  /** Where to READ a destination's take time; `fadeCmds` writes it. Tenths. */
+  fadeTimePath(id) {
+    return NLC.takeControl(id, 'takeUpTime');
+  },
+
+  /**
+   * The take group's `copyMode`: false, the default, swaps preview and
+   * program on a take; true leaves preview holding a copy of what went on air.
+   * A Pixelhue console's SWAP key is the same switch the other way up.
+   */
+  copyModePath(id) {
+    return NLC.takeControl(id, 'copyMode');
+  },
+
   /** Where one buffer's layer geometry lives, and how it is spelled. */
   layerGeometry(store, dest, buffer, key) {
     const node = store.get([ROOT, dest.listName, 'items', dest.id, 'presetList', 'items', buffer, 'layerList', 'items', String(key)]);
@@ -741,6 +755,12 @@ export const MNG = {
      treat null as "not mapped here" rather than guessing a spelling. */
   fadeToBlackPath() { return null; },
   layerFreezePath() { return null; },
+  copyModePath() { return null; },
+
+  /** One take time serves both directions here. Tenths. */
+  fadeTimePath(id) {
+    return this.takeControl(id, 'takeTime');
+  },
 
   /**
    * One buffer's layer geometry. Position and size are separate nodes here,

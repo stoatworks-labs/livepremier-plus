@@ -52,6 +52,9 @@ export const MINI_PORT = 8088;
  */
 export const TBAR_REPORT = 0x00101358;
 
+/** A bound fader or encoder moved: `{unique, value, type, frameValue}`. */
+export const MIDI_REPORT = 0x0010031c;
+
 const PING_MS = 1000;
 const RECONNECT_MS = 3000;
 const REST_TIMEOUT_MS = 8000;
@@ -166,6 +169,9 @@ export class UCenterLink extends EventEmitter {
         this.state.keys++;
         this.emit('keystate', [].concat(frame.data || []));
         break;
+      case MIDI_REPORT:
+        if (frame.data && typeof frame.data === 'object') this.emit('midi', frame.data);
+        break;
       case TBAR_REPORT:
       case TAGS.TBAR:
         if (frame.data && typeof frame.data === 'object') this.emit('tbar', frame.data);
@@ -227,6 +233,15 @@ export class UCenterLink extends EventEmitter {
     const res = await this.#send('ucenter/video-station/data-change', model);
     this.state.published++;
     return res;
+  }
+
+  /**
+   * Bind faders and encoders to `attributes` (`[{unique, type, index}]`).
+   * ⚠️ UCenter answers this itself; it must not carry `ip`/`port` headers,
+   * or a UCenter that proxies to devices forwards it instead.
+   */
+  bindControls(attributes) {
+    return this.#send('ucenter/video-station/midi/binding', { attributes }, 'POST');
   }
 
   /**

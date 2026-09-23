@@ -43,6 +43,7 @@ import { letterFor } from '../../src/vendor/surface/preset.js';
 import { toAwj } from '../../src/core/paths.js';
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName, CONSOLE_MODELS,
+  MIDI_BINDINGS, readMidi, midiWrite, layerParam,
 } from './core.js';
 
 export { CONSOLE_MODELS };
@@ -55,6 +56,12 @@ const SCREENS = 24;
 const INPUTS = 24;
 const MEMORIES = 32;
 const LAYERS = 16;
+const STILLS = 24;
+/* The order SIGNAL SOURCE walks the input bus through, where they exist. */
+const SOURCE_KINDS = ['LIVE', 'STILL', 'SCREEN'];
+/* A fader or encoder gesture with no move for this long is over; its history
+   line is written then, not once per step. */
+const GESTURE_IDLE_MS = 500;
 const HISTORY = 40;
 
 /* A console that has lost the model shows a panel with no labels. Noticing
@@ -80,6 +87,9 @@ export class PixelhueSupervisor extends EventEmitter {
   #lastRepublish = 0;
   #republishTimer = null;
   #stroke = null;
+  #sourceKind = 'LIVE';
+  #locked = false;
+  #controls = new Map();
 
   /**
    * @param {object} opts
@@ -117,6 +127,8 @@ export class PixelhueSupervisor extends EventEmitter {
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     this.#config = want;
     this.selection.reset();
+    this.#sourceKind = 'LIVE';
+    this.#locked = false;
     if (!want) { this.#note({ kind: 'stopped' }); return this.describe(); }
 
     const link = new UCenterLink({ host: want.host, port: want.port, log: this.log });
@@ -127,6 +139,7 @@ export class PixelhueSupervisor extends EventEmitter {
     link.on('command', (report) => { void this.#onCommand(report); });
     link.on('keystate', (items) => this.#watchForWipe(items));
     link.on('tbar', (report) => this.#onTbar(report));
+    link.on('midi', (report) => this.#onMidi(report));
     link.start();
     this.#note({ kind: 'starting', host: want.host, port: want.port, model: want.model });
     return this.describe();
@@ -168,6 +181,12 @@ export class PixelhueSupervisor extends EventEmitter {
       gets.push({ op: 'get', path: toAwj(['device', 'inputList', 'items', key, 'mapping', 'pp', 'isValid']) });
       gets.push({ op: 'get', path: toAwj(['device', 'inputList', 'items', key, 'control', 'pp', 'label']) });
     }
+    if (isNlc) {
+      for (let n = 1; n <= STILLS; n++) {
+        gets.push({ op: 'get', path: toAwj(['device', 'stillList', 'items', String(n), 'mapping', 'pp', 'isValid']) });
+        gets.push({ op: 'get', path: toAwj(['device', 'stillList', 'items', String(n), 'control', 'pp', 'label']) });
+      }
+    }
     for (let slot = 1; slot <= MEMORIES; slot++) {
       const built = dialect.label('screen', slot, '');
       if (built) gets.push({ op: 'get', path: toAwj(built.path) });
@@ -186,13 +205,29 @@ export class PixelhueSupervisor extends EventEmitter {
       isUsed: at(dialect.takeStatus(id, 'isUsed')) === true,
     }));
 
-    const inputs = [];
+    /* Everything the input bus can show; SIGNAL SOURCE picks which. A screen
+       in service is a source on a LivePremier (SCREEN_n), as is a still. */
+    const sources = { LIVE: [], STILL: [], SCREEN: [] };
     for (let n = 1; n <= INPUTS; n++) {
       const key = isNlc ? `IN_${n}` : String(n);
       if (at(['device', 'inputList', 'items', key, 'mapping', 'pp', 'isValid']) !== true) continue;
       const label = String(at(['device', 'inputList', 'items', key, 'control', 'pp', 'label']) || '');
-      inputs.push({ number: n, source: isNlc ? `LIVE_${n}` : `INPUT_${n}`, label });
+      sources.LIVE.push({ number: n, source: isNlc ? `LIVE_${n}` : `INPUT_${n}`, label });
     }
+    if (isNlc) {
+      for (let n = 1; n <= STILLS; n++) {
+        if (at(['device', 'stillList', 'items', String(n), 'mapping', 'pp', 'isValid']) !== true) continue;
+        const label = String(at(['device', 'stillList', 'items', String(n), 'control', 'pp', 'label']) || '');
+        sources.STILL.push({ number: n, source: `STILL_${n}`, label: label || `STILL_${n}` });
+      }
+      for (const d of destinations) {
+        const m = /^S(\d+)$/.exec(d.id);
+        if (m && d.isUsed) sources.SCREEN.push({ number: Number(m[1]), source: `SCREEN_${m[1]}`, label: d.label || d.id });
+      }
+    }
+    const sourceKinds = SOURCE_KINDS.filter((k) => sources[k].length);
+    if (!sourceKinds.includes(this.#sourceKind)) this.#sourceKind = 'LIVE';
+    const inputs = sources[this.#sourceKind];
 
     const presets = [];
     const freeSlots = [];
@@ -246,7 +281,7 @@ export class PixelhueSupervisor extends EventEmitter {
     }
 
     this.#dialect = dialect;
-    this.#facts = { destinations, inputs, presets, layers, freeSlots, deviceId: host };
+    this.#facts = { destinations, inputs, presets, layers, freeSlots, sourceKinds, deviceId: host };
     return this.#facts;
   }
 
@@ -271,6 +306,7 @@ export class PixelhueSupervisor extends EventEmitter {
       await this.#link.publish(model);
       this.#remember(model);
       this.selection.restrict(model.screens.map((s) => s.uid));
+      await this.#bindControls();
       this.#note({
         kind: 'published',
         screens: model.screens.length,
@@ -282,6 +318,20 @@ export class PixelhueSupervisor extends EventEmitter {
     } catch (err) {
       this.#note({ kind: 'error', error: err.message });
       return null;
+    }
+  }
+
+  /**
+   * Bind the faders and encoders to this app. Without it UCenter drops their
+   * moves; with it, each move arrives on tag 0x0010031c (see `MIDI_BINDINGS`).
+   * Done on every publish, because the table is shared: PixelFlow binding its
+   * own controls takes them away.
+   */
+  async #bindControls() {
+    try {
+      await this.#link.bindControls(MIDI_BINDINGS);
+    } catch (err) {
+      this.#note({ kind: 'error', error: `binding faders and encoders: ${err.message}` });
     }
   }
 
@@ -299,6 +349,16 @@ export class PixelhueSupervisor extends EventEmitter {
       host, port: this.awjPort, messages: paths.map((p) => ({ op: 'get', path: toAwj(p) })),
     });
     return new Map(replies.map((r) => [r.path, r.value]));
+  }
+
+  /** One read per destination, answered by destination. */
+  async #readEach(ids, pathOf) {
+    const paths = ids.map(pathOf).filter(Boolean);
+    const got = await this.#read(paths);
+    return new Map(ids.map((id) => {
+      const path = pathOf(id);
+      return [id, path ? got.get(toAwj(path)) : undefined];
+    }));
   }
 
   /** Whether each destination is faded to black now. */
@@ -392,6 +452,27 @@ export class PixelhueSupervisor extends EventEmitter {
       return;
     }
 
+    /* LOCK PANEL (a long press) latches; while it is on, the panel changes
+       nothing but the lock. */
+    if (intent.kind === 'lock') {
+      this.#locked = !this.#locked;
+      this.#note({ kind: 'noted', command: commandName(code), code, note: this.#locked ? 'panel locked' : 'panel unlocked' });
+      return;
+    }
+    if (this.#locked) {
+      this.#note({ kind: 'noted', command: commandName(code), code, note: 'ignored — the panel is locked' });
+      return;
+    }
+
+    if (intent.kind === 'sourceType') {
+      const kinds = (this.#facts && this.#facts.sourceKinds) || ['LIVE'];
+      const next = kinds[(kinds.indexOf(this.#sourceKind) + 1) % kinds.length] || 'LIVE';
+      this.#sourceKind = next;
+      this.#note({ kind: 'noted', command: commandName(code), code, note: `input bus shows ${next.toLowerCase()} sources` });
+      void this.refresh();
+      return;
+    }
+
     if (!this.selection.accepts(intent)) {
       this.#note({
         kind: 'noted',
@@ -421,10 +502,16 @@ export class PixelhueSupervisor extends EventEmitter {
     let letters = new Map();
     let faded = new Map();
     let freeze = new Map();
+    let times = new Map();
+    let copyModes = new Map();
     try {
       if (intent.kind === 'source') letters = await this.#lettersFor(this.selection.list);
       if (intent.kind === 'ftb' && this.#dialect) faded = await this.#fadedFor(this.selection.list);
       if (intent.kind === 'freeze' && this.#dialect) freeze = await this.#freezeFor(this.selection.list);
+      if (intent.kind === 'time' && this.#dialect) times = await this.#readEach(this.selection.list, (id) => this.#dialect.fadeTimePath(id));
+      if (intent.kind === 'swap' && this.#dialect && this.#dialect.copyModePath) {
+        copyModes = await this.#readEach(this.selection.list, (id) => this.#dialect.copyModePath(id));
+      }
     } catch (err) {
       this.#note({ kind: 'error', command: commandName(code), code, error: err.message });
       return;
@@ -439,6 +526,9 @@ export class PixelhueSupervisor extends EventEmitter {
       letterFor: (id) => letters.get(id) || null,
       fadedOf: (id) => (faded.has(id) ? faded.get(id) : null),
       freezeOf: (id) => freeze.get(id) || null,
+      timeOf: (id) => (times.has(id) ? Number(times.get(id)) : null),
+      copyModeOf: (id) => (copyModes.has(id) ? copyModes.get(id) : null),
+      sourceKind: this.#sourceKind,
     });
 
     if (!writes.length) {
@@ -544,6 +634,70 @@ export class PixelhueSupervisor extends EventEmitter {
     this.#stroke = null;
   }
 
+  /* ----------------------------------------------- faders and encoders */
+
+  /**
+   * One move of a bound fader or encoder. Each control keeps one write in
+   * flight: a fader's newest position wins, an encoder's detents add up while
+   * a write is out. The history gets one line per gesture, when it stops.
+   */
+  #onMidi(report) {
+    if (this.#locked || !this.#dialect) return;
+    const move = readMidi(report);
+    if (!move) return;
+    const key = `${move.control}.${move.index}`;
+    let c = this.#controls.get(key);
+    if (!c) { c = { busy: false, pending: null, ticks: 0, last: null, timer: null }; this.#controls.set(key, c); }
+    if (move.control === 'fader') c.pending = move;
+    else { c.ticks += move.ticks; c.pending = { ...move, ticks: c.ticks }; }
+    clearTimeout(c.timer);
+    c.timer = setTimeout(() => {
+      if (c.last) this.#note({ kind: 'sent', command: key, note: c.last.note, sent: c.last.sent });
+      c.last = null;
+    }, GESTURE_IDLE_MS);
+    if (c.timer.unref) c.timer.unref();
+    void this.#pumpControl(c);
+  }
+
+  async #pumpControl(c) {
+    if (c.busy || !c.pending) return;
+    const move = c.pending;
+    c.pending = null;
+    if (move.control === 'encoder') c.ticks = 0;
+    c.busy = true;
+    try {
+      const destination = this.selection.list[this.selection.list.length - 1];
+      if (!destination) return;
+      const letters = await this.#lettersFor([destination]);
+      const letter = letters.get(destination);
+      let current;
+      if (move.control === 'encoder') {
+        const name = { 1: 'posH', 2: 'posV', 3: 'sizeH', 4: 'sizeV' }[move.index];
+        const spec = layerParam(this.#dialect, name);
+        if (spec && letter) {
+          const path = this.#dialect.layerParamPath(destination, letter, this.selection.layer, spec.path);
+          const got = await this.#read([path]);
+          current = Number(got.get(toAwj(path)));
+        }
+      }
+      const w = midiWrite(move, {
+        dialect: this.#dialect, destination, letter, layer: this.selection.layer, current,
+      });
+      if (!w.path) { c.last = { note: w.note, sent: [] }; return; }
+      await exchange({
+        host: this.deviceHost(),
+        port: this.awjPort,
+        messages: [{ op: 'replace', path: toAwj(w.path), value: w.value }],
+      });
+      c.last = { note: w.note, sent: sentDetail([w]) };
+    } catch (err) {
+      this.#note({ kind: 'error', command: `${move.control}.${move.index}`, error: err.message });
+    } finally {
+      c.busy = false;
+      if (c.pending) void this.#pumpControl(c);
+    }
+  }
+
   /* ------------------------------------------------------ a wiped console */
 
   /**
@@ -600,6 +754,8 @@ export class PixelhueSupervisor extends EventEmitter {
       platform: this.#dialect ? this.#dialect.name : null,
       link: this.#link ? this.#link.state : null,
       selection: this.selection.describe(),
+      sourceKind: this.#sourceKind,
+      locked: this.#locked,
       history: this.history.slice(0, 12),
     };
   }
@@ -637,7 +793,7 @@ function sentDetail(writes) {
 }
 
 /* Intents after which the model must be read again, not just re-sent. */
-const REREAD = new Set(['store', 'ftb', 'freeze']);
+const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap']);
 
 /** Where a memory slot says it holds something, beside its label. */
 function slotValidPath(dialect, slot) {

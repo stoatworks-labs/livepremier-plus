@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName,
   COMMAND, CONSOLE_MODELS, layerIdFor, layerKeyOf,
+  MIDI_BINDINGS, readMidi, midiWrite, ENCODER_STEP,
 } from '../plugins/pixelhue/core.js';
 import { NLC, MNG } from '../src/core/dialect.js';
 import { commandsFor } from '../src/core/commands.js';
@@ -189,7 +190,8 @@ test('commands outside the vocabulary are ignored rather than guessed at', () =>
   assert.equal(readIntent({ command: 569 }), null);   // playCue
   assert.equal(readIntent({ command: 556 }), null);   // ptzDown
   assert.equal(readIntent(null), null);
-  assert.equal(commandName(569), 'command 569');
+  assert.equal(commandName(569), 'playCue', 'named from the vendor enum, still not acted on');
+  assert.equal(commandName(556), 'command 556');
   assert.equal(commandName(531), 'take');
 });
 
@@ -315,6 +317,68 @@ test('freeze refuses without knowing what is on air', () => {
   const out = writesFor({ kind: 'freeze' }, ctx({ freezeOf: () => ({ programDest: null, layers: [] }) }));
   assert.equal(out.writes.length, 0);
   assert.match(out.note, /refused/);
+});
+
+test('TIME and CTRL+TIME step the take time 0.1 s, inside PixelFlow\'s 0.1–10 s', () => {
+  assert.deepEqual(readIntent({ command: COMMAND.layerEffectTimeQuickAddStart }), { kind: 'time', delta: 1 });
+  assert.deepEqual(readIntent({ command: COMMAND.layerEffectTimeMinus }), { kind: 'time', delta: -1 });
+  const up = writesFor({ kind: 'time', delta: 1 }, ctx({ selected: ['S1', 'S2'], timeOf: (id) => (id === 'S1' ? 10 : 100) }));
+  const byPath = Object.fromEntries(up.writes.map((w) => [toAwj(w.path), w.value]));
+  assert.equal(byPath[toAwj(NLC.takeControl('S1', 'takeUpTime'))], 11);
+  assert.equal(byPath[toAwj(NLC.takeControl('S1', 'takeDownTime'))], 11);
+  assert.equal(byPath[toAwj(NLC.takeControl('S2', 'takeUpTime'))], 100, 'already at 10 s');
+  const down = writesFor({ kind: 'time', delta: -1 }, ctx({ timeOf: () => 1 }));
+  assert.equal(down.writes[0].value, 1, 'never below 0.1 s');
+  assert.match(writesFor({ kind: 'time', delta: 1 }, ctx({ timeOf: () => null })).note, /refused/);
+});
+
+test('SWAP flips the take group\'s copyMode, one answer for the whole selection', () => {
+  assert.deepEqual(readIntent({ command: COMMAND.swap }), { kind: 'swap' });
+  const off = writesFor({ kind: 'swap' }, ctx({ selected: ['S1', 'S2'], copyModeOf: () => false }));
+  assert.deepEqual(off.writes.map((w) => [toAwj(w.path), w.value]), [
+    [toAwj(NLC.copyModePath('S1')), true], [toAwj(NLC.copyModePath('S2')), true],
+  ]);
+  assert.match(off.note, /swap off/);
+  const on = writesFor({ kind: 'swap' }, ctx({ selected: ['S1', 'S2'], copyModeOf: (id) => id === 'S2' }));
+  assert.deepEqual(on.writes.map((w) => w.value), [false, false]);
+  assert.match(writesFor({ kind: 'swap' }, ctx({ dialect: MNG, commands: commandsFor(MNG) })).note, /not mapped/);
+});
+
+test('SIGNAL SOURCE is read, and a source change follows the kind the bus shows', () => {
+  assert.deepEqual(readIntent({ command: COMMAND.inputTypeSwitch }), { kind: 'sourceType' });
+  const still = writesFor({ kind: 'source', input: 3 }, ctx({ sourceKind: 'STILL' }));
+  assert.equal(still.writes[0].value, 'STILL_3');
+  assert.equal(writesFor({ kind: 'source', input: 3 }, ctx()).writes[0].value, 'LIVE_3');
+});
+
+test('LOCK PANEL is one latch whichever way the console reports it', () => {
+  assert.deepEqual(readIntent({ command: COMMAND.lockPanel }), { kind: 'lock' });
+  assert.deepEqual(readIntent({ command: COMMAND.unlockPanel }), { kind: 'lock' });
+});
+
+test('the faders and encoders are bound under this app\'s own names', () => {
+  assert.equal(MIDI_BINDINGS.filter((b) => b.type === 2).length, 8);
+  assert.equal(MIDI_BINDINGS.filter((b) => b.type === 1).length, 4);
+  /* The reports UCenter really sent on 2026-09-23. */
+  assert.deepEqual(readMidi({ unique: 'lpp.fader.1', value: 48, type: 2, frameValue: 0 }), { control: 'fader', index: 1, percent: 48 });
+  assert.deepEqual(readMidi({ unique: 'lpp.encoder.2', value: -0.0333, type: 1, frameValue: -1 }), { control: 'encoder', index: 2, ticks: -1 });
+  assert.equal(readMidi({ unique: 'somebody.else', value: 1 }), null, 'PixelFlow\'s own bindings are not ours');
+});
+
+test('a fader sets layer n\'s opacity; an encoder nudges the selected layer', () => {
+  const f = midiWrite({ control: 'fader', index: 3, percent: 50 }, { dialect: NLC, destination: 'S1', letter: 'B' });
+  assert.equal(f.layer, 3);
+  assert.equal(f.value, 128, 'half of 0–256');
+  assert.match(toAwj(f.path), /opacity/);
+  const e = midiWrite({ control: 'encoder', index: 1, ticks: 2 }, { dialect: NLC, destination: 'S1', letter: 'B', layer: 2, current: 960 });
+  assert.equal(e.value, 960 + 2 * ENCODER_STEP);
+  assert.match(toAwj(e.path), /posH/);
+  const size = midiWrite({ control: 'encoder', index: 3, ticks: -5 }, { dialect: NLC, destination: 'S1', letter: 'B', layer: 2, current: 10 });
+  assert.equal(size.value, 0, 'a size never goes negative');
+  assert.match(midiWrite({ control: 'encoder', index: 1, ticks: 1 }, { dialect: NLC, destination: 'S1', letter: 'B', layer: 1 }).note, /refused/);
+  /* Midra spells size under size.*, not position.* */
+  const mng = midiWrite({ control: 'encoder', index: 3, ticks: 1 }, { dialect: MNG, destination: 'S1', letter: 'UP', layer: 1, current: 100 });
+  assert.ok(mng.path, 'mapped on Midra too');
 });
 
 test('FTB and freeze stay unmapped on Midra, which has no verified path', () => {

@@ -66,6 +66,12 @@ remembers.
 | FTB | `518` | fades the selection to black, or back up once all of it is black |
 | FRZ | `517` | freezes what is on air on every fitted layer, or unfreezes |
 | T-bar | tag `0x00101358` | `tbarPosition` on every selected destination |
+| TIME / CTRL + TIME | `509`/`510` (held: repeats) / `512` | take time ±0.1 s on the selected screens, inside PixelFlow's own 0.1–10 s |
+| SWAP | `533` | flips the take group's `copyMode`: swap on, a take swaps; off, preview keeps a copy of program |
+| SIGNAL SOURCE | `587` | the input bus cycles live inputs → stills → screens (whichever exist); an input key then routes `STILL_n` / `SCREEN_n` |
+| LOCK PANEL, **long** press | `523` | the panel changes nothing but the lock until the next long press |
+| faders 1–8 | tag `0x0010031c` | opacity of layer *n* on the active screen, in the edited buffer — *a first answer* |
+| encoders 1–4 | tag `0x0010031c` | the selected layer's X, Y, width, height, 8 px per detent — *a first answer* |
 | page up/down | none | nothing; the console pages itself |
 
 Everything else a console reports — PTZ, media, timecode, cue transport — is
@@ -95,6 +101,26 @@ throw starts. So each stroke reads where every selected screen rests, and maps
 from there — which is why a take fired from the TAKE key, leaving the lever and
 the switcher at opposite ends, is still finished by the next throw either way.
 LOCK T-BAR is the console's own and silences the reports.
+
+## Faders and encoders: bound, or silent
+
+⚠️ **A U5's faders and encoders report nothing until something is bound to
+them** — UCenter takes the moves and drops them. Binding is
+`POST ucenter/video-station/midi/binding` with
+`{attributes: [{unique, type, index}]}` (type 2 fader, 1 encoder; indexes
+1–8 and 1–4), and from then on every move of a bound control reaches **every**
+client on tag `0x0010031c`: `{unique, value, type, frameValue}` — a fader's
+`value` is its position in percent, an encoder's `frameValue` is ±1 per
+detent. This app binds `lpp.fader.1–8` and `lpp.encoder.1–4` on every publish,
+because the table is UCenter's and shared: PixelFlow binding its own controls
+takes them back. ⚠️ The binding request must **not** carry `ip`/`port`
+headers, or a UCenter that proxies to devices forwards it instead of answering.
+
+What each one does is the part most likely to change: today fader *n* is the
+opacity of layer *n* on the active screen and the encoders move and size the
+selected layer, all on the buffer the panel edits (preview, unless PGM EDIT is
+on). Each control keeps one write in flight — a fader's newest position wins,
+an encoder's detents add up — and the history gets one line per gesture.
 
 **Deleting and creating are never acted on.** A screen key pressed with DEL
 armed reports `104` (delete that screen); an empty layer key reports `200`
@@ -211,9 +237,15 @@ worth doing.
 - **FTB and freeze are LivePremier only.** The paths were recovered from the
   Web RCS bundle and proved on the 6.2.73 simulator; Midra 4K / Alta 4K have
   no verified path yet and say so.
-- **Faders and encoders are not read.** The virtual U5 sent nothing for either
-  to a `client-type=5` socket; a real panel may. Their report shapes are
-  unverified.
+- **Keys with no LivePremier meaning yet** — reported, named, and ignored:
+  the layer tools on page 0 of the lower-left cluster (`500`–`508`: full
+  screen, full output, copy, mirror, top/up/bottom/down, cutout), the cue
+  transport on page 1 (`569`–`573`), SWITCH DEVICE (`586`, which cycles
+  switchers — there is one), MEDIA (a console-side flag), and MVR, CTRL alone
+  and SOURCE BACKUP, which report nothing. The cue stack runs in the pages, not
+  the server, so cue transport needs a decision about which page answers.
+- **Swap, time, stills and screens are LivePremier only**; Midra's spellings
+  for them are unverified.
 - **Layer names are `Layer <n>`.** The console shows the layer bus from the
   model; the names the Layer names plugin keeps live on the page side, not
   where this reads.
