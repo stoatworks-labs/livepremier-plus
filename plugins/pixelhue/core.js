@@ -42,9 +42,11 @@
  * rigged, and it is the reason the mini is the model to try first.
  */
 export const CONSOLE_MODELS = Object.freeze([
-  { id: 'u5mini', label: 'Pixelhue U5 mini', port: 8088, busWidth: 8, overLan: true },
-  { id: 'u5pro', label: 'Pixelhue U5 Pro', port: 19999, busWidth: 8, overLan: false },
-  { id: 'u5', label: 'Pixelhue U5', port: 19999, busWidth: 8, overLan: false },
+  /* `modelId` is the console's own (Unico's deviceModel): it is how its key
+     map is asked for, `key/active-custom?deviceModel=`. */
+  { id: 'u5mini', label: 'Pixelhue U5 mini', port: 8088, busWidth: 8, overLan: true, modelId: 29711 },
+  { id: 'u5pro', label: 'Pixelhue U5 Pro', port: 19999, busWidth: 8, overLan: false, modelId: 29703 },
+  { id: 'u5', label: 'Pixelhue U5', port: 19999, busWidth: 8, overLan: false, modelId: 29701 },
 ]);
 
 /** Unico's `AreaType`. The console's four buses, plus the device area. */
@@ -78,6 +80,9 @@ export const COMMAND = Object.freeze({
   inputSwitch: 300,         // ✓
   savePreset: 400,          // ✓ — SAVE TO armed, then a preset key
   playPreset: 401,          // ✓
+  /* Never acted on: one key emptying every memory is not a panel feature. */
+  deleteAllPreset: 402,
+  deletePreset: 403,        // ✓ — DEL armed, then a preset key
   /* Layer tools, on page 0 of a U5's lower-left cluster. Never acted on: a
      LivePremier layer's stacking is its number, and the rest want a decision. */
   layerFullscreen: 500,
@@ -100,6 +105,7 @@ export const COMMAND = Object.freeze({
   screenFTB: 518,           // ✓
   presetSave: 520,          // ✓ SAVE TO arms / disarms
   switchDel: 521,           // ✓ DEL arms / disarms
+  switchMutiDel: 522,
   matchPGM: 529,            // ✓
   pgmEdit: 530,             // ✓
   take: 531,                // ✓
@@ -341,6 +347,19 @@ export function readIntent(report) {
     case COMMAND.layerEffectTimeQuickMinusStart:
       return { kind: 'time', delta: -1 };
     case COMMAND.swap: return { kind: 'swap' };
+    case COMMAND.deletePreset:
+      return { kind: 'deletePreset', slot: Number(payload.id) || null, label: payload.text || '', at };
+    /* The console's layer order keys step the selection through the active
+       screen's layers instead: a LivePremier layer's stacking is its number. */
+    case COMMAND.layerUp: return { kind: 'layerStep', to: 'next' };
+    case COMMAND.layerDown: return { kind: 'layerStep', to: 'previous' };
+    case COMMAND.layerTop: return { kind: 'layerStep', to: 'last' };
+    case COMMAND.layerBottom: return { kind: 'layerStep', to: 'first' };
+    case COMMAND.playCue: return { kind: 'transport', action: 'play' };
+    case COMMAND.startAnewCue: return { kind: 'transport', action: 'restart' };
+    case COMMAND.stopCue: return { kind: 'transport', action: 'stop' };
+    case COMMAND.previousCue: return { kind: 'transport', action: 'previous' };
+    case COMMAND.nextCue: return { kind: 'transport', action: 'next' };
     case COMMAND.inputTypeSwitch: return { kind: 'sourceType' };
     case COMMAND.lockPanel:
     case COMMAND.unlockPanel:
@@ -488,6 +507,19 @@ export function writesFor(intent, ctx) {
       out.note = `${swapping ? 'swap off — a take copies' : 'swap on — a take swaps'} on ${selected.join(' ')}`;
       break;
     }
+    case 'deletePreset': {
+      /*
+       * DEL armed, then a preset key. The console asks for exactly this, in
+       * two deliberate presses, and disarms DEL itself afterwards. A memory
+       * slot belongs to the bank, not to a screen, so no selection is needed.
+       */
+      if (!intent.slot) return { ...out, note: 'a delete with no slot' };
+      const del = dialect.delete && dialect.delete('screen', intent.slot);
+      if (!del) return { ...out, note: 'this platform cannot delete that memory' };
+      out.writes.push(del);
+      out.note = `delete memory ${intent.slot}${intent.label ? ` "${intent.label}"` : ''}`;
+      break;
+    }
     case 'ftb': {
       /*
        * A toggle on the panel; a bool per destination on the switcher. One
@@ -583,6 +615,62 @@ export function tbarWrites(report, ctx) {
 }
 
 /** The path tail of the layer parameter naming a source, from the catalogue. */
+/* ------------------------------------------------------------ layer steps */
+
+/**
+ * The layer a step lands on, among a screen's fitted layers. Clamped rather
+ * than wrapped: a key held on the top layer should stay there, not jump to
+ * the bottom.
+ */
+export function stepLayer(fitted, current, to) {
+  const keys = [...new Set((fitted || []).map(Number))].filter(Number.isFinite).sort((a, b) => a - b);
+  if (!keys.length) return null;
+  if (to === 'first') return keys[0];
+  if (to === 'last') return keys[keys.length - 1];
+  const i = keys.indexOf(Number(current));
+  if (i < 0) return to === 'next' ? keys.find((k) => k > current) ?? keys[keys.length - 1] : [...keys].reverse().find((k) => k < current) ?? keys[0];
+  return keys[Math.min(keys.length - 1, Math.max(0, i + (to === 'next' ? 1 : -1)))];
+}
+
+/* ------------------------------------------------------ cue transport */
+
+/**
+ * Where the cue transport keys go, and which Companion button each presses
+ * when they go there: five buttons in a row, from column 0.
+ */
+export const TRANSPORT_TARGETS = Object.freeze([
+  {
+    id: 'cues',
+    label: 'This app\'s cue stack',
+    what: 'Play is GO, restart goes back to the first cue, stop stops, previous and next move the standby. '
+      + 'It runs in one open page of this app, so a page has to be open.',
+  },
+  {
+    id: 'companion',
+    label: 'Companion buttons',
+    what: 'The five keys press five Companion buttons in a row — for a media player, a HyperDeck or '
+      + 'anything else Companion drives.',
+  },
+  { id: 'off', label: 'Nothing', what: 'The keys are reported and ignored.' },
+]);
+export const TRANSPORT_ACTIONS = Object.freeze(['play', 'restart', 'stop', 'previous', 'next']);
+export const companionLocation = (action, page, row) => {
+  const column = TRANSPORT_ACTIONS.indexOf(action);
+  return column < 0 ? null : { pageNumber: page, row, column };
+};
+
+/* ------------------------------------------------------ keys with no command */
+
+/**
+ * Keys that report NO command — UCenter keeps them to itself — acted on from
+ * their raw press instead. Which key they are comes from the console's own
+ * key map (`key/active-custom`), by `keyMode`, so it holds for every model.
+ * SOURCE BACKUP shares its key with other functions on the other pages of the
+ * lower-left cluster, where the same key DOES report a command; a press is
+ * only taken as SOURCE BACKUP when no command follows it.
+ */
+export const SILENT_KEY_MODES = Object.freeze({ 112: 'mvr', 181: 'sourceBackup' });
+
 /* ------------------------------------------------------ faders and encoders */
 
 /**
@@ -769,6 +857,9 @@ export const DEFAULT_PIXELHUE = {
   pixelhueEnabled: false,
   pixelhueHost: '',
   pixelhueModel: 'u5mini',
+  pixelhueTransport: 'cues',
+  pixelhueCompanionPage: 1,
+  pixelhueCompanionRow: 0,
 };
 
 /**
@@ -785,7 +876,16 @@ export function normalisePixelhue(raw) {
     pixelhueHost: host && host.length <= 255 && /^[A-Za-z0-9._-]+$/.test(host) ? host : '',
     pixelhueModel: CONSOLE_MODELS.some((m) => m.id === input.pixelhueModel)
       ? input.pixelhueModel : DEFAULT_PIXELHUE.pixelhueModel,
+    pixelhueTransport: TRANSPORT_TARGETS.some((t) => t.id === input.pixelhueTransport)
+      ? input.pixelhueTransport : DEFAULT_PIXELHUE.pixelhueTransport,
+    pixelhueCompanionPage: wholeIn(input.pixelhueCompanionPage, 1, 99, DEFAULT_PIXELHUE.pixelhueCompanionPage),
+    pixelhueCompanionRow: wholeIn(input.pixelhueCompanionRow, 0, 99, DEFAULT_PIXELHUE.pixelhueCompanionRow),
   };
+}
+
+function wholeIn(v, min, max, fallback) {
+  const n = Number(v);
+  return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
 }
 
 /** True when a change needs the console link rebuilt rather than just noted. */

@@ -45,6 +45,8 @@ export default async function activate(ctx) {
       return device ? String(device).split(':')[0] : null;
     },
     log: ctx.log,
+    companion: () => ctx.use('companion'),
+    settings: () => ctx.settings.get(),
   });
 
   /* Every report from the console, to whichever settings page is open. The
@@ -53,6 +55,14 @@ export default async function activate(ctx) {
   panel.on('activity', () => live.send('panel', panel.describe()));
 
   ctx.route('GET', '/state', (req, res, h) => h.json(200, panel.describe()));
+
+  /* Page-side actions — opening a page, the cue stack — go to ONE open page:
+     each claims here every few seconds and the holder is named on the event. */
+  ctx.route('POST', '/runner', async (req, res, h) => {
+    const body = (await h.readJson(1024)) || {};
+    return h.json(200, { runner: panel.claimRunner(body.id) });
+  });
+  panel.on('page', (payload) => live.send('page', payload));
 
   /* Only on a change `pixelhueChanged` cares about — `apply` is diff-based as
      well, but a save of an unrelated setting should not even ask. */

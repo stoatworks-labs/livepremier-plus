@@ -280,6 +280,9 @@ state without importing its files.
 **What the app offers on the server:** **`app`** — `settings()`, `applySettings(patch)` (merged and
 applied exactly as `PUT /__lpp/settings` would), `version`, `platform()` and `hasStorage`. The Setup
 file restores `installation.settings` through it, so a restored setting reaches the running app.
+**`companion`**, from Companion — `press(locations)`, each `{ pageNumber, row, column }`, pressed
+over the link Companion's plugin already holds and answering `{ ok, results, error }`, and
+`connected`. The Pixelhue panel sends a console's cue transport keys through it when told to.
 
 **What the built-ins offer in the page:** **`names`**, from Layer names — `get()` the whole
 `{ 'S1/2': 'IMAG' }` map, `rename(id, layer, value)`, `describe()` for what the vendor-page labels

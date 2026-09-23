@@ -1027,8 +1027,10 @@ test('the Pixelhue panel is a hosted plugin: its state has a route, and its old 
     assert.equal(body.configured, false, 'off until "Drive a Pixelhue console" is ticked');
 
     const { settings } = await (await fetch(base + '/__lpp/settings')).json();
-    assert.deepEqual(settings.plugins.pixelhue.settings,
-      { pixelhueEnabled: false, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5' });
+    assert.deepEqual(settings.plugins.pixelhue.settings, {
+      pixelhueEnabled: false, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5',
+      pixelhueTransport: 'cues', pixelhueCompanionPage: 1, pixelhueCompanionRow: 0,
+    });
     assert.equal(settings.pixelhueHost, undefined);
 
     /* Switched off, it is gone; its settings are not. */

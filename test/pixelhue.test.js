@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName,
+  stepLayer, companionLocation, TRANSPORT_ACTIONS,
   COMMAND, CONSOLE_MODELS, layerIdFor, layerKeyOf,
   MIDI_BINDINGS, readMidi, midiWrite, ENCODER_STEP,
 } from '../plugins/pixelhue/core.js';
@@ -187,7 +188,7 @@ test('the deviceUnselect a console sends on connect is ignored, not mishandled',
 });
 
 test('commands outside the vocabulary are ignored rather than guessed at', () => {
-  assert.equal(readIntent({ command: 569 }), null);   // playCue
+  assert.equal(readIntent({ command: 522 }), null);   // switchMutiDel
   assert.equal(readIntent({ command: 556 }), null);   // ptzDown
   assert.equal(readIntent(null), null);
   assert.equal(commandName(569), 'playCue', 'named from the vendor enum, still not acted on');
@@ -381,6 +382,43 @@ test('a fader sets layer n\'s opacity; an encoder nudges the selected layer', ()
   assert.ok(mng.path, 'mapped on Midra too');
 });
 
+test('DEL then a preset deletes that memory, and nothing else deletes anything', () => {
+  /* What the console really sent, 2026-09-23. */
+  const intent = readIntent({ command: 403, payload: { id: 31, type: 1, text: 'DEL TEST' } });
+  assert.deepEqual(intent, { kind: 'deletePreset', slot: 31, label: 'DEL TEST', at: null });
+  const out = writesFor(intent, ctx({ selected: [] }));
+  assert.deepEqual(out.writes.map((w) => [toAwj(w.path), w.value]), [[toAwj(NLC.delete('screen', 31).path), true]]);
+  assert.match(out.note, /delete memory 31 "DEL TEST"/);
+  assert.equal(readIntent({ command: COMMAND.deleteAllPreset }), null, 'emptying the bank is never a key');
+  assert.equal(readIntent({ command: COMMAND.screenDelete, payload: { uid: 'S1' } }), null);
+});
+
+test('the layer order keys step through the fitted layers, clamped at the ends', () => {
+  assert.deepEqual(readIntent({ command: COMMAND.layerUp }), { kind: 'layerStep', to: 'next' });
+  assert.deepEqual(readIntent({ command: COMMAND.layerDown }), { kind: 'layerStep', to: 'previous' });
+  const fitted = [1, 2, 5];
+  assert.equal(stepLayer(fitted, 1, 'next'), 2);
+  assert.equal(stepLayer(fitted, 2, 'next'), 5, 'unfitted layers are skipped');
+  assert.equal(stepLayer(fitted, 5, 'next'), 5, 'held on the top layer, it stays');
+  assert.equal(stepLayer(fitted, 1, 'previous'), 1);
+  assert.equal(stepLayer(fitted, 3, 'previous'), 2, 'from a layer that is not fitted');
+  assert.equal(stepLayer(fitted, 2, 'last'), 5);
+  assert.equal(stepLayer(fitted, 5, 'first'), 1);
+  assert.equal(stepLayer([], 1, 'next'), null);
+});
+
+test('the cue transport keys, and the Companion buttons they can press instead', () => {
+  const codes = [COMMAND.playCue, COMMAND.startAnewCue, COMMAND.stopCue, COMMAND.previousCue, COMMAND.nextCue];
+  assert.deepEqual(codes.map((c) => readIntent({ command: c }).action), TRANSPORT_ACTIONS);
+  assert.deepEqual(companionLocation('stop', 3, 1), { pageNumber: 3, row: 1, column: 2 });
+  assert.equal(companionLocation('eject', 1, 0), null);
+  const s = normalise({ pixelhueTransport: 'companion', pixelhueCompanionPage: '4', pixelhueCompanionRow: -1 });
+  assert.equal(s.pixelhueTransport, 'companion');
+  assert.equal(s.pixelhueCompanionPage, 4);
+  assert.equal(s.pixelhueCompanionRow, 0, 'a bad row falls back');
+  assert.equal(normalise({ pixelhueTransport: 'vlc' }).pixelhueTransport, 'cues');
+});
+
 test('FTB and freeze stay unmapped on Midra, which has no verified path', () => {
   for (const kind of ['ftb', 'freeze']) {
     const { writes, note } = writesFor({ kind }, ctx({ dialect: MNG, commands: commandsFor(MNG) }));
@@ -489,7 +527,10 @@ test('the panel is off by default and its host is sanitised', () => {
 test('the panel’s settings live in its own plugin entry, lifted from where they were', () => {
   /* The shape every settings file had up to 0.12. */
   const s = normaliseSettings({ pixelhueEnabled: true, pixelhueHost: '10.0.0.9' }, { pixelhue: schema });
-  assert.deepEqual(s.plugins.pixelhue.settings, { pixelhueEnabled: true, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5mini' });
+  assert.deepEqual(s.plugins.pixelhue.settings, {
+    pixelhueEnabled: true, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5mini',
+    pixelhueTransport: 'cues', pixelhueCompanionPage: 1, pixelhueCompanionRow: 0,
+  });
   assert.equal('pixelhueHost' in s, false);
   /* Renaming nothing does not redial a console somebody is holding. */
   const same = normalise({ pixelhueEnabled: true, pixelhueHost: '10.0.0.9' });

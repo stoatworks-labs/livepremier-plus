@@ -44,6 +44,7 @@ import { toAwj } from '../../src/core/paths.js';
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName, CONSOLE_MODELS,
   MIDI_BINDINGS, readMidi, midiWrite, layerParam,
+  stepLayer, companionLocation, SILENT_KEY_MODES,
 } from './core.js';
 
 export { CONSOLE_MODELS };
@@ -62,6 +63,12 @@ const SOURCE_KINDS = ['LIVE', 'STILL', 'SCREEN'];
 /* A fader or encoder gesture with no move for this long is over; its history
    line is written then, not once per step. */
 const GESTURE_IDLE_MS = 500;
+/* A key that reports no command is only acted on when none followed it this
+   long — SOURCE BACKUP shares its key with functions that do report one. */
+const SILENT_KEY_WAIT_MS = 400;
+/* An open page renews its claim to run page-side actions this often; a claim
+   this old has lapsed (the page was closed). */
+const RUNNER_LEASE_MS = 12000;
 const HISTORY = 40;
 
 /* A console that has lost the model shows a panel with no labels. Noticing
@@ -90,14 +97,28 @@ export class PixelhueSupervisor extends EventEmitter {
   #sourceKind = 'LIVE';
   #locked = false;
   #controls = new Map();
+  #settings = {};
+  #silentKeys = new Map();
+  #keyDownAt = new Map();
+  #lastCommandAt = 0;
+  #lastInput = null;
+  #runner = null;
 
   /**
    * @param {object} opts
    * @param {() => string|null} opts.deviceHost  the switcher, as the proxy knows it
    */
-  constructor({ deviceHost = () => null, awjPort = AWJ_PORT, log = () => {} } = {}) {
+  constructor({
+    deviceHost = () => null, awjPort = AWJ_PORT, log = () => {}, companion = () => null, settings = null,
+  } = {}) {
     super();
     this.deviceHost = deviceHost;
+    /* The Companion plugin's service, asked for per use: it may be switched
+       on or off under a running panel. */
+    this.companion = companion;
+    /* Settings read per use. `apply` is only called for a change to the link
+       fields (`pixelhueChanged`), so a transport change would never arrive. */
+    this.settingsNow = settings;
     this.awjPort = awjPort;
     this.log = log;
     this.selection = new Selection();
@@ -112,6 +133,9 @@ export class PixelhueSupervisor extends EventEmitter {
    * an operator is holding.
    */
   async apply(settings) {
+    /* Transport and the rest are read per use, so a change to them needs no
+       redial — only the link fields below do. */
+    this.#settings = settings || {};
     const want = settings && settings.pixelhueEnabled && settings.pixelhueHost
       ? {
         host: settings.pixelhueHost,
@@ -133,11 +157,11 @@ export class PixelhueSupervisor extends EventEmitter {
 
     const link = new UCenterLink({ host: want.host, port: want.port, log: this.log });
     this.#link = link;
-    link.on('open', () => { this.#note({ kind: 'connected' }); void this.refresh(); });
+    link.on('open', () => { this.#note({ kind: 'connected' }); void this.refresh(); void this.#readKeyMap(); });
     link.on('close', () => this.#note({ kind: 'disconnected' }));
     link.on('failure', (err) => this.#note({ kind: 'error', error: err.message }));
     link.on('command', (report) => { void this.#onCommand(report); });
-    link.on('keystate', (items) => this.#watchForWipe(items));
+    link.on('keystate', (items) => { this.#watchForWipe(items); this.#watchSilentKeys(items); });
     link.on('tbar', (report) => this.#onTbar(report));
     link.on('midi', (report) => this.#onMidi(report));
     link.start();
@@ -447,6 +471,7 @@ export class PixelhueSupervisor extends EventEmitter {
   async #onCommand(report) {
     const intent = readIntent(report);
     const code = report && report.command;
+    if (code) this.#lastCommandAt = Date.now();
     if (!intent) {
       this.#note({ kind: 'ignored', command: commandName(code), code });
       return;
@@ -472,6 +497,10 @@ export class PixelhueSupervisor extends EventEmitter {
       void this.refresh();
       return;
     }
+
+    if (intent.kind === 'transport') { await this.#transport(intent.action, code); return; }
+    if (intent.kind === 'layerStep') { this.#stepLayer(intent.to, code); return; }
+    if (intent.kind === 'source' && this.#sourceKind === 'LIVE' && intent.input) this.#lastInput = intent.input;
 
     if (!this.selection.accepts(intent)) {
       this.#note({
@@ -634,6 +663,127 @@ export class PixelhueSupervisor extends EventEmitter {
     this.#stroke = null;
   }
 
+  /* ------------------------------------------------ page-side actions */
+
+  /**
+   * Take the lease on page-side actions — opening a page, the cue stack.
+   * Every open page claims every few seconds; the first to claim keeps it
+   * while it keeps claiming, and only it acts, so two open tabs do not fire
+   * GO twice. Answers who holds it.
+   */
+  claimRunner(id) {
+    const now = Date.now();
+    if (!id) return this.#runner ? this.#runner.id : null;
+    if (!this.#runner || this.#runner.id === id || now - this.#runner.at > RUNNER_LEASE_MS) {
+      this.#runner = { id: String(id), at: now };
+    }
+    return this.#runner.id;
+  }
+
+  /** Hand an action to the page holding the lease, or say there is none. */
+  #toPage(payload, what, code) {
+    const r = this.#runner;
+    if (!r || Date.now() - r.at > RUNNER_LEASE_MS) {
+      this.#note({ kind: 'noted', command: commandName(code), code, note: `refused — no page is open to ${what}` });
+      return false;
+    }
+    this.emit('page', { ...payload, runner: r.id });
+    this.#note({ kind: 'sent', command: commandName(code), code, note: `${what} (in the open page)` });
+    return true;
+  }
+
+  #current() {
+    return (this.settingsNow && this.settingsNow()) || this.#settings;
+  }
+
+  async #transport(action, code) {
+    const st = this.#current();
+    const target = st.pixelhueTransport || 'cues';
+    if (target === 'off') {
+      this.#note({ kind: 'noted', command: commandName(code), code, note: `cue ${action} — transport is off` });
+      return;
+    }
+    if (target === 'companion') {
+      const svc = this.companion();
+      const loc = companionLocation(action, st.pixelhueCompanionPage ?? 1, st.pixelhueCompanionRow ?? 0);
+      if (!svc || !loc) {
+        this.#note({ kind: 'noted', command: commandName(code), code, note: `cue ${action} — the Companion plugin is off` });
+        return;
+      }
+      try {
+        const r = await svc.press([loc]);
+        const where = `${loc.pageNumber}/${loc.row}/${loc.column}`;
+        if (r && r.ok) this.#note({ kind: 'sent', command: commandName(code), code, note: `cue ${action} → Companion button ${where}` });
+        else this.#note({ kind: 'error', command: commandName(code), code, error: `Companion ${where}: ${(r && r.error) || 'refused'}` });
+      } catch (err) {
+        this.#note({ kind: 'error', command: commandName(code), code, error: `Companion: ${err.message}` });
+      }
+      return;
+    }
+    this.#toPage({ type: 'transport', action }, `cue ${action}`, code);
+  }
+
+  /** LAYER UP / DOWN: the selected layer moves through the active screen's. */
+  #stepLayer(to, code) {
+    const active = this.selection.list[this.selection.list.length - 1];
+    if (!active) {
+      this.#note({ kind: 'noted', command: commandName(code), code, note: 'no screen selected on the panel' });
+      return;
+    }
+    const fitted = ((this.#facts && this.#facts.layers) || []).filter((l) => l.destination === active).map((l) => l.key);
+    const next = stepLayer(fitted, this.selection.layer, to);
+    if (!next) {
+      this.#note({ kind: 'noted', command: commandName(code), code, note: `${active} has no layers to step through` });
+      return;
+    }
+    const moved = next !== this.selection.layer;
+    this.selection.layer = next;
+    this.#note({ kind: 'noted', command: commandName(code), code, note: `layer ${next} of ${active} selected` });
+    if (moved) void this.#republish();
+  }
+
+  /* ----------------------------------------- keys that report nothing */
+
+  /** Which keys are MVR and SOURCE BACKUP on this console, from its own key map. */
+  async #readKeyMap() {
+    const model = CONSOLE_MODELS.find((m) => m.id === (this.#config && this.#config.model));
+    if (!this.#link || !model || !model.modelId) return;
+    try {
+      const json = await this.#link.keyMap(model.modelId);
+      const keys = new Map();
+      for (const area of (json.data && json.data.areaList) || []) {
+        for (const k of area.keyList || []) {
+          const mode = SILENT_KEY_MODES[k.keyMode];
+          if (mode) keys.set(Number(k.keyCode), mode);
+        }
+      }
+      this.#silentKeys = keys;
+    } catch (err) {
+      this.#note({ kind: 'error', error: `reading the console's key map: ${err.message}` });
+    }
+  }
+
+  #watchSilentKeys(items) {
+    if (!Array.isArray(items) || items.length !== 1 || !this.#silentKeys.size) return;
+    const { key, state } = items[0] || {};
+    const mode = this.#silentKeys.get(Number(key));
+    if (!mode || (state !== 0 && state !== 1)) return;
+    if (state === 0) { this.#keyDownAt.set(key, Date.now()); return; }
+    const downAt = this.#keyDownAt.get(key) || Date.now();
+    setTimeout(() => {
+      if (this.#lastCommandAt >= downAt || this.#locked) return;
+      if (mode === 'mvr') this.#toPage({ type: 'navigate', path: '/live/multiviewers' }, 'open the multiviewers page', 0);
+      if (mode === 'sourceBackup') {
+        const input = this.#lastInput;
+        if (!input) {
+          this.#note({ kind: 'noted', note: 'SOURCE BACKUP — press an input on the panel first, so it knows which' });
+          return;
+        }
+        this.#toPage({ type: 'inputBackup', input }, `open the backup menu of input ${input}`, 0);
+      }
+    }, SILENT_KEY_WAIT_MS).unref?.();
+  }
+
   /* ----------------------------------------------- faders and encoders */
 
   /**
@@ -756,6 +906,8 @@ export class PixelhueSupervisor extends EventEmitter {
       selection: this.selection.describe(),
       sourceKind: this.#sourceKind,
       locked: this.#locked,
+      transport: this.#current().pixelhueTransport || 'cues',
+      runner: this.#runner && Date.now() - this.#runner.at <= RUNNER_LEASE_MS ? this.#runner.id : null,
       history: this.history.slice(0, 12),
     };
   }
@@ -793,7 +945,7 @@ function sentDetail(writes) {
 }
 
 /* Intents after which the model must be read again, not just re-sent. */
-const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap']);
+const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap', 'deletePreset']);
 
 /** Where a memory slot says it holds something, beside its label. */
 function slotValidPath(dialect, slot) {

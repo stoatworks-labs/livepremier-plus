@@ -17,7 +17,14 @@
  * exactly like the OSC listener.
  */
 
-import { CONSOLE_MODELS } from './core.js';
+import { CONSOLE_MODELS, TRANSPORT_TARGETS } from './core.js';
+
+/* How often an open page renews its claim to run the panel's page-side
+   actions. Well inside the server's lease, so one missed beat loses nothing. */
+const RUNNER_BEAT_MS = 4000;
+/* How long to wait for the Screens / Aux. page to draw its sources after
+   being opened, before giving up on an input's backup menu. */
+const SOURCES_WAIT_MS = 4000;
 
 export default function activate(ctx) {
   const { h, readout, card, note, picker } = ctx.kit;
@@ -27,6 +34,11 @@ export default function activate(ctx) {
   let saving = false;
   let error = null;
   let stream = null;
+  /* This page's claim to the panel's page-side actions: the cue stack, and
+     opening a page when MVR or SOURCE BACKUP is pressed. The server names one
+     holder at a time, so two open tabs do not both fire GO. */
+  const pageId = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : `p${Math.random().toString(36).slice(2)}`;
+  let runner = null;
   /* Asked once and then followed; a card that re-fetched on every repaint
      would ask about once a second while the settings page is open. */
   let asked = false;
@@ -46,8 +58,96 @@ export default function activate(ctx) {
       stream.addEventListener('panel', (ev) => {
         try { live = JSON.parse(ev.data); ctx.refresh(); } catch { /* one bad frame is not worth the card */ }
       });
+      stream.addEventListener('page', (ev) => {
+        let msg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.runner === pageId) void act(msg);
+      });
     } catch { /* no EventSource: the card still works, just not live */ }
   }
+
+  /* ---------------------------------------------------- page-side actions */
+
+  async function beat() {
+    try {
+      const res = await fetch(ctx.url('/runner'), {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: pageId }),
+      });
+      if (res.ok) runner = (await res.json()).runner;
+    } catch { /* the next beat tries again */ }
+  }
+
+  /** Open one of the vendor's pages by its path, as its own sidebar link does. */
+  function openPath(path) {
+    const link = document.querySelector(`a[href="${path}"]`);
+    if (link) { link.click(); return true; }
+    ctx.log.warn(`no link to ${path} on this page`);
+    return false;
+  }
+
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /**
+   * An input's own menu on Screens / Aux. — the one its card's ⋮ opens, with
+   * the input's backup in it. Found by the card's number and the ⋮'s icon,
+   * because every class on that page is hashed.
+   */
+  async function openInputBackup(input) {
+    if (location.pathname !== '/live/screens') openPath('/live/screens');
+    const deadline = Date.now() + SOURCES_WAIT_MS;
+    while (Date.now() < deadline) {
+      const button = inputMenuButton(input);
+      if (button) {
+        button.closest('.aw-card').scrollIntoView({ block: 'center' });
+        button.click();
+        return true;
+      }
+      await wait(150);
+    }
+    ctx.log.warn(`input ${input} is not on the Screens / Aux. page's live inputs`);
+    return false;
+  }
+
+  function inputMenuButton(input) {
+    for (const card of document.querySelectorAll('.aw-card')) {
+      const header = card.querySelector('.aw-header');
+      const number = header && /^\d+/.exec(header.textContent.trim());
+      if (!number || Number(number[0]) !== Number(input)) continue;
+      for (const button of card.querySelectorAll('.aw-card--displayed-hover button')) {
+        const use = button.querySelector('use');
+        const icon = use && (use.getAttribute('href') || use.getAttribute('xlink:href'));
+        if (icon === '#more-vertical-12') return button;
+      }
+    }
+    return null;
+  }
+
+  function transport(action) {
+    const stack = ctx.use('stack');
+    if (!stack) { ctx.log.warn(`cue ${action}: the Timeline is off, so there is no cue stack`); return; }
+    const cues = stack.cues();
+    const standby = stack.standby;
+    const at = standby ? cues.findIndex((c) => c.id === standby.id) : -1;
+    switch (action) {
+      case 'play': stack.go(); break;
+      case 'stop': stack.stop(); break;
+      case 'previous': stack.back(); break;
+      case 'restart': if (cues.length) stack.gotoId(cues[0].id); break;
+      case 'next': if (cues[at + 1]) stack.gotoId(cues[at + 1].id); break;
+      default: break;
+    }
+  }
+
+  async function act(msg) {
+    if (msg.type === 'transport') transport(msg.action);
+    else if (msg.type === 'navigate') openPath(msg.path);
+    else if (msg.type === 'inputBackup') await openInputBackup(msg.input);
+  }
+
+  void beat();
+  const beating = setInterval(beat, RUNNER_BEAT_MS);
+  if (typeof ctx.onDispose === 'function') ctx.onDispose(() => clearInterval(beating));
+  listen();
 
   async function put(patch) {
     saving = true;
@@ -148,12 +248,37 @@ export default function activate(ctx) {
         })))
       : null;
 
+    const number = (label, key, min, max) => h('div', { class: 'aw-flex-col aw-gap-row-mini' },
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: label }),
+      h('input', {
+        class: 'wru-input', type: 'number', min: String(min), max: String(max), value: String(settings[key]),
+        style: { maxWidth: '5rem' },
+        disabled: saving ? 'disabled' : null,
+        onChange: (ev) => put({ [key]: Number(ev.target.value) })
+      }));
+    const transportRow = h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' },
+      picker('Cue transport keys', TRANSPORT_TARGETS, settings.pixelhueTransport,
+        (v) => put({ pixelhueTransport: v }), { disabled: saving }),
+      settings.pixelhueTransport === 'companion' ? number('Companion page', 'pixelhueCompanionPage', 1, 99) : null,
+      settings.pixelhueTransport === 'companion' ? number('Row', 'pixelhueCompanionRow', 0, 99) : null);
+    if (on && settings.pixelhueTransport === 'companion') {
+      notes.push(note('info',
+        `The five cue transport keys press Companion buttons ${settings.pixelhueCompanionPage}/`
+        + `${settings.pixelhueCompanionRow}/0 to /4 — play, restart, stop, previous, next — for a `
+        + 'media player or anything else Companion drives.'));
+    }
+    if (on && live && !live.runner) {
+      notes.push(note('warn',
+        'No page holds the panel’s page-side actions yet — the cue stack, and MVR and SOURCE '
+        + 'BACKUP opening pages — so they are refused until a page of this app is open.'));
+    }
+
     return card('Pixelhue panel',
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' },
         toggle, host,
         picker('Console', CONSOLE_MODELS, settings.pixelhueModel, (v) => put({ pixelhueModel: v }),
           { disabled: saving })),
-      rows, history, ...notes);
+      transportRow, rows, history, ...notes);
   }
 
   ctx.ui.settingsSection({ id: 'pixelhue', order: 10, render });

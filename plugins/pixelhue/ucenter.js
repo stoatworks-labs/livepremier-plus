@@ -207,7 +207,7 @@ export class UCenterLink extends EventEmitter {
       const res = await fetch(`${this.base}/${path}`, {
         method,
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
+        body: method === 'GET' ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
       const json = await res.json().catch(() => ({ code: -1, message: 'unreadable reply' }));
@@ -242,6 +242,11 @@ export class UCenterLink extends EventEmitter {
    */
   bindControls(attributes) {
     return this.#send('ucenter/video-station/midi/binding', { attributes }, 'POST');
+  }
+
+  /** The console's key map: which key code is which function (`keyMode`). */
+  keyMap(modelId) {
+    return this.#send(`ucenter/video-station/key/active-custom?deviceModel=${Number(modelId)}`, null, 'GET');
   }
 
   /**

@@ -70,6 +70,11 @@ remembers.
 | SWAP | `533` | flips the take group's `copyMode`: swap on, a take swaps; off, preview keeps a copy of program |
 | SIGNAL SOURCE | `587` | the input bus cycles live inputs → stills → screens (whichever exist); an input key then routes `STILL_n` / `SCREEN_n` |
 | LOCK PANEL, **long** press | `523` | the panel changes nothing but the lock until the next long press |
+| DEL, then a preset | `521`, then `403 {id, text}` | deletes that memory (DEL disarms itself) |
+| LAYER UP / DOWN (cluster page 0) | `505` / `507` (`504` / `506` top / bottom) | steps the selected layer through the active screen's fitted layers, clamped at the ends — a LivePremier layer's stacking is its number, so the keys move the selection instead |
+| cue transport (cluster page 1) | `569`–`573` | play, restart, stop, previous, next — to this app's cue stack, or to five Companion buttons, or nowhere (**Settings → Pixelhue panel → Cue transport keys**) |
+| MVR | *nothing* — acted on from the raw press | opens the Web RCS's live Multiviewers page |
+| SOURCE BACKUP (cluster page 3) | *nothing* — acted on from the raw press | opens the backup menu of the last input pressed on the panel, on Screens / Aux. |
 | faders 1–8 | tag `0x0010031c` | opacity of layer *n* on the active screen, in the edited buffer — *a first answer* |
 | encoders 1–4 | tag `0x0010031c` | the selected layer's X, Y, width, height, 8 px per detent — *a first answer* |
 | page up/down | none | nothing; the console pages itself |
@@ -101,6 +106,28 @@ throw starts. So each stroke reads where every selected screen rests, and maps
 from there — which is why a take fired from the TAKE key, leaving the lever and
 the switcher at opposite ends, is still finished by the next throw either way.
 LOCK T-BAR is the console's own and silences the reports.
+
+## Page-side actions: one page answers
+
+The cue stack runs in the pages of this app, not in its server, and so do
+opening the Multiviewers page and an input's backup menu. Every open page
+claims them every four seconds at `POST /__lpp/pixelhue/runner`; the first
+claimant keeps them while it keeps claiming, the server names it on each event
+(`page` on `/__lpp/pixelhue/stream`), and only it acts — two open tabs never
+fire GO twice. With no page open, those keys are refused and the history says
+why.
+
+MVR and SOURCE BACKUP report no command at all, so they are read from the
+**raw key press**. Which key code they are comes from the console's own key map
+(`GET ucenter/video-station/key/active-custom?deviceModel=` — 29701 U5, 29703
+U5 Pro, 29711 U5 mini), by `keyMode` (112 MVR, 181 SOURCE BACKUP), so it holds
+for every model and layout. SOURCE BACKUP shares its key with functions on the
+cluster's other pages that *do* report a command, so a press counts only when
+no command follows it within 0.4 s.
+
+The Companion transport presses buttons *page / row / 0–4* — play, restart,
+stop, previous, next — through the Companion plugin's server (its `companion`
+service), on the socket it already holds.
 
 ## Faders and encoders: bound, or silent
 
@@ -237,13 +264,19 @@ worth doing.
 - **FTB and freeze are LivePremier only.** The paths were recovered from the
   Web RCS bundle and proved on the 6.2.73 simulator; Midra 4K / Alta 4K have
   no verified path yet and say so.
-- **Keys with no LivePremier meaning yet** — reported, named, and ignored:
-  the layer tools on page 0 of the lower-left cluster (`500`–`508`: full
-  screen, full output, copy, mirror, top/up/bottom/down, cutout), the cue
-  transport on page 1 (`569`–`573`), SWITCH DEVICE (`586`, which cycles
-  switchers — there is one), MEDIA (a console-side flag), and MVR, CTRL alone
-  and SOURCE BACKUP, which report nothing. The cue stack runs in the pages, not
-  the server, so cue transport needs a decision about which page answers.
+- **Noted for later, not acted on** — exactly what each sends, for when it
+  gets a meaning:
+
+  | key | sends |
+  |---|---|
+  | SWITCH DEVICE | `586` deviceSwitch, payload all empty (`{id: 0, uid: "", type: 0, text: ""}`); PixelFlow moves the input bus to the next switcher's sources |
+  | MEDIA | no command — tag `0x0030032e` `{"mediaState": 620}`, and the lower-left cluster's lamps change |
+  | CTRL alone | nothing; it is a modifier (CTRL + TIME is `512`) |
+  | cluster page 0, the rest | `501` full output, `502` copy, `503` mirror (and `500` full screen, `508` cutout on layouts that have them) |
+  | cluster pages 2 and 3 | nothing on this layout, bar SOURCE BACKUP |
+  | the seven unbound keys | nothing; a key layout can give them any function |
+  | DEL, then a screen | `104` screenDelete — deliberately never acted on |
+  | (no key on a U5) | `402` deleteAllPreset, `522` switchMutiDel — deliberately never acted on |
 - **Swap, time, stills and screens are LivePremier only**; Midra's spellings
   for them are unverified.
 - **Layer names are `Layer <n>`.** The console shows the layer bus from the

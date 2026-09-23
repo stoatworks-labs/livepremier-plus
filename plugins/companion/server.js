@@ -236,22 +236,17 @@ export default function activate(ctx) {
    * `{ location }` or `{ locations: [...] }`; `direction` `down` or `up` for
    * a hold, anything else is a press — down, then up `HOLD_MS` later.
    */
-  ctx.route('POST', '/press', async (req, res, h) => {
-    const body = (await h.readJson(8192)) || {};
-    const raw = Array.isArray(body.locations) ? body.locations : [body.location];
-    const locations = raw.map(normaliseLocation);
-    if (!locations.length || locations.some((l) => !l)) {
-      return h.json(400, { error: 'a press needs a location: { pageNumber, row, column }' });
-    }
-    if (locations.length > MAX_PRESSES) return h.json(400, { error: `at most ${MAX_PRESSES} buttons at once` });
-    if (!link.target) return h.json(409, { error: 'no Companion configured' });
-    if (!link.state.connected) return h.json(409, { error: 'not connected to Companion' });
-
+  /**
+   * Press buttons: `locations` already normalised, `direction` `down`, `up`
+   * or anything else for a press. Answers `{ ok, results, error }`, and never
+   * throws for a button that failed — that is one line in the results.
+   */
+  async function press(locations, direction = 'press') {
+    if (!link.target) return { ok: false, results: [], error: 'no Companion configured' };
+    if (!link.state.connected) return { ok: false, results: [], error: 'not connected to Companion' };
     const hot = (location, down) => link.call('mutation', 'controls.hotPressControl', {
       location, direction: down, surfaceId: SURFACE_ID,
     });
-    const direction = body.direction === 'down' || body.direction === 'up' ? body.direction : 'press';
-
     const results = await Promise.all(locations.map(async (location) => {
       try {
         if (direction !== 'up') await hot(location, true);
@@ -264,10 +259,39 @@ export default function activate(ctx) {
     }));
     const failed = results.filter((r) => !r.ok);
     if (failed.length) ctx.log(`companion press failed: ${failed.map((r) => `${r.location} ${r.error}`).join('; ')}`);
-    return h.json(failed.length ? 502 : 200, {
-      ok: !failed.length, results, error: failed.length ? failed[0].error : null,
-    });
+    return { ok: !failed.length, results, error: failed.length ? failed[0].error : null };
+  }
+
+  ctx.route('POST', '/press', async (req, res, h) => {
+    const body = (await h.readJson(8192)) || {};
+    const raw = Array.isArray(body.locations) ? body.locations : [body.location];
+    const locations = raw.map(normaliseLocation);
+    if (!locations.length || locations.some((l) => !l)) {
+      return h.json(400, { error: 'a press needs a location: { pageNumber, row, column }' });
+    }
+    if (locations.length > MAX_PRESSES) return h.json(400, { error: `at most ${MAX_PRESSES} buttons at once` });
+    if (!link.target) return h.json(409, { error: 'no Companion configured' });
+    if (!link.state.connected) return h.json(409, { error: 'not connected to Companion' });
+    const direction = body.direction === 'down' || body.direction === 'up' ? body.direction : 'press';
+    const out = await press(locations, direction);
+    return h.json(out.ok ? 200 : 502, out);
   });
+
+  /*
+   * The same press, for other plugins in this process — the Pixelhue panel
+   * sends a console's cue transport keys here when told to. A server-side
+   * caller has no page, so it cannot go through the page's `press`.
+   */
+  ctx.provide('companion', Object.freeze({
+    press: (locations) => {
+      const list = (Array.isArray(locations) ? locations : [locations]).map(normaliseLocation);
+      if (!list.length || list.some((l) => !l)) {
+        return Promise.resolve({ ok: false, results: [], error: 'a press needs a location: { pageNumber, row, column }' });
+      }
+      return press(list.slice(0, MAX_PRESSES));
+    },
+    get connected() { return Boolean(link.target && link.state.connected); },
+  }));
 
   /*
    * The buttons each memory recall presses.
