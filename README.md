@@ -92,7 +92,7 @@ or from the command line with Node 20. It works on a **LivePremier** and — for
 the Timeline, Console, Memories, Layer and Pitch Compensation — on a **Midra 4K
 or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 
-> **Status: field testing — v0.12.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.13.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -207,6 +207,22 @@ or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.13.0 (2026-09-23).** **Every feature is a plugin.** Each panel, page and
+> background service — the Console, the Timeline, Matrix Routing, Companion and
+> the rest, eighteen in all — is its own plugin, and each can be switched off in
+> **Preconfig ▸ LivePremier Plus → Plugins**: off means gone, with no menu entry,
+> route or background connection left behind. **Plugins of your own** go in the
+> data directory's `plugins/` folder and stay off until you switch them on —
+> [docs/PLUGINS.md](docs/PLUGINS.md) is the guide, with an example to copy. Fixed
+> on the way: a panel no longer loses the caret, the selection or half-typed text
+> to the once-a-second repaint, and an open dropdown no longer closes under the
+> pointer; the Companion link no longer drops every 35 s, and its embedded editor
+> no longer reloads every second; pointing the app at another switcher no longer
+> stops OSC input, the routers, Companion or the Pixelhue panel until a restart;
+> and restoring a setup file now reaches the running app, not just its files.
+> ⚠️ The Companion, Pixelhue, OSC input and Edit-page settings now live inside
+> their plugins. An upgrade moves them for you; going back to 0.12.0 loses them.
 >
 > **0.12.0 (2026-09-22).** **Router routing on the vendor's own pages.** A
 > **Router** tab on Inputs ▸ an input and Outputs ▸ an output, and a **Router**
@@ -905,9 +921,13 @@ the cue engine are the same code, and they still ride the vendor's own socket.
 ```
 server/
   index.js       CLI entry: flags, data dir, shutdown
-  proxy.js       the reverse proxy, the injection, the socket relay
+  proxy.js       the reverse proxy, the injection, the socket relay, settings
   plugin-host.js loads each plugin's server half, routes to it, and stops it
-  storage.js     cue stacks and the remembered device, on disk
+  storage.js     the files on disk: settings, the remembered switcher
+  documents.js   a plugin's per-switcher JSON document, as a route
+  config-file.js the one-file setup's format
+  osc.js         the UDP listener the OSC input plugin runs
+  awj.js         one-shot AWJ exchanges with the switcher
   setup.html     shown until a switcher is chosen
 src/
   core/          no DOM, no transport - importable anywhere
@@ -917,13 +937,16 @@ src/
     cuestack.js    the cue engine: GO, follow chains, delays, fade times
     session.js     snapshot + stream, folded into a store
     plugins.js     every feature as a plugin: what it is, and whether it is on
+    contributions.js  how plugins extend each other: contribution points, services
   transports/
     page-socket.js the vendor page's own WebSocket
-  ui/            panels, built out of the host's `aw-` utility classes
+  ui/            the shell, the tab strip, the settings page, shared panels
     plugin-host.js loads each plugin's page half into the sidebar and tabs
   hook/          the WebSocket hook, inlined into the document by the proxy
-plugins/         features moved into plugins, each a folder with a server
-  companion/     half and a page half - Companion is the first
+plugins/         every feature, one folder each - a server half, a page half,
+  console/       or both: console, timeline, matrix-routing, companion, edit,
+  …              memories, layer, layer-groups, osc-input and the rest
+examples/plugins/hello-switcher/   the template for a plugin of your own
 launcher/        the desktop app - the fleet's standard Tauri tray shell
 ```
 

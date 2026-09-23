@@ -38,6 +38,9 @@ as a bolt-on.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a layer width and get
   1000.
 
+Every one of these is a **plugin**: any of them can be switched off, and you can add your own —
+see [Switching features off](#switching-features-off).
+
 The panels ride the vendor app's own WebSocket. **No second Web RCS connection to the device, no
 replacement UI, and nothing to install in the browser.** OSC input, the Pixelhue panel and the Edit
 page's direct save each open a brief AWJ connection of their own when they act — worth knowing,
@@ -63,6 +66,10 @@ because the switcher allows five AWJ clients at once.
 > unproven on real hardware — its *via preview* route works anywhere — and Companion cannot add the
 > LivePremier Plus connection until a Companion module for this app exists. The **Pixelhue panel**
 > has never met a console at all.
+>
+> **0.13.0 rebuilt every feature as a plugin.** Each was checked against the simulator and a
+> Videohub emulator as it moved; what each one does did not change. A plugin of your own runs with
+> the same access to the switcher as the app itself, so switch on only what you trust.
 >
 > Built with AI assistance, directed and reviewed by a human author.
 
@@ -654,8 +661,9 @@ Everything is on until you switch it off.
   connections hang up.
 - **Reload the page** after a change. The server side applies straight away; the page picks it up
   on the next load, and the card reminds you.
-- Some features need others. **Send to** needs **Layer Groups**: switch Groups off and Send to goes
-  with it, marked *needs Layer Groups*, and comes back when Groups does.
+- Some features need others. **Send to** needs **Layer Groups**, and **Timecode** needs the
+  **Timeline**: switch Groups off and Send to goes with it, marked *needs Layer Groups*, and comes
+  back when Groups does.
 - A feature's own switch is separate. Switching **OSC input** on as a plugin brings its settings
   back; the listener itself still starts off until you tick *Listen for OSC*.
 
