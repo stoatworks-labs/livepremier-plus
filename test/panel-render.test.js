@@ -103,7 +103,7 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
       const session = sessionOver(store);
       const platform = () => detectPlatform(store);
 
-      const { createTimelinePanel } = await import('../src/ui/timeline-panel.js');
+      const { createTimelinePanel } = await import('../plugins/timeline/panel.js');
       const { createMatrixPanel } = await import('../src/ui/matrix-panel.js');
       const { createPropertiesPanel } = await import('../src/ui/properties-panel.js');
       const { createSettingsPanel } = await import('../src/ui/settings-panel.js');
@@ -166,7 +166,7 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
           id, session, platform, can: () => true, refresh() {}, kit: KIT,
           url: (p = '/') => `/__lpp/${id}${p === '/' ? '' : p}`,
           settings: { get: () => ({}), set: async () => ({}) },
-          contribute() {}, contributions: () => [], provide() {}, use: () => null,
+          contribute() {}, contributions: () => [], provide() {}, use: () => null, share() {},
           log: { info() {}, warn() {} },
           ui: {
             sidebar: (e) => registered.push(e), tab: (e) => registered.push(e),

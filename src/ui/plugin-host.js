@@ -73,6 +73,8 @@ export async function loadPlugins({
   const busy = [];
   const loaded = [];
   const failed = [];
+  /* What each plugin hands its own popped-out windows — see `share`. */
+  const shared = new Map();
 
   let list = [];
   try {
@@ -215,6 +217,13 @@ export async function loadPlugins({
       contributions: (point) => contributions.list(point, ownerOn),
       /** Offer a service under a name, for other plugins' `use`. */
       provide(name, api) { services.provide(name, api, p.id); mine.provided = true; },
+      /**
+       * Hand this plugin's own popped-out windows what they need — the whole
+       * of an object, where a service is a narrow face for everybody else. A
+       * popout booted with `bootPopout({ plugin: <id> })` gets it as `own`.
+       * The Timeline's cue editor is the example: it edits the stack itself.
+       */
+      share(api) { shared.set(p.id, api); },
       /** A service another plugin — or the app — provides, or null. */
       use: (name) => services.use(name, ownerOn)
     });
@@ -227,6 +236,7 @@ export async function loadPlugins({
       active.delete(p.id);
       contributions.removeOwner(p.id);
       services.removeOwner(p.id);
+      shared.delete(p.id);
       failed.push({ id: p.id, error: `failed to start: ${err.message}` });
       log.warn(TAG, `plugin ${p.id}: failed to start`, err);
       continue;
@@ -248,7 +258,9 @@ export async function loadPlugins({
     loaded,
     failed,
     contributions: (point) => contributions.list(point, ownerOn),
-    use: (name) => services.use(name, ownerOn)
+    use: (name) => services.use(name, ownerOn),
+    /** What a plugin shared with its own popouts, for `window.__WRU.shared`. */
+    shared: (id) => shared.get(id) || null
   };
 }
 

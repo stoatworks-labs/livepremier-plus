@@ -94,14 +94,20 @@ export const BUILTINS = [
     name: 'Timeline',
     where: 'Screens / Aux., beside Properties',
     description: 'A theatre cue stack with GO, fades and a standby cue.',
-    requires: { capabilities: ['cueStack'] }
+    requires: { capabilities: ['cueStack'] },
+    /* Its stack is where it always was. */
+    routeBase: '/stack',
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'timecode',
     name: 'Timecode',
     where: 'Settings, and the Timeline',
     description: 'Fire cues from MIDI Time Code, LTC on an audio input, or a timecode pushed to this app.',
-    requires: { capabilities: ['cueStack'], plugins: ['timeline'] }
+    requires: { capabilities: ['cueStack'], plugins: ['timeline'] },
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'memories',
@@ -332,9 +338,6 @@ export const isEnabled = builtins.isEnabled;
 const ROUTES = [
   ['/matrix', 'matrix-routing'],
   ['/osc/stream', 'osc-input'],
-  ['/timecode', 'timecode'],
-  ['/stack', 'timeline'],
-  ['/timeline', 'timeline'],
   ['/config', 'setup-file'],
   ...BUILTINS.filter((p) => p.hosted).map((p) => [routeBase(p), p.id])
 ].sort((a, b) => b[0].length - a[0].length);

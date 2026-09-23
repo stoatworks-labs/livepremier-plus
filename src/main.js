@@ -13,11 +13,9 @@
  */
 
 import { Session } from './core/session.js';
-import { CueStack } from './core/cuestack.js';
 import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
 import { createMatrixPanel } from './ui/matrix-panel.js';
-import { createTimelinePanel } from './ui/timeline-panel.js';
 import { TabHost, watchVendorTabs } from './ui/tabs.js';
 import { createSettingsPanel } from './ui/settings-panel.js';
 import { installRouterSurfaces } from './ui/router-box.js';
@@ -27,9 +25,6 @@ import { loadPlugins, byOrder } from './ui/plugin-host.js';
 import { createContributions, createServices } from './core/contributions.js';
 import { SIDES, parseConnectorId, logicalIndex } from './core/connectors.js';
 import { dialectFor } from './core/dialect.js';
-import { commandsFor } from './core/commands.js';
-import { createTimecodeSource } from './ui/timecode-source.js';
-import { TimecodeChase } from './core/chase.js';
 
 const TAG = '[LivePremier Plus]';
 
@@ -42,52 +37,6 @@ function throttleFrame(fn) {
     if (queued) return;
     queued = true;
     requestAnimationFrame(() => { queued = false; fn(); });
-  };
-}
-
-/**
- * Cue stacks and layer groups are persisted by the launcher, not by the browser.
- *
- * The extension version of this brokered chrome.storage through a content
- * script over window messages, because the page had no other way to reach it.
- * The launcher is a process with a disk, so the panels just ask it — and it
- * keys the stack by the device it is proxying, which is the right key anyway:
- * a cue list is written against one box's screens and presets.
- *
- * Layer groups take the same route for the same reason. `S1/2` names a layer
- * slot on one box's preconfig; pointed at another frame the same words mean
- * something else or nothing, so the groups are keyed by device too and live
- * in a file of their own beside the stacks.
- *
- * Deliberately not localStorage. That belongs to the vendor's own web app and
- * writing our data into it is not ours to do — a point that survived the move
- * off the extension unchanged.
- */
-function makeStorage(url = '/__lpp/stack') {
-  return {
-    async load() {
-      try {
-        const res = await fetch(url, { cache: 'no-store' });
-        if (!res.ok) return null;
-        return (await res.json()).data ?? null;
-      } catch (err) {
-        console.warn(TAG, 'could not load cue stack', err);
-        return null;
-      }
-    },
-    async save(data) {
-      try {
-        await fetch(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data })
-        });
-      } catch (err) {
-        /* A failed save must not interrupt an operator mid-cue. It is logged
-           and the in-memory stack carries on; the next edit retries. */
-        console.warn(TAG, 'could not save cue stack', err);
-      }
-    }
   };
 }
 
@@ -120,14 +69,6 @@ async function boot() {
   const on = (id) => pluginOn(pluginState, id);
 
   const session = new Session(transport);
-  const storage = makeStorage();
-  /*
-   * The cue engine spells its writes for whichever platform the store turns
-   * out to be — LivePremier or Midra 4K / Alta 4K — and asks at fire time,
-   * because the store is empty when this runs and may be re-pointed at a
-   * different frame mid-show. Before the store has said, every command
-   * declines to be built and a GO sends nothing. See `core/commands.js`.
-   */
   /*
    * How plugins extend each other, and how the features still wired in here
    * extend them too — see `core/contributions.js`. One registry of each for
@@ -138,15 +79,6 @@ async function boot() {
   const services = createServices();
   /* Set once the plugins have loaded; until then only the app's own count. */
   let listContributions = (point) => contributions.list(point, on);
-
-  const stack = new CueStack({
-    send: (cmd) => session.send(cmd),
-    commands: () => commandsFor(dialectFor(session.store)),
-    /* Any kind the engine does not do itself is a plugin's `cueAction` —
-       Matrix Routing's two among them, contributed below. Asked at fire time,
-       because the plugins load after this is built. */
-    actions: (kind) => listContributions('cueAction').find((a) => a.kind === kind) || null
-  });
 
   /*
    * Matrix Routing's two cue actions, contributed as a plugin would.
@@ -185,26 +117,6 @@ async function boot() {
       describe: (a) => `send ${connector(a.connector)} to router outputs ${[].concat(a.destinations ?? []).join(', ')}`
     }, 'matrix-routing');
   }
-
-  /*
-   * The cue stack, offered to plugins as a service — `ctx.use('stack')`. The
-   * Timeline owns it, so switching the Timeline off withdraws it. A narrow
-   * face on purpose: what a show needs from outside the stack is to move
-   * through it and to hear it move, not to rewrite it.
-   */
-  services.provide('stack', Object.freeze({
-    go: () => stack.go(),
-    back: () => stack.back(),
-    stop: () => stack.stop(),
-    gotoId: (id) => stack.gotoId(id),
-    get standby() { return stack.standby ? { ...stack.standby } : null; },
-    cues: () => stack.cues.map((c) => ({ ...c, actions: c.actions.map((a) => ({ ...a })) })),
-    addEventListener: (...a) => stack.addEventListener(...a),
-    removeEventListener: (...a) => stack.removeEventListener(...a)
-  }), 'timeline');
-
-  const saved = await storage.load();
-  if (saved) stack.load(saved);
 
   /*
    * One repaint per frame, covering whichever of our surfaces is on screen.
@@ -251,36 +163,11 @@ async function boot() {
   const platform = () => detectPlatform(session.store);
   const can = (capability) => supports(platform(), capability);
 
-  /*
-   * Timecode, and the chase that fires cues off it.
-   *
-   * Both exist from boot even with no source chosen: the chase costs a timer
-   * that returns immediately while nothing is armed, and having them here
-   * rather than inside a panel means the clock keeps running when the operator
-   * navigates away from the Timeline tab — which, mid-show, they will.
-   */
-  const timecode = createTimecodeSource();
-  const chase = new TimecodeChase({ stack, clock: timecode.clock, rate: 25 });
-  /*
-   * The chase fires on each reading, not on a timer — see `core/chase.js`. All
-   * that is left here is noticing that the feed has *gone*, which no reading
-   * will ever announce, and being late to that costs nothing.
-   */
-  if (on('timecode')) setInterval(() => timecode.clock.poll(), 250);
-  chase.addEventListener('fired', (ev) => {
-    console.info(TAG, 'timecode fired cue', ev.detail.cue.number || ev.detail.cue.id);
-    refresh();
-  });
-
   const matrix = createMatrixPanel({ session, onRefresh: refresh });
-  const timeline = createTimelinePanel({
-    session, stack, storage, timecode, chase, onRefresh: refresh,
-    cueActions: () => listContributions('cueAction')
-  });
   /* The plugins' own settings cards are read at every render: the plugins
      load further down, after this is built. */
   const settings = createSettingsPanel({
-    session, platform, timecode, onRefresh: refresh,
+    session, platform, onRefresh: refresh,
     sections: () => (hosted ? hosted.settings : [])
   });
   settingsPage = settings;
@@ -308,26 +195,12 @@ async function boot() {
   listContributions = hosted.contributions;
 
   /*
-   * Timeline lives in the vendor's own tab strip on Screens / Aux., beside
-   * Properties and Memories, as the Console does (at 10, from
-   * `plugins/console/`) — per-screen tools belong where an operator already
-   * looks for per-screen tools, not in a separate corner of the app. The VPU
-   * map does not: it is a whole-device view, so it stays a sidebar entry.
+   * The vendor's own tab strip on Screens / Aux.: every entry on it is a
+   * plugin's now — Console 10, Timeline 20, Layer 30, Groups 40 — because
+   * per-screen tools belong where an operator already looks for per-screen
+   * tools. A whole-device view, like the VPU map, is a sidebar entry instead.
    */
-  tabs = new TabHost({
-    tabs: byOrder([
-      /* `short` is what the tab falls back to when the strip runs out of room,
-         which it does at any ordinary window size — the panel is about 360px
-         and the vendor's own two tabs spend most of it. It is what the panel
-         actually is rather than a truncation, because "Time" reads as neither
-         one thing nor the other. */
-      { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', order: 20, enabled: () => can('cueStack') && on('timeline'), render: () => timeline.render() },
-      /* Layer comes here, at 30 — from its plugin, `plugins/layer/`. */
-      /* Layer Groups comes here, at 40 — from its plugin, `plugins/layer-groups/`,
-         which is on the strip as well as in the sidebar. */
-      ...hosted.tabs
-    ])
-  });
+  tabs = new TabHost({ tabs: byOrder(hosted.tabs) });
 
   shell = new Shell({
     title: 'PLUS',
@@ -368,7 +241,6 @@ async function boot() {
   const routerBoxes = installRouterSurfaces({ session, enabled: () => can('matrixRouting') && on('matrix-routing') });
 
   session.addEventListener('frame', refresh);
-  stack.addEventListener('changed', refresh);
 
 
   /* The sidebar may not exist yet - the vendor app mounts React after its own
@@ -402,7 +274,8 @@ async function boot() {
   tabs.remount();
 
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups: hosted.use('groups'), names, rename, labels: { describe: () => (namer() ? namer().describe() : null) }, routerBoxes, plugins: hosted, contributions: listContributions, services };
+  const clock = hosted.use('timecode');
+  window.__WRU = { session, stack: hosted.use('stack'), shell, tabs, transport, platform, timecode: clock && clock.source, chase: clock && clock.chase, groups: hosted.use('groups'), names, rename, labels: { describe: () => (namer() ? namer().describe() : null) }, routerBoxes, plugins: hosted, contributions: listContributions, services, shared: hosted.shared };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

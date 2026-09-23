@@ -38,7 +38,6 @@
 import { h, button } from './dom.js';
 import { installStyles } from './theme.js';
 import { repaint, trackFields } from './keep-focus.js';
-import { buildTimelineEditor } from './timeline-editor.js';
 
 const SPRITE_ID = '__SVG_SPRITE_NODE__';
 
@@ -91,14 +90,19 @@ export function adoptVendorChrome(doc, openerDoc) {
  *
  * @param {{doc: Document, opener: Window, build: Function}} opts
  */
-export function bootPopout({ doc = document, opener = window.opener, build }) {
+export function bootPopout({ doc = document, opener = window.opener, plugin = null, build }) {
   const bridge = opener && !opener.closed ? opener.__WRU : null;
   if (!bridge || !bridge.session) return mountOrphan(doc, 'no session');
+  /* What the plugin that owns this window shared with it (`ctx.share`). A
+     plugin switched off since the tab loaded shares nothing, and a window
+     that half-works is worse than one that says why. */
+  const own = plugin ? (bridge.shared ? bridge.shared(plugin) : null) : null;
+  if (plugin && !own) return mountOrphan(doc, 'plugin off');
   if (!adoptVendorChrome(doc, opener.document)) return mountOrphan(doc, 'no vendor page');
 
   const banner = h('div');
   doc.body.append(banner);
-  const built = build({ doc, bridge, banner }) || {};
+  const built = build({ doc, bridge, banner, own }) || {};
 
   /*
    * The opener is this window's only route to the device. Watch for it going
@@ -122,15 +126,6 @@ export function bootPopout({ doc = document, opener = window.opener, build }) {
   });
 
   return built;
-}
-
-/**
- * Build the timeline editor popout: a cue list with an inspector under it.
- *
- * @param {{doc: Document, opener: Window}} opts
- */
-export function mountTimelinePopout({ doc = document, opener = window.opener } = {}) {
-  return bootPopout({ doc, opener, build: ({ bridge }) => buildTimelineEditor(doc, bridge) });
 }
 
 /**
@@ -212,13 +207,15 @@ export function buildSolo(doc, bridge, create) {
 function mountOrphan(doc, reason) {
   installStyles(doc);
   doc.body.append(h('div', { class: 'lpp-orphan' },
-    h('h1', { class: 'aw-font-subtitle-1', text: 'No Web RCS session' }),
+    h('h1', { class: 'aw-font-subtitle-1', text: reason === 'plugin off' ? 'Not running in Web RCS' : 'No Web RCS session' }),
     /* Four different panels arrive here now, so the message names the rule
        rather than the panel: it used to say "opened from the Console", which
        was already only a quarter true and sent anyone who reached it from the
        cue list looking in the wrong place. */
     h('p', { text: reason === 'no vendor page'
       ? 'This window was opened from a page that is not a LivePremier Plus session.'
+      : reason === 'plugin off'
+      ? 'The feature this window belongs to is not running in the Web RCS tab it came from — it may have been switched off. Reload that tab and open it again.'
       : 'A popped-out panel has to be opened by its Pop out button inside Web RCS — it borrows that tab’s connection to the switcher rather than making one of its own, so it cannot be opened from a bookmark or reloaded on its own.' })));
   return null;
 }

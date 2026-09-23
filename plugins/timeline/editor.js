@@ -26,11 +26,11 @@
  * and is not going to reach for a mouse to move between forty cues.
  */
 
-import { h, button } from './dom.js';
-import { formatTimecode } from '../core/timecode.js';
-import { parseTimecodeString } from '../core/chase.js';
-import { ACTION_KINDS } from '../core/cuestack.js';
-import { describeContributed } from '../core/contributions.js';
+import { h, button } from '../../src/ui/dom.js';
+import { formatTimecode } from '../../src/core/timecode.js';
+import { parseTimecodeString } from '../../src/core/chase.js';
+import { ACTION_KINDS } from '../../src/core/cuestack.js';
+import { describeContributed } from '../../src/core/contributions.js';
 
 /** Columns of the list, in the order they are scanned. */
 const COLUMNS = [
@@ -44,6 +44,13 @@ const COLUMNS = [
   { id: 'follow', label: 'Follow', width: '6rem' }
 ];
 
+/**
+ * @param {Document} doc
+ * @param {{session: object, stack: object, save: () => void, timecode?: object|null,
+ *          chase?: object|null, contributions?: (point: string) => object[]}} bridge
+ *        the Web RCS tab's session, and what the Timeline plugin shares with
+ *        its own windows — see `client.js`
+ */
 export function buildTimelineEditor(doc, bridge) {
   const { session, stack } = bridge;
   const chase = bridge.chase || null;
@@ -52,10 +59,10 @@ export function buildTimelineEditor(doc, bridge) {
   const view = { selected: stack.cues[0] ? stack.cues[0].id : null };
 
   /*
-   * Saving is the tab's own route, called the way the tab calls it — one stack
-   * per device, and this popout is looking at the same device.
+   * Saving is the tab's own save, handed over by the plugin — one stack per
+   * device, and this popout is looking at the same device.
    *
-   * Wrapped in a try, and not because the fetch might reject: `stack.toJSON()`
+   * Wrapped in a try, and not because the save might reject: `stack.toJSON()`
    * is called synchronously, and getting that name wrong once meant every edit
    * threw *after* updating the model and *before* repainting the list. The
    * model was right, the screen was a version behind, and nothing anywhere
@@ -63,11 +70,7 @@ export function buildTimelineEditor(doc, bridge) {
    */
   const save = () => {
     try {
-      fetch('/__lpp/stack', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: stack.toJSON() })
-      }).catch(() => { /* an operator mid-cue must not be interrupted by a save */ });
+      bridge.save();
     } catch (err) {
       console.warn('[LivePremier Plus] could not save the cue stack', err);
     }

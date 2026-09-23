@@ -70,7 +70,7 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
   plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
   Compensation**, the **Pixelhue panel**, the **Console**, **Memories**, **MIDI
   Mapping**, **Field arithmetic**, **Layer**, **Layer names**, **Layer Groups**,
-  **Send to** and the **Edit page** so far; a
+  **Send to**, the **Edit page**, the **Timeline** and **Timecode** so far; a
   built-in may import `src/` directly, and shared engines and components stay
   in `src/` where every plugin can reach them (`core/vpu.js`, `ui/stage.js`,
   `ui/properties-panel.js` — the Layer tab and the Edit page both draw it —
@@ -530,11 +530,15 @@ asks.
 
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 
-There are four: the Console's, Memories' and Layer's are `popout.html` in their
-plugins' folders (`/__lpp/plugins/<id>/popout.html`, served by the plugin host
-while the plugin is on), and the timeline editor's is still
-`server/timeline.html` at `/__lpp/timeline` until the Timeline moves. Each is a
-document of **ours**, served from this process rather than proxied, opened by a
+There are four — the Console's, the Timeline's cue editor, Memories' and
+Layer's — each `popout.html` in its plugin's folder
+(`/__lpp/plugins/<id>/popout.html`, served by the plugin host while the plugin
+is on). A popout that needs more of its plugin than a service offers gets it
+through `ctx.share`: the cue editor rewrites the stack, so the Timeline shares
+the stack itself, and `bootPopout({ plugin: 'timeline' })` hands it over as
+`own` — or says the feature is not running, if the tab it came from has no
+such plugin. Each is a document of **ours**, served from this process rather
+than proxied, opened by a
 Pop out button on the panel it belongs to — which opens
 `new URL('./popout.html', import.meta.url)`, so the page and the button cannot
 disagree about where it is. A missing page fails as a blank window rather than
@@ -920,7 +924,7 @@ no benefit. Read `wru` as "the panels".
 
 - **`node --check` does not check ES modules.** It exits 0 on a file with an
   unbalanced argument list if the file also parses as CommonJS-ambiguous. It did
-  exactly that here on a real error in `ui/timeline-panel.js`, which only
+  exactly that here on a real error in the Timeline's panel, which only
   surfaced when Chrome refused to load the panel. `test/modules.test.js` imports
   every module for this reason — that is the check. Do not replace it with
   `--check`.

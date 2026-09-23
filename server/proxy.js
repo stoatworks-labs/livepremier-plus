@@ -174,18 +174,6 @@ export async function createProxy({
      point there is no device to borrow a stylesheet from. */
   const setupPage = await readFile(join(root, 'server/setup.html'), 'utf8');
 
-  /*
-   * The popped-out timeline editor. A document of ours rather than a proxied
-   * one, so it is served from here and not fetched from the switcher — but it
-   * must be on this origin, because it drives the Web RCS tab's own session
-   * through `window.opener`, and that only works same-origin. The Console's,
-   * Memories' and Layer's are in their plugins' folders, served by the plugin
-   * host on the same terms; what makes them worth having separately is that
-   * an operator puts different ones on different monitors.
-   */
-  const popoutPages = {
-    '/timeline': await readFile(join(root, 'server/timeline.html'), 'utf8')
-  };
 
   /*
    * Our own version, read off the manifest rather than duplicated in a
@@ -385,20 +373,6 @@ export async function createProxy({
   settings = normaliseSettings(settings, host.schemas);
 
   /*
-   * Timecode pushed in from outside.
-   *
-   * The browser can read MTC over Web MIDI and LTC off an audio input all by
-   * itself, and does. This is the third way in: a generator on another
-   * machine, a lighting desk, a script — anything that can make an HTTP
-   * request — POSTs a timecode here and every open page hears it.
-   *
-   * Held in memory and never written down. Timecode is a *now* value; a
-   * position restored from disk at startup would be a lie about the present.
-   */
-  const timecodeListeners = new Set();
-  let lastTimecode = null;
-
-  /*
    * Every socket pair we have relayed.
    *
    * An upgraded connection is detached from the HTTP server's own bookkeeping,
@@ -430,42 +404,6 @@ export async function createProxy({
     }
     if (await host.serveFile(rest, res)) return undefined;
     if (await host.handle(req, res, url, rest)) return undefined;
-
-    if (rest === '/timecode') {
-      if (req.method === 'GET') return sendJson(res, 200, { timecode: lastTimecode });
-      if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await collect(req, 4096);
-        let parsed;
-        try { parsed = JSON.parse(body.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-        const tc = normaliseTimecode(parsed);
-        if (!tc) return sendJson(res, 400, { error: 'expected {hours,minutes,seconds,frames} or "hh:mm:ss:ff"' });
-        lastTimecode = tc;
-        const line = `event: timecode\ndata: ${JSON.stringify(tc)}\n\n`;
-        for (const listener of timecodeListeners) {
-          /* A page that has gone away without closing cleanly must not stop
-             the others being told the time. */
-          try { listener.write(line); } catch { timecodeListeners.delete(listener); }
-        }
-        return sendJson(res, 200, { ok: true, timecode: tc, listeners: timecodeListeners.size });
-      }
-      return sendJson(res, 405, { error: 'method not allowed' });
-    }
-
-    if (rest === '/timecode/stream') {
-      res.writeHead(200, {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-store',
-        connection: 'keep-alive',
-        /* Nginx and friends buffer event streams into uselessness. */
-        'x-accel-buffering': 'no'
-      });
-      res.write(': timecode stream open\n\n');
-      if (lastTimecode) res.write(`event: timecode\ndata: ${JSON.stringify(lastTimecode)}\n\n`);
-      timecodeListeners.add(res);
-      req.on('close', () => timecodeListeners.delete(res));
-      return undefined;   /* held open deliberately */
-    }
 
     /*
      * Settings.
@@ -608,10 +546,6 @@ export async function createProxy({
       return undefined;   /* held open deliberately */
     }
 
-    if (popoutPages[rest]) {
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-      return res.end(popoutPages[rest]);
-    }
 
     if (rest === '/status') {
       return sendJson(res, 200, {
@@ -761,22 +695,6 @@ export async function createProxy({
         ok: true, crosspoints: [{ matrix, output, input }],
       });
       return sendJson(res, status, payload);
-    }
-
-    if (rest === '/stack') {
-      if (!storage) return sendJson(res, 501, { error: 'no storage configured' });
-      if (req.method === 'GET') {
-        return sendJson(res, 200, { data: await storage.load(state.device) });
-      }
-      if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await collect(req, 4 * 1024 * 1024);
-        let parsed;
-        try { parsed = JSON.parse(body.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-        await storage.save(state.device, parsed && parsed.data !== undefined ? parsed.data : parsed);
-        return sendJson(res, 200, { ok: true });
-      }
-      return sendJson(res, 405, { error: 'method not allowed' });
     }
 
     /*
@@ -1161,46 +1079,3 @@ function collect(req, limit) {
   });
 }
 
-/**
- * Accept a timecode in either of the two shapes a caller will reach for.
- *
- * `"01:02:03:04"` because that is what a person types and what most tools
- * print, with `;` before the frames meaning drop-frame as the industry spells
- * it; or the object form for anything generating it programmatically.
- *
- * Out-of-range fields are refused rather than clamped. A frame number of 40 is
- * a bug in whatever sent it, and a clamped 29 would hide it behind a plausible
- * value that a cue stack would then act on.
- */
-export function normaliseTimecode(input) {
-  let parts = input;
-  if (typeof input === 'string' || typeof input?.timecode === 'string') {
-    const text = typeof input === 'string' ? input : input.timecode;
-    const m = /^(\d{1,2}):(\d{1,2}):(\d{1,2})([:;.])(\d{1,2})$/.exec(text.trim());
-    if (!m) return null;
-    parts = {
-      hours: +m[1], minutes: +m[2], seconds: +m[3], frames: +m[5],
-      dropFrame: m[4] === ';',
-      rate: typeof input === 'object' ? input.rate : undefined
-    };
-  }
-  if (!parts || typeof parts !== 'object') return null;
-
-  const int = (v) => (Number.isInteger(v) ? v : null);
-  const hours = int(parts.hours);
-  const minutes = int(parts.minutes);
-  const seconds = int(parts.seconds);
-  const frames = int(parts.frames);
-  if (hours === null || minutes === null || seconds === null || frames === null) return null;
-  if (hours > 23 || minutes > 59 || seconds > 59 || frames > 59) return null;
-  if (hours < 0 || minutes < 0 || seconds < 0 || frames < 0) return null;
-
-  const rate = int(parts.rate);
-  return {
-    hours, minutes, seconds, frames,
-    /* A rate the sender did not give is left null for the page to fill in from
-       its own setting — the same thing LTC does, and for the same reason. */
-    rate: rate && rate > 0 && rate <= 120 ? rate : null,
-    dropFrame: parts.dropFrame === true
-  };
-}

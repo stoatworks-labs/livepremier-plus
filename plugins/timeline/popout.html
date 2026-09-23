@@ -23,8 +23,23 @@
 </head>
 <body>
 <script type="module">
-  import { mountTimelinePopout } from '/__lpp/src/ui/popout.js';
-  mountTimelinePopout({ doc: document, opener: window.opener });
+  import { bootPopout } from '/__lpp/src/ui/popout.js';
+  import { buildTimelineEditor } from './editor.js';
+  bootPopout({
+    doc: document,
+    opener: window.opener,
+    plugin: 'timeline',
+    /* The Timeline shares the stack itself with this window — the editor
+       rewrites it — and the clock and the chase when Timecode is on. */
+    build: ({ doc, bridge, own }) => buildTimelineEditor(doc, {
+      session: bridge.session,
+      stack: own.stack,
+      save: own.save,
+      timecode: own.timecode(),
+      chase: own.chase(),
+      contributions: own.contributions
+    })
+  });
 </script>
 </body>
 </html>

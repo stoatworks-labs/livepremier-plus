@@ -31,8 +31,8 @@
  * that does not need this tab to have a microphone permission.
  */
 
-import { MtcReader, LtcReader, TimecodeClock } from '../core/timecode.js';
-import { insecureContextAdvice } from '../core/secure-context.js';
+import { MtcReader, LtcReader, TimecodeClock } from '../../src/core/timecode.js';
+import { insecureContextAdvice } from '../../src/core/secure-context.js';
 
 export const SOURCE_KINDS = [
   { id: 'none', label: 'None' },
@@ -41,10 +41,15 @@ export const SOURCE_KINDS = [
   { id: 'backend', label: 'Pushed to LivePremier Plus' }
 ];
 
+/* Beside this file in the plugin's folder, which the plugin host serves. */
+const WORKLET = new URL('./ltc-worklet.js', import.meta.url).href;
+
 /**
- * @param {{rate?: number, staleAfterMs?: number}} opts
+ * @param {{rate?: number, staleAfterMs?: number, streamUrl?: string}} opts
+ *        `streamUrl` is where pushed timecode is heard — the plugin's own
+ *        `/stream` route.
  */
-export function createTimecodeSource({ rate = 25, staleAfterMs = 250 } = {}) {
+export function createTimecodeSource({ rate = 25, staleAfterMs = 250, streamUrl = '/__lpp/timecode/stream' } = {}) {
   const clock = new TimecodeClock({ rate, staleAfterMs });
   const state = { kind: 'none', deviceId: '', error: null, running: false };
 
@@ -137,7 +142,7 @@ export function createTimecodeSource({ rate = 25, staleAfterMs = 250 } = {}) {
     });
 
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    await ctx.audioWorklet.addModule('/__lpp/src/ui/ltc-worklet.js');
+    await ctx.audioWorklet.addModule(WORKLET);
     const reader = new LtcReader({ sampleRate: ctx.sampleRate });
     const node = new AudioWorkletNode(ctx, 'lpp-ltc-tap');
     node.port.onmessage = (ev) => {
@@ -173,7 +178,7 @@ export function createTimecodeSource({ rate = 25, staleAfterMs = 250 } = {}) {
   /* -------------------------------------------------------------- backend */
 
   function useBackend() {
-    const stream = new EventSource('/__lpp/timecode/stream');
+    const stream = new EventSource(streamUrl);
     stream.addEventListener('timecode', (ev) => {
       try { clock.update(JSON.parse(ev.data), 'backend'); }
       catch { /* a malformed push is not worth tearing the source down for */ }

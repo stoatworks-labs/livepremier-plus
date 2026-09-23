@@ -91,7 +91,7 @@ test('every route a plugin owns is found, longest prefix first', () => {
   assert.equal(routeOwner('/memories'), 'memories', 'not the Edit page’s /memory');
   assert.equal(routeOwner('/matrix/patch'), 'matrix-routing');
   assert.equal(routeOwner('/timecode/stream'), 'timecode');
-  assert.equal(routeOwner('/timeline'), 'timeline');
+  assert.equal(routeOwner('/groups'), 'layer-groups', 'a base moved to keep its address');
   assert.equal(routeOwner('/stack'), 'timeline');
   assert.equal(routeOwner('/osc/stream'), 'osc-input');
   assert.equal(routeOwner('/config/inspect'), 'setup-file');

@@ -604,7 +604,7 @@ test('every popout route is served by us, before a switcher is chosen', async ()
   const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
   const port = await listen(proxy);
   try {
-    for (const route of ['/timeline', '/plugins/layer/popout.html', '/plugins/memories/popout.html', '/plugins/console/popout.html']) {
+    for (const route of ['/plugins/timeline/popout.html', '/plugins/layer/popout.html', '/plugins/memories/popout.html', '/plugins/console/popout.html']) {
       const res = await fetch(`http://127.0.0.1:${port}${NS}${route}`);
       assert.equal(res.status, 200, `${route} is served`);
       assert.match(res.headers.get('content-type'), /text\/html/);

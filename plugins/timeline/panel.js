@@ -21,14 +21,17 @@
  *    cue does anything beyond recall-and-take.
  */
 
-import { h, button, readout, sectionTitle, fmtClock } from './dom.js';
-import { panel } from './shell.js';
-import { parseTimecodeString } from '../core/chase.js';
-import { formatTimecode } from '../core/timecode.js';
-import { ACTION_KINDS } from '../core/cuestack.js';
-import { describeContributed } from '../core/contributions.js';
-import { listDestinations } from '../core/screens.js';
-import { dialectFor } from '../core/dialect.js';
+import { h, button, readout, sectionTitle, fmtClock } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
+import { parseTimecodeString } from '../../src/core/chase.js';
+import { formatTimecode } from '../../src/core/timecode.js';
+import { ACTION_KINDS } from '../../src/core/cuestack.js';
+import { describeContributed } from '../../src/core/contributions.js';
+import { listDestinations } from '../../src/core/screens.js';
+import { dialectFor } from '../../src/core/dialect.js';
+
+/* The cue editor's window: `popout.html`, beside this file. */
+const POPOUT = new URL('./popout.html', import.meta.url).href;
 
 /**
  * @param {object} o
@@ -38,6 +41,11 @@ import { dialectFor } from '../core/dialect.js';
  */
 export function createTimelinePanel({ session, stack, storage, timecode = null, chase = null, onRefresh, cueActions = () => [] }) {
   const view = { editing: null, adding: false, armedUntil: null, lastFired: null };
+  /* The timecode source and the chase, or functions answering them: the
+     Timeline plugin passes functions, because they belong to the Timecode
+     plugin, which may be off — then there is no clock and no Chase button. */
+  const clockNow = () => (typeof timecode === 'function' ? timecode() : timecode);
+  const chaseNow = () => (typeof chase === 'function' ? chase() : chase);
 
   stack.addEventListener('fired', (ev) => { view.lastFired = ev.detail; onRefresh(); });
   stack.addEventListener('armed', (ev) => {
@@ -79,13 +87,14 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
   let child = null;
   function popOut() {
     if (child && !child.closed) { child.focus(); return; }
-    child = window.open('/__lpp/timeline', 'lpp-timeline',
+    child = window.open(POPOUT, 'lpp-timeline',
       'width=1200,height=800,menubar=no,toolbar=no,location=no');
     if (!child) onRefresh();
   }
 
   function toolbar() {
     const standby = stack.standby;
+    const chase = chaseNow();
     const armed = view.armedUntil && view.armedUntil > Date.now();
     return [
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-large' },
@@ -220,6 +229,7 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
    * that something is wrong without saying what.
    */
   function timecodeTag() {
+    const timecode = clockNow();
     if (!timecode) return null;
     const clock = timecode.clock;
     const running = clock.running;

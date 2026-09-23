@@ -14,7 +14,7 @@ and read [Adding your own](#adding-your-own) below.
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
 | 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to and the Edit page | **done** |
-| 3 | [Contribution points and services](#extending-each-other) (**done**), then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing — and MIDI, Memories, Layer, layer names and the Edit page, which turned out to share more than they looked (MIDI's port feeds the timecode source; Memories and Layer ride the pop-out machinery; layer names are read by five surfaces; the Edit page embeds the Layer panel and reads the names) | in progress |
+| 3 | [Contribution points and services](#extending-each-other), then the entangled features: the Timeline and Timecode (**done**), OSC input, Matrix Routing and the setup file | in progress |
 | 4 | **User plugins** loaded from the data directory; this guide; an example plugin | **done** — ahead of phase 3, on the phase-1 API |
 
 ## Switching features on and off
@@ -41,7 +41,7 @@ of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to and the Edit page.
+A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to, the Edit page, the Timeline and Timecode.
 
 ```
 plugins/companion/
@@ -75,7 +75,10 @@ has to be a document on this app's origin, because it drives the Web RCS tab's s
 its Pop out button opens `new URL('./popout.html', import.meta.url)`. The page boots through
 `bootPopout` in [`src/ui/popout.js`](../src/ui/popout.js), which borrows the vendor's stylesheet
 and says so when the tab it came from closes; `buildSolo` fills the window with one panel.
-[`plugins/memories/popout.html`](../plugins/memories/popout.html) is the whole of one.
+[`plugins/memories/popout.html`](../plugins/memories/popout.html) is the whole of one. A window that
+needs more of its plugin than the session — the Timeline's cue editor rewrites the stack — gets it
+from `ctx.share(api)` in the page half: `bootPopout({ plugin: '<id>', build })` hands `build` that
+object as `own`, and tells the operator the feature is not running if the tab has none.
 
 ## The server half
 
@@ -125,6 +128,7 @@ page half of every plugin that is on, and calls `activate(ctx)`.
 | `session`, `platform()`, `can(capability)`, `refresh()` | The live store mirror and what this switcher supports. An entry is only offered where every capability in the manifest's `requires` is there. |
 | `contribute(point, spec)` / `contributions(point)` | Add to one of the page's [contribution points](#contribution-points) — `cueAction` — or list what is there. |
 | `provide(name, api)` / `use(name)` | Offer an object to the other plugins in the page, or find one — the app's cue stack is `use('stack')`. [Services](#services). |
+| `share(api)` | Hand this plugin's own popped-out windows what they need — the whole of an object, where a service is the narrow face for everybody else. See the popout note above. |
 | `url(path)`, `log`, `id`, `manifest` | |
 
 The page halves start in dependency order: a plugin that lists another in `requires.plugins`
@@ -249,9 +253,10 @@ state without importing its files.
 **What the built-ins offer in the page:** **`names`**, from Layer names — `get()` the whole
 `{ 'S1/2': 'IMAG' }` map, `rename(id, layer, value)`, `describe()` for what the vendor-page labels
 found; **`groups`**, from Layer Groups — `list()`, `recent()`, `remember(target)`, `load()`, and
-`expect(cmds)` to tell the gang a whole group was just written so it lets the echoes pass; and
+`expect(cmds)` to tell the gang a whole group was just written so it lets the echoes pass;
+**`timecode`**, from Timecode — `{ source, chase }`, the clock and the chase the Timeline draws; and
 **`stack`**, the cue stack, owned by the Timeline —
-`go()`, `back()`, `stop()`, `gotoId(id)`, `standby`, `cues()` (copies), and
+`go()`, `back()`, `stop()`, `gotoId(id)`, `fire(id)`, `standby`, `cues()` (copies), and
 `addEventListener`/`removeEventListener` for its events (`fired`, `took`, `armed`, `changed`,
 `stopped`, `end`, `warning`, `sendFailed`). It is narrow
 on purpose: moving through a show and hearing it move, not rewriting it.
@@ -366,12 +371,14 @@ Added in Phase 3, for the same review:
    for the length of the transition.
 10. **Services are one provider per name, found at call time.** No versioning of a service yet — a
     service that changes shape changes its name.
-
 11. **A built-in's documents stay where they always were; a user plugin's go in
     `<data dir>/plugin-data/<id>/`.** Not `<data dir>/plugins/<id>/` as first planned: that is the
     plugin's code folder, and everything web-typed in it is served to the page. The price of the
     first half is that a built-in's document names share a folder with the app's own files, so
     `settings` and `device` are refused.
+12. **A plugin's own windows get the whole object; everybody else gets a service.** `ctx.share` is
+    for a popout of the same plugin — the Timeline's cue editor needs the stack itself — so the
+    narrow `stack` service did not have to grow an editing API to serve one window.
 
 Still open, and decided in the phase that needs them: a section in the one-file setup for a
 plugin's documents (the setup file still reads the built-ins' files directly); and how a
