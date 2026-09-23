@@ -1,12 +1,19 @@
 /*
- * The popped-out console: previews, a command line, and a reference shelf.
+ * Popped-out windows: the machinery every one of them shares.
+ *
+ * A panel pops out into a document of its own — the Console's is previews, a
+ * command line and a reference shelf; Memories' and Layer's are the panel
+ * alone — but the awkward parts are the same for all of them, so they are
+ * here once. A plugin's popout is a page in its own folder that imports
+ * `bootPopout` (and `buildSolo`, for a single panel) from this file:
+ * `plugins/memories/popout.html` is the whole of one.
  *
  * ## It shares the opener's session — it does not make its own
  *
- * This is the whole reason the popout is allowed to exist. The device counts
+ * This is the whole reason a popout is allowed to exist. The device counts
  * its clients and shows the count in its own header, and AWJ's separate
  * five-client budget is small; a second window that connected on its own would
- * appear to the operator as a phantom colleague on the box. So the popout
+ * appear to the operator as a phantom colleague on the box. So a popout
  * opens **no socket and fetches no store**. It reaches back through
  * `window.opener.__WRU` and uses the session that is already running in the
  * Web RCS tab — same mirror, same socket, same everything.
@@ -26,28 +33,12 @@
  * font size comes over too: every `aw-` spacing value is in rem against the
  * vendor's `html { font-size: 12px }`, so a popout on the browser default
  * would be laid out half again too large.
- *
- * ## Layout
- *
- *   ┌──────────────────────────┬──────────────┐
- *   │ previews (filter, size)  │ Syntax|Macros│
- *   ├──────────────────────────┴──────────────┤
- *   │ command line, full width                │
- *   └─────────────────────────────────────────┘
- *
- * The terminal spans the whole window because it is the thing being used; the
- * previews are what it is being used *at*, and the shelf is what it is being
- * used *with*.
  */
 
 import { h, button } from './dom.js';
 import { installStyles } from './theme.js';
-import { repaint, trackDropdowns } from './keep-focus.js';
-import { createConsolePanel } from './console-panel.js';
-import { createPreviewWall } from './preview.js';
-import { createSyntaxPanel, createMacroPanel } from './syntax-panel.js';
+import { repaint, trackFields } from './keep-focus.js';
 import { buildTimelineEditor } from './timeline-editor.js';
-import { createMemoriesPanel } from './memories-panel.js';
 import { createPropertiesPanel } from './properties-panel.js';
 
 const SPRITE_ID = '__SVG_SPRITE_NODE__';
@@ -135,32 +126,12 @@ export function bootPopout({ doc = document, opener = window.opener, build }) {
 }
 
 /**
- * Build the console popout into `doc`, driving the opener's session.
- *
- * @param {{doc: Document, opener: Window}} opts
- */
-export function mountPopout({ doc = document, opener = window.opener } = {}) {
-  return bootPopout({ doc, opener, build: ({ bridge }) => buildConsole(doc, bridge) });
-}
-
-/**
  * Build the timeline editor popout: a cue list with an inspector under it.
  *
  * @param {{doc: Document, opener: Window}} opts
  */
 export function mountTimelinePopout({ doc = document, opener = window.opener } = {}) {
   return bootPopout({ doc, opener, build: ({ bridge }) => buildTimelineEditor(doc, bridge) });
-}
-
-/**
- * Build the memory-bank popout: master, screen and layer memories in one list.
- *
- * @param {{doc: Document, opener: Window}} opts
- */
-export function mountMemoriesPopout({ doc = document, opener = window.opener } = {}) {
-  return bootPopout({
-    doc, opener, build: ({ bridge }) => buildSolo(doc, bridge, createMemoriesPanel)
-  });
 }
 
 /**
@@ -191,11 +162,11 @@ export function mountPropertiesPopout({ doc = document, opener = window.opener }
  * dropped but deferred — the next frame after the edit lands redraws it, so
  * the panel never sits stale.
  */
-function buildSolo(doc, bridge, create) {
+export function buildSolo(doc, bridge, create) {
   const { session } = bridge;
   const host = h('div', { class: 'lpp-popout lpp-solo' });
   doc.body.append(host);
-  trackDropdowns(doc);
+  trackFields(doc);
 
   /* No Pop out button in here — this is where it pops out to. */
   const view = create({ session, onRefresh: () => paint(), popoutEnabled: false, doc });
@@ -243,101 +214,6 @@ function buildSolo(doc, bridge, create) {
     paint,
     stop() {
       clearInterval(catchUp);
-      session.removeEventListener('frame', onFrame);
-      session.removeEventListener('state', onFrame);
-    }
-  };
-}
-
-function buildConsole(doc, bridge) {
-  const { session } = bridge;
-
-  /* No Pop out button in here — this is where it pops out to. */
-  const consolePanel = createConsolePanel({ session, onRefresh: () => paintConsole(), popoutEnabled: false });
-  const wall = createPreviewWall({ session, onRefresh: () => paintWall(), doc });
-  const syntax = createSyntaxPanel();
-  const macros = createMacroPanel();
-
-  const tabs = [
-    { id: 'syntax', label: 'Syntax', panel: syntax },
-    { id: 'macros', label: 'Macros', panel: macros }
-  ];
-  let activeTab = 'syntax';
-
-  /* --------------------------------------------------------------- frame */
-
-  const wallControls = h('div');
-  const wallBody = h('div', { class: 'lpp-wall-body' });
-  const sideTabs = h('div', { class: 'lpp-side-tabs aw-flex-row-center-v aw-gap-col-mini' });
-  const sideBody = h('div', { class: 'lpp-side-pane' });
-  const consoleHost = h('div', { class: 'lpp-console' });
-
-  const root = h('div', { class: 'lpp-popout' },
-    h('div', { class: 'lpp-top' },
-      h('section', { class: 'lpp-previews' },
-        h('div', { class: 'lpp-pane-head' },
-          h('span', { class: 'aw-font-subtitle-1', text: 'Screens / Aux.' }),
-          wallControls),
-        wallBody),
-      h('section', { class: 'lpp-side' }, sideTabs, sideBody)),
-    consoleHost);
-
-  doc.body.append(root);
-  trackDropdowns(doc);
-
-  /* --------------------------------------------------------------- paint */
-
-  function paintWall() {
-    repaint(wallControls, () => wall.controls());
-    /* Scroll position is the operator's, not ours — the device store is
-       chatty and a repaint that jumped the wall back to the top mid-show
-       would be its own bug. The caret is theirs too; see `keep-focus.js`. */
-    const top = wallBody.scrollTop;
-    if (repaint(wallBody, () => wall.render())) wallBody.scrollTop = top;
-  }
-
-  function paintConsole() {
-    repaint(consoleHost, () => consolePanel.render());
-  }
-
-  function paintSide() {
-    sideTabs.textContent = '';
-    for (const tab of tabs) {
-      sideTabs.append(h('button', {
-        class: ['lpp-tab', activeTab === tab.id ? 'lpp-tab--on' : ''],
-        type: 'button',
-        onClick: () => { activeTab = tab.id; paintSide(); }
-      }, tab.label));
-    }
-    const tab = tabs.find((t) => t.id === activeTab) || tabs[0];
-    repaint(sideBody, () => tab.panel.render());
-  }
-
-  paintWall();
-  paintConsole();
-  paintSide();
-  wall.start();
-
-  /* ------------------------------------------------------- staying alive */
-
-  /*
-   * Device traffic repaints the wall, never the console: a repaint would wipe
-   * whatever the operator is halfway through typing, and the console redraws
-   * itself when it has something to say.
-   */
-  let queued = false;
-  const onFrame = () => {
-    if (queued) return;
-    queued = true;
-    (doc.defaultView || window).requestAnimationFrame(() => { queued = false; paintWall(); });
-  };
-  session.addEventListener('frame', onFrame);
-  session.addEventListener('state', onFrame);
-
-  return {
-    paintWall, paintConsole, paintSide, wall,
-    stop() {
-      wall.stop();
       session.removeEventListener('frame', onFrame);
       session.removeEventListener('state', onFrame);
     }

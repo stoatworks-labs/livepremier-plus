@@ -18,12 +18,8 @@ import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
 import { createMatrixPanel } from './ui/matrix-panel.js';
 import { createTimelinePanel } from './ui/timeline-panel.js';
-import { installMathFields } from './ui/math-fields.js';
 import { TabHost, watchVendorTabs } from './ui/tabs.js';
-import { createConsolePanel } from './ui/console-panel.js';
-import { createMidiPanel } from './ui/midi-panel.js';
 import { createSettingsPanel } from './ui/settings-panel.js';
-import { createMemoriesPanel } from './ui/memories-panel.js';
 import { createPropertiesPanel } from './ui/properties-panel.js';
 import { createGroupsPanel } from './ui/groups-panel.js';
 import { createEditPanel } from './ui/edit-panel.js';
@@ -175,12 +171,6 @@ async function boot() {
     if (!seen) return;
   }
 
-  /*
-   * Arithmetic in the vendor's own numeric fields — `1080-80` in a layer width
-   * gives 1000. Installed as soon as we know this is Web RCS, and before the
-   * panels, because it is useful on its own: it improves the stock UI whether
-   * or not anyone ever opens a panel of ours.
-   */
   const bootSettings = await fetch('/__lpp/settings', { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : {}))
     .then((body) => (body && body.settings) || {})
@@ -194,8 +184,6 @@ async function boot() {
    * says so beside the switch.
    */
   const on = (id) => pluginOn(pluginState, id);
-
-  if (on('arithmetic')) installMathFields();
 
   const session = new Session(transport);
   const storage = makeStorage();
@@ -296,7 +284,6 @@ async function boot() {
   /* Declared here rather than at their construction so `refresh` can close
      over them: the panels are built further down, and a `const` referenced
      before its declaration runs is a ReferenceError, not an undefined. */
-  let memories = null;
   let properties = null;
   let groups = null;
   let edit = null;
@@ -305,7 +292,7 @@ async function boot() {
   let hosted = null;
   let settingsPage = null;
   const editing = () =>
-    [memories, properties, groups, edit, editProps, settingsPage].some((p) => p && p.busy && p.busy())
+    [properties, groups, edit, editProps, settingsPage].some((p) => p && p.busy && p.busy())
     || Boolean(hosted && hosted.busy());
   const refresh = throttleFrame(() => {
     if (editing()) return;
@@ -350,8 +337,6 @@ async function boot() {
     session, stack, storage, timecode, chase, onRefresh: refresh,
     cueActions: () => listContributions('cueAction')
   });
-  const consolePanel = createConsolePanel({ session, onRefresh: refresh });
-  const midi = createMidiPanel({ session, onRefresh: refresh });
   /* The plugins' own settings cards are read at every render: the plugins
      load further down, after this is built. */
   const settings = createSettingsPanel({
@@ -360,14 +345,12 @@ async function boot() {
   });
   settingsPage = settings;
   /*
-   * The two panels the vendor already has tabs for, rebuilt so they can leave
-   * the window. Web RCS's own Memories and Properties panes are React, and a
-   * React pane cannot be relocated — its listeners are delegated to the app's
-   * root container, so a copy moved into a second window paints and does
-   * nothing. These read the mirror instead. See the heads of
-   * `ui/memories-panel.js` and `ui/properties-panel.js`.
+   * The Layer panel, rebuilt so it can leave the window: Web RCS's own
+   * Properties pane is React, and a React pane cannot be relocated — its
+   * listeners are delegated to the app's root container, so a copy moved into
+   * a second window paints and does nothing. This reads the mirror instead,
+   * as Memories does (`plugins/memories/`). See `ui/properties-panel.js`.
    */
-  memories = createMemoriesPanel({ session, onRefresh: refresh });
   properties = createPropertiesPanel({
     session, onRefresh: refresh, names: () => names(),
     onRename: on('layer-names') ? (...a) => rename(...a) : null
@@ -452,22 +435,19 @@ async function boot() {
   listContributions = hosted.contributions;
 
   /*
-   * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
-   * beside Properties and Memories — the two per-screen tools belong where an
-   * operator already looks for per-screen tools, not in a separate corner of
-   * the app. The VPU map does not: it is a whole-device view, so it stays a
-   * sidebar entry of its own.
+   * Timeline lives in the vendor's own tab strip on Screens / Aux., beside
+   * Properties and Memories, as the Console does (at 10, from
+   * `plugins/console/`) — per-screen tools belong where an operator already
+   * looks for per-screen tools, not in a separate corner of the app. The VPU
+   * map does not: it is a whole-device view, so it stays a sidebar entry.
    */
   const tabs = new TabHost({
     tabs: byOrder([
       /* `short` is what the tab falls back to when the strip runs out of room,
          which it does at any ordinary window size — the panel is about 360px
-         and the vendor's own two tabs spend most of it. Both are what the
-         panel actually is rather than a truncation, because "Cons" and "Time"
-         read as neither one thing nor the other. */
-      /* `mini-list-14` is LivePremier's sprite; Midra's has no list glyph and
-         `bars-14` is the nearest it draws. `icon()` takes the first the page has. */
-      { id: 'console', label: 'Console', short: 'Cmd', icon: ['mini-list-14', 'bars-14'], order: 10, enabled: () => can('console') && on('console'), render: () => consolePanel.render() },
+         and the vendor's own two tabs spend most of it. It is what the panel
+         actually is rather than a truncation, because "Time" reads as neither
+         one thing nor the other. */
       { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', order: 20, enabled: () => can('cueStack') && on('timeline'), render: () => timeline.render() },
       /*
        * "Layer" and not "Properties": the vendor's own Properties tab is two
@@ -519,12 +499,8 @@ async function boot() {
        * operator will open before the show rather than during it.
        */
       { id: 'edit', label: 'Edit', icon: ['properties-18', 'layer-stacked-18'], order: 10, enabled: () => can('layerProperties') && on('edit'), render: () => edit.render() },
-      /* VPU Map comes here, at 20 — from its plugin, `plugins/vpu-map/`. */
-      /* The three memory banks, which are a whole-device view like the VPU map
-         and unlike everything on the Screens / Aux. strip: master memories
-         cover every screen at once, and the screen bank is one flat list of
-         1000 slots that any screen can recall from. */
-      { id: 'memories', label: 'Memories', icon: 'shotbox-18', order: 30, enabled: () => can('cueStack') && on('memories'), render: () => memories.render() },
+      /* VPU Map comes here, at 20 — from its plugin, `plugins/vpu-map/` —
+         and Memories at 30, from `plugins/memories/`. */
       /* Also a whole-device view, and for the sharpest version of the reason:
          a group exists precisely because it crosses screens, so it could not
          live on a per-screen tab strip even if that strip had room. */
@@ -534,10 +510,8 @@ async function boot() {
          the only panel here that reads something other than the store — an
          external router is not in the store and never will be. */
       { id: 'matrix', label: 'Matrix Routing', icon: ['connector-gpio-18', 'gpio-18'], order: 50, enabled: () => can('matrixRouting') && on('matrix-routing'), render: () => matrix.render() },
-      /* Companion comes here, at 60 — from its plugin, `plugins/companion/`. */
-      /* Not in the PLUS section: MIDI mapping belongs beside the vendor's own
-         remote-panel page, because both are about control surfaces. */
-      { id: 'midi', label: 'MIDI Mapping', icon: ['gpio-18', 'connector-gpio-18'], after: 'Virtual RC400T', order: 70, enabled: () => on('midi'), render: () => midi.render() },
+      /* Companion comes here, at 60 — from its plugin, `plugins/companion/` —
+         and MIDI Mapping at 70, under Virtual RC400T, from `plugins/midi/`. */
       /* Pitch Compensation comes here, at 80 in the Preconfig flyout — from
          its plugin, `plugins/pitch/`. */
       /* Nor is this one: settings for the installation go where the device's

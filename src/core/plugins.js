@@ -82,7 +82,8 @@ export const BUILTINS = [
     name: 'Console',
     where: 'Screens / Aux., beside Properties',
     description: 'A command line over the device — takes, preset recalls, layer moves.',
-    requires: { capabilities: ['console'] }
+    requires: { capabilities: ['console'] },
+    client: 'client.js'
   },
   {
     id: 'timeline',
@@ -103,7 +104,8 @@ export const BUILTINS = [
     name: 'Memories',
     where: 'Sidebar, under PLUS',
     description: 'Every memory bank in one list, with recall, save, rename and erase — and a window of its own.',
-    requires: { capabilities: ['cueStack'] }
+    requires: { capabilities: ['cueStack'] },
+    client: 'client.js'
   },
   {
     id: 'layer',
@@ -159,7 +161,8 @@ export const BUILTINS = [
     name: 'MIDI Mapping',
     where: 'Sidebar, under Virtual RC400T',
     description: 'A MIDI control surface driving the switcher from this page.',
-    requires: { capabilities: ['console'] }
+    requires: { capabilities: ['console'] },
+    client: 'client.js'
   },
   {
     id: 'pixelhue',
@@ -179,7 +182,8 @@ export const BUILTINS = [
     id: 'arithmetic',
     name: 'Field arithmetic',
     where: 'Every numeric field in Web RCS',
-    description: 'Type 1080-80 in a layer width and get 1000.'
+    description: 'Type 1080-80 in a layer width and get 1000.',
+    client: 'client.js'
   }
 ].map((p) => withDefaults(p));
 
@@ -323,8 +327,6 @@ const ROUTES = [
   ['/groups', 'layer-groups'],
   ['/layer-names', 'layer-names'],
   ['/config', 'setup-file'],
-  ['/console', 'console'],
-  ['/memories', 'memories'],
   ['/properties', 'layer'],
   ...BUILTINS.filter((p) => p.hosted).map((p) => [routeBase(p), p.id])
 ].sort((a, b) => b[0].length - a[0].length);

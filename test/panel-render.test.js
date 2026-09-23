@@ -95,15 +95,12 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
       const platform = () => detectPlatform(store);
 
       const { createTimelinePanel } = await import('../src/ui/timeline-panel.js');
-      const { createConsolePanel } = await import('../src/ui/console-panel.js');
       const { createMatrixPanel } = await import('../src/ui/matrix-panel.js');
-      const { createMemoriesPanel } = await import('../src/ui/memories-panel.js');
       const { createPropertiesPanel } = await import('../src/ui/properties-panel.js');
       const { createGroupsPanel } = await import('../src/ui/groups-panel.js');
       const { createEditPanel } = await import('../src/ui/edit-panel.js');
       const { createProgrammer } = await import('../src/core/programmer.js');
       const { createSettingsPanel } = await import('../src/ui/settings-panel.js');
-      const { createMidiPanel } = await import('../src/ui/midi-panel.js');
 
       const stack = new CueStack({ send: () => true });
       /* A plugin's action, one whose plugin is off, and a built-in one. */
@@ -125,9 +122,7 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
         assert.match(drawn.textContent, /Waiting for the device store/, 'before the store arrives it says so, and lists nothing');
       }
 
-      renders('console', createConsolePanel({ session, onRefresh() {} }));
       renders('matrix', createMatrixPanel({ session, onRefresh() {} }));
-      renders('memories', createMemoriesPanel({ session, onRefresh() {} }));
       const names = () => ({});
       const properties = createPropertiesPanel({ session, onRefresh() {}, names, onRename: null });
       renders('properties', properties);
@@ -141,7 +136,6 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
         onSave: async () => ({ ok: true }), onLoad: async () => ({ ok: true })
       }));
       renders('settings', createSettingsPanel({ session, platform, onRefresh() {}, sections: () => [] }));
-      renders('midi', createMidiPanel({ session, onRefresh() {} }));
     });
   });
 
@@ -163,8 +157,12 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
       }));
 
       /* The page halves themselves, through a stand-in ctx: what each
-         registers must render too. */
-      for (const id of ['pixelhue', 'companion', 'vpu-map', 'pitch']) {
+         registers must render too. Every built-in with a page half is here —
+         read off the manifests, so a plugin that moves cannot be missed. */
+      const { BUILTINS } = await import('../src/core/plugins.js');
+      const halves = BUILTINS.filter((b) => b.client).map((b) => b.id);
+      assert.ok(halves.includes('console') && halves.includes('memories'), halves.join(', '));
+      for (const id of halves) {
         const { default: activate } = await import(`../plugins/${id}/client.js`);
         const registered = [];
         const ctx = {
@@ -179,7 +177,8 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
           }
         };
         await activate(ctx);
-        assert.ok(registered.length, `${id} registered nothing`);
+        /* Field arithmetic is a page decoration: it registers nothing. */
+        if (id !== 'arithmetic') assert.ok(registered.length, `${id} registered nothing`);
         for (const entry of registered) renders(`${id}’s ${entry.id || 'entry'}`, entry);
       }
     });

@@ -13,7 +13,7 @@ and read [Adding your own](#adding-your-own) below.
 |---|---|---|
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
-| 2 | The self-contained features moved: VPU Map, Pitch Compensation and the Pixelhue panel (**done**), the Edit page | in progress |
+| 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping and Field arithmetic (**done**), the Edit page | in progress |
 | 3 | [Contribution points and services](#extending-each-other) (**done**), then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing — and MIDI, Memories, Layer, layer names and the Edit page, which turned out to share more than they looked (MIDI's port feeds the timecode source; Memories and Layer ride the pop-out machinery; layer names are read by five surfaces; the Edit page embeds the Layer panel and reads the names) | in progress |
 | 4 | **User plugins** loaded from the data directory; this guide; an example plugin | **done** — ahead of phase 3, on the phase-1 API |
 
@@ -41,7 +41,7 @@ of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation and the Pixelhue panel.
+A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping and Field arithmetic.
 
 ```
 plugins/companion/
@@ -65,9 +65,17 @@ A built-in with a `server` or `client` is **hosted** — loaded by the plugin ho
 plugin written by somebody else will be. One without is still wired into `main.js` and `proxy.js`
 by hand, and moves in a later phase. A user plugin will carry the same fields in a `plugin.json`.
 
-Everything in a plugin's folder with a web file type (`.js`, `.mjs`, `.css`, `.json`, `.svg`,
-`.png`) is served to the page at `/__lpp/plugins/<id>/…` while the plugin is on — **except its
-server entry**. Keep anything private out of a plugin's folder.
+Everything in a plugin's folder with a web file type (`.html`, `.js`, `.mjs`, `.css`, `.json`,
+`.svg`, `.png`) is served to the page at `/__lpp/plugins/<id>/…` while the plugin is on — **except
+its server entry**. Keep anything private out of a plugin's folder.
+
+**A panel that pops out into a window of its own** does it into a page in its folder. The window
+has to be a document on this app's origin, because it drives the Web RCS tab's session through
+`window.opener` rather than opening a connection of its own — so it is served from the folder, and
+its Pop out button opens `new URL('./popout.html', import.meta.url)`. The page boots through
+`bootPopout` in [`src/ui/popout.js`](../src/ui/popout.js), which borrows the vendor's stylesheet
+and says so when the tab it came from closes; `buildSolo` fills the window with one panel.
+[`plugins/memories/popout.html`](../plugins/memories/popout.html) is the whole of one.
 
 ## The server half
 

@@ -6,7 +6,7 @@
  * the canvas as a rectangle, one absolutely-positioned box per allocated
  * layer, each filled with the snapshot of whatever source it is showing.
  *
- * This was inside `ui/preview.js` until the Edit page needed the same picture
+ * This was inside the Console's preview wall (`plugins/console/preview.js`) until the Edit page needed the same picture
  * with a click and a drag on it. Two copies of the composition rules is how
  * the two pages come to disagree about what the desk looks like, so there is
  * one, and the interactive half is passed in rather than duplicated.

@@ -47,8 +47,8 @@
  * event, is what makes React's `onChange` fire and its state agree with the DOM.
  */
 
-import { evaluate, fitToField, looksLikeExpression } from '../core/expr.js';
-import { isEnter } from './dom.js';
+import { evaluate, fitToField, looksLikeExpression } from '../../src/core/expr.js';
+import { isEnter } from '../../src/ui/dom.js';
 
 /* Re-exported: it is part of this module's contract even though it is shared. */
 export { isEnter };

@@ -9,7 +9,7 @@
  * MTC over Web MIDI, which this app already proved it can do: serving the
  * vendor UI from loopback makes the page a secure context, so
  * `requestMIDIAccess` is simply available. No offscreen document, no service
- * worker — see `ui/midi-panel.js` for the history.
+ * worker — see `plugins/midi/panel.js` for the history.
  *
  * ## Audio, in the page
  *

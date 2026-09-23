@@ -57,16 +57,20 @@
  * prefix of a command that puts something on air.
  */
 
-import { h, button, icon, isEnter } from './dom.js';
-import { panel } from './shell.js';
+import { h, button, icon, isEnter } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
 import {
   run, declared, sniff, completions, shortestForm, KEYWORDS, LANGUAGE_LABELS
-} from '../vendor/mynah-lang.mjs';
-import { PARAMS, paramsFor, mynahPlatform } from '../core/osc-dictionary.js';
-import { presetBanks, listDestinations } from '../core/screens.js';
-import { dialectFor } from '../core/dialect.js';
-import { DEFAULT_SETTINGS } from '../core/settings.js';
-import { oscAddressFor } from '../core/contributions.js';
+} from '../../src/vendor/mynah-lang.mjs';
+import { PARAMS, paramsFor, mynahPlatform } from '../../src/core/osc-dictionary.js';
+import { presetBanks, listDestinations } from '../../src/core/screens.js';
+import { dialectFor } from '../../src/core/dialect.js';
+import { DEFAULT_SETTINGS } from '../../src/core/settings.js';
+import { oscAddressFor } from '../../src/core/contributions.js';
+
+/* The window this pops out into: `popout.html`, beside this file in the
+   plugin's folder, which the plugin host serves while the plugin is on. */
+const POPOUT = new URL('./popout.html', import.meta.url).href;
 
 const HISTORY_MAX = 100;
 const LOG_MAX = 200;
@@ -565,7 +569,7 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
   let child = null;
   function popOut() {
     if (child && !child.closed) { child.focus(); return; }
-    child = window.open('/__lpp/console', 'lpp-console',
+    child = window.open(POPOUT, 'lpp-console',
       'width=1400,height=900,menubar=no,toolbar=no,location=no');
     if (!child) {
       note('warn', 'pop out', 'the browser blocked the window — allow pop-ups for this address');

@@ -552,7 +552,8 @@ test('the popped-out console is served by us, on our own origin', async () => {
   const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
   const port = await listen(proxy);
   try {
-    const res = await fetch(`http://127.0.0.1:${port}${NS}/console`);
+    /* From the Console plugin's own folder, which the plugin host serves. */
+    const res = await fetch(`http://127.0.0.1:${port}${NS}/plugins/console/popout.html`);
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type'), /text\/html/);
     const body = await res.text();
@@ -576,7 +577,7 @@ test('every popout route is served by us, before a switcher is chosen', async ()
   const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
   const port = await listen(proxy);
   try {
-    for (const route of ['/timeline', '/memories', '/properties']) {
+    for (const route of ['/timeline', '/properties', '/plugins/memories/popout.html', '/plugins/console/popout.html']) {
       const res = await fetch(`http://127.0.0.1:${port}${NS}${route}`);
       assert.equal(res.status, 200, `${route} is served`);
       assert.match(res.headers.get('content-type'), /text\/html/);

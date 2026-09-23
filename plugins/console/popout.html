@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Memories — LivePremier Plus</title>
+<title>Console — LivePremier Plus</title>
 <!--
-  Deliberately bare — see console.html; the reasoning is identical.
+  Deliberately bare.
 
   Every stylesheet and every icon this page uses belongs to the vendor and is
   copied off the opener at runtime — see `adoptVendorChrome` in
@@ -23,8 +23,8 @@
 </head>
 <body>
 <script type="module">
-  import { mountMemoriesPopout } from '/__lpp/src/ui/popout.js';
-  mountMemoriesPopout({ doc: document, opener: window.opener });
+  import { mountConsolePopout } from './popout.js';
+  mountConsolePopout({ doc: document, opener: window.opener });
 </script>
 </body>
 </html>

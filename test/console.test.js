@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { DeviceStore } from '../src/core/device-store.js';
-import { createConsolePanel } from '../src/ui/console-panel.js';
+import { createConsolePanel } from '../plugins/console/panel.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));

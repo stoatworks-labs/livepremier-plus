@@ -61,8 +61,13 @@ import { API_VERSION, BUILTINS, createRegistry, routeBase, validateManifest } fr
 import { changedPluginSettings } from '../src/core/settings.js';
 import { POINTS, createContributions, createServices } from '../src/core/contributions.js';
 
-/** What a plugin's folder may serve to the page, by extension. Nothing else is. */
+/**
+ * What a plugin's folder may serve to the page, by extension. Nothing else is.
+ * `.html` is for a panel's popped-out window, which has to be a document on
+ * this origin to reach back to the Web RCS tab — `plugins/memories/popout.html`.
+ */
 const SERVED = {
+  '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',

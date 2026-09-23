@@ -26,9 +26,9 @@
  * looking at, all show.
  */
 
-import { h } from './dom.js';
-import { listDestinations } from '../core/screens.js';
-import { stage as drawStage } from './stage.js';
+import { h } from '../../src/ui/dom.js';
+import { listDestinations } from '../../src/core/screens.js';
+import { stage as drawStage } from '../../src/ui/stage.js';
 
 /* Vendor input thumbnails move at about 1 Hz. Matching that is enough for a
    confidence view and is the rate the device is already producing. */

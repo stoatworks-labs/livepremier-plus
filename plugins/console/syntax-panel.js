@@ -17,8 +17,8 @@
  * looking up `Me` is as likely to type the abbreviation as the word.
  */
 
-import { h } from './dom.js';
-import { keywordTable, CATEGORIES, SLOTS, VERIFIED_FIRMWARE } from '../vendor/mynah-lang.mjs';
+import { h } from '../../src/ui/dom.js';
+import { keywordTable, CATEGORIES, SLOTS, VERIFIED_FIRMWARE } from '../../src/vendor/mynah-lang.mjs';
 
 /*
  * How the parser's own `kind` values read to a person, and the order they are

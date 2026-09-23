@@ -31,15 +31,19 @@
  * safe default.
  */
 
-import { h, button, isEnter } from './dom.js';
-import { panel } from './shell.js';
-import { listDestinations } from '../core/screens.js';
+import { h, button, isEnter } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
+import { listDestinations } from '../../src/core/screens.js';
 import {
   banksFor, bankFor, targetsFor, listSlots, slotCount, assignments, recallCmd, saveCmd,
   labelCmd, deleteCmd, saveFilters
-} from '../core/memories.js';
-import { fittedLayers } from '../core/properties.js';
-import { dialectFor } from '../core/dialect.js';
+} from '../../src/core/memories.js';
+import { fittedLayers } from '../../src/core/properties.js';
+import { dialectFor } from '../../src/core/dialect.js';
+
+/* The window this pops out into: `popout.html`, beside this file in the
+   plugin's folder, which the plugin host serves while the plugin is on. */
+const POPOUT = new URL('./popout.html', import.meta.url).href;
 
 /** How long a destructive button stays armed before it goes back to safe. */
 const ARM_MS = 4000;
@@ -186,7 +190,7 @@ export function createMemoriesPanel({
   let child = null;
   function popOut() {
     if (child && !child.closed) { child.focus(); return; }
-    child = window.open('/__lpp/memories', 'lpp-memories',
+    child = window.open(POPOUT, 'lpp-memories',
       'width=1100,height=820,menubar=no,toolbar=no,location=no');
     if (!child) note('warn', 'the browser blocked the window — allow pop-ups for this address');
   }

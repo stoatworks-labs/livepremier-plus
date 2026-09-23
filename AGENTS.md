@@ -68,11 +68,14 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
 - **Hosted** — moved into `plugins/<id>/` with a server half and/or a page half,
   loaded by `server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a
   plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
-  Compensation** and the **Pixelhue panel** so far; a built-in may import
-  `src/` directly, and the page-only ones keep their shared engines
-  (`core/vpu.js`, the vendored models) where the rest of the app can still
-  reach them. A plugin's card on the settings page is `ctx.ui.settingsSection`
-  — Pixelhue's is the example.
+  Compensation**, the **Pixelhue panel**, the **Console**, **Memories**, **MIDI
+  Mapping** and **Field arithmetic** so far; a built-in may import `src/`
+  directly, and the page-only ones keep their shared engines (`core/vpu.js`,
+  `ui/stage.js`, the vendored models) where the rest of the app can still reach
+  them. A plugin's card on the settings page is `ctx.ui.settingsSection` —
+  Pixelhue's is the example. A panel that pops out does it into a page in its
+  own folder (`popout.html`, served by the host) that boots through
+  `ui/popout.js` — Memories' is the whole of one.
 - **In place** — still wired into `src/main.js` and `server/proxy.js` by hand and
   gated there with `isEnabled`. Everything else, until its phase.
 
@@ -83,7 +86,7 @@ the router could use — three special cases no other plugin could have. Now the
 engine asks for a `cueAction` by kind, the OSC server and the Console for an
 `oscAddress` by prefix, and Matrix Routing contributes both from where it is
 wired in, exactly as a plugin would. Do not put a feature's name back into
-`cuestack.js`, `osc.js` or `console-panel.js`: if a feature needs a new kind of
+`cuestack.js`, `osc.js` or the Console's `panel.js`: if a feature needs a new kind of
 hook, add a point to `POINTS`, with the rules that stop one plugin taking
 another's — or the switcher's — over. Shared state goes the same way:
 `provide`/`use`, the cue stack being `use('stack')`.
@@ -181,7 +184,7 @@ remembered. It also means re-pointing at a backup frame costs a form submission
 rather than a restart — and re-pointing **hangs up the existing relays**, so a
 page cannot go on driving the box the operator thinks they have left.
 
-## Arithmetic in vendor fields (`ui/math-fields.js`)
+## Arithmetic in vendor fields (`plugins/arithmetic/math-fields.js`)
 
 Three things here are load-bearing and were each verified on a running Web RCS
 rather than reasoned about:
@@ -412,7 +415,7 @@ point of the ids being structural.
   bank is one flat list of 1000 slots that any screen may recall from, so
   filing them per-screen would be filing them wrongly.
 
-### Memories and layer properties (`ui/memories-panel.js`, `ui/properties-panel.js`)
+### Memories and layer properties (`plugins/memories/panel.js`, `ui/properties-panel.js`)
 
 Web RCS has a Memories tab and a Properties tab already, and these do not
 replace them. They exist because **a vendor pane cannot be popped out.** `#root`
@@ -774,7 +777,7 @@ disabled output still says `usedOnScreen: 1`. `dialect.pitch` holds both.
 
 **The Console speaks Midra because mynah does.** mynah's language core has a
 `platform` context — `LIVEPREMIER` or `MIDRA`, `src/lang/platforms.ts`
-upstream — and `ui/console-panel.js` passes the one `core/dialect.js` names
+upstream — and `plugins/console/panel.js` passes the one `core/dialect.js` names
 (`mynahPlatform()` in `core/osc-dictionary.js` is the only place the two
 namings meet). `test/vendor.test.js` pins that mynah's `MIDRA` and this repo's
 `MNG` agree path for path, the same corroboration the LivePremier pair has.
@@ -922,7 +925,12 @@ no benefit. Read `wru` as "the panels".
   so every swap of a panel's DOM (`Shell.refresh`, `TabHost.refresh`, the
   pop-outs' `repaint`) notes the focused field first and gives the caret,
   selection and typed text back to its counterpart after; an open `<select>`
-  holds the swap instead, since a replaced dropdown closes. Measured
+  holds the swap instead, since a replaced dropdown closes. Typed text is kept
+  only **until it is committed** — Enter, a `change`, leaving the field —
+  which `trackFields` follows at the capture phase: after that the panel's
+  value is the truth, or the Console's line never clears and a value the
+  switcher clamped shows as typed (both happened; the first version kept typed
+  text for as long as the field had focus). Measured
   2026-09-23: before it, every text field and dropdown in the Edit page,
   Memories, Matrix Routing, Pitch, Companion, Timeline and Layer was replaced
   within 2.6 s of being focused. "Counterpart" is the field's `data-lpp-key`

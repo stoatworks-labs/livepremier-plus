@@ -14,7 +14,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { evaluate, fitToField, isPlainNumber, looksLikeExpression } from '../src/core/expr.js';
-import { resolveField, isNumericField, isEnter } from '../src/ui/math-fields.js';
+import { resolveField, isNumericField, isEnter } from '../plugins/arithmetic/math-fields.js';
 
 const value = (s) => {
   const r = evaluate(s);

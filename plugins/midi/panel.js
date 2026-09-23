@@ -34,12 +34,12 @@
  * the fix is upstream.
  */
 
-import { h, button } from './dom.js';
-import { panel } from './shell.js';
-import { Engine } from '../vendor/surface/engine.js';
-import { MidiSurface } from '../vendor/surface/surface.js';
-import { validate } from '../vendor/surface/profile.js';
-import { insecureContextAdvice } from '../core/secure-context.js';
+import { h, button } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
+import { Engine } from '../../src/vendor/surface/engine.js';
+import { MidiSurface } from '../../src/vendor/surface/surface.js';
+import { validate } from '../../src/vendor/surface/profile.js';
+import { insecureContextAdvice } from '../../src/core/secure-context.js';
 
 const PROFILE_BASE = '/__lpp/src/vendor/surface/profiles/';
 const STOCK = [

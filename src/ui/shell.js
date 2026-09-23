@@ -25,7 +25,7 @@
 
 import { h, icon } from './dom.js';
 import { installStyles } from './theme.js';
-import { captureFocus, restoreFocus, trackDropdowns } from './keep-focus.js';
+import { captureFocus, restoreFocus, trackFields } from './keep-focus.js';
 
 /*
  * The sidebar, in both of Analog Way's spellings.
@@ -113,7 +113,7 @@ export class Shell {
 
   start() {
     installStyles();
-    trackDropdowns();
+    trackFields();
     this._mount();
     /* React re-renders the sidebar on navigation; put it back when it does.
        Both placements are checked — an anchored entry can be lost on its own

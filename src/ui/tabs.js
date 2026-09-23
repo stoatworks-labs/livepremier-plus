@@ -27,7 +27,7 @@
  */
 
 import { h, icon } from './dom.js';
-import { captureFocus, restoreFocus, trackDropdowns } from './keep-focus.js';
+import { captureFocus, restoreFocus, trackFields } from './keep-focus.js';
 
 /* The strip is Semantic UI's `ui tabular menu`. Structure is the fallback:
    a menu holding anchors that each carry a label and switch a pane. */
@@ -84,7 +84,7 @@ export class TabHost {
   }
 
   start() {
-    trackDropdowns();
+    trackFields();
     this._mount();
     this._observer = new MutationObserver(() => {
       /* Cheap guard: only look properly when our tabs are absent — and only

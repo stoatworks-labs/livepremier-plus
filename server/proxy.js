@@ -175,18 +175,18 @@ export async function createProxy({
      point there is no device to borrow a stylesheet from. */
   const setupPage = await readFile(join(root, 'server/setup.html'), 'utf8');
 
-  /* The popped-out console. A document of ours rather than a proxied one, so
-     it is served from here and not fetched from the switcher — but it must be
-     on this origin, because it drives the Web RCS tab's own session through
-     `window.opener` and that only works same-origin. */
-  const consolePage = await readFile(join(root, 'server/console.html'), 'utf8');
-  /* And the timeline editor, the memory banks and the layer properties, all on
-     the same terms. Each is one route and one document; what makes them worth
-     having separately is that an operator puts different ones on different
-     monitors. */
+  /*
+   * The popped-out timeline editor and layer properties. Documents of ours
+   * rather than proxied ones, so they are served from here and not fetched
+   * from the switcher — but they must be on this origin, because they drive
+   * the Web RCS tab's own session through `window.opener`, and that only
+   * works same-origin. Each is one route and one document; what makes them
+   * worth having separately is that an operator puts different ones on
+   * different monitors. The Console's and Memories' are in their plugins'
+   * folders, served by the plugin host on the same terms.
+   */
   const popoutPages = {
     '/timeline': await readFile(join(root, 'server/timeline.html'), 'utf8'),
-    '/memories': await readFile(join(root, 'server/memories.html'), 'utf8'),
     '/properties': await readFile(join(root, 'server/properties.html'), 'utf8')
   };
 
@@ -661,9 +661,9 @@ export async function createProxy({
       return undefined;   /* held open deliberately */
     }
 
-    if (rest === '/console' || popoutPages[rest]) {
+    if (popoutPages[rest]) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
-      return res.end(rest === '/console' ? consolePage : popoutPages[rest]);
+      return res.end(popoutPages[rest]);
     }
 
     if (rest === '/status') {

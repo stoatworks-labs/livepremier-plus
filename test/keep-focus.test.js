@@ -13,7 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { captureFocus, restoreFocus, repaint, trackDropdowns } from '../src/ui/keep-focus.js';
+import { captureFocus, restoreFocus, repaint, trackFields } from '../src/ui/keep-focus.js';
 
 /** Just enough of a document: a tree of fields, focus, selection, events. */
 function stubDoc() {
@@ -106,6 +106,67 @@ test('a redrawn field gets back the caret, the selection and what was typed', ()
   assert.deepEqual([now.selectionStart, now.selectionEnd, now.selectionDirection], [2, 4, 'forward']);
 });
 
+test('typed text is kept until it is committed, across every repaint in between', () => {
+  const { doc, El } = stubDoc();
+  trackFields(doc);
+  const root = new El('div');
+  doc.body.append(root);
+  root.append(drawPanel(El));
+  const field = root.querySelectorAll('input')[0];
+  field.focus();
+  field.value = 'Rack';
+  doc.dispatch('input', field);
+
+  for (let i = 0; i < 3; i++) {
+    const place = captureFocus(root);
+    root.textContent = '';
+    root.append(drawPanel(El));             /* the panel keeps no draft */
+    restoreFocus(root, place);
+    assert.equal(doc.activeElement.value, 'Rack', `still typed after repaint ${i + 1}`);
+  }
+});
+
+test('Enter commits: the panel’s own value wins, and the caret stays', () => {
+  /* The Console clears its line when it runs it. Before this rule the line
+     came straight back, because it was still "typed" in a focused field. */
+  const { doc, El } = stubDoc();
+  trackFields(doc);
+  const root = new El('div');
+  doc.body.append(root);
+  root.append(drawPanel(El, { host: '' }));
+  const field = root.querySelectorAll('input')[0];
+  field.focus();
+  field.value = '/hello/ping';
+  doc.dispatch('input', field);
+  doc.dispatch('keydown', field, { key: 'Enter' });
+
+  const place = captureFocus(root);
+  root.textContent = '';
+  root.append(drawPanel(El, { host: '' }));   /* redrawn from a cleared line */
+  restoreFocus(root, place);
+  assert.equal(doc.activeElement.value, '', 'cleared, as the panel drew it');
+  assert.equal(doc.activeElement.getAttribute('placeholder'), 'Machine room', 'and still the field with the caret');
+});
+
+test('a committed value the switcher changed shows as the switcher has it', () => {
+  const { doc, El } = stubDoc();
+  trackFields(doc);
+  const root = new El('div');
+  doc.body.append(root);
+  root.append(drawPanel(El, { port: '8000' }));
+  const field = root.querySelectorAll('input')[1];
+  field.focus();
+  field.value = '99999';
+  doc.dispatch('input', field);
+  doc.dispatch('change', field);              /* committed; the device clamps it */
+
+  const place = captureFocus(root);
+  root.textContent = '';
+  root.append(drawPanel(El, { port: '65535' }));
+  restoreFocus(root, place);
+  assert.equal(doc.activeElement.value, '65535', 'not the typed 99999');
+});
+
 test('an untouched field takes the redrawn value, and its caret', () => {
   const { doc, El } = stubDoc();
   const root = new El('div');
@@ -179,7 +240,7 @@ test('a field that survived the repaint is left exactly as it is', () => {
 
 test('an open dropdown holds the repaint, and the choice lets it go', () => {
   const { doc, El } = stubDoc();
-  trackDropdowns(doc);
+  trackFields(doc);
   const root = new El('div');
   doc.body.append(root);
   root.append(drawPanel(El));
