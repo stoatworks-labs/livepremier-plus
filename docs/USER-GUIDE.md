@@ -4,6 +4,8 @@ LivePremier Plus is a **local app that puts extra panels inside an Analog Way Li
 session**, drawn in Web RCS's own design language so they read as part of the product rather than
 as a bolt-on.
 
+![Screens / Aux. with the Timeline tab open beside Properties and Memories: the demo cue stack, its standby cue and GO, inside the vendor's own page](screenshots/screens-timeline.png)
+
 - **Edit** — the Screens / Aux. page with one row instead of two, and that row is a *programmer*:
   a buffer that is on neither preview nor program. Build a look with the same sources, the same
   layer parameters and the same memory bank, and the switcher sees none of it until you save it
@@ -41,7 +43,8 @@ as a bolt-on.
 - **Speed Editor** *(preview)* — a DaVinci Resolve Speed Editor as a switcher panel, over USB or
   Bluetooth: CAM 1–9 pick sources, CUT and DIS cut and take, and the wheel moves opacity,
   position and size. Chrome or Edge, with DaVinci Resolve quit.
-- **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini driving the switcher.
+- **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini driving the switcher, with
+  **Pixelhue Mapping** to give any key, fader or encoder a different job.
 - **Your setup in one file** — cue stack, groups, layer names, router patch and settings, saved and
   restored together.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a layer width and get
@@ -153,6 +156,8 @@ in amber rather than PGM in red or PRW in green, because it is on neither bus.
 **Nothing you do here reaches the switcher.** There is no TAKE, no T-bar and no padlock, because
 there is nothing to transition and nothing to protect.
 
+![The Edit page: both screens seeded from program, S1's layer selected on the stage and its parameters in the Layer panel on the right](screenshots/edit.png)
+
 ### Building a look
 
 Each card starts empty. Three ways to fill it, and none of them asks the device for anything:
@@ -207,6 +212,8 @@ Each VPU is drawn the way Analog Way's own manual draws one — an 8 × 8 field 
 coming in from the left, output links running down from the top — so the picture matches the
 documentation you already have:
 
+![The VPU Map in the demo: 32 of 64 mixers fitted, 26 allocated, S1 in Optimized mode, and 26 staged changes](screenshots/vpu-map.png)
+
 - **Native layers** sit in a band above the field, because a native is the bottom of the stack.
 - **A screen that ran out of mixers** and continued onto another VPU has the two cards stacked, with
   the link drawn straight down out of one and into the next.
@@ -237,6 +244,8 @@ Take Screen 1
 
 The line **parses as you type and shows what it will do** — `Recall 3 → Screen 1 Preview` — before
 anything reaches the device. Tab completes; ↑ recalls history.
+
+![The Console tab with a line typed and not yet run: "Recall 1 → Screen 1 Preview" under it](screenshots/screens-console.png)
 
 **This panel owns no grammar.** Every token, rule and device path comes from
 [mynah](https://github.com/stoatworks-labs/mynah)'s own build output — the same artefact its
@@ -321,6 +330,8 @@ monitor a panel that stays where you pointed it turns out to be the better behav
   transition is running. A literal letter still works.
 - **It pops out** into its own window.
 
+![The Layer tab: S1, layer 1, named "Presenter", its PRW buffer resolved, source, position and size, and opacity](screenshots/screens-layer.png)
+
 ### Naming a layer
 
 Type a name into **Name** and it appears everywhere a layer is listed — this panel, the groups, the
@@ -339,6 +350,8 @@ destination and layer pickers at the bottom of each group card; the layer list i
 The two source columns beside each member show what it is showing now, in program and in preview,
 so a glance says whether the group agrees.
 
+![Layer Groups: "Side screens", ganged, holding S1 L2 and S2 L1; "Keys" with its gang off](screenshots/layer-groups.png)
+
 **Gang: follows** is on by default. The rest of the group is written to match whenever any member's
 source changes — by the `…` menu, by the vendor's own drag-and-drop, by a memory recall, by another
 client. Turn it off and the group stays useful as a target and does nothing on its own.
@@ -351,13 +364,7 @@ the panel says so.
 Every source card in the Sources panel gets a **`…`** beside the vendor's own `⋮`. The `⋮` is
 theirs and opens that input's settings; the `…` is ours and routes it.
 
-```
-Send IN4
-  [ Preview ] [ Program ]
-  Recent    Side screens        S1 L2 · S2 L1   GANG
-  Groups    Side screens        S1 L2 · S2 L1   GANG
-  Screens   S1  [L1] [L2]   S2  [L1]
-```
+![The … menu on IN4's source card: Preview or Program, the two groups, and each screen's fitted layers](screenshots/send-to.png)
 
 Preview and program mean the **role**, resolved per screen at the moment you click. Two screens
 sitting on opposite preset letters — which is normal — still both get it in the right buffer.
@@ -382,6 +389,8 @@ get that frame's groups.
 
 The switcher has no per-layer take: TAKE swaps the whole program and preview buffers. What this uses
 instead is that **a layer that is the same in program and preview has nothing to transition.**
+
+![Layer Lock: the two layer groups with Lock group and Take only, then each screen's layers with program, preview, what the next take will do, Lock and Take only](screenshots/layer-lock.png)
 
 - **Lock** keeps the layer's preview copy equal to its program copy. Change it in preview — the
   vendor's properties, a memory recall — and it is put straight back; change it on program and
@@ -417,10 +426,7 @@ a **Blackmagic Videohub**, a **Lightware**, or a **Turtle AV** — and route thr
 You describe the **cable**, and the rest follows. The direction inverts, which is the thing that
 reads wrong at first glance every time:
 
-```
-switcher INPUT   <--- cable ---   router OUTPUT     (the router feeds us)
-switcher OUTPUT   --- cable --->  router INPUT      (we feed the router)
-```
+![A switcher input is fed by a router output, which takes one source; a switcher output arrives at a router input, which can be sent to any number of router outputs](diagrams/matrix-cable.svg)
 
 So a switcher input is fed by a router *output*, and a switcher output arrives at a router *input*.
 The patch form says which of the two it wants as you fill it in.
@@ -428,6 +434,8 @@ The patch form says which of the two it wants as you fill it in.
 **Set it up in three steps.** Add the router (name, protocol, address — the port follows the
 protocol's own default). Patch each cable: pick a socket, pick the router, give the port number at
 the other end. Then route.
+
+![Matrix Routing with two placeholder routers — a Videohub 40×40 and a Lightware MX2-8x8 — and the patch from the frame's sockets to their ports](screenshots/matrix-routing.png)
 
 Sockets are named in the device's own words, because which connector "card 2, port 1" is depends on
 a legend this app cannot see:
@@ -474,6 +482,8 @@ Outputs** shows a **Router** box under the selected card's own boxes.
 Each says which router port the cable is on — and if it is not patched yet, patch it right there —
 then shows the router's ports twice: as a **grid of tiles** and as a **list** with the router's own
 port names.
+
+![Inputs ▸ Input 1 ▸ Router: the cable from Stage Videohub output 1, and the router's inputs as tiles and as a list](screenshots/input-router.png)
 
 - **An input** picks one source. Click a tile or a row and it routes at once.
 - **An output** picks any number of destinations. Clicking builds a selection (a dashed outline),
@@ -528,6 +538,8 @@ included — played, cued and recorded from the switcher's own UI, and made to f
 3. Its card now shows what the deck is doing — clip, elapsed, remaining, **ON AIR** / **PVW** —
    and drives it: Prev, Top, Play, Stop, Next, a clip to cue, and Record on a recorder. **Record
    all** and **Stop recorders** are in the toolbar.
+
+   ![Two decks: a HyperDeck as player and recorder, and Mitti as a player, each with transport, clip and settings](screenshots/hyperdecks.png)
 4. Tick **Follow the switcher** and choose what happens when its input is put on program (play),
    put in preview (rewind), taken off (pause, rewind or load the next clip), and when a clip ends
    (take or cut the screens it is on air on, optionally a few seconds early so the mix lands on
@@ -752,6 +764,31 @@ that is what you are seeing.
 
 ---
 
+## Speed Editor (preview)
+
+Under **Virtual RC400T**, beside MIDI Mapping. A DaVinci Resolve Speed Editor as a switcher panel,
+over USB or Bluetooth.
+
+1. **Quit DaVinci Resolve.** Both would hear every key and fight over the lamps.
+2. Open this app in **Chrome or Edge**, at `http://127.0.0.1:<port>/` — WebHID is Chromium-only and
+   needs the secure context loopback gives.
+3. Press **Choose panel…** and pick the Speed Editor. The browser remembers the choice, so this is
+   once; after that it is found on every load and every time it is plugged back in.
+4. Press **Start**.
+
+The keys act on the selected screen, preset and layer:
+
+![The stock Speed Editor profile grouped by job: layer select, screen and preset, transitions, sources on CAM 1–9, and what the wheel moves in each mode](diagrams/speed-editor.svg)
+
+The wheel has the same **soft pickup** as a MIDI fader, and the panel's activity list shows each
+write it made. The panel only talks after a handshake with this page, which is renewed before it
+lapses; if a renewal fails the panel goes quiet and the page says so, then tries again.
+
+> ⚠️ **This has never been run with a real Speed Editor.** It is tested against a fake panel that
+> runs the real handshake. Treat the first session with one as a rehearsal.
+
+---
+
 ## Pixelhue panel (preview)
 
 A Pixelhue **U5**, **U5 Pro** or **U5 mini** event controller, driving the switcher. Off until you
@@ -770,6 +807,8 @@ preview** or **press a Companion button**, among others; a fader can follow its 
 selected one; an encoder can move, size or fade the selected layer. Press a key on the console and
 it lights up on the page and opens, so you can find it. A changed control has a blue dot, and
 **Reset** puts everything back.
+
+![Pixelhue Mapping: a U5 drawn as a Virtual RC400T, with its buses, function keys, faders, encoders and T-bar, and the "Pick a control" panel](screenshots/pixelhue-mapping.png)
 
 - A **U5 mini** answers on the network, so it is driven from wherever this app already runs.
 - A **U5** or **U5 Pro** serves its control port to itself only, so this app has to run on the
@@ -876,7 +915,9 @@ touched.
 ## Switching features off
 
 **Preconfig ▸ LivePremier Plus → Plugins** lists every feature this app adds, each with a switch.
-Everything is on until you switch it off.
+Everything is on until you switch it off, except the previews that say otherwise.
+
+![Preconfig ▸ LivePremier Plus → Plugins: every feature with its switch, what it does and where it lives](screenshots/plugins.png)
 
 - A switched-off feature is **gone, not hidden**: no sidebar entry or tab, nothing added to the
   vendor's page, and no background service — an OSC listener closes, router and Companion
@@ -972,6 +1013,7 @@ a `.awc` you export from Web RCS afterwards will not contain it.
 | **No panels in Web RCS** | You opened the switcher's address directly. Go through the proxy. |
 | **MIDI does nothing** | Same cause — Web MIDI needs a secure context, which loopback is and a LAN address is not. |
 | **A fader does not move anything** | Soft pickup. Sweep it through the current value. |
+| **The Speed Editor does nothing** | DaVinci Resolve is still running, or this is not Chrome or Edge, or the page is not on `127.0.0.1`. |
 | **A console command means the wrong thing** | The grammar is mynah's; the fix is there. |
 | **Arithmetic does not work in a field** | It is not one the vendor marks numeric — opacity and zoom are deliberately excluded. |
 | **The VPU panel says there is nothing to draw** | A simulator has no VPU. That is correct, not a failure. |

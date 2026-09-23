@@ -84,9 +84,14 @@ rather than as a bolt-on:
   [docs/OSC.md](docs/OSC.md).
 - **MIDI Mapping** — a control surface driving the switcher, from the page
   itself. Faders to opacity, encoders to size and position, buttons to select.
+- **Speed Editor** *(preview)* — a DaVinci Resolve Speed Editor as a switcher
+  panel, over USB or Bluetooth: CAM 1–9 put a source on the selected layer, CUT
+  and DIS cut and take, and the wheel moves opacity, position, size or the
+  T-bar. It has never yet met a real panel.
 - **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini drives the
-  switcher from a model of it rather than from a key map. It has never yet been
-  run against a real console.
+  switcher from a model of it rather than from a key map, and **Pixelhue
+  Mapping** draws the console so every key, fader and encoder can be given a
+  different job. It has never yet been run against a real console.
 - **Thumbnail relay** *(preview, off by default)* — the switcher's source
   thumbnails re-encoded as JPEG and shared between pages: a twentieth or less of
   the bytes the vendor's pages would otherwise pull, and every Web RCS tab gets
@@ -97,6 +102,15 @@ rather than as a bolt-on:
   so a rig restores with its `.awc` rather than half of it.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
   layer width and get 1000, the way you can in every other tool on the desk.
+- **Mosaic inputs** — the EDID builder's Mosaic mode, carried through to the
+  frame: group inputs 2X1 or 2X2 and load each plug with its tile EDID, so a
+  Mac joins several outputs into one frame-synced display.
+
+![Screens / Aux. with the Timeline tab open beside Properties and Memories: the demo cue stack, its standby cue and GO, inside the vendor's own page](docs/screenshots/screens-timeline.png)
+
+<sub>The Timeline tab on the vendor's own Screens / Aux. page, against Analog Way's
+LivePremier Simulator 6.2.73. Every screenshot here is the real app, taken with
+`npm run demo`.</sub>
 
 **Every one of these is a plugin you can switch off**, in Preconfig ▸
 LivePremier Plus → Plugins; a switched-off feature leaves no menu entry, route or
@@ -105,6 +119,8 @@ background service behind. **You can add your own**: a folder in
 `plugin.json`, a server half and a page half. They start switched off, and run
 only once you switch them on. [docs/PLUGINS.md](docs/PLUGINS.md) is the guide, and
 [`examples/plugins/hello-switcher`](examples/plugins/hello-switcher) the template.
+
+![Preconfig ▸ LivePremier Plus → Plugins: every feature listed with a switch, what it does and where it lives](docs/screenshots/plugins.png)
 
 Point it at a switcher, open the address it prints, and you get the vendor's
 own Web RCS with the extra panels already in it. The panels ride the vendor
@@ -482,6 +498,23 @@ macOS builds are signed and notarised and open normally. The Windows builds are 
 > Companion is linked, to that Companion's admin UI too. `--host 0.0.0.0` hands
 > both to everyone on the network. Do it deliberately, not by habit.
 
+## Edit
+
+PLUS ▸ Edit is the Screens / Aux. layout with one row per destination instead of
+two, and that row is a **programmer** — a buffer on neither preview nor program,
+marked EDIT in amber. Fill it **from PGM**, **from PRW** or **empty**, drag and
+resize layers on the stage, put sources on them and work all sixty-seven layer
+parameters in the panel on the right. The switcher sees none of it.
+
+![The Edit page: both screens seeded from program, S1's layer selected on the stage and its parameters in the Layer panel on the right](docs/screenshots/edit.png)
+
+The **Memory** tab is the one control on the page that writes. **Direct** puts
+the look into a memory slot with no preset buffer written and no take fired;
+**via preview** borrows the preview buffer, fires the switcher's own save and
+puts preview back property for property. The user guide says what each costs,
+and the Status note above says what is still open about the direct route on
+real hardware.
+
 ## Console
 
 Mynah's command language, inside Web RCS. Verb first, then objects, innermost
@@ -498,6 +531,8 @@ Take Screen 1
 The line parses as you type and shows what it will do — `Recall 3 → Screen 1
 Preview` — before anything reaches the device. Tab completes, ↑ recalls
 history.
+
+![The Console tab with a line typed and not yet run: the Mynah badge and "Recall 1 → Screen 1 Preview" under it](docs/screenshots/screens-console.png)
 
 **This panel owns no grammar.** Every token, rule and device path comes from
 `src/vendor/mynah-lang.mjs`, which is [mynah](https://github.com/stoatworks-labs/mynah)'s
@@ -600,10 +635,7 @@ from the panel, from a cue, from the Console or over OSC.
 
 Tell it about the **cable** and the rest follows:
 
-```text
-  switcher INPUT   <--- cable ---   router OUTPUT     (the router feeds us)
-  switcher OUTPUT   --- cable --->  router INPUT      (we feed the router)
-```
+![A switcher input is fed by a router output, which takes one source; a switcher output arrives at a router input, which can be sent to any number of router outputs](docs/diagrams/matrix-cable.svg)
 
 That inversion is the whole model. From it come the two operations, which are
 deliberately not symmetrical: an input is fed by one router output, so choosing
@@ -614,6 +646,18 @@ once.
 The panel names sockets in the device's own words — `Input 13 · card IN_2 ·
 connector IN_25 · sdi` — because which connector "card 2, port 1" is depends on
 a legend this app cannot see.
+
+![PLUS ▸ Matrix Routing with two placeholder routers — a Videohub 40×40 and a Lightware MX2-8x8 — and the patch from the frame's sockets to their ports](docs/screenshots/matrix-routing.png)
+
+The same routing is on the vendor's own pages: a **Router** tab on Inputs ▸ an
+input and Outputs ▸ an output, and a Router box in Preconfig ▸ Inputs / Outputs.
+
+![Inputs ▸ Input 1 ▸ Router: the cable from Stage Videohub output 1, and the router's 40 inputs as tiles and as a list, input 5 selected](docs/screenshots/input-router.png)
+
+A **placeholder** router — a Videohub, Lightware or Turtle AV model of the
+right size with nothing on the other end — takes the patch and the routing
+before the rack arrives; **Go live…** gives it an address and **Push plan**
+sends only what differs.
 
 **Nothing is optimistic.** A driver never writes its own state: a click does
 not move the grid until the router says it moved. A Videohub answers a refused
@@ -627,6 +671,28 @@ for would lie during exactly the minute that matters.
 > connector reader *are* checked against a real LivePremier's own store.
 > **[docs/MATRIX.md](docs/MATRIX.md)** has the whole thing, including a short
 > procedure for proving each driver on your own kit.
+
+## HyperDecks
+
+PLUS ▸ HyperDecks. Blackmagic HyperDecks — and anything that answers their
+Ethernet protocol, Mitti included — played, cued and recorded from the panel,
+from a cue (`VT 1 clip 3; VT 1 play`) or over OSC (`/hyperdeck/<deck>/play`).
+Each card shows the transport, clip, elapsed and remaining time, format and
+disk, and whether its input is on air or in preview.
+
+![Two decks on the HyperDecks page: a HyperDeck as player and recorder, and Mitti as a player, each with transport, clip and settings](docs/screenshots/hyperdecks.png)
+
+Tell a deck which switcher input it plays into and it can **follow the show**
+the way Mitti follows an ATEM: play when that input is put on program, rewind
+when it is cued, pause, rewind or load the next clip when it comes off, and
+take when its clip ends — a set number of seconds early, so the mix lands on
+the last frame. The rules run in one open page at a time, and act only on what
+changes after they start, so opening a page never plays a deck already on air.
+
+> ⚠️ **Written from Blackmagic's published protocol and proved against an
+> emulation of it — not yet against a real HyperDeck or Mitti.**
+> `node tools/hyperdeck-sim.mjs` is that emulation; **[docs/HYPERDECK.md](docs/HYPERDECK.md)**
+> has the protocol notes and a short procedure for proving it on your own deck.
 
 ## Pitch Compensation
 
@@ -708,6 +774,29 @@ another machine would need HTTPS, which this app does not serve yet. Only
 top-level navigations are redirected; the vendor app's fetches and its socket
 stay where they are.
 
+## Speed Editor — preview
+
+Under Virtual RC400T, beside MIDI Mapping. A DaVinci Resolve Speed Editor,
+over USB or Bluetooth, as a switcher panel: **Choose panel…** once (WebHID
+needs the click; the browser remembers the grant after that), then **Start**.
+
+![The stock Speed Editor profile grouped by job: layer select, screen and preset, transitions, sources on CAM 1–9, and what the wheel moves in each mode](docs/diagrams/speed-editor.svg)
+
+It is MIDI Mapping's sibling and owns no engine: the panel's handshake and
+reports are [awj-surface](https://github.com/stoatworks-labs/awj-surface)'s
+`core/hid/`, vendored under `src/vendor/surface/hid/`, and mapping, soft
+pickup and feedback are the same engine the MIDI panel runs. What is here is
+the transport — WebHID, the handshake's lease, which it renews at half its
+life, and reconnecting when the panel comes back.
+
+Chrome or Edge only, from loopback (WebHID is a secure-context API), and with
+**DaVinci Resolve quit** — both would hear every key and fight over the lamps.
+
+> ⚠️ **Preview: never yet on a real panel.** The host is tested against a fake
+> panel that runs the real handshake and stays silent until it is answered, as
+> the hardware does; whether Chrome lets a page open the real one is the
+> hardware check still to be made.
+
 ## Thumbnail relay — preview
 
 The switcher's source thumbnails are PNGs its firmware writes with next to no
@@ -762,6 +851,15 @@ published. So there is nothing to remap when a firmware moves a key.
 > 0.14.0 it has been driven key by key from PixelFlow's own virtual U5 against
 > the simulator; fade-to-black and freeze are sent on LivePremier, not yet on a
 > Midra 4K.
+
+What each key, fader and encoder does is editable on **Pixelhue Mapping**,
+under Virtual RC400T: the console drawn in the Virtual RC400T's look, the
+buses showing what the console shows. Click a control to change it — take,
+cut, fade to black, layer stepping, the cue stack, a memory to preview, a
+Companion button — or press it on the console and it lights up here. A
+changed control carries a blue dot; **Reset** puts everything back.
+
+![Pixelhue Mapping: a U5 drawn as a Virtual RC400T, with its source and preset buses, function keys, faders, encoders and T-bar, and the "Pick a control" panel beside it](docs/screenshots/pixelhue-mapping.png)
 
 A **U5 mini** answers on the LAN, so it is driven from wherever this app
 already runs. A **U5 or U5 Pro** serves its control port on loopback only, so
@@ -867,6 +965,8 @@ where an operator already looks for per-screen tools:
 Properties | Memories | Console | Timeline | Layer | Groups
 ```
 
+![The Layer tab: S1, layer 1, named "Presenter", its PRW buffer resolved, source, position and size, and opacity](docs/screenshots/screens-layer.png)
+
 Layer is a properties editor, and it is called Layer rather than Properties
 because the vendor's own Properties tab is two along in the same strip — two
 tabs with one name is a worse problem than a name that is only most of the
@@ -876,9 +976,10 @@ therefore unreadable from here, so ours makes you name a destination, a buffer
 and a layer outright. On a second monitor that turns out to be the better
 behaviour anyway, because the window stays pointed where you left it.
 
-MIDI Mapping sits **under Virtual RC400T** in the vendor's own LIVE section —
-both are about control surfaces, and filing it in a section of ours would file
-it by who wrote it rather than by what it does. Pitch Compensation and this
+MIDI Mapping, Speed Editor and Pixelhue Mapping sit **under Virtual RC400T**
+in the vendor's own LIVE section — all are about control surfaces, and filing
+them in a section of ours would file them by who wrote them rather than by
+what they do. Pitch Compensation and this
 app's own settings sit in the **Preconfig** flyout, beside the device settings
 they belong with. The whole-device views get a section of their own:
 
@@ -888,11 +989,14 @@ LIVE
   Multiviewers
   Virtual RC400T
   MIDI Mapping       <- ours
+  Speed Editor       <- ours
+  Pixelhue Mapping   <- ours
 SETUP
   Preconfig
     …
     Pitch Compensation   <- ours
-    LivePremier Plus     <- ours: settings
+    LivePremier Plus     <- ours: settings and the plugin switches
+  Inputs / Outputs   <- the vendor's, with a Router tab of ours
   …
 PLUS                 <- ours
   Edit
@@ -901,8 +1005,12 @@ PLUS                 <- ours
   Layer Groups
   Layer Lock
   Matrix Routing
+  HyperDecks
   Companion
 ```
+
+A switched-off plugin takes its entry with it, so a sidebar can be shorter than
+this.
 
 The memory banks are in the sidebar rather than on the strip for two reasons.
 They are not per-screen — master memories cover every screen at once, and the
@@ -919,6 +1027,9 @@ that — a LivePremier addresses a layer as (destination, preset buffer, layer)
 and nothing above that ties two of them together — so this adds one.
 
 A group is a name and a list of layers, kept per device beside the cue stack.
+
+![PLUS ▸ Layer Groups: "Side screens", ganged, holding S1 L2 and S2 L1 with what each shows in program and preview; "Keys" with its gang off](docs/screenshots/layer-groups.png)
+
 It does two things:
 
 - **It is a target.** Send an input to the group and every member gets it.
@@ -933,6 +1044,8 @@ the same button styling whatever the firmware hashes it to this week; the glyph
 is horizontal rather than vertical so the two are told apart at a glance. The
 menu is preview or program, then a target: a recently used one, a group, or a
 screen and one of its fitted layers.
+
+![The … menu on IN4's source card: Send IN4, Preview or Program, the two groups, and each screen's fitted layers](docs/screenshots/send-to.png)
 
 **It writes the role, not the letter.** A layer's source lives under a preset
 buffer — A, B or C — and which letter is program changes on every take, so two
@@ -967,7 +1080,26 @@ the app's root container, so a copy moved into a second window repaints and
 stops responding — there is no way to relocate them. These read the device
 mirror instead.
 
+## Layer Lock
+
+PLUS ▸ Layer Lock. A LivePremier take swaps the whole preset buffer; there is
+no per-layer take. What this uses instead is that a layer identical in program
+and preview has nothing to transition. **Lock** keeps a layer's preview copy
+equal to program, and every TAKE or CUT sent from this page — the vendor's own
+button included — is held for the few milliseconds it takes to line a drifted
+lock back up. **Take only** takes one layer, or one group, alone: every other
+layer is set equal to program, the take goes, and their preview looks are put
+back afterwards.
+
+![Layer Lock: the two layer groups with Lock group and Take only, then each screen's layers with program, preview, what the next take will do, Lock and Take only](docs/screenshots/layer-lock.png)
+
+> ⚠️ **Only takes sent from this page are held**, and it is proved on the
+> simulator only. The front panel, a T-bar, an OSC take or another operator's
+> browser go straight to the switcher; the panel says so at the top every time.
+
 ## How it works
+
+![The browser loads the vendor's Web RCS through LivePremier Plus, which relays its socket to the switcher unchanged and adds the panels; the app also speaks AWJ briefly, drives routers, decks, Companion and Pixelhue consoles, and listens for OSC](docs/diagrams/architecture.svg)
 
 Everything the browser asks for goes through this process to the switcher and
 back. On the way past, the document picks up two script tags:
@@ -1079,6 +1211,8 @@ belong upstream.
 
 ## The VPU model is shared, not reimplemented
 
+![PLUS ▸ VPU Map in the demo: 32 of 64 mixers fitted, 26 allocated, S1 in Optimized mode, and 26 staged changes waiting in Preconfig](docs/screenshots/vpu-map.png)
+
 `src/vendor/vpu-model.js` is a **copy** of `public/vpu.js` from
 [aquilon-vpu-map](https://github.com/stoatworks-labs/aquilon-vpu-map), the
 standalone tool that reads the same allocation over AWJ. Deliberately the same
@@ -1178,7 +1312,7 @@ Everything a panel withholds is withheld with its reason, on the Settings page.
 npm test
 ```
 
-199 tests, no browser. The socket tests bind real ports on loopback.
+About 720 tests, no browser. The socket tests bind real ports on loopback.
 
 Twenty-three cover OSC and AWJ. The framing ones run against a stand-in device
 on a real TCP socket rather than a mock, deliberately: everything worth catching

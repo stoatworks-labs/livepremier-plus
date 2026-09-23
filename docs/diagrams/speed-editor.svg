@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 400" width="900" height="400" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <title>What each Speed Editor key does in LivePremier Plus (the stock profile)</title>
+  <rect width="900" height="400" rx="10" fill="#161b21"/>
+  <text x="30" y="40" fill="#e8edf2" font-size="17" font-weight="600">Speed Editor — the stock profile</text>
+  <text x="30" y="60" fill="#8fa3b8" font-size="12">Grouped by job, not drawn to the panel's layout. Keys act on the selected screen, preset and layer.</text>
+
+  <!-- layer select -->
+  <rect x="30" y="80" width="400" height="92" rx="8" fill="#212932" stroke="#3a4552"/>
+  <text x="46" y="104" fill="#e8edf2" font-size="14" font-weight="600">Select a layer</text>
+  <g font-size="11" fill="#e8edf2">
+    <rect x="46" y="114" width="80" height="22" rx="4" fill="#2b3540"/><text x="51" y="129" font-size="10">SMART INSRT</text>
+    <rect x="132" y="114" width="60" height="22" rx="4" fill="#2b3540"/><text x="140" y="129">APPND</text>
+    <rect x="198" y="114" width="68" height="22" rx="4" fill="#2b3540"/><text x="206" y="129">RIPL O/WR</text>
+    <rect x="272" y="114" width="68" height="22" rx="4" fill="#2b3540"/><text x="280" y="129">CLOSE UP</text>
+    <rect x="46" y="140" width="80" height="22" rx="4" fill="#2b3540"/><text x="51" y="155" font-size="10">PLACE ON TOP</text>
+    <rect x="132" y="140" width="60" height="22" rx="4" fill="#2b3540"/><text x="136" y="155" font-size="10">SRC O/WR</text>
+    <rect x="198" y="140" width="68" height="22" rx="4" fill="#2b3540"/><text x="220" y="155">IN</text>
+    <rect x="272" y="140" width="68" height="22" rx="4" fill="#2b3540"/><text x="292" y="155">OUT</text>
+  </g>
+  <text x="352" y="129" fill="#b7c4d1" font-size="12">Layer 1–4</text>
+  <text x="352" y="155" fill="#b7c4d1" font-size="12">Layer 5–8</text>
+
+  <!-- screen / preset -->
+  <rect x="30" y="184" width="400" height="92" rx="8" fill="#212932" stroke="#3a4552"/>
+  <text x="46" y="208" fill="#e8edf2" font-size="14" font-weight="600">Screen and preset</text>
+  <g font-size="11" fill="#e8edf2">
+    <rect x="46" y="218" width="70" height="22" rx="4" fill="#2b3540"/><text x="56" y="233">SOURCE</text>
+    <rect x="46" y="244" width="70" height="22" rx="4" fill="#2b3540"/><text x="54" y="259">TIMELINE</text>
+    <rect x="220" y="218" width="60" height="22" rx="4" fill="#2b3540"/><text x="232" y="233">TRANS</text>
+    <rect x="220" y="244" width="60" height="22" rx="4" fill="#2b3540"/><text x="234" y="259">SNAP</text>
+  </g>
+  <text x="124" y="233" fill="#b7c4d1" font-size="12">Screen S1</text>
+  <text x="124" y="259" fill="#b7c4d1" font-size="12">Screen S2</text>
+  <text x="288" y="233" fill="#b7c4d1" font-size="12">Flip preview / program</text>
+  <text x="288" y="259" fill="#b7c4d1" font-size="12">Shift</text>
+
+  <!-- transitions -->
+  <rect x="30" y="288" width="400" height="92" rx="8" fill="#212932" stroke="#3a4552"/>
+  <text x="46" y="312" fill="#e8edf2" font-size="14" font-weight="600">Transitions</text>
+  <g font-size="11" fill="#e8edf2">
+    <rect x="46" y="322" width="60" height="22" rx="4" fill="#5a2a2a"/><text x="62" y="337">CUT</text>
+    <rect x="46" y="348" width="60" height="22" rx="4" fill="#5a4a1a"/><text x="64" y="363">DIS</text>
+    <rect x="220" y="322" width="80" height="22" rx="4" fill="#5a4a1a"/><text x="228" y="337">STOP/PLAY</text>
+    <rect x="220" y="348" width="80" height="22" rx="4" fill="#2b3540"/><text x="228" y="363">SMTH CUT</text>
+  </g>
+  <text x="114" y="337" fill="#b7c4d1" font-size="12">Cut</text>
+  <text x="114" y="363" fill="#b7c4d1" font-size="12">Take</text>
+  <text x="308" y="337" fill="#b7c4d1" font-size="12">Take</text>
+  <text x="308" y="363" fill="#b7c4d1" font-size="12">Abort the take</text>
+
+  <!-- sources -->
+  <rect x="460" y="80" width="410" height="140" rx="8" fill="#212932" stroke="#3a4552"/>
+  <text x="476" y="104" fill="#e8edf2" font-size="14" font-weight="600">Put a source on the selected layer</text>
+  <g font-size="12" fill="#e8edf2">
+    <rect x="476" y="116" width="54" height="28" rx="4" fill="#1f3a57"/><text x="485" y="135">CAM 7</text>
+    <rect x="536" y="116" width="54" height="28" rx="4" fill="#1f3a57"/><text x="545" y="135">CAM 8</text>
+    <rect x="596" y="116" width="54" height="28" rx="4" fill="#1f3a57"/><text x="605" y="135">CAM 9</text>
+    <rect x="476" y="148" width="54" height="28" rx="4" fill="#1f3a57"/><text x="485" y="167">CAM 4</text>
+    <rect x="536" y="148" width="54" height="28" rx="4" fill="#1f3a57"/><text x="545" y="167">CAM 5</text>
+    <rect x="596" y="148" width="54" height="28" rx="4" fill="#1f3a57"/><text x="605" y="167">CAM 6</text>
+    <rect x="476" y="180" width="54" height="28" rx="4" fill="#1f3a57"/><text x="485" y="199">CAM 1</text>
+    <rect x="536" y="180" width="54" height="28" rx="4" fill="#1f3a57"/><text x="545" y="199">CAM 2</text>
+    <rect x="596" y="180" width="54" height="28" rx="4" fill="#1f3a57"/><text x="605" y="199">CAM 3</text>
+  </g>
+  <text x="666" y="140" fill="#b7c4d1" font-size="12">CAM n → Live n</text>
+  <text x="666" y="160" fill="#b7c4d1" font-size="12">on the selected layer</text>
+  <rect x="666" y="180" width="80" height="28" rx="4" fill="#2b3540"/><text x="674" y="199" fill="#e8edf2" font-size="11">LIVE O/WR</text>
+  <text x="754" y="199" fill="#b7c4d1" font-size="12">Keying on/off</text>
+
+  <!-- wheel -->
+  <rect x="460" y="232" width="410" height="148" rx="8" fill="#212932" stroke="#3a4552"/>
+  <text x="476" y="256" fill="#e8edf2" font-size="14" font-weight="600">The wheel</text>
+  <circle cx="530" cy="318" r="44" fill="#2b3540" stroke="#4a5868" stroke-width="2"/>
+  <circle cx="530" cy="318" r="10" fill="#3a4552"/>
+  <text x="598" y="286" fill="#8fa3b8" font-size="12">mode key</text>
+  <text x="680" y="286" fill="#8fa3b8" font-size="12">wheel moves</text>
+  <text x="776" y="286" fill="#8fa3b8" font-size="12">with SNAP</text>
+  <g font-size="12">
+    <text x="598" y="310" fill="#e8edf2" font-weight="600">JOG</text><text x="680" y="310" fill="#b7c4d1">Opacity</text><text x="776" y="310" fill="#b7c4d1">T-bar</text>
+    <text x="598" y="334" fill="#e8edf2" font-weight="600">SHTL</text><text x="680" y="334" fill="#b7c4d1">Position H</text><text x="776" y="334" fill="#b7c4d1">Size H</text>
+    <text x="598" y="358" fill="#e8edf2" font-weight="600">SCRL</text><text x="680" y="358" fill="#b7c4d1">Position V</text><text x="776" y="358" fill="#b7c4d1">Size V</text>
+  </g>
+</svg>

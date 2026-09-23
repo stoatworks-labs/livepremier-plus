@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 330" width="900" height="330" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <title>Matrix Routing: you describe the cable, and the direction inverts</title>
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#3b82c4"/>
+    </marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2fb36d"/>
+    </marker>
+  </defs>
+  <rect width="900" height="330" rx="10" fill="#161b21"/>
+
+  <rect x="30" y="40" width="240" height="250" rx="8" fill="#212932" stroke="#3a4552"/>
+  <text x="150" y="70" fill="#e8edf2" font-size="17" font-weight="600" text-anchor="middle">Switcher</text>
+  <rect x="50" y="100" width="200" height="60" rx="6" fill="#1f3a57"/>
+  <text x="66" y="126" fill="#e8edf2" font-size="14" font-weight="600">INPUT 5</text>
+  <text x="66" y="146" fill="#b7c4d1" font-size="12">card IN_2 · sdi</text>
+  <rect x="50" y="200" width="200" height="60" rx="6" fill="#1d3d2c"/>
+  <text x="66" y="226" fill="#e8edf2" font-size="14" font-weight="600">OUTPUT 2</text>
+  <text x="66" y="246" fill="#b7c4d1" font-size="12">card OUT_1 · sdi</text>
+
+  <rect x="630" y="40" width="240" height="250" rx="8" fill="#212932" stroke="#3a4552"/>
+  <text x="750" y="70" fill="#e8edf2" font-size="17" font-weight="600" text-anchor="middle">Router</text>
+  <rect x="650" y="100" width="200" height="60" rx="6" fill="#2b3540"/>
+  <text x="666" y="126" fill="#e8edf2" font-size="14" font-weight="600">OUTPUT 5</text>
+  <text x="666" y="146" fill="#b7c4d1" font-size="12">choose ONE source for it</text>
+  <rect x="650" y="200" width="200" height="60" rx="6" fill="#2b3540"/>
+  <text x="666" y="226" fill="#e8edf2" font-size="14" font-weight="600">INPUT 34</text>
+  <text x="666" y="246" fill="#b7c4d1" font-size="12">send to ANY outputs: 1-4</text>
+
+  <line x1="648" y1="130" x2="254" y2="130" stroke="#3b82c4" stroke-width="3" marker-end="url(#b)"/>
+  <text x="450" y="118" fill="#b7c4d1" font-size="13" text-anchor="middle">cable — the router feeds us</text>
+  <line x1="252" y1="230" x2="646" y2="230" stroke="#2fb36d" stroke-width="3" marker-end="url(#g)"/>
+  <text x="450" y="218" fill="#b7c4d1" font-size="13" text-anchor="middle">cable — we feed the router</text>
+
+  <text x="450" y="164" fill="#8fa3b8" font-size="12" text-anchor="middle">/lp/matrix/input/5/source 7</text>
+  <text x="450" y="264" fill="#8fa3b8" font-size="12" text-anchor="middle">/lp/matrix/output/2/destinations "1-4"</text>
+  <text x="450" y="312" fill="#8fa3b8" font-size="12" text-anchor="middle">A crosspoint is drawn only once the router reports it made.</text>
+</svg>
