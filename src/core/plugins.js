@@ -210,6 +210,14 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'remote-access',
+    name: 'Remote access',
+    where: 'Settings',
+    description: 'This app served over Tailscale (HTTPS, or the tailnet address) or ZeroTier, without binding it to the venue LAN. Joining and leaving networks only on an appliance.',
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'midi',
     name: 'MIDI Mapping',
     where: 'Sidebar, under Virtual RC400T',

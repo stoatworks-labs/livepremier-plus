@@ -46,6 +46,8 @@ if (args.help || args.h) {
   --port <n>               local port to listen on   (default 8535)
   --host <addr>            local address to bind      (default 127.0.0.1)
   --data <dir>             where cue stacks are kept  (default ~/.livepremier-plus)
+  --appliance              this host is the app's own: Remote access may join
+                           and leave Tailscale and ZeroTier networks for it
 
 Then open http://<host>:<port>/ in any browser.`);
   process.exit(0);
@@ -75,6 +77,12 @@ const WILDCARD = new Set(['0.0.0.0', '::']);
  */
 const redirectLocal = !LOOPBACK.has(host);
 const loopbackToo = redirectLocal && !WILDCARD.has(host);
+/*
+ * An appliance: a box that exists to run this app, with no shell anybody at
+ * the venue can reach. Only then does Remote access take charge of the host's
+ * Tailscale and ZeroTier membership — on a laptop those belong to its owner.
+ */
+const appliance = Boolean(args.appliance) || /^(1|true|yes)$/i.test(process.env.LPP_APPLIANCE || '');
 const dataDir = args.data || process.env.LPP_DATA || join(homedir(), '.livepremier-plus');
 const storage = new StackStore(dataDir);
 
@@ -98,7 +106,10 @@ const server = await createProxy({
   storage,
   appVersion,
   log: (msg) => console.log(`[lpp] ${msg}`),
-  loopbackPort: redirectLocal ? port : null
+  loopbackPort: redirectLocal ? port : null,
+  bind: host,
+  port,
+  appliance
 });
 
 server.on('error', (err) => {
@@ -108,6 +119,7 @@ server.on('error', (err) => {
 
 server.listen(port, host, () => {
   const dest = server.lppState.device || 'no switcher yet — the page will ask';
+  if (appliance) console.log('[lpp] appliance: Remote access may change this host\'s Tailscale and ZeroTier membership');
   console.log(`[lpp] LivePremier Plus on http://${host}:${port}/  ->  ${dest}`);
   if (WILDCARD.has(host)) {
     console.log('[lpp] bound to all interfaces — anyone on this network can drive the switcher');
@@ -133,11 +145,15 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
     /* Hang up the relayed sockets first. A Web RCS tab holds its connection
        open indefinitely and close() would otherwise wait on it forever —
        which, under the launcher, reads as a Stop button that does nothing. */
-    server.closeRelays();
+    const plugins = server.closeRelays();
     server.closeAllConnections?.();
     local?.closeAllConnections?.();
     local?.close();
-    server.close(() => process.exit(0));
-    setTimeout(() => process.exit(0), 1000).unref();
+    /* Exit once the listeners are closed and the plugins have stopped — one
+       of them may be taking down a `tailscale serve` — but never later than
+       three seconds: a Stop button that hangs is worse than a stale entry. */
+    const closed = new Promise((resolve) => server.close(resolve));
+    Promise.allSettled([closed, plugins]).then(() => process.exit(0));
+    setTimeout(() => process.exit(0), 3000).unref();
   });
 }

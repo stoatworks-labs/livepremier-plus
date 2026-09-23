@@ -280,6 +280,11 @@ state without importing its files.
 **What the app offers on the server:** **`app`** — `settings()`, `applySettings(patch)` (merged and
 applied exactly as `PUT /__lpp/settings` would), `version`, `platform()` and `hasStorage`. The Setup
 file restores `installation.settings` through it, so a restored setting reaches the running app.
+Also `bind` and `port` — where the app listens — `appliance`, true when it was started with
+`--appliance`, and `listen(address)`: the same server answering on one more address of this host at
+the app's own port, resolving `{ address, port, close() }`. It is the one way to a listener, and the
+app closes any door still open when it stops; close yours in `onDispose` when your plugin does.
+Remote access opens one per ZeroTier or tailnet address.
 **`companion`**, from Companion — `press(locations)`, each `{ pageNumber, row, column }`, pressed
 over the link Companion's plugin already holds and answering `{ ok, results, error }`, and
 `connected`. The Pixelhue panel sends a console's cue transport keys through it when told to.

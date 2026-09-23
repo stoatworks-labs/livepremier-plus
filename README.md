@@ -421,6 +421,7 @@ npm start -- --device 192.168.2.142
 | `--port <n>` | local port to listen on (default 8535) |
 | `--host <addr>` | local address to bind (default `127.0.0.1`). Bind a LAN address or `0.0.0.0` to reach it from other machines; this machine should still open it at `127.0.0.1` — see [secure contexts](#why-this-needs-no-offscreen-document) — and a local browser that arrives by the LAN address is sent there. |
 | `--data <dir>` | where cue stacks are kept (default `~/.livepremier-plus`) |
+| `--appliance` | this host exists to run the app: [Remote access](#remote-access-over-tailscale-or-zerotier) may join and leave Tailscale and ZeroTier networks for it. Also `LPP_APPLIANCE=1`. |
 
 There is a desktop app too — a tray launcher with an interface and port picker,
 in the fleet's usual shape. See [launcher/](launcher/).
@@ -449,6 +450,38 @@ where it is reachable *from* is decided by the port you publish.
 **`docker-compose.yml` publishes `8535:8535` — every interface on the host** —
 which is the binding-wide case below; change it to `127.0.0.1:8535:8535` unless
 the whole network is meant to reach it. Set `LPP_DEVICE` to skip the setup page.
+
+### Remote access over Tailscale or ZeroTier
+
+**Preconfig ▸ LivePremier Plus → Remote access** serves the app to a
+[Tailscale](https://tailscale.com) tailnet or a [ZeroTier](https://www.zerotier.com)
+network without binding it to the venue LAN. Both are off until switched on.
+
+| | what you get | what it needs |
+| --- | --- | --- |
+| **Tailscale — HTTPS on the tailnet name** | `https://<machine>.<tailnet>.ts.net/`, through `tailscale serve`, with a real certificate. The app stays on loopback. An https page is a secure context, so MIDI, audio input for LTC and the Speed Editor work from the remote browser too. | HTTPS certificates switched on for the tailnet (admin console ▸ DNS), once. The first load after that waits ~15 s while the certificate is issued. Port 443, 8443 or 10000 — the card refuses a port something else is already served on. |
+| **Tailscale — plain http on the tailnet address** | `http://100.x.y.z:<port>/`, a listener on this host's tailnet addresses only. | Any tailnet. Not a secure context: no MIDI, audio input or WebHID from there. |
+| **ZeroTier** | `http://<zerotier address>:<port>/` on every network this host is authorised on, opened as the controller authorises it and closed when it leaves. | `zerotier-cli` able to read the service's auth token — root, or a copy at `~/.zeroTierOneAuthToken` for the account the app runs as. Same secure-context limit. |
+
+Switching Tailscale serving off, or stopping the app, removes the `tailscale serve`
+entry — only ever one that still points at this app.
+
+**Joining and leaving networks** — a Tailscale auth key, Disconnect, Rename, a
+ZeroTier network id, Leave — appear only when the app was started with
+`--appliance` (or `LPP_APPLIANCE=1`), and the server refuses them otherwise.
+That is for a box that exists to run LivePremier Plus, where nobody at the venue
+has a shell; on a laptop, its networks belong to its owner. `tailscale up` needs
+root unless the host joined once with `--operator=<the app's account>`; without
+it the buttons return Tailscale's own "access denied".
+
+⚠️ **Neither network is a login, and this app has none.** Every member who can
+reach the host can drive the switcher. Who can reach it belongs in the tailnet's
+ACLs or the ZeroTier controller's rules.
+
+**In Docker** the image has neither CLI. Run the app with the host's network and
+put Tailscale in front of it yourself (`tailscale serve --bg http://127.0.0.1:8535`
+on the host, or the Tailscale sidecar's `TS_SERVE_CONFIG`), or run it from the
+Linux package on the appliance instead.
 
 <!-- Nothing between the markers is hand-written: gen-downloads.py owns it,
      heading and all, and rewrites it wholesale at each release. -->
@@ -1301,6 +1334,12 @@ Everything a panel withholds is withheld with its reason, on the Settings page.
   screen card is state inside the vendor's own bundle — it stops their UI, not
   the device — so a write from here is not subject to it. The menu asks anyway
   when a target buffer is locked, and treats a screen it cannot see as locked.
+- **Remote access opens nothing until asked, and touches the host's networks
+  only on an appliance.** Serving over Tailscale or ZeroTier is off by default
+  and listens on those networks' addresses alone, never the LAN; joining,
+  leaving and renaming are refused unless the app was started with
+  `--appliance`. Auth keys and network ids are checked before the CLI sees
+  them, and passed as arguments, never through a shell.
 - **Re-pointing drops the old relay.** Moving to a backup frame hangs up the
   sockets aimed at the previous one, so a page cannot go on driving a device
   the operator believes they have left. Cue stacks and layer groups are both

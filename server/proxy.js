@@ -132,6 +132,12 @@ export async function createProxy({
   /* The port a loopback listener answers on, when this server is also bound
      to a LAN address — see local-client.js. Null means never redirect. */
   loopbackPort = null,
+  /* Where index.js listens — the address and port — and whether it was
+     started as an appliance (`--appliance`). None of it changes what this
+     server does; it is what the `app` service tells plugins, so Remote access
+     can open a door on another interface at the same port, and only takes
+     charge of this host's networking when it was told the host is its own. */
+  bind = null, port = null, appliance = false,
   /* Where user plugins are looked for: `plugins/` beside everything else this
      app keeps — `~/.livepremier-plus/plugins`, or `/config/plugins` in Docker.
      Null for none, which is what a caller with no data directory gets. */
@@ -252,7 +258,11 @@ export async function createProxy({
     platform: () => state.platform || '',
     settings: () => settings,
     applySettings,
-    hasStorage: Boolean(storage)
+    hasStorage: Boolean(storage),
+    appliance: Boolean(appliance),
+    bind,
+    port,
+    listen
   }));
 
   /* The hosted plugins, started after the app's own services so that anything
@@ -272,6 +282,52 @@ export async function createProxy({
    * to hang up the relays itself.
    */
   const relays = new Set();
+
+  /*
+   * Doors a plugin opened with the `app` service's `listen` — see below.
+   * Kept here so a shutdown hangs them up with everything else.
+   */
+  const doors = new Set();
+  let built;
+  const serverBuilt = new Promise((resolve) => { built = resolve; });
+
+  /**
+   * Answer on one more address, at the app's own port: the same server —
+   * every handler, relay and piece of state — behind another listener, as
+   * the loopback door beside a LAN bind is.
+   *
+   * It is the one way a plugin gets a listener, and the plugin does not get
+   * to hold it: it gets `close()`, and the host's own shutdown closes every
+   * door that is still open. Remote access opens one on each ZeroTier (and,
+   * when asked, Tailscale) address this host has.
+   *
+   * @param {string} address  an IP address of this host
+   * @returns {Promise<{address: string, port: number, close: () => Promise<void>}>}
+   */
+  async function listen(address) {
+    if (!port) throw new Error('this server was not told its port');
+    /* The plugins start before the server below exists; a door asked for
+       then waits for it rather than touching it in its temporal dead zone. */
+    const mirror = await serverBuilt;
+    const door = mirror(http.createServer());
+    return new Promise((resolve, reject) => {
+      const failed = (err) => { door.close(); reject(err); };
+      door.once('error', failed);
+      door.listen(port, address, () => {
+        door.off('error', failed);
+        door.on('error', (err) => log(`door ${address}: ${err.message}`));
+        doors.add(door);
+        resolve({
+          address, port,
+          close: () => new Promise((done) => {
+            if (!doors.delete(door)) return done();
+            door.closeAllConnections?.();
+            door.close(() => done());
+          })
+        });
+      });
+    });
+  }
 
   async function serveOwn(req, res, url) {
     const rest = url.pathname.slice(NS.length) || '/';
@@ -674,6 +730,7 @@ export async function createProxy({
     other.on('upgrade', onUpgrade);
     return other;
   };
+  built(server.mirrorTo);
 
   /**
    * Stop, for real.
@@ -693,12 +750,16 @@ export async function createProxy({
 
   server.closeRelays = () => {
     hangUpVendorRelays();
+    for (const door of doors) { door.closeAllConnections?.(); door.close(); }
+    doors.clear();
 
     /* And every plugin: the host stops each one, which ends its streams,
        hangs up the sockets it relayed and runs its own disposers — the
        Companion link's socket and redial timer, and the Pixelhue console's,
-       among them. */
-    void host.stop();
+       among them. Returned, so a shutdown can wait for disposers that have
+       something outside this process to undo — Remote access's
+       `tailscale serve` — rather than leave it pointing at a closed port. */
+    return host.stop();
   };
 
   return server;
