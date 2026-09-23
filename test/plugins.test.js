@@ -119,6 +119,14 @@ test('a hosted built-in names its halves, and an in-place one has none', () => {
   assert.equal(routeOwner('/companion/stream'), 'companion');
 });
 
+test('every built-in is a plugin with a half of its own: nothing is wired in by hand', () => {
+  /* The end of the move. A manifest with neither half would be a feature
+     edited into main.js or proxy.js again — the shotgun surgery the plugin
+     layout exists to stop. A new feature is a new folder in plugins/. */
+  const inPlace = BUILTINS.filter((b) => !b.hosted).map((b) => b.id);
+  assert.deepEqual(inPlace, []);
+});
+
 test('a registry answers for exactly the manifests it was given', () => {
   const reg = createRegistry([
     withDefaults({ id: 'a', name: 'A' }),

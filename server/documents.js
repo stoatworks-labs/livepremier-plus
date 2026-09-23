@@ -41,3 +41,36 @@ export function documentRoute(ctx, name, { perDevice = true, limit = 256 * 1024,
   ctx.route('PUT', path, save);
   ctx.route('POST', path, save);
 }
+
+/**
+ * The same document as a section of the one-file setup — `configSection` in
+ * `src/core/contributions.js`. Restored against the switcher the file is
+ * restored onto, which need not be the one the app points at now.
+ *
+ * ⚠️ A page that is open while a file is restored still holds what it loaded;
+ * its next save would put that back. The setup file says to reload open pages
+ * after a restore, and that is the whole of the defence for now.
+ *
+ * @param {object} ctx
+ * @param {string} name   the document, as `ctx.storage` names it
+ * @param {{key?: string, group: string, label: string, empty?: (data) => boolean}} spec
+ *        `key` is the section's name in the file, `name` by default; `empty`
+ *        says when there is nothing worth writing.
+ */
+export function documentSection(ctx, name, { key = name, group, label, empty = (data) => !data } = {}) {
+  ctx.contribute('configSection', {
+    key,
+    group,
+    label,
+    perDevice: true,
+    async export(device) {
+      if (!ctx.storage) return undefined;
+      const data = await ctx.storage.load(name, { perDevice: true, device });
+      return empty(data) ? undefined : data;
+    },
+    async import(data, device) {
+      if (!ctx.storage) throw new Error('no storage configured');
+      await ctx.storage.save(name, data, { perDevice: true, device });
+    }
+  });
+}

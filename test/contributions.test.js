@@ -34,6 +34,18 @@ test('a malformed contribution is refused, saying why', () => {
   assert.throws(() => c.add('oscAddress', { prefix: '/x/' }, 'p'), /handle\(address/);
 });
 
+test('a setup-file section says where it is filed, and cannot take the envelope’s names', () => {
+  const c = createContributions();
+  const section = (key, over = {}) => ({ key, group: 'show', label: 'L', export: () => undefined, import: () => {}, ...over });
+  assert.equal(POINTS.configSection.side, 'server');
+  assert.throws(() => c.add('configSection', section('device'), 'p'), /envelope/);
+  assert.throws(() => c.add('configSection', section('show'), 'p'), /envelope/);
+  assert.throws(() => c.add('configSection', section('x', { group: 'attic' }), 'p'), /group must be one of/);
+  assert.throws(() => c.add('configSection', section('x', { import: undefined }), 'p'), /export\(device\) and import/);
+  c.add('configSection', section('stack'), 'timeline');
+  assert.throws(() => c.add('configSection', section('stack'), 'mine'), /collides with timeline's/);
+});
+
 test('nothing may claim a kind the cue engine does itself', () => {
   const c = createContributions();
   for (const kind of Object.values(ACTION_KINDS)) {

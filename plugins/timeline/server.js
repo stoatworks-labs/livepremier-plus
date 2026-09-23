@@ -8,9 +8,12 @@
  * feature did (`routeBase` in the manifest keeps them).
  */
 
-import { documentRoute } from '../../server/documents.js';
+import { documentRoute, documentSection } from '../../server/documents.js';
+import { EMPTY_STACK } from '../../server/config-file.js';
 
 export default function activate(ctx) {
   /* Saves happen on every cue edit; a show is a few hundred cues at most. */
   documentRoute(ctx, 'stack', { limit: 4 * 1024 * 1024 });
+  /* And in the one-file setup, under `show`: a show is written against a box. */
+  documentSection(ctx, 'stack', { group: 'show', label: 'Cue stack', empty: EMPTY_STACK });
 }

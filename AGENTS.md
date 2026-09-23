@@ -61,36 +61,34 @@ keeps the same rule inside its own folder: the file both its halves import
 
 ## Plugins: what the app is made of
 
-Every feature is a **plugin**, described once in `src/core/plugins.js` and
-switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
-([docs/PLUGINS.md](docs/PLUGINS.md)), so a built-in is one of two kinds today:
+Every feature is a **plugin**, described once in `src/core/plugins.js`,
+switchable in Preconfig ▸ LivePremier Plus → Plugins, and living in
+`plugins/<id>/` with a server half and/or a page half, loaded by
+`server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a plugin written
+elsewhere is ([docs/PLUGINS.md](docs/PLUGINS.md)). **None is wired in by hand
+any more**: `src/main.js` is the shell, the tab strip, the settings page and the
+plugin loader, and `server/proxy.js` the relay, the setup page, settings,
+`/awj`, `/addresses` and the plugin host. A new feature is a new folder in
+`plugins/`, not an edit to either.
 
-- **Hosted** — moved into `plugins/<id>/` with a server half and/or a page half,
-  loaded by `server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a
-  plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
-  Compensation**, the **Pixelhue panel**, the **Console**, **Memories**, **MIDI
-  Mapping**, **Field arithmetic**, **Layer**, **Layer names**, **Layer Groups**,
-  **Send to**, the **Edit page**, the **Timeline**, **Timecode**, **OSC input**
-  and **Matrix Routing** so far; a
-  built-in may import `src/` directly, and shared engines and components stay
-  in `src/` where every plugin can reach them (`core/vpu.js`, `ui/stage.js`,
-  `ui/properties-panel.js` — the Layer tab and the Edit page both draw it —
-  and the vendored models). Never import another plugin's folder: its files
-  are only served while it is on, and one switched off would take the importer
-  down with it. Share through a service instead. A plugin's card on the settings page is `ctx.ui.settingsSection` —
-  Pixelhue's is the example. A panel that pops out does it into a page in its
-  own folder (`popout.html`, served by the host) that boots through
-  `ui/popout.js` — Memories' is the whole of one.
-- **In place** — still wired into `src/main.js` and `server/proxy.js` by hand and
-  gated there with `isEnabled`. Everything else, until its phase.
+A built-in may import `src/` directly, and shared engines and components stay
+in `src/` where every plugin can reach them (`core/vpu.js`, `core/patch.js`,
+`ui/stage.js`, `ui/properties-panel.js` — the Layer tab and the Edit page both
+draw it — and the vendored models). **Never import another plugin's folder**:
+its files are only served while it is on, and one switched off would take the
+importer down with it. Share through a service instead. A plugin's card on the
+settings page is `ctx.ui.settingsSection` — Pixelhue's is the example. A panel
+that pops out does it into a page in its own folder (`popout.html`, served by
+the host) that boots through `ui/popout.js` — Memories' is the whole of one.
 
 **Features extend each other through `core/contributions.js`, never by
 name.** The cue engine had Matrix Routing's two actions in its switch, the
 Console intercepted `/lp/matrix/` by hand, and the OSC server took a hook only
 the router could use — three special cases no other plugin could have. Now the
 engine asks for a `cueAction` by kind, the OSC server and the Console for an
-`oscAddress` by prefix, and Matrix Routing contributes both from where it is
-wired in, exactly as a plugin would. Do not put a feature's name back into
+`oscAddress` by prefix, the setup file for each `configSection`, and Matrix
+Routing contributes all three from its own folder, exactly as anybody's plugin
+would. Do not put a feature's name back into
 `cuestack.js`, `osc.js` or the Console's `panel.js`: if a feature needs a new kind of
 hook, add a point to `POINTS`, with the rules that stop one plugin taking
 another's — or the switcher's — over. Shared state goes the same way:

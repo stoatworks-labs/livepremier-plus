@@ -67,10 +67,8 @@ async function boot() {
 
   const session = new Session(transport);
   /*
-   * How plugins extend each other, and how the features still wired in here
-   * extend them too — see `core/contributions.js`. One registry of each for
-   * the page, shared with the plugin host, so a consumer cannot tell a
-   * built-in's contribution from a plugin's.
+   * How plugins extend each other — see `core/contributions.js`. One registry
+   * of each for the page, handed to the plugin host.
    */
   const contributions = createContributions();
   const services = createServices();

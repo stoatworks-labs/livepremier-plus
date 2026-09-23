@@ -337,6 +337,69 @@ test('Matrix Routing kept its routes and its files when it became a plugin', asy
   }
 });
 
+test('the setup file is written from the features that hold each section, and restored into them live', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'lpp-'));
+  try {
+    const store = new StackStore(dir);
+    await withProxy({ storage: store }, async ({ base }) => {
+      const device = (await (await fetch(`${base}${NS}/status`)).json()).device;
+      const put = (path, body) => fetch(`${base}${NS}${path}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      await put('/stack', { data: { version: 1, name: 'Act One', cues: [{ id: 'c1', number: '1', actions: [] }] } });
+      await put('/layer-names', { data: { version: 1, names: { 'S1/1': 'IMAG' } } });
+
+      /* Written: each section from its own plugin, filed where the format has
+         always filed it. */
+      const { doc, summary } = await (await fetch(`${base}${NS}/config`)).json();
+      assert.equal(doc.show.stack.name, 'Act One');
+      assert.deepEqual(doc.show.names.names, { 'S1/1': 'IMAG' });
+      assert.ok(doc.installation.settings, 'the app settings, through the app service');
+      assert.equal(doc.rig.patch, undefined, 'nothing patched is no section — not an empty one');
+      assert.equal(summary.cues, 1);
+
+      /* Restored: into the running routers and patch, not just their files.
+         Before, the proxy held its own copies and a restore reached them only
+         at the next restart — or never, if a save overwrote the file first. */
+      const restored = {
+        ...doc,
+        installation: { ...doc.installation, matrices: [{ id: 'hub', name: 'hub', kind: 'videohub', host: '127.0.0.1', port: 1 }], settings: { consoleLanguage: 'osc' } },
+        rig: { patch: [{ side: 'input', key: 'IN_2', matrix: 'hub', port: 5 }] }
+      };
+      const answer = await (await fetch(`${base}${NS}/config`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ doc: restored, sections: ['matrices', 'patch', 'settings', 'stack'] })
+      })).json();
+      assert.deepEqual(answer.applied.sort(), ['matrices', 'patch', 'settings', 'stack']);
+      assert.equal(answer.reloadPages, true, 'an open page holds the old stack: the answer says to reload');
+
+      const live = await (await fetch(`${base}${NS}/matrix`)).json();
+      assert.deepEqual(live.matrices.map((m) => m.id), ['hub'], 'the router is the running one');
+      assert.deepEqual(live.patch.map((e) => [e.key, e.port]), [['IN_2', 5]], 'and so is the patch');
+      assert.equal((await (await fetch(`${base}${NS}/settings`)).json()).settings.consoleLanguage, 'osc',
+        'a restored setting is the running one, not only the file’s');
+      assert.deepEqual((await store.loadPatch(device)).map((e) => e.key), ['IN_2']);
+
+      /* A section whose plugin is off is neither written nor restored. */
+      await put('/settings', { plugins: { 'matrix-routing': { enabled: false } } });
+      const without = (await (await fetch(`${base}${NS}/config`)).json()).doc;
+      assert.equal(without.rig.patch, undefined);
+      assert.equal(without.installation.matrices, undefined);
+      const skipped = await (await fetch(`${base}${NS}/config`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc: restored })
+      })).json();
+      assert.ok(skipped.skipped.includes('patch'), 'reported as skipped, and left alone');
+
+      const inspect = await (await fetch(`${base}${NS}/config/inspect`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ doc: restored })
+      })).json();
+      assert.ok(!inspect.defaultSections.includes('settings'), 'settings are never restored unless asked for');
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('a corrupt stack file reads as absent rather than throwing', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lpp-'));
   try {

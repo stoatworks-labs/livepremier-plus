@@ -59,7 +59,7 @@ import { pathToFileURL } from 'node:url';
 
 import { API_VERSION, BUILTINS, createRegistry, routeBase, validateManifest } from '../src/core/plugins.js';
 import { changedPluginSettings } from '../src/core/settings.js';
-import { POINTS, createContributions, createServices } from '../src/core/contributions.js';
+import { APP, POINTS, createContributions, createServices } from '../src/core/contributions.js';
 import { safeDeviceKey, writeJsonAtomic } from './storage.js';
 
 /**
@@ -189,15 +189,15 @@ export async function createPluginHost({
   splitAddress = () => null,
   log = () => {}
 } = {}) {
-  /** id -> record. Only plugins with a half of their own; in-place built-ins are the proxy's. */
+  /** id -> record, for every plugin with a half of its own — which every built-in has. */
   const plugins = new Map();
   /** id -> settings schema, for `core/settings.js`'s `normalise`. */
   const schemas = {};
   /** User plugin folders whose `plugin.json` was refused: listed, never loaded. */
   const refused = [];
-  /* How plugins extend each other — see `src/core/contributions.js`. The app's
-     own features that are still wired in by hand contribute here too, through
-     `contribute` on the host. */
+  /* How plugins extend each other — see `src/core/contributions.js`. The app
+     itself contributes and provides through the same registries, as `APP`:
+     its `app` service is how the Setup file reaches the app's settings. */
   const contributions = createContributions();
   const services = createServices();
   let settings = { plugins: {} };
@@ -351,7 +351,7 @@ export async function createPluginHost({
   function storageFor(r) {
     if (!dataDir) return null;
     const dir = r.user ? join(dataDir, 'plugin-data', r.id) : dataDir;
-    const file = (name, perDevice) => {
+    const file = (name, perDevice, forDevice) => {
       if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(name)) {
         throw new Error(`${r.id}: a stored document is named in lower-case letters, digits and dashes, not ${JSON.stringify(name)}`);
       }
@@ -359,15 +359,16 @@ export async function createPluginHost({
       if (!r.user && !perDevice && (name === 'settings' || name === 'device')) {
         throw new Error(`${r.id}: "${name}" is the app's own file`);
       }
-      return join(dir, perDevice ? `${name}-${safeDeviceKey(device())}.json` : `${name}.json`);
+      const key = forDevice !== undefined ? forDevice : device();
+      return join(dir, perDevice ? `${name}-${safeDeviceKey(key)}.json` : `${name}.json`);
     };
     return Object.freeze({
-      async load(name, { perDevice = false } = {}) {
-        const where = file(name, perDevice);
+      async load(name, { perDevice = false, device: forDevice } = {}) {
+        const where = file(name, perDevice, forDevice);
         try { return JSON.parse(await readFile(where, 'utf8')); } catch { return null; }
       },
-      async save(name, data, { perDevice = false } = {}) {
-        const where = file(name, perDevice);
+      async save(name, data, { perDevice = false, device: forDevice } = {}) {
+        const where = file(name, perDevice, forDevice);
         await mkdir(dir, { recursive: true });
         await writeJsonAtomic(where, data);
       }
@@ -399,7 +400,9 @@ export async function createPluginHost({
        * This plugin's own documents: `load(name, { perDevice })` and
        * `save(name, data, { perDevice })`, JSON in and out. `perDevice` keys
        * one by the switcher the app points at now — a cue list is written
-       * against one box. Null when the app has nowhere to keep anything.
+       * against one box — or by `device`, when that is given: restoring a
+       * setup file onto a backup frame writes against that frame. Null when
+       * the app has nowhere to keep anything.
        */
       storage: storageFor(r),
 
@@ -575,10 +578,11 @@ export async function createPluginHost({
   });
 
   /**
-   * Whether a contribution's or a service's owner is on: a hosted plugin by
-   * its record, an in-place built-in by its switch.
+   * Whether a contribution's or a service's owner is on: the app always, a
+   * plugin by its record, and anything else by its switch.
    */
   const ownerIsOn = (owner) => {
+    if (owner === APP) return true;
     const r = plugins.get(owner);
     return r ? r.on : registry.isEnabled(settings.plugins, owner);
   };
@@ -761,7 +765,7 @@ export async function createPluginHost({
   }
 
   /**
-   * Every plugin the app knows, hosted or still in place, and whether it is on.
+   * Every plugin the app knows, and whether it is on.
    * What `GET /__lpp/plugins` answers, and what the page host loads from.
    */
   function list() {
@@ -814,13 +818,14 @@ export async function createPluginHost({
     list,
     stop,
     /**
-     * For the app's own features still wired in by hand: contribute as the
-     * plugin `owner` would, so a consumer cannot tell the difference. Listed
-     * only while that owner's switch is on.
+     * For the app itself: contribute, or offer a service, the way a plugin
+     * would — owned by `APP`, which is never off, unless an `owner` is named.
+     * The `app` service is the one there is: the app's settings, its version,
+     * and the platform it is pointed at, for the Setup file plugin.
      */
-    contribute: (point, spec, owner) => contributions.add(point, spec, owner, { builtIn: true }),
+    contribute: (point, spec, owner = APP) => contributions.add(point, spec, owner, { builtIn: true }),
     contributions: (point) => contributions.list(point, ownerIsOn),
-    provide: (name, api, owner) => services.provide(name, api, owner),
+    provide: (name, api, owner = APP) => services.provide(name, api, owner),
     use: (name) => services.use(name, ownerIsOn),
     /** For tests and the status route: which hosted plugins are running. */
     running: () => [...plugins.values()].filter((r) => r.on).map((r) => r.id)

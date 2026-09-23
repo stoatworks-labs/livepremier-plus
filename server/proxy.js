@@ -43,10 +43,6 @@ import { createPluginHost } from './plugin-host.js';
 import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
 import { loopbackRedirect } from './local-client.js';
-import {
-  buildConfig, applyConfig, summarise as summariseConfig,
-  validate as validateConfig, DEFAULT_IMPORT,
-} from './config-file.js';
 
 /** Where our own routes live. Namespaced so it cannot collide with a vendor path. */
 export const NS = '/__lpp';
@@ -223,6 +219,41 @@ export async function createProxy({
    */
   const on = (id) => pluginOn(settings.plugins, id);
 
+  /**
+   * Apply a settings patch: merged onto what is already held, so a panel may
+   * send one field without restating the rest and without racing another
+   * surface that is changing a different one. A plugin's entry is merged a
+   * level deeper, so a switch and its settings never wipe each other — and a
+   * field from before plugins had a namespace is lifted into its plugin's on
+   * the way in. See `core/settings.js`. The plugins are diffed by the host,
+   * each by its own schema: settings are saved as a whole, and a change to
+   * the console language must not rebind the OSC listener's socket.
+   */
+  async function applySettings(raw) {
+    const patch = liftLegacy(raw, host.schemas);
+    settings = normaliseSettings(mergeSettings(settings, patch), host.schemas);
+    if (storage && storage.saveSettings) await storage.saveSettings(settings);
+    await host.sync(settings);
+    /* A user plugin switched on just now has only now brought its schema:
+       fill its defaults in, so the page is sent what the plugin reads. */
+    settings = normaliseSettings(settings, host.schemas);
+    return settings;
+  }
+
+  /*
+   * What the app offers its plugins, as the `app` service: its settings, and
+   * the facts about this build and this switcher a setup file records. The
+   * Setup file plugin restores `installation.settings` through it, so a
+   * restored setting reaches the running app — and its plugins — at once,
+   * rather than sitting in a file the running app would later overwrite.
+   */
+  host.provide('app', Object.freeze({
+    version: appVersion || version || '',
+    platform: () => state.platform || '',
+    settings: () => settings,
+    applySettings,
+    hasStorage: Boolean(storage)
+  }));
 
   /* The hosted plugins, started after the app's own services so that anything
      a plugin asks of the app is already there to answer. A user plugin's
@@ -283,24 +314,7 @@ export async function createProxy({
         try { parsed = JSON.parse(body.toString('utf8')); }
         catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
 
-        /* Merged onto what is already held, so a panel may send one field
-           without having to restate the rest and without racing another
-           surface that is changing a different one. A plugin's entry is merged
-           a level deeper, so a switch and its settings never wipe each other —
-           and a field from before plugins had a namespace is lifted into its
-           plugin's on the way in. See `core/settings.js`. */
-        const patch = liftLegacy(parsed.settings ?? parsed, host.schemas);
-        const next = normaliseSettings(mergeSettings(settings, patch), host.schemas);
-        /* The plugins are diffed by the host, each by its own schema —
-           settings are saved as a whole, so a change to the console language
-           must not rebind the OSC listener's socket. */
-        settings = next;
-        if (storage && storage.saveSettings) await storage.saveSettings(settings);
-        await host.sync(settings);
-        /* A user plugin switched on just now has only now brought its schema:
-           fill its defaults in, so the page is sent what the plugin reads. */
-        settings = normaliseSettings(settings, host.schemas);
-
+        await applySettings(parsed.settings ?? parsed);
         return sendJson(res, 200, { ok: true, settings });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
@@ -419,76 +433,6 @@ export async function createProxy({
         return sendJson(res, 200, { ok: true, device: state.device });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
-    }
-
-    /*
-     * The portable configuration file — everything this app holds, in one
-     * document. See `server/config-file.js` for what is in it and why it is
-     * split three ways.
-     *
-     * GET  ?download=1  sets a filename so a browser saves rather than shows it.
-     * POST body `{ doc, sections?, device? }` applies one. `sections` defaults
-     *      to DEFAULT_IMPORT, which deliberately leaves `settings` out — see
-     *      the note in config-file.js about the OSC port.
-     */
-    if (rest === '/config') {
-      if (!storage) return sendJson(res, 501, { error: 'no storage configured' });
-      if (req.method === 'GET') {
-        const doc = await buildConfig({
-          storage,
-          deviceKey: state.device,
-          appVersion,
-          deviceInfo: { platform: state.platform || '' }
-        });
-        if (url.searchParams.get('download')) {
-          const buf = Buffer.from(JSON.stringify(doc, null, 2));
-          res.writeHead(200, {
-            'content-type': 'application/json; charset=utf-8',
-            'content-disposition': 'attachment; filename="livepremier-plus.json"',
-            'content-length': buf.length,
-            'cache-control': 'no-store'
-          });
-          return res.end(buf);
-        }
-        return sendJson(res, 200, { doc, summary: summariseConfig(doc) });
-      }
-      if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await collect(req, 8 * 1024 * 1024);
-        let parsed;
-        try { parsed = JSON.parse(body.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-        /* Accept the document either bare or wrapped, because a file dropped
-           on the page and a call from our own UI arrive in different shapes. */
-        const doc = parsed && parsed.doc !== undefined ? parsed.doc : parsed;
-        try {
-          const report = await applyConfig({
-            storage,
-            deviceKey: (parsed && parsed.device) || state.device,
-            doc,
-            sections: parsed && parsed.sections
-          });
-          return sendJson(res, 200, { ok: true, ...report });
-        } catch (err) {
-          return sendJson(res, 400, { error: err.message });
-        }
-      }
-      return sendJson(res, 405, { error: 'method not allowed' });
-    }
-
-    /* What an import would do, without doing it. */
-    if (rest === '/config/inspect' && (req.method === 'POST' || req.method === 'PUT')) {
-      const body = await collect(req, 8 * 1024 * 1024);
-      let parsed;
-      try { parsed = JSON.parse(body.toString('utf8')); }
-      catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-      const doc = parsed && parsed.doc !== undefined ? parsed.doc : parsed;
-      const problem = validateConfig(doc);
-      if (problem) return sendJson(res, 400, { error: problem });
-      return sendJson(res, 200, {
-        summary: summariseConfig(doc),
-        defaultSections: DEFAULT_IMPORT,
-        device: state.device
-      });
     }
 
     /* Anything a caller registered explicitly, by exact path. Nothing here is

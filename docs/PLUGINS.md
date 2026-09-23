@@ -1,8 +1,8 @@
 # Plugins
 
-LivePremier Plus is being rebuilt as a set of plugins: every feature is one, any of them can be
-switched off, and anyone can drop in their own. This document is the authoring guide, the API as it
-stands, and where the work is.
+LivePremier Plus is a set of plugins: every feature is one, any of them can be switched off, and
+anyone can drop in their own. This document is the authoring guide, the API as it stands, and how
+it got here.
 
 **To write one, start from [`examples/plugins/hello-switcher`](../examples/plugins/hello-switcher)**
 and read [Adding your own](#adding-your-own) below.
@@ -14,7 +14,7 @@ and read [Adding your own](#adding-your-own) below.
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
 | 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to and the Edit page | **done** |
-| 3 | [Contribution points and services](#extending-each-other), then the entangled features: the Timeline, Timecode, OSC input and Matrix Routing (**done**), and the setup file | in progress |
+| 3 | [Contribution points and services](#extending-each-other), then the entangled features: the Timeline, Timecode, OSC input, Matrix Routing and the setup file | **done** — every feature is a plugin |
 | 4 | **User plugins** loaded from the data directory; this guide; an example plugin | **done** — ahead of phase 3, on the phase-1 API |
 
 ## Switching features on and off
@@ -36,12 +36,14 @@ app the way the hand-written one did.
   running, and only matters while the plugin is on.
 
 **Not plugins, and not switchable:** the proxy and socket relay, the setup page, the store mirror,
-this settings page, and `/__lpp/settings`, `/status`, `/device`, `/awj` and `/plugins`. Switching any
-of those off would leave no way to switch it back on.
+this settings page, and `/__lpp/settings`, `/status`, `/device`, `/awj`, `/plugins` and `/addresses`.
+Switching any of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to, the Edit page, the Timeline, Timecode, OSC input and Matrix Routing.
+A folder. The built-ins are all under [`plugins/`](../plugins) — every feature this app has, from
+the Console to Matrix Routing — and each is loaded exactly as a plugin of yours is. Companion was the
+first to move there, as the pilot; the setup file was the last.
 
 ```
 plugins/companion/
@@ -61,9 +63,9 @@ appears, what it needs, and which files are its halves:
   requires: { capabilities: [], plugins: [] } }
 ```
 
-A built-in with a `server` or `client` is **hosted** — loaded by the plugin hosts exactly as a
-plugin written by somebody else will be. One without is still wired into `main.js` and `proxy.js`
-by hand, and moves in a later phase. A user plugin will carry the same fields in a `plugin.json`.
+Every built-in has a `server` or `client` half, or both; a manifest with neither would be a feature
+wired into `main.js` or `proxy.js` by hand, which is what this layout exists to stop. A plugin of
+your own carries the same fields in a `plugin.json`.
 
 Everything in a plugin's folder with a web file type (`.html`, `.js`, `.mjs`, `.css`, `.json`,
 `.svg`, `.png`) is served to the page at `/__lpp/plugins/<id>/…` while the plugin is on — **except
@@ -96,10 +98,10 @@ everything with an effect belongs in `activate`.
 | `settings.get()` / `settings.onChange(fn)` | This plugin's settings, and `fn(next, prev)` after a save that changed them — as the schema's `changed` judges. |
 | `onDispose(fn)` | Run when the plugin is switched off or the app stops; last registered, first run. |
 | `device()` | The switcher this app points at, `host:port`, or null. Read it per use; it changes. |
-| `storage` | Documents of the plugin's own, JSON in and out: `load(name, { perDevice })` and `save(name, data, { perDevice })`. `perDevice` keys one by the switcher the app points at now, the way a cue list is. A missing or unreadable document loads as null. Null when the app has no data directory — answer 501 then, as the built-ins do. |
+| `storage` | Documents of the plugin's own, JSON in and out: `load(name, { perDevice, device? })` and `save(name, data, { perDevice, device? })`. `perDevice` keys one by the switcher the app points at now, the way a cue list is — or by `device`, when that is given, as a setup-file restore onto a backup frame does. A missing or unreadable document loads as null. Null when the app has no data directory — answer 501 then, as the built-ins do. |
 | `awj(messages)` | One AWJ exchange with the switcher — opened, used, closed. |
 | `selfAddress(req)` | `{ host, port, loopback }`: the address a request arrived on, which is the one address this process is known to be reachable at. `loopback` is the warning that it will not reach across a room. |
-| `contribute(point, spec)` / `contributions(point)` | Add to one of the server's [contribution points](#contribution-points) — `oscAddress` — or list what is there. Refused, saying why, for a malformed contribution, a clash, or a point that belongs to the page. |
+| `contribute(point, spec)` / `contributions(point)` | Add to one of the server's [contribution points](#contribution-points) — `oscAddress`, `configSection` — or list what is there. Refused, saying why, for a malformed contribution, a clash, or a point that belongs to the page. |
 | `provide(name, api)` / `use(name)` | Offer an object to the other plugins in this process under a name, or find one. [Services](#services). |
 | `url(path)`, `log(msg)`, `id`, `manifest`, `apiVersion` | |
 
@@ -200,6 +202,7 @@ A **contribution point** is a place in the app that takes additions from any plu
 |---|---|---|
 | `cueAction` | page | `{ kind, label, run(action, { cue }), describe?(action) }` — a new thing a cue can do |
 | `oscAddress` | server | `{ prefix, describe?, handle(address, args) }` — a subtree of OSC addresses |
+| `configSection` | server | `{ key, group, label, perDevice?, byDefault?, export(device), import(data, device) }` — a section of the setup file |
 
 **`cueAction`.** `kind` is the name a cue stores its action under — start it with your plugin's id
 (`hello-switcher:say`), which also keeps it clear of everybody else's; the cue engine's own kinds are
@@ -234,6 +237,20 @@ What is answered on an install, and by whom, is at `GET /__lpp/addresses`; the C
 and sends a line in one of those subtrees to `POST /__lpp/addresses/run` so a typed line and a UDP packet
 take the same path.
 
+**`configSection`.** A section of the setup file, `livepremier-plus.json` — what the Setup file
+plugin writes at `GET /__lpp/config` and restores from `POST /__lpp/config`. `key` is its name in the
+file and in a restore's `sections`; `group` is where it sits: `installation` for what belongs to this
+machine, `show` or `rig` for what belongs to one switcher, which `perDevice` says. `export(device)`
+answers the section, or undefined when there is nothing to write — a restore then leaves that
+section alone, where an empty one would wipe it. `import(data, device)` puts it back **for the
+switcher it is given**, which a restore onto a backup frame makes different from the one the app
+points at now; when it is the same, put it into the running feature as well as its file, or the next
+save of the stale copy undoes the restore. `byDefault: false` keeps a section out of a restore that
+did not name it — the app's own settings are the example, because they carry the OSC port. A
+section whose plugin is off is neither written nor restored; the restore reports it as skipped.
+`server/documents.js` has `documentSection`, which is all the Timeline, Layer Groups and Layer names
+needed; Matrix Routing's two are written out in full.
+
 ### Services
 
 A **service** is an object one plugin offers the rest, under a name: `ctx.provide(name, api)` in the
@@ -249,6 +266,10 @@ state without importing its files.
   `requires.plugins`; one you do not list may start after you, or not at all. The Layer tab asks
   for `names` each time it draws, which is how it shows a Name field when Layer names is on and
   none when it is off.
+
+**What the app offers on the server:** **`app`** — `settings()`, `applySettings(patch)` (merged and
+applied exactly as `PUT /__lpp/settings` would), `version`, `platform()` and `hasStorage`. The Setup
+file restores `installation.settings` through it, so a restored setting reaches the running app.
 
 **What the built-ins offer in the page:** **`names`**, from Layer names — `get()` the whole
 `{ 'S1/2': 'IMAG' }` map, `rename(id, layer, value)`, `describe()` for what the vendor-page labels
@@ -385,7 +406,17 @@ Added in Phase 3, for the same review:
     `/__lpp/osc/…` until OSC input became a plugin with `/__lpp/osc` as its base: under it, switching
     the UDP listener off would have cut the Console off from Matrix Routing too.
 
-Still open, and decided in the phase that needs them: a section in the one-file setup for a
-plugin's documents (the setup file still reads the built-ins' files directly); and how a
-contributed cue action is offered in the *New cue* form — a `fields` description on the
-contribution is the likely shape, decided when Matrix Routing moves and needs it.
+14. **The setup file is assembled from `configSection` contributions**, and the app's settings are
+    a section like the rest, through the `app` service. The format did not change. What it bought
+    is a restore that reaches the running feature: before, the proxy's in-memory routers, patch and
+    settings kept their old values after a restore, and the next save wrote them back over it.
+
+Still open:
+
+- **A page open during a restore keeps what it loaded** — a cue stack, the groups, the names — and
+  its next save puts that back. The restore's answer carries `reloadPages: true` and the user guide
+  says to reload; a page that noticed by itself would need a stream for it, and the page has only
+  six connections to share.
+- **How a contributed cue action is offered in the *New cue* form.** For now an action of a
+  plugin's kind gets into a cue from a cue file; a `fields` description on the contribution is the
+  likely shape.

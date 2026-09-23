@@ -16,10 +16,11 @@
  *
  * ## The points
  *
- * | point        | where  | keyed by | a contribution is |
- * |--------------|--------|----------|-------------------|
- * | `cueAction`  | page   | `kind`   | `{ kind, label, run(action, { cue }), describe?(action) }` |
- * | `oscAddress` | server | `prefix` | `{ prefix, describe?, handle(address, args) }` |
+ * | point           | where  | keyed by | a contribution is |
+ * |-----------------|--------|----------|-------------------|
+ * | `cueAction`     | page   | `kind`   | `{ kind, label, run(action, { cue }), describe?(action) }` |
+ * | `oscAddress`    | server | `prefix` | `{ prefix, describe?, handle(address, args) }` |
+ * | `configSection` | server | `key`    | `{ key, group, label, perDevice?, byDefault?, export(device), import(data, device) }` |
  *
  * `cueAction.run` is called while the cue fires, in the order the cue lists
  * its actions, alongside the recalls and before any take or cut in the same cue
@@ -31,6 +32,19 @@
  * `{ ok: true, summary?, count? }`, `{ ok: false, error }`, or null to decline
  * an address after all — which lets it fall through to the switcher's own.
  *
+ * `configSection` is a section of the one-file setup, `livepremier-plus.json`
+ * (the Setup file plugin writes and reads it). `group` is where it sits in the
+ * file — `installation` for what belongs to this machine, `show` and `rig` for
+ * what belongs to one switcher, which is what `perDevice` says. `export(device)`
+ * answers the section, or undefined for "nothing to write" — which an import
+ * then leaves alone, where an empty section would wipe. `import(data, device)`
+ * puts it back, for a switcher that need not be the one the app points at now
+ * — and when it is, into the running feature as well as its file. `byDefault:
+ * false` keeps a section out of an import that did not ask for it by name.
+ *
+ * The app's own contributions and services are owned by `APP`, which no
+ * plugin can be called and which is never off.
+ *
  * `core/` knows nothing about browsers: this is a pair of plain registries,
  * used by both plugin hosts.
  */
@@ -38,6 +52,12 @@
 import { ACTION_KINDS } from './cuestack.js';
 
 const fn = (v) => typeof v === 'function';
+
+/** The owner of what the app itself contributes or provides: not a plugin id, and always on. */
+export const APP = '(app)';
+
+/** Where a `configSection` may sit in the setup file. */
+export const CONFIG_GROUPS = ['installation', 'show', 'rig'];
 const text = (v) => typeof v === 'string' && v.trim().length > 0;
 
 /** The action kinds the cue engine does itself, which nothing may claim. */
@@ -81,6 +101,25 @@ export const POINTS = {
     /* A subtree inside another's is a collision too: the longer prefix would
        quietly take part of the shorter one's space away. */
     clash: (a, b) => a.prefix.startsWith(b.prefix) || b.prefix.startsWith(a.prefix)
+  },
+  configSection: {
+    side: 'server',
+    key: 'key',
+    check(spec) {
+      if (!text(spec.key) || !/^[a-z][a-zA-Z0-9-]{0,39}$/.test(spec.key)) {
+        return 'its key must be a name: a lower-case letter, then letters, digits or -';
+      }
+      /* The file's own envelope. A section called `device` would sit beside the
+         record of which switcher the file was written against. */
+      if (['format', 'version', 'exported', 'app', 'device', ...CONFIG_GROUPS].includes(spec.key)) {
+        return `"${spec.key}" is part of the file's own envelope`;
+      }
+      if (!CONFIG_GROUPS.includes(spec.group)) return `its group must be one of ${CONFIG_GROUPS.join(', ')}`;
+      if (!text(spec.label)) return 'it needs a label, which is what an import reports';
+      if (!fn(spec.export) || !fn(spec.import)) return 'it needs export(device) and import(data, device)';
+      return null;
+    },
+    clash: (a, b) => a.key === b.key
   }
 };
 

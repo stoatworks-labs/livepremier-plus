@@ -37,8 +37,8 @@ export default async function activate(ctx) {
      redial timer that would go on dialling a router after the app stopped. */
   ctx.onDispose(() => supervisor.stop());
 
-  const stored = async (name, perDevice = false) =>
-    (ctx.storage ? ctx.storage.load(name, { perDevice }) : null);
+  const stored = async (name, perDevice = false, device = undefined) =>
+    (ctx.storage ? ctx.storage.load(name, { perDevice, device }) : null);
 
   const raw = await stored('matrices');
   let config = normaliseMatrices(Array.isArray(raw) ? raw : (raw && raw.matrices) || []);
@@ -157,6 +157,42 @@ export default async function activate(ctx) {
     }
     const { status, body } = run({ ok: true, crosspoints: [{ matrix, output, input }] });
     h.json(status, body);
+  });
+
+  /*
+   * Two sections of the one-file setup. The routers belong to the
+   * installation and the patch to one frame's rig — see the head of this file.
+   * A restore goes into the running supervisor as well as the file, so the
+   * routers it names are dialled at once, and a patch restored onto the frame
+   * the app points at is the one the next route uses.
+   */
+  ctx.contribute('configSection', {
+    key: 'matrices',
+    group: 'installation',
+    label: 'External routers',
+    export: async () => (config.length ? config : undefined),
+    async import(data) {
+      config = normaliseMatrices(data);
+      if (ctx.storage) await ctx.storage.save('matrices', { matrices: config });
+      supervisor.apply(config);
+    }
+  });
+  ctx.contribute('configSection', {
+    key: 'patch',
+    group: 'rig',
+    label: 'Patch',
+    perDevice: true,
+    async export(device) {
+      if (device === ctx.device()) { const p = await currentPatch(); return p.length ? p : undefined; }
+      const saved = await stored('patch', true, device);
+      const p = normalisePatch(Array.isArray(saved) ? saved : (saved && saved.entries) || []);
+      return p.length ? p : undefined;
+    },
+    async import(data, device) {
+      const p = normalisePatch(data);
+      if (ctx.storage) await ctx.storage.save('patch', { entries: p }, { perDevice: true, device });
+      if (device === ctx.device()) { patch = p; patchFor = device; }
+    }
   });
 
   /* `/lp/matrix/…`: this app's own addresses, not mynah's — `resolveMatrixOsc`

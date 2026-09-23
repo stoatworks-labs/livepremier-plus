@@ -7,17 +7,15 @@
  * rather than written a second time by hand; the in-app list had drifted nine
  * features behind the code before it existed. See docs/PLUGINS.md.
  *
- * ## In place, and hosted
+ * ## Hosted, every one
  *
- * A built-in is one of two kinds while the move is under way:
- *
- * - **In place**: still wired into `src/main.js` and `server/proxy.js` by hand,
- *   and gated there by `isEnabled`. Most features, for now.
- * - **Hosted**: moved into `plugins/<id>/` with a `server` and/or `client`
- *   half, and loaded through the plugin hosts (`server/plugin-host.js`,
- *   `src/ui/plugin-host.js`) exactly as a plugin written by somebody else
- *   will be. Its manifest names those halves. Companion was the first;
- *   VPU Map, Pitch Compensation and the Pixelhue panel followed.
+ * Each built-in lives in `plugins/<id>/` with a `server` and/or `client` half,
+ * named in its manifest, and is loaded through the plugin hosts
+ * (`server/plugin-host.js`, `src/ui/plugin-host.js`) exactly as a plugin
+ * written by somebody else is. Companion was the first to move, in the pilot;
+ * the setup file was the last. A manifest with neither half would be a
+ * feature wired in by hand, which is what this layout exists to stop — the
+ * tests check that none is left.
  *
  * ## Present, and active
  *
@@ -32,9 +30,9 @@
  * ## What is not a plugin
  *
  * The proxy and socket relay, the setup page, the store mirror, the settings
- * page itself, `/__lpp/status`, `/__lpp/device`, `/__lpp/settings` and
- * `/__lpp/awj`. Switching any of those off would leave no way to switch it back
- * on, or no app.
+ * page itself, `/__lpp/status`, `/__lpp/device`, `/__lpp/settings`,
+ * `/__lpp/awj`, `/__lpp/plugins` and `/__lpp/addresses`. Switching any of those
+ * off would leave no way to switch it back on, or no app.
  *
  * `core/` runs in the browser and in Node, so this file has no DOM and no I/O:
  * the server consults it to gate routes and services, and the page consults it
@@ -204,7 +202,10 @@ export const BUILTINS = [
     id: 'setup-file',
     name: 'Setup file',
     where: '/__lpp/config',
-    description: 'Cue stack, groups, layer names, router patch and settings as one JSON file, and back.'
+    description: 'Cue stack, groups, layer names, router patch and settings as one JSON file, and back.',
+    /* Where it always was. */
+    routeBase: '/config',
+    server: 'server.js'
   },
   {
     id: 'arithmetic',
@@ -227,7 +228,7 @@ export function withDefaults(p) {
     enabledByDefault: true,
     ...p,
     /* A plugin with a server or page half of its own is loaded through the
-       plugin hosts; one without is still wired in by hand. */
+       plugin hosts. Every built-in has one now. */
     hosted: Boolean(p.server || p.client),
     requires: { capabilities: [], plugins: [], ...(p.requires || {}) }
   };
@@ -346,7 +347,6 @@ export const isEnabled = builtins.isEnabled;
  * manifest rather than being written here a second time.
  */
 const ROUTES = [
-  ['/config', 'setup-file'],
   ...BUILTINS.filter((p) => p.hosted).map((p) => [routeBase(p), p.id])
 ].sort((a, b) => b[0].length - a[0].length);
 

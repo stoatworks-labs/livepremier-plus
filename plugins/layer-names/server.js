@@ -20,9 +20,10 @@
  * as much as to the rest.
  */
 
-import { documentRoute } from '../../server/documents.js';
+import { documentRoute, documentSection } from '../../server/documents.js';
 
 export default function activate(ctx) {
   /* Names are short and there are at most a few hundred layers on a frame. */
   documentRoute(ctx, 'names', { limit: 256 * 1024 });
+  documentSection(ctx, 'names', { group: 'show', label: 'Layer names' });
 }

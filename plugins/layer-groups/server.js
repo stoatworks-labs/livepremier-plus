@@ -9,10 +9,11 @@
  * manifest keeps them).
  */
 
-import { documentRoute } from '../../server/documents.js';
+import { documentRoute, documentSection } from '../../server/documents.js';
 
 export default function activate(ctx) {
   /* A group list is a few dozen short rows; a megabyte is already far more
      than any show could need. */
   documentRoute(ctx, 'groups', { limit: 1024 * 1024 });
+  documentSection(ctx, 'groups', { group: 'show', label: 'Layer groups' });
 }

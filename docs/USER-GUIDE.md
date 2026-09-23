@@ -713,6 +713,15 @@ sending to. Ask for them explicitly if you want them:
 { "doc": { … }, "sections": ["stack", "groups", "names", "patch", "settings"] }
 ```
 
+**Reload any open page afterwards.** The restore reaches the running app at once — the routers
+are dialled, the patch and any settings you asked for are the ones in force — but a Web RCS page
+that was already open still holds the cue stack, groups and names it loaded, and its next save would
+put those back. The answer to the restore says `"reloadPages": true` when that applies.
+
+**A feature that is switched off is left out** of both: its section is not written, and a file that
+has one reports it as skipped rather than restoring it. A plugin of your own can add a section of
+its own — see [PLUGINS.md](PLUGINS.md#contribution-points).
+
 **Onto a different frame.** The device-keyed parts land under whichever switcher this app
 is currently pointed at, so failing over to a backup frame at another address is just:
 point the app at the backup, then POST the file. Add `"device": "192.168.2.141"` to send it
