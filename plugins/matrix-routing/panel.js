@@ -36,10 +36,10 @@
  * alike would be making a lie look tidy. See `core/patch.js`.
  */
 
-import { h, button, sectionTitle } from './dom.js';
-import { panel } from './shell.js';
-import { readAllConnectors, describeConnector } from '../core/connectors.js';
-import { MATRIX_KINDS, entryConnectorId, currentFor } from '../core/patch.js';
+import { h, button, sectionTitle } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
+import { readAllConnectors, describeConnector } from '../../src/core/connectors.js';
+import { MATRIX_KINDS, entryConnectorId, currentFor } from '../../src/core/patch.js';
 
 const API = '/__lpp/matrix';
 

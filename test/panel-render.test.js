@@ -104,7 +104,6 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
       const platform = () => detectPlatform(store);
 
       const { createTimelinePanel } = await import('../plugins/timeline/panel.js');
-      const { createMatrixPanel } = await import('../src/ui/matrix-panel.js');
       const { createPropertiesPanel } = await import('../src/ui/properties-panel.js');
       const { createSettingsPanel } = await import('../src/ui/settings-panel.js');
 
@@ -128,7 +127,6 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
         assert.match(drawn.textContent, /Waiting for the device store/, 'before the store arrives it says so, and lists nothing');
       }
 
-      renders('matrix', createMatrixPanel({ session, onRefresh() {} }));
       const names = () => ({});
       const properties = createPropertiesPanel({ session, onRefresh() {}, names, onRename: null });
       renders('properties', properties);

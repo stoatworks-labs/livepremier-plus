@@ -211,7 +211,7 @@ agrees. That is the feature.
 
 ⚠️ **The Videohub wire counts from 0 and everything else in this app counts
 from 1.** Output 1 on the front panel is `0` in a `VIDEO OUTPUT ROUTING` block.
-`server/matrix/videohub.js` is the only file allowed to know that, and the
+`plugins/matrix-routing/routers/videohub.js` is the only file allowed to know that, and the
 conversion happens in exactly two marked places — the same containment
 `core/paths.js` gives the AWJ spelling. An off-by-one here routes a real
 crosspoint next to the one asked for, and looks entirely plausible doing it.
@@ -267,11 +267,13 @@ the top of each file for exactly that reason.
 |---|---|
 | `src/core/connectors.js` | Reading the frame's sockets out of the device store. Pure. |
 | `src/core/patch.js` | The cable schedule, the two operations, the OSC address space. Pure. |
-| `server/matrix/driver.js` | What a driver is, and the TCP plumbing all three share. |
-| `server/matrix/{videohub,lightware,turtle}.js` | One protocol each. |
-| `server/matrix/index.js` | The supervisor: one connection per router, kept up. |
-| `src/ui/matrix-panel.js` | The panel. |
-| `src/ui/router-box.js` | The Router tab and box on the vendor's own input and output pages. |
+| `plugins/matrix-routing/routers/driver.js` | What a driver is, and the TCP plumbing all three share. |
+| `plugins/matrix-routing/routers/{videohub,lightware,turtle}.js` | One protocol each. |
+| `plugins/matrix-routing/routers/index.js` | The supervisor: one connection per router, kept up. |
+| `plugins/matrix-routing/server.js` | The plugin's server half: the routers, the patch per switcher, the routes at `/__lpp/matrix` and the `/lp/matrix/` OSC addresses. |
+| `plugins/matrix-routing/client.js` | The page half: the sidebar entry, the Router tabs and boxes, and the two cue actions. |
+| `plugins/matrix-routing/panel.js` | The panel. |
+| `plugins/matrix-routing/router-box.js` | The Router tab and box on the vendor's own input and output pages. |
 | `test/matrix.test.js` | 51 tests. What they can and cannot prove is in their header. |
 
 `core/` knows nothing about browsers or sockets and runs under plain Node,

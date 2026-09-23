@@ -41,11 +41,11 @@ import {
   groupCrosspoints, entryForConnector, ROUTER_SIDE, resolveMatrixOsc, toPortList,
   choicesFor, withEntry,
 } from '../src/core/patch.js';
-import { connectorForPage } from '../src/ui/router-box.js';
-import { VideohubDriver } from '../server/matrix/videohub.js';
-import { LightwareDriver } from '../server/matrix/lightware.js';
-import { TurtleDriver, sizeFromModel } from '../server/matrix/turtle.js';
-import { MatrixSupervisor } from '../server/matrix/index.js';
+import { connectorForPage } from '../plugins/matrix-routing/router-box.js';
+import { VideohubDriver } from '../plugins/matrix-routing/routers/videohub.js';
+import { LightwareDriver } from '../plugins/matrix-routing/routers/lightware.js';
+import { TurtleDriver, sizeFromModel } from '../plugins/matrix-routing/routers/turtle.js';
+import { MatrixSupervisor } from '../plugins/matrix-routing/routers/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 

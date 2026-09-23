@@ -1,7 +1,7 @@
 /*
  * Router routing, on the vendor's own input and output pages.
  *
- * `ui/matrix-panel.js` is the whole-rack view: every router, every cable. This
+ * `panel.js` is the whole-rack view: every router, every cable. This
  * puts one socket's slice of it where an operator is already looking at that
  * socket, in the four places Web RCS configures one:
  *
@@ -46,11 +46,11 @@
  * wrong socket's router port is the failure this whole feature must not have.
  */
 
-import { h, button, isEnter } from './dom.js';
+import { h, button, isEnter } from '../../src/ui/dom.js';
 import {
   entryConnectorId, entryForConnector, choicesFor, withEntry, ROUTER_SIDE,
-} from '../core/patch.js';
-import { readConnectors, describeConnector } from '../core/connectors.js';
+} from '../../src/core/patch.js';
+import { readConnectors, describeConnector } from '../../src/core/connectors.js';
 
 const API = '/__lpp/matrix';
 const MARK = 'data-lpp-router';

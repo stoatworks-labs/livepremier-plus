@@ -3,7 +3,7 @@
  * on an external router, and what routing follows from that.
  *
  * This file is a cable schedule and the arithmetic over it. It opens no
- * socket and knows no protocol — `server/matrix/` does that — so the rules
+ * socket and knows no protocol — `plugins/matrix-routing/routers/` does that — so the rules
  * below can be tested against a plain object under `node --test`, which is
  * the only way anybody is going to check them without a rack.
  *
@@ -42,7 +42,7 @@
  *
  * ⚠️ **Everything here counts from 1**, because every front panel, every one
  * of the three protocols' own documentation and every operator does. The
- * Videohub *wire* counts from 0 — see `server/matrix/videohub.js`, which is
+ * Videohub *wire* counts from 0 — see `plugins/matrix-routing/routers/videohub.js`, which is
  * the only place in this repo allowed to know that, exactly as
  * `core/paths.js` is the only place that knows the AWJ spelling. A number
  * that crosses this boundary in the wrong base routes the wrong crosspoint
@@ -320,7 +320,7 @@ export function currentFor(patch, connectorId, routing) {
 /**
  * The router ports one socket can choose between, and where each one stands.
  *
- * Both of the per-socket surfaces (`ui/router-box.js`) draw this twice — as a
+ * Both of the per-socket surfaces (`plugins/matrix-routing/router-box.js`) draw this twice — as a
  * grid of port tiles and as a list — and the two must never disagree, so the
  * model is built once here and both are drawn from it.
  *

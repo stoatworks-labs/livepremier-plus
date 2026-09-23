@@ -9,7 +9,7 @@
  * ## Why this holds a connection open, when `server/awj.js` refuses to
  *
  * `awj.js` argues at length that it must never hold a socket or subscribe, and
- * `server/matrix/index.js` had to beat that argument before it could keep a
+ * `plugins/matrix-routing/routers/index.js` had to beat that argument before it could keep a
  * router connected. Both arguments are about **the store mirror** — about not
  * becoming a second source of truth for switcher state the vendor socket
  * already carries.

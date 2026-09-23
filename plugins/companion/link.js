@@ -8,7 +8,7 @@
  * subscribe to anything. That argument is about the **store mirror** — about
  * not becoming a second source of truth for state the vendor socket already
  * carries. It does not reach here, for the same three reasons
- * `server/matrix/index.js` gives about an external router:
+ * `plugins/matrix-routing/routers/index.js` gives about an external router:
  *
  * - **There is no other source.** Nothing in the store, and nothing in a Web
  *   RCS page, has ever heard of a Companion show. There is no mirror to

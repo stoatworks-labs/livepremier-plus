@@ -22,7 +22,7 @@
  *   Videohub is happy with many clients and says so in its own protocol.
  *
  * What this does share with `awj.js` is the rule it inherits from
- * `server/matrix/driver.js`: it never writes state it has not been told.
+ * `plugins/matrix-routing/routers/driver.js`: it never writes state it has not been told.
  *
  * ## Lifecycle
  *

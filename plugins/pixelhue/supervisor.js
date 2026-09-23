@@ -30,7 +30,7 @@
  * the next refresh. That is the honest limit of the preview, it is written
  * down in `docs/PIXELHUE.md`, and closing it is what a scoped subscription
  * would be *for* — at which point `awj.js`'s argument has to be beaten
- * properly, in writing, the way `server/matrix/` did.
+ * properly, in writing, the way `plugins/matrix-routing/routers/` did.
  */
 
 import { EventEmitter } from 'node:events';

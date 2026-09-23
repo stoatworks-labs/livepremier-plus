@@ -14,7 +14,7 @@ and read [Adding your own](#adding-your-own) below.
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
 | 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to and the Edit page | **done** |
-| 3 | [Contribution points and services](#extending-each-other), then the entangled features: the Timeline, Timecode and OSC input (**done**), Matrix Routing and the setup file | in progress |
+| 3 | [Contribution points and services](#extending-each-other), then the entangled features: the Timeline, Timecode, OSC input and Matrix Routing (**done**), and the setup file | in progress |
 | 4 | **User plugins** loaded from the data directory; this guide; an example plugin | **done** — ahead of phase 3, on the phase-1 API |
 
 ## Switching features on and off
@@ -41,7 +41,7 @@ of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to, the Edit page, the Timeline, Timecode and OSC input.
+A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to, the Edit page, the Timeline, Timecode, OSC input and Matrix Routing.
 
 ```
 plugins/companion/
@@ -254,7 +254,9 @@ state without importing its files.
 `{ 'S1/2': 'IMAG' }` map, `rename(id, layer, value)`, `describe()` for what the vendor-page labels
 found; **`groups`**, from Layer Groups — `list()`, `recent()`, `remember(target)`, `load()`, and
 `expect(cmds)` to tell the gang a whole group was just written so it lets the echoes pass;
-**`timecode`**, from Timecode — `{ source, chase }`, the clock and the chase the Timeline draws; and
+**`timecode`**, from Timecode — `{ source, chase }`, the clock and the chase the Timeline draws;
+**`matrix`**, from Matrix Routing — `describeSurfaces()`, what its Router tabs found on the vendor's
+pages; and
 **`stack`**, the cue stack, owned by the Timeline —
 `go()`, `back()`, `stop()`, `gotoId(id)`, `fire(id)`, `standby`, `cues()` (copies), and
 `addEventListener`/`removeEventListener` for its events (`fired`, `took`, `armed`, `changed`,

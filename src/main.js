@@ -15,15 +15,12 @@
 import { Session } from './core/session.js';
 import { PageSocketTransport } from './transports/page-socket.js';
 import { Shell, SIDEBAR_SELECTOR } from './ui/shell.js';
-import { createMatrixPanel } from './ui/matrix-panel.js';
 import { TabHost, watchVendorTabs } from './ui/tabs.js';
 import { createSettingsPanel } from './ui/settings-panel.js';
-import { installRouterSurfaces } from './ui/router-box.js';
 import { detectPlatform, supports } from './core/platform.js';
 import { isEnabled as pluginOn } from './core/plugins.js';
 import { loadPlugins, byOrder } from './ui/plugin-host.js';
 import { createContributions, createServices } from './core/contributions.js';
-import { SIDES, parseConnectorId, logicalIndex } from './core/connectors.js';
 import { dialectFor } from './core/dialect.js';
 
 const TAG = '[LivePremier Plus]';
@@ -81,44 +78,6 @@ async function boot() {
   let listContributions = (point) => contributions.list(point, on);
 
   /*
-   * Matrix Routing's two cue actions, contributed as a plugin would.
-   *
-   * They do not go on the vendor socket — an external router is not in the
-   * device store and the switcher has never heard of it. They go to our own
-   * process, which holds the router connections. Not awaited, for the same
-   * reason a take is not: the router acknowledges receipt rather than success.
-   * A refusal comes back as a warning on the cue.
-   */
-  if (on('matrix-routing')) {
-    const route = (verb, body) => fetch(`/__lpp/matrix/${verb}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }).then(async (res) => {
-      if (res.ok) return;
-      const payload = await res.json().catch(() => ({}));
-      throw new Error(payload.error || `the router answered ${res.status}`);
-    });
-    /* `input:IN_1` is how a cue stores it; `Input 1` is how a cue sheet says it. */
-    const connector = (id) => {
-      const c = parseConnectorId(id);
-      return c ? `${SIDES[c.side].label} ${logicalIndex(c.key) ?? c.key}` : String(id ?? '?');
-    };
-    contributions.add('cueAction', {
-      kind: 'matrixFeed',
-      label: 'Router to a switcher input',
-      run: (a) => route('feed', { connector: a.connector, source: a.source }),
-      describe: (a) => `feed ${connector(a.connector)} from router input ${a.source}`
-    }, 'matrix-routing');
-    contributions.add('cueAction', {
-      kind: 'matrixSend',
-      label: 'Switcher output to router outputs',
-      run: (a) => route('send', { connector: a.connector, destinations: a.destinations }),
-      describe: (a) => `send ${connector(a.connector)} to router outputs ${[].concat(a.destinations ?? []).join(', ')}`
-    }, 'matrix-routing');
-  }
-
-  /*
    * One repaint per frame, covering whichever of our surfaces is on screen.
    *
    * Held off while a panel has an uncommitted edit in a text field. Our panes
@@ -163,7 +122,6 @@ async function boot() {
   const platform = () => detectPlatform(session.store);
   const can = (capability) => supports(platform(), capability);
 
-  const matrix = createMatrixPanel({ session, onRefresh: refresh });
   /* The plugins' own settings cards are read at every render: the plugins
      load further down, after this is built. */
   const settings = createSettingsPanel({
@@ -204,25 +162,16 @@ async function boot() {
 
   shell = new Shell({
     title: 'PLUS',
-    /* Ordered by `order`, in tens so a plugin can put itself between two of
-       these. The hosted ones already do: VPU Map asks for 20, Companion for
-       60 and Pitch Compensation for 80 — see `plugins/`. */
+    /*
+     * Ordered by `order`, in tens so a plugin can put itself between two
+     * entries. Every entry is a plugin's — Edit 10, VPU Map 20, Memories 30,
+     * Layer Groups 40, Matrix Routing 50, Companion 60, MIDI Mapping 70 under
+     * Virtual RC400T, Pitch Compensation 80 in the Preconfig flyout — except
+     * this app's own settings, which close that flyout: settings for the
+     * installation go where the device's own installation settings are, and
+     * they are how a broken plugin gets switched off, so no plugin owns them.
+     */
     entries: byOrder([
-      /* The Edit page comes first, at 10 — from its plugin, `plugins/edit/`. */
-      /* VPU Map comes here, at 20 — from its plugin, `plugins/vpu-map/` —
-         Memories at 30, from `plugins/memories/`, and Layer Groups at 40,
-         from `plugins/layer-groups/`. */
-      /* Also a whole-device view, and for the same reason as the VPU map: it
-         is about the back of the frame rather than about one screen. It is
-         the only panel here that reads something other than the store — an
-         external router is not in the store and never will be. */
-      { id: 'matrix', label: 'Matrix Routing', icon: ['connector-gpio-18', 'gpio-18'], order: 50, enabled: () => can('matrixRouting') && on('matrix-routing'), render: () => matrix.render() },
-      /* Companion comes here, at 60 — from its plugin, `plugins/companion/` —
-         and MIDI Mapping at 70, under Virtual RC400T, from `plugins/midi/`. */
-      /* Pitch Compensation comes here, at 80 in the Preconfig flyout — from
-         its plugin, `plugins/pitch/`. */
-      /* Nor is this one: settings for the installation go where the device's
-         own installation settings are, inside the Preconfig flyout. */
       { id: 'settings', label: 'LivePremier Plus', submenuOf: 'Preconfig', order: 90, render: () => settings.render() },
       ...hosted.sidebar
     ])
@@ -232,16 +181,8 @@ async function boot() {
     console.info(TAG, 'session', ev.detail.state, ev.detail.error || '');
     refresh();
   });
-  /*
-   * A Router tab on the vendor's own input and output pages, and a Router box
-   * in Preconfig ▸ Inputs / Outputs: one socket's slice of the matrix panel,
-   * where that socket is already being configured. `ui/router-box.js` says
-   * what it matches, and why a socket it cannot identify gets no box at all.
-   */
-  const routerBoxes = installRouterSurfaces({ session, enabled: () => can('matrixRouting') && on('matrix-routing') });
 
   session.addEventListener('frame', refresh);
-
 
   /* The sidebar may not exist yet - the vendor app mounts React after its own
      bundle runs. Retry briefly rather than racing it. */
@@ -275,7 +216,7 @@ async function boot() {
 
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
   const clock = hosted.use('timecode');
-  window.__WRU = { session, stack: hosted.use('stack'), shell, tabs, transport, platform, timecode: clock && clock.source, chase: clock && clock.chase, groups: hosted.use('groups'), names, rename, labels: { describe: () => (namer() ? namer().describe() : null) }, routerBoxes, plugins: hosted, contributions: listContributions, services, shared: hosted.shared };
+  window.__WRU = { session, stack: hosted.use('stack'), shell, tabs, transport, platform, timecode: clock && clock.source, chase: clock && clock.chase, groups: hosted.use('groups'), names, rename, labels: { describe: () => (namer() ? namer().describe() : null) }, routerBoxes: { describe: () => { const m = hosted.use('matrix'); return m ? m.describeSurfaces() : null; } }, plugins: hosted, contributions: listContributions, services, shared: hosted.shared };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

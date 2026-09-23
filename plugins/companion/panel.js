@@ -124,7 +124,7 @@ export function createCompanionPanel({ kit, url, settings, onRefresh }) {
   /**
    * Follow the show rather than sampling it.
    *
-   * The same argument `ui/matrix-panel.js` makes about a router, and here it
+   * The same argument the Matrix Routing panel (`plugins/matrix-routing/panel.js`) makes about a router, and here it
    * is sharper: Companion's own Connections page is embedded a few lines
    * below, so the most likely way for this list to change is the operator
    * changing it inside our own iframe. A panel that only refreshed when it

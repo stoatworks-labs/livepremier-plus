@@ -43,16 +43,10 @@ import { createPluginHost } from './plugin-host.js';
 import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
 import { loopbackRedirect } from './local-client.js';
-import { MatrixSupervisor } from './matrix/index.js';
 import {
   buildConfig, applyConfig, summarise as summariseConfig,
   validate as validateConfig, DEFAULT_IMPORT,
 } from './config-file.js';
-import {
-  normaliseMatrices, normalisePatch, validate as validatePatch,
-  feed as patchFeed, send as patchSend, groupCrosspoints, toPortList,
-  resolveMatrixOsc,
-} from '../src/core/patch.js';
 
 /** Where our own routes live. Namespaced so it cannot collide with a vendor path. */
 export const NS = '/__lpp';
@@ -229,95 +223,6 @@ export async function createProxy({
    */
   const on = (id) => pluginOn(settings.plugins, id);
 
-  /*
-   * The external routers, and the cable schedule to them.
-   *
-   * Two different lifetimes, deliberately. The **matrix list** is part of the
-   * installation and is loaded once: a router in the rack does not move when
-   * the app is re-pointed at a backup frame, and dropping its connection
-   * because somebody failed over would be the opposite of helpful. The
-   * **patch** is this frame's own cabling, so it is keyed by device and
-   * re-read whenever `state.device` changes.
-   *
-   * `server/matrix/index.js` argues at the top why this holds sockets open
-   * when `server/awj.js` refuses to. The short version: there is no store
-   * mirror for a Videohub to contradict, and its crosspoints move without us.
-   */
-  const matrices = new MatrixSupervisor({ log });
-  const matrixListeners = new Set();
-  matrices.on('change', () => {
-    const line = `event: matrix\ndata: ${JSON.stringify(matrices.describe())}\n\n`;
-    for (const listener of matrixListeners) {
-      try { listener.write(line); } catch { matrixListeners.delete(listener); }
-    }
-  });
-
-  let matrixConfig = normaliseMatrices(
-    storage && storage.loadMatrices ? await storage.loadMatrices() : []);
-  const applyMatrices = () => matrices.apply(on('matrix-routing') ? matrixConfig : []);
-  applyMatrices();
-
-  let patch = normalisePatch(
-    storage && storage.loadPatch ? await storage.loadPatch(state.device) : []);
-
-  /** Re-read the patch for whatever device we are now pointed at. */
-  async function reloadPatch() {
-    patch = normalisePatch(
-      storage && storage.loadPatch ? await storage.loadPatch(state.device) : []);
-  }
-
-  /** Everything a panel needs in one object, so it repaints from one fetch. */
-  const matrixSnapshot = () => ({
-    matrices: matrices.describe(),
-    patch,
-    problems: validatePatch(patch, { matrices: matrixConfig, state: matrices.sizes() }),
-    routing: matrices.routing(),
-  });
-
-  /**
-   * Take a patch-derived action and report what reached the wire.
-   *
-   * The resolution is `core/patch.js`'s and the sending is the supervisor's;
-   * this only joins them. A refusal from either is a 409 with the reason in
-   * it, because "it did nothing and said OK" is the failure mode that costs
-   * somebody a show.
-   */
-  function runPatchAction(resolved) {
-    if (!resolved.ok) return { status: 409, body: { error: resolved.error } };
-    const results = matrices.route(groupCrosspoints(resolved.crosspoints));
-    const failed = results.filter((r) => !r.ok);
-    return {
-      status: failed.length ? 409 : 200,
-      body: {
-        ok: failed.length === 0,
-        crosspoints: resolved.crosspoints,
-        results,
-        ...(failed.length ? { error: failed.map((f) => f.error).join('; ') } : {}),
-      },
-    };
-  }
-
-  /*
-   * Matrix Routing's addresses, `/lp/matrix/…`, contributed as a plugin
-   * would. Until it moves into a plugin of its own it is wired in here, but
-   * the OSC listener and the Console find it the way they find any plugin's:
-   * as an `oscAddress` contribution. `resolveMatrixOsc` in `core/patch.js`
-   * says why these are this app's own addresses and not mynah's.
-   */
-  host.contribute('oscAddress', {
-    prefix: '/lp/matrix/',
-    describe: 'Route through the external routers — docs/OSC.md',
-    handle(address, args) {
-      const routed = resolveMatrixOsc(address, args, patch);
-      if (!routed) return null;
-      if (!routed.ok) return { ok: false, error: routed.error };
-      const { body } = runPatchAction(routed);
-      return body.ok
-        ? { ok: true, summary: routed.summary, count: routed.crosspoints.length }
-        : { ok: false, summary: routed.summary, error: body.error };
-    }
-  }, 'matrix-routing');
-
 
   /* The hosted plugins, started after the app's own services so that anything
      a plugin asks of the app is already there to answer. A user plugin's
@@ -386,13 +291,11 @@ export async function createProxy({
            plugin's on the way in. See `core/settings.js`. */
         const patch = liftLegacy(parsed.settings ?? parsed, host.schemas);
         const next = normaliseSettings(mergeSettings(settings, patch), host.schemas);
-        /* The hosted plugins are diffed by the host, each by its own schema —
+        /* The plugins are diffed by the host, each by its own schema —
            settings are saved as a whole, so a change to the console language
            must not rebind the OSC listener's socket. */
-        const needsPlugins = JSON.stringify(switches(settings.plugins)) !== JSON.stringify(switches(next.plugins));
         settings = next;
         if (storage && storage.saveSettings) await storage.saveSettings(settings);
-        if (needsPlugins) applyMatrices();
         await host.sync(settings);
         /* A user plugin switched on just now has only now brought its schema:
            fill its defaults in, so the page is sent what the plugin reads. */
@@ -483,8 +386,7 @@ export async function createProxy({
     if (rest === '/status') {
       return sendJson(res, 200, {
         ...state, ok: true, configured: !!target,
-        settings,
-        matrices: matrices.describe()
+        settings
       });
     }
 
@@ -513,121 +415,10 @@ export async function createProxy({
         state.device = `${next.host}:${next.port}`;
         state.upstreamError = null;
         if (storage && storage.saveDevice) await storage.saveDevice(state.device);
-        /* A patch describes one frame's sockets, so it moves with the frame.
-           The matrices deliberately do not — see where they are loaded. */
-        await reloadPatch();
         log(`pointed at ${state.device}`);
         return sendJson(res, 200, { ok: true, device: state.device });
       }
       return sendJson(res, 405, { error: 'method not allowed' });
-    }
-
-    /*
-     * The external matrices.
-     *
-     * `GET` is the whole picture — routers, their state, the patch and
-     * anything wrong with it — because a panel that had to make four requests
-     * to draw one grid would draw it inconsistently.
-     */
-    if (rest === '/matrix') {
-      if (req.method === 'GET') return sendJson(res, 200, matrixSnapshot());
-      if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await collect(req, 64 * 1024);
-        let parsed;
-        try { parsed = JSON.parse(body.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-
-        matrixConfig = normaliseMatrices(parsed.matrices ?? parsed);
-        if (storage && storage.saveMatrices) await storage.saveMatrices(matrixConfig);
-        /* Diff-based: a router whose address did not change keeps its socket
-           and its grid. See `MatrixSupervisor.apply`. */
-        applyMatrices();
-        return sendJson(res, 200, { ok: true, ...matrixSnapshot() });
-      }
-      return sendJson(res, 405, { error: 'method not allowed' });
-    }
-
-    if (rest === '/matrix/stream') {
-      res.writeHead(200, {
-        'content-type': 'text/event-stream',
-        'cache-control': 'no-store',
-        connection: 'keep-alive',
-        'x-accel-buffering': 'no'
-      });
-      res.write(': matrix stream open\n\n');
-      res.write(`event: matrix\ndata: ${JSON.stringify(matrices.describe())}\n\n`);
-      matrixListeners.add(res);
-      req.on('close', () => matrixListeners.delete(res));
-      return undefined;   /* held open deliberately */
-    }
-
-    /* The cable schedule. Per device — see `storage.savePatch`. */
-    if (rest === '/matrix/patch') {
-      if (req.method === 'GET') {
-        return sendJson(res, 200, { patch, problems: matrixSnapshot().problems });
-      }
-      if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await collect(req, 256 * 1024);
-        let parsed;
-        try { parsed = JSON.parse(body.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-
-        patch = normalisePatch(parsed.patch ?? parsed.entries ?? parsed);
-        if (storage && storage.savePatch) await storage.savePatch(state.device, patch);
-        return sendJson(res, 200, { ok: true, ...matrixSnapshot() });
-      }
-      return sendJson(res, 405, { error: 'method not allowed' });
-    }
-
-    /*
-     * Route.
-     *
-     * Two verbs and not one, because feeding an input and sending an output
-     * are genuinely different operations — see the header of
-     * `src/core/patch.js`. One takes a source and yields one crosspoint; the
-     * other takes a list of destinations and yields one crosspoint each.
-     */
-    if (rest === '/matrix/feed' || rest === '/matrix/send') {
-      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' });
-      const body = await collect(req, 16 * 1024);
-      let parsed;
-      try { parsed = JSON.parse(body.toString('utf8')); }
-      catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-
-      const connector = String(parsed.connector ?? '');
-      const resolved = rest === '/matrix/feed'
-        ? patchFeed(patch, connector, Number(parsed.source))
-        : patchSend(patch, connector, toPortList(parsed.destinations ?? parsed.destination));
-
-      const { status, body: payload } = runPatchAction(resolved);
-      return sendJson(res, status, payload);
-    }
-
-    /*
-     * A raw crosspoint, naming the router's own ports.
-     *
-     * The patch is the point of this feature, but a patch panel needs a way
-     * to route a port that is not patched to anything — to prove a cable, or
-     * to drive the half of the router the switcher is not on. It takes router
-     * numbers directly and consults no patch.
-     */
-    if (rest === '/matrix/route') {
-      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' });
-      const body = await collect(req, 16 * 1024);
-      let parsed;
-      try { parsed = JSON.parse(body.toString('utf8')); }
-      catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-
-      const matrix = String(parsed.matrix ?? '');
-      const output = Number(parsed.output);
-      const input = Number(parsed.input);
-      if (!Number.isInteger(output) || output < 1 || !Number.isInteger(input) || input < 1) {
-        return sendJson(res, 400, { error: 'output and input are 1-based port numbers' });
-      }
-      const { status, body: payload } = runPatchAction({
-        ok: true, crosspoints: [{ matrix, output, input }],
-      });
-      return sendJson(res, status, payload);
     }
 
     /*
@@ -942,13 +733,6 @@ export async function createProxy({
   server.closeRelays = () => {
     hangUpVendorRelays();
 
-    /* Every matrix socket is invisible to `server.close()` for exactly the
-       same reason, and each one holds a reconnect timer that would go on
-       re-dialling a router after the app was told to stop. */
-    matrices.stop();
-    for (const listener of matrixListeners) { try { listener.end(); } catch { /* gone */ } }
-    matrixListeners.clear();
-
     /* And every plugin: the host stops each one, which ends its streams,
        hangs up the sockets it relayed and runs its own disposers — the
        Companion link's socket and redial timer, and the Pixelhue console's,
@@ -972,11 +756,6 @@ export function injectInto(html, fragment) {
   if (html.includes('<script')) return html.replace('<script', `${fragment}<script`);
   if (html.includes('<body')) return html.replace('<body', `${fragment}<body`);
   return fragment + html;
-}
-
-/** A plugins map reduced to its on/off switches — what the app's own services care about. */
-function switches(plugins) {
-  return Object.fromEntries(Object.entries(plugins || {}).map(([id, entry]) => [id, entry.enabled]));
 }
 
 function sendJson(res, status, body) {

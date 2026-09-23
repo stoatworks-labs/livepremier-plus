@@ -158,7 +158,11 @@ export const BUILTINS = [
     name: 'Matrix Routing',
     where: 'Sidebar, under PLUS, and the vendor’s input and output pages',
     description: 'Patch the frame to a Videohub, Lightware or Turtle AV router and route through it.',
-    requires: { capabilities: ['matrixRouting'] }
+    requires: { capabilities: ['matrixRouting'] },
+    /* Everything it answers is where it always was. */
+    routeBase: '/matrix',
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'pitch',
@@ -342,7 +346,6 @@ export const isEnabled = builtins.isEnabled;
  * manifest rather than being written here a second time.
  */
 const ROUTES = [
-  ['/matrix', 'matrix-routing'],
   ['/config', 'setup-file'],
   ...BUILTINS.filter((p) => p.hosted).map((p) => [routeBase(p), p.id])
 ].sort((a, b) => b[0].length - a[0].length);

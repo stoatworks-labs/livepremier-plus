@@ -294,6 +294,49 @@ test('layer names round-trip through their plugin, in the file they always had',
   }
 });
 
+test('Matrix Routing kept its routes and its files when it became a plugin', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'lpp-'));
+  try {
+    const store = new StackStore(dir);
+    /* An installation from before the move: a router in matrices.json. Port 1
+       answers nothing, which is all this needs — the router is listed, and a
+       route through it is refused with the reason. */
+    await store.saveMatrices([{ id: 'hub', name: 'hub', kind: 'videohub', host: '127.0.0.1', port: 1 }]);
+    await withProxy({ storage: store }, async ({ base }) => {
+      const snap = await (await fetch(`${base}${NS}/matrix`)).json();
+      assert.deepEqual(snap.matrices.map((m) => m.id), ['hub']);
+      assert.deepEqual(snap.patch, []);
+
+      const device = (await (await fetch(`${base}${NS}/status`)).json()).device;
+      const put = await fetch(`${base}${NS}/matrix/patch`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patch: [{ side: 'input', key: 'IN_1', matrix: 'hub', port: 3 }] })
+      });
+      assert.equal(put.status, 200);
+      const onDisk = await store.loadPatch(device);
+      assert.deepEqual(onDisk.map((e) => [e.side, e.key, e.matrix, e.port]), [['input', 'IN_1', 'hub', 3]],
+        'in patch-<switcher>.json, where the setup file and an older build look');
+
+      const feed = await fetch(`${base}${NS}/matrix/feed`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connector: 'input:IN_1', source: 2 })
+      });
+      assert.equal(feed.status, 409, 'a router that is not connected refuses, and says why');
+      assert.ok((await feed.json()).error);
+
+      /* The patch is one frame's cabling: pointed at another, it is that one's. */
+      await fetch(`${base}${NS}/device`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device: '127.0.0.1:9' })
+      });
+      assert.deepEqual((await (await fetch(`${base}${NS}/matrix/patch`)).json()).patch, []);
+      assert.deepEqual((await (await fetch(`${base}${NS}/matrix`)).json()).matrices.map((m) => m.id), ['hub'],
+        'the routers stay: they are the installation’s, not the frame’s');
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('a corrupt stack file reads as absent rather than throwing', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lpp-'));
   try {

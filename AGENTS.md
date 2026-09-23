@@ -70,8 +70,8 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
   plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
   Compensation**, the **Pixelhue panel**, the **Console**, **Memories**, **MIDI
   Mapping**, **Field arithmetic**, **Layer**, **Layer names**, **Layer Groups**,
-  **Send to**, the **Edit page**, the **Timeline**, **Timecode** and **OSC input**
-  so far; a
+  **Send to**, the **Edit page**, the **Timeline**, **Timecode**, **OSC input**
+  and **Matrix Routing** so far; a
   built-in may import `src/` directly, and shared engines and components stay
   in `src/` where every plugin can reach them (`core/vpu.js`, `ui/stage.js`,
   `ui/properties-panel.js` — the Layer tab and the Edit page both draw it —
@@ -108,13 +108,13 @@ The things about it that break quietly:
   plugin at startup, switched on or not, to read its settings schema.
   Everything with an effect belongs in `activate(ctx)`.
 - **A plugin's settings live in `plugins.<id>.settings`, never at the top
-  level.** Companion's three fields used to be top-level; its schema's `legacy`
-  list lifts them wherever they still appear (an old `settings.json`, an old
-  setup file, a caller sending the old shape), and a lifted value wins. A
-  settings save merges `plugins` one level deeper, so a switch never wipes a
-  plugin's settings — compare `switches()` in `proxy.js`, not the whole map,
-  when deciding whether the app's own services need re-applying, or a
-  Companion address change rebinds the OSC socket.
+  level.** Companion's three fields used to be top-level, and so did the Edit
+  page's and OSC input's; each schema's `legacy` list lifts them wherever they
+  still appear (an old `settings.json`, an old setup file, a caller sending
+  the old shape), and a lifted value wins. A settings save merges `plugins`
+  one level deeper, so a switch never wipes a plugin's settings, and the host
+  tells a running plugin about a change only when its own schema's `changed`
+  says so — or a Companion address change would rebind the OSC socket.
 - **`plugins/` must be in every package.** The app runs without a missing
   plugin — right for a user's folder, wrong for a release — so a Dockerfile or
   `launcher/scripts/prepare.sh` without it ships features quietly absent.
@@ -271,7 +271,7 @@ that reason rather than guessing. A layer move landing in whichever buffer
 happened to be live is the exact failure being defended against. That asymmetry
 is intended and is documented in `docs/OSC.md`.
 
-### External matrix routing (`server/matrix/`, `core/patch.js`)
+### External matrix routing (`plugins/matrix-routing/routers/`, `core/patch.js`)
 
 The only subsystem here that talks to something other than the switcher, and
 the reasoning that makes that allowed is narrow — read it before extending.
@@ -292,7 +292,7 @@ Four things are load-bearing:
   only and derives the router side, because a stored direction is a stored
   opportunity to disagree with the side it belongs to.
 - ⚠️ **Everything counts from 1 except the Videohub wire, which counts from 0.**
-  `server/matrix/videohub.js` is the only file that knows this, and the
+  `plugins/matrix-routing/routers/videohub.js` is the only file that knows this, and the
   conversion is in two marked places — the same containment `core/paths.js`
   gives the AWJ spelling. Getting it wrong routes a real crosspoint one off
   from the one asked for and looks plausible doing it.
@@ -317,7 +317,7 @@ because that is an admission of uncertainty rather than belt and braces. The
 LW3 half is polled *as well as* subscribed for the same reason. `docs/MATRIX.md`
 has a procedure for proving each on real kit.
 
-**The Router tab and box (`ui/router-box.js`) write into vendor pages**, so
+**The Router tab and box (`plugins/matrix-routing/router-box.js`) write into vendor pages**, so
 they carry the same fragility as `plugins/layer-names/labels.js`: Setup ▸ Inputs/Outputs
 detail pages get a tab on their **routed** strip (every anchor has an `href`,
 which is why `ui/tabs.js` never claims it), and Preconfig ▸ Inputs/Outputs get

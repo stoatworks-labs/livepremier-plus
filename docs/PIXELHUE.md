@@ -108,7 +108,7 @@ after each change it makes.
 
 Closing that gap is what a scoped AWJ subscription would be *for*, and it is
 the one piece of this that would need `awj.js`'s argument beaten properly, in
-writing, the way `server/matrix/` did.
+writing, the way `plugins/matrix-routing/routers/` did.
 
 Bounded on purpose: 24 screens, 24 inputs, 32 memory slots. A LivePremier has a
 thousand memory slots and a console bus is eight keys wide.

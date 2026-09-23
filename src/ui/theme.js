@@ -660,7 +660,7 @@ body > .lpp-banner { position: absolute; top: 0; left: 0; right: 0; z-index: 50;
 }
 
 /*
- * A router's ports, on the vendor's input and output pages (ui/router-box.js).
+ * A router's ports, on the vendor's input and output pages (plugins/matrix-routing/router-box.js).
  *
  * The tiles copy the vendor's own selection tiles — the 1x1 / 2x1 picker in
  * Preconfig — measured off the page: a black-30 % tile, white at 70 %, and
