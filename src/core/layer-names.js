@@ -22,7 +22,7 @@
  *   the only way in, and anything using it depends on this app running.
  * - **It cannot be made to appear in the vendor's UI by writing a property**,
  *   because there is no property. Where names show up in Web RCS's own pages,
- *   they are put there by `ui/layer-labels.js` reaching into the DOM — which
+ *   they are put there by `plugins/layer-names/labels.js` reaching into the DOM — which
  *   is why that file is careful and why this one is not.
  *
  * ## The key

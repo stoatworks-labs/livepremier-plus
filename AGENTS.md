@@ -69,10 +69,13 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
   loaded by `server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a
   plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
   Compensation**, the **Pixelhue panel**, the **Console**, **Memories**, **MIDI
-  Mapping** and **Field arithmetic** so far; a built-in may import `src/`
-  directly, and the page-only ones keep their shared engines (`core/vpu.js`,
-  `ui/stage.js`, the vendored models) where the rest of the app can still reach
-  them. A plugin's card on the settings page is `ctx.ui.settingsSection` —
+  Mapping**, **Field arithmetic**, **Layer** and **Layer names** so far; a
+  built-in may import `src/` directly, and shared engines and components stay
+  in `src/` where every plugin can reach them (`core/vpu.js`, `ui/stage.js`,
+  `ui/properties-panel.js` — the Layer tab and the Edit page both draw it —
+  and the vendored models). Never import another plugin's folder: its files
+  are only served while it is on, and one switched off would take the importer
+  down with it. Share through a service instead. A plugin's card on the settings page is `ctx.ui.settingsSection` —
   Pixelhue's is the example. A panel that pops out does it into a page in its
   own folder (`popout.html`, served by the host) that boots through
   `ui/popout.js` — Memories' is the whole of one.
@@ -124,6 +127,13 @@ The things about it that break quietly:
   judges "changed" on schema-read settings, so the defaults that fill in are
   not a change. Do not "simplify" discovery into importing — a test counts
   imports.
+- **A built-in's `ctx.storage` writes the files the app always wrote.**
+  `names-<switcher>.json` beside the stacks, keyed by `safeDeviceKey` from
+  `server/storage.js` — the same function `StackStore` uses — so moving a
+  feature into a plugin moves nothing on disk, an older build still reads it,
+  and `server/config-file.js` finds it where it always did. A user plugin's
+  documents go in `<data dir>/plugin-data/<id>/`, never its code folder, which
+  the page is served from.
 - **`examples/plugins/hello-switcher` is tested as a user plugin**, unchanged,
   through the host and through a real data directory. If the API moves, the
   example moves with it, or the suite says so.
@@ -299,7 +309,7 @@ LW3 half is polled *as well as* subscribed for the same reason. `docs/MATRIX.md`
 has a procedure for proving each on real kit.
 
 **The Router tab and box (`ui/router-box.js`) write into vendor pages**, so
-they carry the same fragility as `ui/layer-labels.js`: Setup ▸ Inputs/Outputs
+they carry the same fragility as `plugins/layer-names/labels.js`: Setup ▸ Inputs/Outputs
 detail pages get a tab on their **routed** strip (every anchor has an `href`,
 which is why `ui/tabs.js` never claims it), and Preconfig ▸ Inputs/Outputs get
 a box in the column headed `In5` / `Out5`. Which socket a page is about comes
@@ -510,14 +520,17 @@ falls back card → master pair → **locked**, because a screen whose card is n
 on screen is the one case that cannot be checked and so must be the one that
 asks.
 
-### The popped-out panels (`ui/popout.js`, `server/*.html`)
+### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 
-There are four: `/__lpp/console`, `/__lpp/timeline`, `/__lpp/memories` and
-`/__lpp/properties`. Each is a document of **ours**, served from this process
-rather than proxied, opened by a Pop out button on the panel it belongs to.
-Adding one is four edits — the document, a `mount…Popout` export, the proxy
-route and the button — and forgetting the route fails as a blank window rather
-than as anything anyone would notice, so `test/proxy.test.js` pins the list.
+There are four: the Console's, Memories' and Layer's are `popout.html` in their
+plugins' folders (`/__lpp/plugins/<id>/popout.html`, served by the plugin host
+while the plugin is on), and the timeline editor's is still
+`server/timeline.html` at `/__lpp/timeline` until the Timeline moves. Each is a
+document of **ours**, served from this process rather than proxied, opened by a
+Pop out button on the panel it belongs to — which opens
+`new URL('./popout.html', import.meta.url)`, so the page and the button cannot
+disagree about where it is. A missing page fails as a blank window rather than
+as anything anyone would notice, so `test/proxy.test.js` pins the list.
 
 Two things about all of them are load-bearing:
 

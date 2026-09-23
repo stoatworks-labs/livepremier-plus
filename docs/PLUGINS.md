@@ -13,7 +13,7 @@ and read [Adding your own](#adding-your-own) below.
 |---|---|---|
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
-| 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping and Field arithmetic (**done**), the Edit page | in progress |
+| 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer and Layer names (**done**), the Edit page | in progress |
 | 3 | [Contribution points and services](#extending-each-other) (**done**), then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing — and MIDI, Memories, Layer, layer names and the Edit page, which turned out to share more than they looked (MIDI's port feeds the timecode source; Memories and Layer ride the pop-out machinery; layer names are read by five surfaces; the Edit page embeds the Layer panel and reads the names) | in progress |
 | 4 | **User plugins** loaded from the data directory; this guide; an example plugin | **done** — ahead of phase 3, on the phase-1 API |
 
@@ -41,7 +41,7 @@ of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping and Field arithmetic.
+A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer and Layer names.
 
 ```
 plugins/companion/
@@ -93,6 +93,7 @@ everything with an effect belongs in `activate`.
 | `settings.get()` / `settings.onChange(fn)` | This plugin's settings, and `fn(next, prev)` after a save that changed them — as the schema's `changed` judges. |
 | `onDispose(fn)` | Run when the plugin is switched off or the app stops; last registered, first run. |
 | `device()` | The switcher this app points at, `host:port`, or null. Read it per use; it changes. |
+| `storage` | Documents of the plugin's own, JSON in and out: `load(name, { perDevice })` and `save(name, data, { perDevice })`. `perDevice` keys one by the switcher the app points at now, the way a cue list is. A missing or unreadable document loads as null. Null when the app has no data directory — answer 501 then, as the built-ins do. |
 | `awj(messages)` | One AWJ exchange with the switcher — opened, used, closed. |
 | `selfAddress(req)` | `{ host, port, loopback }`: the address a request arrived on, which is the one address this process is known to be reachable at. `loopback` is the warning that it will not reach across a room. |
 | `contribute(point, spec)` / `contributions(point)` | Add to one of the server's [contribution points](#contribution-points) — `oscAddress` — or list what is there. Refused, saying why, for a malformed contribution, a clash, or a point that belongs to the page. |
@@ -234,8 +235,14 @@ state without importing its files.
   the provider in `requires.plugins` if you cannot work without it.
 - A service goes when its provider is switched off or fails to start.
 - Each half has its own services; the page's are not the server's.
+- **Ask for a service when you need it, not once when you start.** Plugins start in the order of
+  `requires.plugins`; one you do not list may start after you, or not at all. The Layer tab asks
+  for `names` each time it draws, which is how it shows a Name field when Layer names is on and
+  none when it is off.
 
-**The app's own:** the page provides **`stack`**, the cue stack, owned by the Timeline —
+**What the built-ins offer in the page:** **`names`**, from Layer names — `get()` the whole
+`{ 'S1/2': 'IMAG' }` map, `rename(id, layer, value)`, `describe()` for what the vendor-page labels
+found — and **`stack`**, the cue stack, owned by the Timeline —
 `go()`, `back()`, `stop()`, `gotoId(id)`, `standby`, `cues()` (copies), and
 `addEventListener`/`removeEventListener` for its events (`fired`, `took`, `armed`, `changed`,
 `stopped`, `end`, `warning`, `sendFailed`). It is narrow
@@ -351,7 +358,13 @@ Added in Phase 3, for the same review:
 10. **Services are one provider per name, found at call time.** No versioning of a service yet — a
     service that changes shape changes its name.
 
-Still open, and decided in the phase that needs them: storage under `<dataDir>/plugins/<id>/` and a
-section in the one-file setup (when the first plugin with data of its own moves); and how a
+11. **A built-in's documents stay where they always were; a user plugin's go in
+    `<data dir>/plugin-data/<id>/`.** Not `<data dir>/plugins/<id>/` as first planned: that is the
+    plugin's code folder, and everything web-typed in it is served to the page. The price of the
+    first half is that a built-in's document names share a folder with the app's own files, so
+    `settings` and `device` are refused.
+
+Still open, and decided in the phase that needs them: a section in the one-file setup for a
+plugin's documents (the setup file still reads the built-ins' files directly); and how a
 contributed cue action is offered in the *New cue* form — a `fields` description on the
 contribution is the likely shape, decided when Matrix Routing moves and needs it.

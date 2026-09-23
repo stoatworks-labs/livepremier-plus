@@ -14,7 +14,7 @@ import http from 'node:http';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 
 import { createPluginHost, HttpError } from '../server/plugin-host.js';
 import { withDefaults } from '../src/core/plugins.js';
@@ -353,6 +353,58 @@ test('a plugin is handed the app, not the server: device, awj and its own addres
     assert.equal(facts.self.host, '127.0.0.1');
     assert.equal(facts.self.loopback, true, 'the panel is told when its own address will not reach across a room');
   });
+});
+
+test('a plugin keeps documents of its own: a built-in where the app always did, a user plugin apart from its code', async () => {
+  const data = await mkdtemp(join(tmpdir(), 'lpp-data-'));
+  const PLUGIN = `
+    export default async function activate(ctx) {
+      globalThis.__stored = globalThis.__stored || {};
+      globalThis.__stored[ctx.id] = ctx.storage;
+    }`;
+  try {
+    const tree = { keeper: { 'server.js': PLUGIN } };
+    await withHost({
+      tree,
+      manifests: [withDefaults({ id: 'keeper', name: 'Keeper', description: 'd', server: 'server.js' })],
+      dataDir: data
+    }, async () => {
+      const st = globalThis.__stored.keeper;
+      assert.equal(await st.load('names', { perDevice: true }), null, 'nothing yet');
+      await st.save('names', { a: 1 }, { perDevice: true });
+      await st.save('routers', [1, 2]);
+      assert.deepEqual(await st.load('names', { perDevice: true }), { a: 1 });
+      assert.deepEqual(await st.load('routers'), [1, 2]);
+      const files = (await readdir(data)).sort();
+      assert.deepEqual(files, ['names-10_1_2_3_80.json', 'routers.json'],
+        'a built-in writes the files the app always wrote — StackStore’s own names');
+      await assert.rejects(st.load('../escape'), /lower-case letters/);
+      await assert.rejects(st.save('settings', {}), /the app's own file/);
+      await writeFile(join(data, 'broken.json'), '{ not json');
+      assert.equal(await st.load('broken'), null, 'a corrupt document loads as nothing, not as a crash');
+    });
+
+    const userDir = await pluginsOnDisk({
+      mine: { 'plugin.json': JSON.stringify({ id: 'mine', name: 'Mine', version: '1.0.0', apiVersion: 1, description: 'd', server: 'server.js' }), 'server.js': PLUGIN }
+    });
+    try {
+      await withHost({ tree: {}, manifests: [], userDir, dataDir: data, settings: { plugins: { mine: { enabled: true } } } }, async () => {
+        await globalThis.__stored.mine.save('notes', { hi: true }, { perDevice: true });
+        const kept = await readdir(join(data, 'plugin-data', 'mine'));
+        assert.deepEqual(kept, ['notes-10_1_2_3_80.json'], 'in plugin-data/<id>/, never beside the code the page is served');
+        assert.deepEqual(await readdir(join(userDir, 'mine')), ['plugin.json', 'server.js']);
+      });
+    } finally {
+      await rm(userDir, { recursive: true, force: true });
+    }
+
+    await withHost({ tree, manifests: [withDefaults({ id: 'keeper', name: 'Keeper', description: 'd', server: 'server.js' })] }, async () => {
+      assert.equal(globalThis.__stored.keeper, null, 'no data directory, no storage — and a plugin can say so');
+    });
+  } finally {
+    delete globalThis.__stored;
+    await rm(data, { recursive: true, force: true });
+  }
 });
 
 test('registering after being switched off is refused, not silently live', async () => {

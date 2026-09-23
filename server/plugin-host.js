@@ -53,13 +53,14 @@
  * authors in docs/PLUGINS.md.
  */
 
-import { readFile, readdir } from 'node:fs/promises';
+import { mkdir, readFile, readdir } from 'node:fs/promises';
 import { join, extname, relative, isAbsolute, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { API_VERSION, BUILTINS, createRegistry, routeBase, validateManifest } from '../src/core/plugins.js';
 import { changedPluginSettings } from '../src/core/settings.js';
 import { POINTS, createContributions, createServices } from '../src/core/contributions.js';
+import { safeDeviceKey, writeJsonAtomic } from './storage.js';
 
 /**
  * What a plugin's folder may serve to the page, by extension. Nothing else is.
@@ -173,6 +174,7 @@ class Scope {
  * @param {(addr: string, port: number) => {host, port}|null} [o.splitAddress]
  *        the app's one opinion about what a host:port looks like — `splitDevice`
  * @param {string|null} [o.userDir]  where user plugins are, `<data dir>/plugins`; null for none
+ * @param {string|null} [o.dataDir]  the app's data directory, for `ctx.storage`; null for none
  * @param {(msg: string) => void} [o.log]
  */
 export async function createPluginHost({
@@ -181,6 +183,7 @@ export async function createPluginHost({
   manifests = BUILTINS,
   dirOf = (m) => join(root, 'plugins', m.id),
   userDir = null,
+  dataDir = null,
   device = () => null,
   awj = null,
   splitAddress = () => null,
@@ -329,6 +332,48 @@ export async function createPluginHost({
    * deliberately no handle on the HTTP server itself: a plugin that could add
    * its own listener could also leave it behind.
    */
+  /**
+   * Where a plugin keeps data of its own: JSON documents, by name, for this
+   * installation or for the switcher it points at now.
+   *
+   * A built-in's land where the app has always kept them — `names-<switcher>.json`
+   * beside the cue stacks — so moving a feature into a plugin moves nothing on
+   * disk, an older build still reads the files, and the one-file setup finds
+   * them where it always did. A user plugin's go in
+   * `<data dir>/plugin-data/<id>/`: a folder of its own, and deliberately not
+   * its code folder, because everything web-typed in that one is served to the
+   * page and a plugin's data is not the page's business.
+   *
+   * A document that is missing or will not parse loads as null, on the cue
+   * stack's reasoning: an operator can rebuild a list faster than they can
+   * debug an app that will not start mid-show.
+   */
+  function storageFor(r) {
+    if (!dataDir) return null;
+    const dir = r.user ? join(dataDir, 'plugin-data', r.id) : dataDir;
+    const file = (name, perDevice) => {
+      if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(name)) {
+        throw new Error(`${r.id}: a stored document is named in lower-case letters, digits and dashes, not ${JSON.stringify(name)}`);
+      }
+      /* The app's own two files sit in the same folder as a built-in's. */
+      if (!r.user && !perDevice && (name === 'settings' || name === 'device')) {
+        throw new Error(`${r.id}: "${name}" is the app's own file`);
+      }
+      return join(dir, perDevice ? `${name}-${safeDeviceKey(device())}.json` : `${name}.json`);
+    };
+    return Object.freeze({
+      async load(name, { perDevice = false } = {}) {
+        const where = file(name, perDevice);
+        try { return JSON.parse(await readFile(where, 'utf8')); } catch { return null; }
+      },
+      async save(name, data, { perDevice = false } = {}) {
+        const where = file(name, perDevice);
+        await mkdir(dir, { recursive: true });
+        await writeJsonAtomic(where, data);
+      }
+    });
+  }
+
   function makeContext(r, scope) {
     const plog = pluginLog(r);
     const guard = (what) => {
@@ -349,6 +394,14 @@ export async function createPluginHost({
 
       /** The switcher this app is pointed at now, `host:port`, or null. Read it per use: it changes. */
       device: () => device(),
+
+      /**
+       * This plugin's own documents: `load(name, { perDevice })` and
+       * `save(name, data, { perDevice })`, JSON in and out. `perDevice` keys
+       * one by the switcher the app points at now — a cue list is written
+       * against one box. Null when the app has nowhere to keep anything.
+       */
+      storage: storageFor(r),
 
       /** Where one of this plugin's routes is, as a page would ask for it: `ctx.url('/state')`. */
       url: (p = '/') => `${ns}${r.base}${p === '/' ? '' : path(p, 'url')}`,

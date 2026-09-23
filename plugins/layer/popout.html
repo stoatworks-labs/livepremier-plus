@@ -23,8 +23,22 @@
 </head>
 <body>
 <script type="module">
-  import { mountPropertiesPopout } from '/__lpp/src/ui/popout.js';
-  mountPropertiesPopout({ doc: document, opener: window.opener });
+  import { bootPopout, buildSolo } from '/__lpp/src/ui/popout.js';
+  import { createPropertiesPanel } from '/__lpp/src/ui/properties-panel.js';
+  bootPopout({
+    doc: document,
+    opener: window.opener,
+    build: ({ doc, bridge }) => buildSolo(doc, bridge, (opts) => {
+      /* The names live in the Web RCS tab, offered there as a service. */
+      const namer = () => (bridge.services ? bridge.services.use('names') : null);
+      return createPropertiesPanel({
+        ...opts,
+        names: () => (namer() ? namer().get() : {}),
+        onRename: (...a) => { const n = namer(); if (n) n.rename(...a); },
+        canRename: () => Boolean(namer())
+      });
+    })
+  });
 </script>
 </body>
 </html>

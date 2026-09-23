@@ -50,8 +50,8 @@
  * gets no name, because a name against the wrong screen is worse than none.
  */
 
-import { h } from './dom.js';
-import { nameOf } from '../core/layer-names.js';
+import { h } from '../../src/ui/dom.js';
+import { nameOf } from '../../src/core/layer-names.js';
 
 /** Ours, so a re-render cannot end up with two and so `stop()` can find them. */
 const MARK = 'data-lpp-layer-name';

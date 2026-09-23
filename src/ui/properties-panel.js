@@ -42,11 +42,17 @@ const OPEN_BY_DEFAULT = new Set(['source', 'position', 'opacity']);
 
 /**
  * @param {{session: object, onRefresh: Function, popoutEnabled?: boolean,
- *          doc?: Document}} opts
+ *          popoutUrl?: string|null, doc?: Document, names?: Function,
+ *          onRename?: Function|null, canRename?: Function,
+ *          buffers?: string[]|null, roles?: boolean}} opts
+ *        `popoutUrl` is the window a Pop out button opens — the Layer plugin's
+ *        `popout.html`; without one there is no button. `canRename` is asked
+ *        per render, because the names can arrive after the panel is built.
  */
 export function createPropertiesPanel({
-  session, onRefresh = () => {}, popoutEnabled = true, doc = document,
-  names = () => ({}), onRename = null, buffers = null, roles = true
+  session, onRefresh = () => {}, popoutEnabled = true, popoutUrl = null, doc = document,
+  names = () => ({}), onRename = null, canRename = () => Boolean(onRename),
+  buffers = null, roles = true
 } = {}) {
   /*
    * Rebuilt per render rather than once: the catalogue is the platform's, and
@@ -140,7 +146,7 @@ export function createPropertiesPanel({
   let child = null;
   function popOut() {
     if (child && !child.closed) { child.focus(); return; }
-    child = window.open('/__lpp/properties', 'lpp-properties',
+    child = window.open(popoutUrl, 'lpp-properties',
       'width=1000,height=880,menubar=no,toolbar=no,location=no');
     if (!child) note('warn', 'the browser blocked the window — allow pop-ups for this address');
   }
@@ -171,7 +177,7 @@ export function createPropertiesPanel({
         namePicker(dest, target && target.layer)),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small lpp-controls aw-flex-wrap' },
         bufferChips(target),
-        popoutEnabled
+        popoutEnabled && popoutUrl
           ? button('Pop out', {
             iconId: 'set-layer-to-fullscreen-18',
             title: 'Open the layer properties in their own window',
@@ -207,7 +213,7 @@ export function createPropertiesPanel({
    * mid-take is harmless where a property write would not be.
    */
   function namePicker(dest, layer) {
-    if (!onRename || !dest || layer == null) return null;
+    if (!onRename || !canRename() || !dest || layer == null) return null;
     const current = nameOf(names(), dest.id, layer) || '';
     const editing = view.naming && view.naming.id === dest.id && view.naming.layer === layer;
     return h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini' },

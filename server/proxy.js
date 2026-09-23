@@ -176,18 +176,16 @@ export async function createProxy({
   const setupPage = await readFile(join(root, 'server/setup.html'), 'utf8');
 
   /*
-   * The popped-out timeline editor and layer properties. Documents of ours
-   * rather than proxied ones, so they are served from here and not fetched
-   * from the switcher — but they must be on this origin, because they drive
-   * the Web RCS tab's own session through `window.opener`, and that only
-   * works same-origin. Each is one route and one document; what makes them
-   * worth having separately is that an operator puts different ones on
-   * different monitors. The Console's and Memories' are in their plugins'
-   * folders, served by the plugin host on the same terms.
+   * The popped-out timeline editor. A document of ours rather than a proxied
+   * one, so it is served from here and not fetched from the switcher — but it
+   * must be on this origin, because it drives the Web RCS tab's own session
+   * through `window.opener`, and that only works same-origin. The Console's,
+   * Memories' and Layer's are in their plugins' folders, served by the plugin
+   * host on the same terms; what makes them worth having separately is that
+   * an operator puts different ones on different monitors.
    */
   const popoutPages = {
-    '/timeline': await readFile(join(root, 'server/timeline.html'), 'utf8'),
-    '/properties': await readFile(join(root, 'server/properties.html'), 'utf8')
+    '/timeline': await readFile(join(root, 'server/timeline.html'), 'utf8')
   };
 
   /*
@@ -214,6 +212,7 @@ export async function createProxy({
     root,
     ns: NS,
     userDir: pluginDir,
+    dataDir: storage && storage.dir ? storage.dir : null,
     /* Read per use, never captured: the switcher can be re-pointed. */
     device: () => state.device,
     awj: (messages) => (target
@@ -851,37 +850,6 @@ export async function createProxy({
         try { parsed = JSON.parse(body.toString('utf8')); }
         catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
         await storage.saveGroups(state.device, parsed && parsed.data !== undefined ? parsed.data : parsed);
-        return sendJson(res, 200, { ok: true });
-      }
-      return sendJson(res, 405, { error: 'method not allowed' });
-    }
-
-    /*
-     * Layer names.
-     *
-     * ⚠️ This route is the **only** way anything outside this browser tab can
-     * see a layer name, because the switcher has no field for one — see
-     * `src/core/layer-names.js`. A Companion module, a second operator's
-     * dashboard or a script reads it from here or not at all, and everything
-     * that does gains a dependency on this app being up. That is a real cost
-     * and it was chosen deliberately over the alternative, which was for the
-     * names not to exist.
-     *
-     * GET is deliberately unauthenticated like every other route here; the
-     * proxy is loopback by default and the note in `server/index.js` about
-     * binding it wider applies to this as much as to the rest.
-     */
-    if (rest === '/layer-names') {
-      if (!storage || !storage.loadNames) return sendJson(res, 501, { error: 'no storage configured' });
-      if (req.method === 'GET') {
-        return sendJson(res, 200, { data: await storage.loadNames(state.device) });
-      }
-      if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await collect(req, 256 * 1024);
-        let parsed;
-        try { parsed = JSON.parse(body.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-        await storage.saveNames(state.device, parsed && parsed.data !== undefined ? parsed.data : parsed);
         return sendJson(res, 200, { ok: true });
       }
       return sendJson(res, 405, { error: 'method not allowed' });

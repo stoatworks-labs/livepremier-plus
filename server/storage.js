@@ -14,6 +14,31 @@
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
+/**
+ * A device address as it appears in a filename: `names-10_0_0_5_80.json`.
+ *
+ * Dots are excluded along with everything else outside the allowlist, so no
+ * key can produce a name containing `..` — the filename stays obviously inert
+ * rather than merely being safe by argument. The plugin host keys a plugin's
+ * per-switcher documents with this too, so a built-in that moved into a
+ * plugin still reads and writes the file it always had.
+ */
+export function safeDeviceKey(deviceKey) {
+  return String(deviceKey).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120) || 'default';
+}
+
+/**
+ * Write JSON so that a reader sees the old document or the new one, never
+ * half of one: to a temporary file, renamed into place. A show laptop gets
+ * closed abruptly, and a half-written stack that still parsed would be worse
+ * than none.
+ */
+export async function writeJsonAtomic(file, data) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+  await rename(tmp, file);
+}
+
 export class StackStore {
   /** @param {string} dir directory to keep stacks in; created on demand. */
   constructor(dir) {
@@ -112,10 +137,7 @@ export class StackStore {
   }
 
   _safe(deviceKey) {
-    /* Dots are excluded along with everything else outside the allowlist, so
-       no key can produce a name containing `..` — the filename stays obviously
-       inert rather than merely being safe by argument. */
-    return String(deviceKey).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120) || 'default';
+    return safeDeviceKey(deviceKey);
   }
 
   async _writeAtomic(name, data) {

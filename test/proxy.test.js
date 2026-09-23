@@ -267,6 +267,33 @@ test('layer groups round-trip, in a file of their own', async () => {
   }
 });
 
+test('layer names round-trip through their plugin, in the file they always had', async () => {
+  /* The names moved into `plugins/layer-names/`; the address, the `{ data }`
+     shape and the file on disk did not — a Companion module reads the first
+     two, and the one-file setup and an older build read the third. */
+  const dir = await mkdtemp(join(tmpdir(), 'lpp-'));
+  try {
+    const store = new StackStore(dir);
+    await withProxy({ storage: store }, async ({ base }) => {
+      assert.equal((await (await fetch(`${base}${NS}/layer-names`)).json()).data, null);
+      const names = { version: 1, names: { 'S1/2': 'IMAG' } };
+      const put = await fetch(`${base}${NS}/layer-names`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: names })
+      });
+      assert.equal(put.status, 200);
+      assert.deepEqual((await (await fetch(`${base}${NS}/layer-names`)).json()).data, names);
+      const device = (await (await fetch(`${base}${NS}/status`)).json()).device;
+      assert.deepEqual(await store.loadNames(device), names, 'where the setup file and an older build look');
+
+      const empty = await fetch(`${base}${NS}/layer-names`, { method: 'PUT', body: '' });
+      assert.equal(empty.status, 400, 'an empty body is refused, not saved over every name');
+      assert.equal((await fetch(`${base}${NS}/layer-names`, { method: 'DELETE' })).status, 405);
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('a corrupt stack file reads as absent rather than throwing', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'lpp-'));
   try {
@@ -577,7 +604,7 @@ test('every popout route is served by us, before a switcher is chosen', async ()
   const proxy = await createProxy({ device: null, root: ROOT, log: () => {} });
   const port = await listen(proxy);
   try {
-    for (const route of ['/timeline', '/properties', '/plugins/memories/popout.html', '/plugins/console/popout.html']) {
+    for (const route of ['/timeline', '/plugins/layer/popout.html', '/plugins/memories/popout.html', '/plugins/console/popout.html']) {
       const res = await fetch(`http://127.0.0.1:${port}${NS}${route}`);
       assert.equal(res.status, 200, `${route} is served`);
       assert.match(res.headers.get('content-type'), /text\/html/);

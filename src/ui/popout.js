@@ -39,7 +39,6 @@ import { h, button } from './dom.js';
 import { installStyles } from './theme.js';
 import { repaint, trackFields } from './keep-focus.js';
 import { buildTimelineEditor } from './timeline-editor.js';
-import { createPropertiesPanel } from './properties-panel.js';
 
 const SPRITE_ID = '__SVG_SPRITE_NODE__';
 
@@ -132,17 +131,6 @@ export function bootPopout({ doc = document, opener = window.opener, build }) {
  */
 export function mountTimelinePopout({ doc = document, opener = window.opener } = {}) {
   return bootPopout({ doc, opener, build: ({ bridge }) => buildTimelineEditor(doc, bridge) });
-}
-
-/**
- * Build the layer-properties popout.
- *
- * @param {{doc: Document, opener: Window}} opts
- */
-export function mountPropertiesPopout({ doc = document, opener = window.opener } = {}) {
-  return bootPopout({
-    doc, opener, build: ({ bridge }) => buildSolo(doc, bridge, createPropertiesPanel)
-  });
 }
 
 /**

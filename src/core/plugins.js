@@ -112,14 +112,17 @@ export const BUILTINS = [
     name: 'Layer',
     where: 'Screens / Aux., beside Properties',
     description: 'Every property of a named layer, generated from the device’s own parameter catalogue.',
-    requires: { capabilities: ['layerProperties'] }
+    requires: { capabilities: ['layerProperties'] },
+    client: 'client.js'
   },
   {
     id: 'layer-names',
     name: 'Layer names',
     where: 'The Layer tab, and every layer list',
     description: 'Name a layer and the name shows in the vendor’s own lists — the switcher has nowhere to keep one.',
-    requires: { capabilities: ['layerGroups'] }
+    requires: { capabilities: ['layerGroups'] },
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'layer-groups',
@@ -325,9 +328,7 @@ const ROUTES = [
   ['/stack', 'timeline'],
   ['/timeline', 'timeline'],
   ['/groups', 'layer-groups'],
-  ['/layer-names', 'layer-names'],
   ['/config', 'setup-file'],
-  ['/properties', 'layer'],
   ...BUILTINS.filter((p) => p.hosted).map((p) => [routeBase(p), p.id])
 ].sort((a, b) => b[0].length - a[0].length);
 

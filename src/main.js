@@ -26,9 +26,7 @@ import { createEditPanel } from './ui/edit-panel.js';
 import { createProgrammer, EDIT } from './core/programmer.js';
 import { composeMemory, saveViaPreview, applyLook, lookFromMemory } from './core/save-look.js';
 import { fromMemory } from './core/preset-file.js';
-import { installLayerLabels } from './ui/layer-labels.js';
 import { installRouterSurfaces } from './ui/router-box.js';
-import { normalise as normaliseNames, withName } from './core/layer-names.js';
 import { installSendTo } from './ui/send-to.js';
 import { createGang } from './core/groups.js';
 import { detectPlatform, supports } from './core/platform.js';
@@ -284,7 +282,6 @@ async function boot() {
   /* Declared here rather than at their construction so `refresh` can close
      over them: the panels are built further down, and a `const` referenced
      before its declaration runs is a ReferenceError, not an undefined. */
-  let properties = null;
   let groups = null;
   let edit = null;
   let editProps = null;
@@ -292,7 +289,7 @@ async function boot() {
   let hosted = null;
   let settingsPage = null;
   const editing = () =>
-    [properties, groups, edit, editProps, settingsPage].some((p) => p && p.busy && p.busy())
+    [groups, edit, editProps, settingsPage].some((p) => p && p.busy && p.busy())
     || Boolean(hosted && hosted.busy());
   const refresh = throttleFrame(() => {
     if (editing()) return;
@@ -345,16 +342,14 @@ async function boot() {
   });
   settingsPage = settings;
   /*
-   * The Layer panel, rebuilt so it can leave the window: Web RCS's own
-   * Properties pane is React, and a React pane cannot be relocated — its
-   * listeners are delegated to the app's root container, so a copy moved into
-   * a second window paints and does nothing. This reads the mirror instead,
-   * as Memories does (`plugins/memories/`). See `ui/properties-panel.js`.
+   * Layer names come from their plugin, `plugins/layer-names/`, as the
+   * `names` service — asked for per use, because the plugins load after the
+   * panels here are built. With it off, every surface shows plain layer
+   * numbers and nothing offers a rename.
    */
-  properties = createPropertiesPanel({
-    session, onRefresh: refresh, names: () => names(),
-    onRename: on('layer-names') ? (...a) => rename(...a) : null
-  });
+  const namer = () => (hosted ? hosted.use('names') : null);
+  const names = () => { const n = namer(); return n ? n.get() : {}; };
+  const rename = (...a) => { const n = namer(); if (n) n.rename(...a); };
   /*
    * Layer groups, and the two things that read them.
    *
@@ -382,8 +377,9 @@ async function boot() {
     session: programmer,
     onRefresh: refresh,
     popoutEnabled: false,
-    names: () => names(),
-    onRename: on('layer-names') ? (...a) => rename(...a) : null,
+    names,
+    onRename: rename,
+    canRename: () => Boolean(namer()),
     /* The programmer's buffer is the only one this panel offers, and the
        roles are off with it: EDIT is on neither bus and never can be. */
     buffers: [EDIT],
@@ -399,26 +395,6 @@ async function boot() {
     onLoad: (req) => loadLook(programmer, req)
   });
   programmer.addEventListener('changed', refresh);
-
-  /*
-   * Layer names.
-   *
-   * A flat `{ 'S1/2': 'IMAG' }` map held here rather than inside a panel,
-   * because four surfaces read it — the Layer panel that edits it, the groups
-   * panel, the `…` menu, and `ui/layer-labels.js` writing into the vendor's
-   * own lists — and a copy per surface is a copy that goes stale the moment
-   * somebody renames. See `core/layer-names.js` for why the device cannot
-   * hold these itself.
-   */
-  const namesStorage = makeStorage('/__lpp/layer-names');
-  let layerNames = {};
-  const names = () => layerNames;
-  const rename = (id, layer, value) => {
-    layerNames = withName(layerNames, id, layer, value);
-    namesStorage.save({ version: 1, names: layerNames });
-    labels.refresh();
-    refresh();
-  };
 
   /*
    * The plugins' page halves.
@@ -449,18 +425,7 @@ async function boot() {
          actually is rather than a truncation, because "Time" reads as neither
          one thing nor the other. */
       { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', order: 20, enabled: () => can('cueStack') && on('timeline'), render: () => timeline.render() },
-      /*
-       * "Layer" and not "Properties": the vendor's own Properties tab is two
-       * along in the same strip, and two tabs with one name is a worse problem
-       * than a name that is only most of the truth. It is also the honest
-       * difference between them — theirs follows the layer you have clicked,
-       * which is React state we cannot read, so ours makes you name one.
-       *
-       * There is deliberately no tab for the memory banks. They are a
-       * whole-device view — 1000 screen slots and 500 master ones are not
-       * per-screen — so they sit in the sidebar beside the VPU map instead.
-       */
-      { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', order: 30, enabled: () => can('layerProperties') && on('layer'), render: () => properties.render() },
+      /* Layer comes here, at 30 — from its plugin, `plugins/layer/`. */
       /*
        * Layer Groups is on the strip *as well as* in the sidebar, which no
        * other panel is.
@@ -525,16 +490,6 @@ async function boot() {
     console.info(TAG, 'session', ev.detail.state, ev.detail.error || '');
     refresh();
   });
-  /*
-   * Names into the vendor's own layer lists.
-   *
-   * ⚠️ The most fragile thing in the app — it writes into the middle of Web
-   * RCS's own markup rather than owning its own — and the only way a layer
-   * name appears anywhere an operator is already looking. `ui/layer-labels.js`
-   * says what it matches and why, and reports what it is managing to label so
-   * a firmware that moves a list shows up as a number rather than as silence.
-   */
-  const labels = installLayerLabels({ names, enabled: () => can('layerGroups') && on('layer-names') });
   /*
    * A Router tab on the vendor's own input and output pages, and a Router box
    * in Preconfig ▸ Inputs / Outputs: one socket's slice of the matrix panel,
@@ -614,8 +569,6 @@ async function boot() {
    * is the same answer the sidebar entry gives.
    */
   await groups.load();
-  layerNames = normaliseNames(await namesStorage.load()).names;
-  labels.refresh();
   const sendTo = installSendTo({
     session,
     groups,
@@ -634,7 +587,7 @@ async function boot() {
   });
 
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels, routerBoxes, plugins: hosted, contributions: listContributions, services };
+  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels: { describe: () => (namer() ? namer().describe() : null) }, routerBoxes, plugins: hosted, contributions: listContributions, services };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));
