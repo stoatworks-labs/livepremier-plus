@@ -39,7 +39,10 @@
 import { h, button, sectionTitle } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
 import { readAllConnectors, describeConnector } from '../../src/core/connectors.js';
-import { MATRIX_KINDS, entryConnectorId, currentFor } from '../../src/core/patch.js';
+import {
+  MATRIX_KINDS, LIVE_KINDS, entryConnectorId, currentFor, planCrosspoints
+} from '../../src/core/patch.js';
+import { LIBRARY, CUSTOM, libraryModel, libraryByVendor } from './library.js';
 
 const API = '/__lpp/matrix';
 
@@ -56,6 +59,7 @@ export function createMatrixPanel({ session, onRefresh }) {
      typing. */
   const draft = { matrix: blankMatrix(), addConnector: '', addMatrix: '', addPort: '' };
   const routeDraft = {};      /* connector id -> what is typed in its row */
+  const goLive = {};          /* router id -> {kind, host, port} while its form is open */
   let busy = null;            /* connector id or 'patch' while a POST is out */
 
   async function load() {
@@ -183,8 +187,10 @@ export function createMatrixPanel({ session, onRefresh }) {
     return h('div', { class: 'aw-flex-row aw-gap-column-small' },
       ...list.map((m) => h('span', {
         class: `wru-tag ${m.status === 'connected' ? 'wru-tag--good' : ''}`,
-        title: `${m.host}:${m.port} — ${m.status}${m.error ? ` (${m.error})` : ''}`,
-        text: `${m.name} ${statusGlyph(m.status)}`,
+        title: m.placeholder
+          ? 'A placeholder — no hardware yet'
+          : `${m.host}:${m.port} — ${m.status}${m.error ? ` (${m.error})` : ''}`,
+        text: `${m.name} ${m.placeholder ? '◇' : statusGlyph(m.status)}`,
       })));
   }
 
@@ -199,22 +205,31 @@ export function createMatrixPanel({ session, onRefresh }) {
 
   function routersSection() {
     const list = (data && data.matrices) || [];
-    const rows = list.map((m) => h('tr', {},
-      h('td', { text: m.name }),
-      h('td', { text: kindLabel(m.kind) + (m.protocol ? ` (${m.protocol.toUpperCase()})` : '') }),
-      h('td', { text: `${m.host}:${m.port}` }),
-      h('td', {},
-        h('span', {
-          class: `wru-tag ${m.status === 'connected' ? 'wru-tag--good' : ''}`,
-          text: m.status,
-        })),
-      h('td', { text: m.state ? `${m.state.inputs} × ${m.state.outputs}` : '—' }),
-      h('td', { text: m.state?.model || m.error || '' }),
-      h('td', {}, button('Remove', {
-        variant: 'danger',
-        disabled: busy === 'matrices',
-        onClick: () => saveMatrices(list.filter((x) => x.id !== m.id).map(toConfig)),
-      }))));
+    const rows = [];
+    for (const m of list) {
+      rows.push(h('tr', {},
+        h('td', { text: m.name }),
+        h('td', { text: m.placeholder
+          ? `Placeholder — ${m.planning?.modelLabel || 'custom'}`
+          : kindLabel(m.kind) + (m.protocol ? ` (${m.protocol.toUpperCase()})` : '') }),
+        h('td', { text: m.placeholder ? '—' : `${m.host}:${m.port}` }),
+        h('td', {},
+          h('span', {
+            class: `wru-tag ${m.status === 'connected' && !m.placeholder ? 'wru-tag--good' : ''}`,
+            title: m.placeholder ? 'No hardware: routes are held here, as the plan' : null,
+            text: m.placeholder ? 'placeholder' : m.status,
+          })),
+        h('td', { text: m.state ? `${m.state.inputs} × ${m.state.outputs}` : '—' }),
+        h('td', {}, reportsCell(m)),
+        h('td', {}, h('div', { class: 'aw-flex-row aw-gap-column-small' },
+          ...routerActions(m, list),
+          button('Remove', {
+            variant: 'danger',
+            disabled: busy === 'matrices',
+            onClick: () => saveMatrices(list.filter((x) => x.id !== m.id).map(toConfig)),
+          })))));
+      if (goLive[m.id]) rows.push(goLiveRow(m, list));
+    }
 
     return h('div', { class: 'aw-flex-col aw-gap-row-small' },
       h('div', { class: 'aw-font-caption aw-text-tertiary', text: 'Routers' }),
@@ -229,6 +244,122 @@ export function createMatrixPanel({ session, onRefresh }) {
             text: data ? 'No routers configured yet.' : 'Asking the launcher…',
           }),
       addMatrixForm(list));
+  }
+
+  /**
+   * What the router reports — and, for one that was planned as a
+   * placeholder, whether the frame that turned up is the size the show was
+   * built on. A plan for a 40×40 on a 20×20 is half a show.
+   */
+  function reportsCell(m) {
+    const said = m.placeholder ? '' : (m.state?.model || m.error || '');
+    const p = m.planning;
+    if (m.placeholder || !m.state || !p || !p.inputs) return h('span', { text: said });
+    if (m.state.inputs >= p.inputs && m.state.outputs >= p.outputs) return h('span', { text: said });
+    return h('span', {},
+      said ? h('span', { text: `${said} · ` }) : null,
+      h('span', {
+        class: 'wru-warn',
+        text: `planned as ${p.modelLabel || `${p.inputs} × ${p.outputs}`} (${p.inputs} × ${p.outputs})`,
+      }));
+  }
+
+  /** Go live on a placeholder; push or drop the plan on a router that went live. */
+  function routerActions(m, list) {
+    if (m.placeholder) {
+      return [button(goLive[m.id] ? 'Cancel' : 'Go live…', {
+        disabled: busy === 'matrices',
+        onClick: () => {
+          if (goLive[m.id]) delete goLive[m.id];
+          else {
+            const kind = libraryModel(m.planning?.model)?.kind ?? 'videohub';
+            goLive[m.id] = { kind, host: '', port: String(defaultPortOf(kind)), portTouched: false };
+          }
+          onRefresh && onRefresh();
+        },
+      })];
+    }
+    const plan = m.planning?.plan;
+    if (!plan) return [];
+    const count = Object.keys(plan).length;
+    const out = [];
+    if (m.state) {
+      const { crosspoints, outOfRange } = planCrosspoints(m.id, plan, m.state);
+      const label = crosspoints.length ? `Push plan (${crosspoints.length})`
+        : outOfRange.length ? `Plan: ${outOfRange.length} won't fit` : 'Plan matches';
+      out.push(button(label, {
+        variant: 'go',
+        title: `${count} planned routes; ${crosspoints.length} differ from what ${m.name} reports now`
+          + (outOfRange.length ? `; ${outOfRange.length} are past its size and cannot be sent` : ''),
+        disabled: busy === m.id || !crosspoints.length,
+        onClick: () => pushPlan(m),
+      }));
+    }
+    out.push(button('Discard plan', {
+      disabled: busy === m.id,
+      title: 'Forget the routing this router held as a placeholder',
+      onClick: () => post('/plan/discard', { matrix: m.id }, m.id),
+    }));
+    return out;
+  }
+
+  async function pushPlan(m) {
+    const reply = await post('/plan/push', { matrix: m.id }, m.id);
+    if (reply && reply.outOfRange && reply.outOfRange.length) {
+      error = `${m.name}: ${reply.outOfRange.length} planned route(s) are past the size it reports and were not sent — `
+        + reply.outOfRange.map((r) => `out ${r.output} ← in ${r.input}`).join(', ');
+      onRefresh && onRefresh();
+    }
+  }
+
+  /**
+   * Turning a placeholder into the real router. Same id, so the patch — which
+   * names routers by id — carries over untouched, and the routing it held
+   * comes along as the plan.
+   */
+  function goLiveRow(m, list) {
+    const form = goLive[m.id];
+    const kindSelect = h('select', {
+      class: 'wru-select',
+      onChange: (ev) => {
+        form.kind = ev.target.value;
+        if (!form.portTouched) form.port = String(defaultPortOf(form.kind));
+        onRefresh && onRefresh();
+      },
+    }, ...LIVE_KINDS.map((k) => h('option', {
+      value: k.id, selected: k.id === form.kind ? 'selected' : null,
+    }, k.label)));
+    return h('tr', {}, h('td', { colspan: '7' },
+      h('div', { class: 'aw-flex-row aw-gap-column-small aw-align-items-end' },
+        field('Protocol', kindSelect),
+        field('Address', h('input', {
+          class: 'wru-input', value: form.host, placeholder: '192.168.1.60',
+          onInput: (ev) => { form.host = ev.target.value; },
+        })),
+        field('Port', h('input', {
+          class: 'wru-input wru-input--narrow', value: form.port,
+          onInput: (ev) => { form.port = ev.target.value; form.portTouched = true; },
+        })),
+        button('Connect', {
+          variant: 'go',
+          disabled: busy === 'matrices',
+          onClick: () => {
+            if (!form.host.trim()) {
+              error = `Give ${m.name}'s address on the network.`;
+              return onRefresh && onRefresh();
+            }
+            const next = list.map((x) => (x.id === m.id
+              ? { ...toConfig(x), kind: form.kind, host: form.host.trim(), port: Number(form.port) }
+              : toConfig(x)));
+            delete goLive[m.id];
+            saveMatrices(next);
+          },
+        })),
+      h('div', {
+        class: 'aw-font-caption aw-text-tertiary',
+        text: 'The patch stays as it is. The routing this placeholder holds becomes its plan: '
+          + 'nothing is sent to the real router until you press Push plan.',
+      })));
   }
 
   function addMatrixForm(list) {
@@ -247,6 +378,37 @@ export function createMatrixPanel({ session, onRefresh }) {
     }, k.label)));
 
     const chosen = MATRIX_KINDS.find((k) => k.id === draft.matrix.kind);
+    const placeholder = draft.matrix.kind === 'placeholder';
+
+    const modelSelect = h('select', {
+      class: 'wru-select',
+      onChange: (ev) => { draft.matrix.model = ev.target.value; onRefresh && onRefresh(); },
+    }, ...libraryByVendor().map(([vendor, models]) => h('optgroup', { label: vendor },
+      ...models.map((m) => h('option', {
+        value: m.id, selected: m.id === draft.matrix.model ? 'selected' : null,
+      }, m.label)))),
+    h('option', { value: CUSTOM.id, selected: draft.matrix.model === CUSTOM.id ? 'selected' : null },
+      CUSTOM.label));
+    const custom = draft.matrix.model === CUSTOM.id;
+    const where = placeholder
+      ? [field('Model', modelSelect),
+         ...(custom ? [
+           field('Inputs', h('input', {
+             class: 'wru-input wru-input--narrow', value: draft.matrix.inputs, placeholder: '16',
+             onInput: (ev) => { draft.matrix.inputs = ev.target.value; },
+           })),
+           field('Outputs', h('input', {
+             class: 'wru-input wru-input--narrow', value: draft.matrix.outputs, placeholder: '16',
+             onInput: (ev) => { draft.matrix.outputs = ev.target.value; },
+           }))] : [])]
+      : [field('Address', h('input', {
+          class: 'wru-input', value: draft.matrix.host, placeholder: '192.168.1.60',
+          onInput: (ev) => { draft.matrix.host = ev.target.value; },
+        })),
+        field('Port', h('input', {
+          class: 'wru-input wru-input--narrow', value: draft.matrix.port,
+          onInput: (ev) => { draft.matrix.port = ev.target.value; draft.matrix.portTouched = true; },
+        }))];
 
     return h('div', { class: 'aw-flex-col aw-gap-row-small' },
       h('div', { class: 'aw-flex-row aw-gap-column-small aw-align-items-end' },
@@ -255,14 +417,7 @@ export function createMatrixPanel({ session, onRefresh }) {
           onInput: (ev) => { draft.matrix.name = ev.target.value; },
         })),
         field('Protocol', kindSelect),
-        field('Address', h('input', {
-          class: 'wru-input', value: draft.matrix.host, placeholder: '192.168.1.60',
-          onInput: (ev) => { draft.matrix.host = ev.target.value; },
-        })),
-        field('Port', h('input', {
-          class: 'wru-input wru-input--narrow', value: draft.matrix.port,
-          onInput: (ev) => { draft.matrix.port = ev.target.value; draft.matrix.portTouched = true; },
-        })),
+        ...where,
         /*
          * Validated on the click, not by being disabled.
          *
@@ -279,6 +434,12 @@ export function createMatrixPanel({ session, onRefresh }) {
           variant: 'go',
           disabled: busy === 'matrices',
           onClick: () => {
+            if (placeholder) {
+              const made = placeholderConfig(draft.matrix);
+              if (typeof made === 'string') { error = made; return onRefresh && onRefresh(); }
+              draft.matrix = blankMatrix();
+              return saveMatrices([...list.map(toConfig), made]);
+            }
             if (!draft.matrix.name.trim() || !draft.matrix.host.trim()) {
               error = 'A router needs a name and an address.';
               return onRefresh && onRefresh();
@@ -484,7 +645,30 @@ export function createMatrixPanel({ session, onRefresh }) {
 
 /* ------------------------------------------------------------------ */
 
-const blankMatrix = () => ({ name: '', kind: 'videohub', host: '', port: '9990', portTouched: false });
+const blankMatrix = () => ({
+  name: '', kind: 'videohub', host: '', port: '9990', portTouched: false,
+  model: LIBRARY[0].id, inputs: '', outputs: '',
+});
+
+const defaultPortOf = (kind) => MATRIX_KINDS.find((k) => k.id === kind)?.defaultPort ?? 0;
+
+/** A new placeholder's configuration, or why it cannot be made. */
+export function placeholderConfig(draft) {
+  const name = draft.name.trim();
+  if (!name) return 'A router needs a name.';
+  const model = libraryModel(draft.model);
+  const inputs = model ? model.inputs : Number(draft.inputs);
+  const outputs = model ? model.outputs : Number(draft.outputs);
+  if (!Number.isInteger(inputs) || inputs < 1 || !Number.isInteger(outputs) || outputs < 1) {
+    return 'A custom placeholder needs a number of inputs and outputs.';
+  }
+  return {
+    id: name, name, kind: 'placeholder', enabled: true,
+    model: model ? model.id : CUSTOM.id,
+    modelLabel: model ? model.label : `Custom ${inputs}×${outputs}`,
+    inputs, outputs,
+  };
+}
 
 const toConfig = (m) => ({
   id: m.id, name: m.name, kind: m.kind, host: m.host, port: m.port, enabled: m.enabled !== false,

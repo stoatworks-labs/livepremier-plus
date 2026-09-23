@@ -120,6 +120,49 @@ it to the silkscreen.
 
 ---
 
+## Before the hardware: placeholder routers
+
+A show can be patched, routed and cued in the simulator before anybody is
+standing next to the rack. Add a router with the protocol **Placeholder (no
+hardware)** and pick its model from the library — Blackmagic Videohubs,
+Lightware MX2 and MX-FR frames, the Turtle AV 8×8 — or **Custom size…** for
+anything else, including a modular frame fitted with fewer cards than it holds.
+
+A placeholder is **not an emulator**. It speaks no protocol and opens no
+socket: it is a router-shaped table of the right size, held by the launcher.
+Everything that routes treats it as a connected router — the panel, the Router
+tabs and boxes, cues, OSC, the Console — so the whole show can be built and
+rehearsed against it. It starts routed output N from input N, which is how a
+Videohub and an MX2 ship.
+
+**The plan** is the crosspoints you actually took on it — not the factory
+table, which would overwrite every output on the real frame, including the
+ones the show never touches. It is saved with the router in
+`matrices.json`, so it survives a restart and travels in the setup file.
+
+### Going live
+
+On the day, press **Go live…** on the placeholder's row, choose the protocol
+(it defaults to the one the model speaks), and give the address.
+
+- **The id stays the same**, so the patch — which names routers by id — carries
+  over without a single cable being re-entered.
+- **Nothing is sent on connect.** The real router's own routing is what the
+  grid shows, exactly as for any other router.
+- **Push plan (N)** sends only the planned crosspoints that differ from what
+  the router reports now. A planned port past the size it reports is **named
+  back and not sent**: a plan built on a 40×40 placeholder pushed to the 20×20
+  that turned up says which routes did not make it.
+- If the frame is smaller than the model the show was planned on, the Reports
+  column says so in amber until you notice.
+- **Discard plan** forgets it once it has been pushed or is not wanted.
+
+⚠️ The library's port counts are the vendors' published sizes, not something
+any of these frames told us. The real router reports its own size when it
+connects, and the patch is re-validated against that.
+
+---
+
 ## What is per device and what is not
 
 | | Where it lives | Why |
@@ -269,12 +312,14 @@ the top of each file for exactly that reason.
 | `src/core/patch.js` | The cable schedule, the two operations, the OSC address space. Pure. |
 | `plugins/matrix-routing/routers/driver.js` | What a driver is, and the TCP plumbing all three share. |
 | `plugins/matrix-routing/routers/{videohub,lightware,turtle}.js` | One protocol each. |
+| `plugins/matrix-routing/routers/placeholder.js` | A router with no hardware: a size and a routing table. |
+| `plugins/matrix-routing/library.js` | The placeholder models and their published sizes. |
 | `plugins/matrix-routing/routers/index.js` | The supervisor: one connection per router, kept up. |
 | `plugins/matrix-routing/server.js` | The plugin's server half: the routers, the patch per switcher, the routes at `/__lpp/matrix` and the `/lp/matrix/` OSC addresses. |
 | `plugins/matrix-routing/client.js` | The page half: the sidebar entry, the Router tabs and boxes, and the two cue actions. |
 | `plugins/matrix-routing/panel.js` | The panel. |
 | `plugins/matrix-routing/router-box.js` | The Router tab and box on the vendor's own input and output pages. |
-| `test/matrix.test.js` | 51 tests. What they can and cannot prove is in their header. |
+| `test/matrix.test.js` | 60 tests. What they can and cannot prove is in their header. |
 
 `core/` knows nothing about browsers or sockets and runs under plain Node,
 which is how the patch arithmetic is testable without a rack.

@@ -38,15 +38,26 @@ import { EventEmitter } from 'node:events';
 import { VideohubDriver } from './videohub.js';
 import { LightwareDriver } from './lightware.js';
 import { TurtleDriver } from './turtle.js';
+import { PlaceholderDriver } from './placeholder.js';
 
 const DRIVERS = {
   videohub: VideohubDriver,
   lightware: LightwareDriver,
   turtle: TurtleDriver,
+  placeholder: PlaceholderDriver,
 };
 
-/** What makes two configurations the same socket. A rename is not a reconnect. */
-const identity = (m) => `${m.kind}:${m.host}:${m.port}:${m.protocol ?? ''}`;
+/**
+ * What makes two configurations the same socket. A rename is not a reconnect.
+ *
+ * A placeholder has no socket; its identity is its size, so resizing one
+ * rebuilds it and renaming one does not. Its plan is deliberately not part of
+ * it — the plan is saved on every route, and rebuilding the driver each time
+ * would be rebuilding it from its own echo.
+ */
+const identity = (m) => (m.kind === 'placeholder'
+  ? `placeholder:${m.model ?? ''}:${m.inputs}x${m.outputs}`
+  : `${m.kind}:${m.host}:${m.port}:${m.protocol ?? ''}`);
 
 export class MatrixSupervisor extends EventEmitter {
   constructor({ log = () => {} } = {}) {
@@ -95,7 +106,9 @@ export class MatrixSupervisor extends EventEmitter {
       driver.on('change', () => this.emit('change', this.describe()));
       this.entries.set(config.id, { config, driver });
       driver.connect();
-      this.log(`matrix ${config.id} (${config.kind}) connecting to ${config.host}:${config.port}`);
+      this.log(config.kind === 'placeholder'
+        ? `matrix ${config.id} is a placeholder (${config.inputs}×${config.outputs})`
+        : `matrix ${config.id} (${config.kind}) connecting to ${config.host}:${config.port}`);
     }
 
     this.emit('change', this.describe());
@@ -118,6 +131,10 @@ export class MatrixSupervisor extends EventEmitter {
       host: config.host,
       port: config.port,
       protocol: config.protocol,
+      inputs: config.inputs,
+      outputs: config.outputs,
+      model: config.modelLabel,
+      plan: config.plan,
       log: this.log,
     });
   }
@@ -199,4 +216,4 @@ export class MatrixSupervisor extends EventEmitter {
   }
 }
 
-export { VideohubDriver, LightwareDriver, TurtleDriver };
+export { VideohubDriver, LightwareDriver, TurtleDriver, PlaceholderDriver };

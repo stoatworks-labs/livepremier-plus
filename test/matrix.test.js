@@ -39,13 +39,17 @@ import {
 import {
   normaliseMatrices, normalisePatch, validate, feed, send, currentFor,
   groupCrosspoints, entryForConnector, ROUTER_SIDE, resolveMatrixOsc, toPortList,
-  choicesFor, withEntry,
+  choicesFor, withEntry, normalisePlan, planCrosspoints,
 } from '../src/core/patch.js';
 import { connectorForPage } from '../plugins/matrix-routing/router-box.js';
 import { VideohubDriver } from '../plugins/matrix-routing/routers/videohub.js';
 import { LightwareDriver } from '../plugins/matrix-routing/routers/lightware.js';
 import { TurtleDriver, sizeFromModel } from '../plugins/matrix-routing/routers/turtle.js';
 import { MatrixSupervisor } from '../plugins/matrix-routing/routers/index.js';
+import { PlaceholderDriver } from '../plugins/matrix-routing/routers/placeholder.js';
+import { LIBRARY, libraryModel } from '../plugins/matrix-routing/library.js';
+import { placeholderConfig } from '../plugins/matrix-routing/panel.js';
+import activateMatrix from '../plugins/matrix-routing/server.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -668,4 +672,177 @@ test('withEntry: replaces one socket\'s cable and leaves every other entry alone
   assert.equal(removed.length, 1);
 
   assert.equal(withEntry(patch, 'nonsense', { matrix: 'hub', port: 1 }), patch);
+});
+
+/* ------------------------------------------------------------------ */
+/* Placeholder routers                                                */
+/* ------------------------------------------------------------------ */
+
+test('placeholder: normalised with no address, dropped with no size', () => {
+  const list = normaliseMatrices([
+    { id: 'stage', kind: 'placeholder', inputs: 40, outputs: 40, model: 'bmd-videohub-40x40-12g',
+      modelLabel: 'Videohub 40×40 12G', plan: { 1: 3, 2: '4', 0: 1, 41: 1, x: 2 } },
+    { id: 'nosize', kind: 'placeholder' },
+    { id: 'hub', kind: 'videohub', host: '10.0.0.5', plan: { 5: 6 } },
+  ]);
+  assert.deepEqual(list.map((m) => m.id), ['stage', 'hub']);
+  assert.equal(list[0].host, '');
+  assert.equal(list[0].port, 0);
+  assert.deepEqual(list[0].plan, { 1: 3, 2: 4, 41: 1 }, 'bad pairs go one at a time');
+  assert.deepEqual(list[1].plan, { 5: 6 }, 'a live router keeps the plan it was built on');
+});
+
+test('placeholder: factory routing is N from N, and a plan overrides it', () => {
+  const fresh = new PlaceholderDriver({ id: 'p', inputs: 4, outputs: 6 });
+  fresh.connect();
+  assert.equal(fresh.status, 'connected');
+  assert.deepEqual(fresh.state.routing, { 1: 1, 2: 2, 3: 3, 4: 4, 5: 4, 6: 4 });
+
+  const planned = new PlaceholderDriver({ id: 'p', inputs: 4, outputs: 2, plan: { 1: 3, 2: 9 } });
+  planned.connect();
+  assert.deepEqual(planned.state.routing, { 1: 3, 2: 2 }, 'a plan port past the size is ignored');
+});
+
+test('placeholder: a route moves the grid at once, and out of range is refused', () => {
+  const driver = new PlaceholderDriver({ id: 'p', inputs: 8, outputs: 8 });
+  driver.connect();
+  let changes = 0;
+  driver.on('change', () => changes++);
+  assert.equal(driver.route(3, 7), true);
+  assert.equal(driver.state.routing[3], 7);
+  assert.equal(changes, 1);
+  assert.equal(driver.route(3, 7), true, 'a no-op route is still accepted');
+  assert.equal(changes, 2, 'and announced, because it is now part of the plan');
+  assert.deepEqual(driver.planned, { 3: 7 }, 'the plan is what was taken, not the factory table');
+  assert.equal(driver.route(9, 1), false);
+  assert.equal(driver.route(1, 9), false);
+  assert.equal(driver.route(0, 1), false);
+});
+
+test('placeholder: the supervisor routes to it through the patch, with no socket', () => {
+  const supervisor = new MatrixSupervisor();
+  supervisor.apply(normaliseMatrices([{ id: 'stage', kind: 'placeholder', inputs: 12, outputs: 12 }]));
+  const patch = normalisePatch([{ side: 'input', key: 'IN_5', matrix: 'stage', port: 3 }]);
+  const resolved = feed(patch, 'input:IN_5', 9);
+  assert.equal(resolved.ok, true);
+  const results = supervisor.route(groupCrosspoints(resolved.crosspoints));
+  assert.equal(results[0].ok, true);
+  assert.equal(supervisor.routing().stage[3], 9);
+  assert.equal(currentFor(patch, 'input:IN_5', supervisor.routing()).source, 9);
+  assert.deepEqual(supervisor.sizes().stage, { inputs: 12, outputs: 12 });
+  supervisor.stop();
+});
+
+test('placeholder: resizing rebuilds it, renaming does not', () => {
+  const supervisor = new MatrixSupervisor();
+  const base = { id: 'stage', kind: 'placeholder', inputs: 12, outputs: 12 };
+  supervisor.apply(normaliseMatrices([base]));
+  const first = supervisor.get('stage');
+  supervisor.apply(normaliseMatrices([{ ...base, name: 'Stage', plan: { 1: 2 } }]));
+  assert.equal(supervisor.get('stage'), first);
+  supervisor.apply(normaliseMatrices([{ ...base, inputs: 20, outputs: 20 }]));
+  assert.notEqual(supervisor.get('stage'), first);
+  supervisor.stop();
+});
+
+test('plan: only what differs is sent, and what does not fit is named', () => {
+  const state = { inputs: 20, outputs: 20, routing: { 1: 1, 2: 5, 3: 3 } };
+  const { crosspoints, outOfRange, already } =
+    planCrosspoints('hub', { 1: 1, 2: 6, 3: 3, 30: 1, 4: 25 }, state);
+  assert.deepEqual(crosspoints, [{ matrix: 'hub', output: 2, input: 6 }]);
+  assert.deepEqual(outOfRange, [{ output: 4, input: 25 }, { output: 30, input: 1 }]);
+  assert.equal(already, 2);
+  assert.equal(normalisePlan({}), null);
+});
+
+test('library: every model is a live kind with a sane size and a unique id', () => {
+  const ids = new Set();
+  for (const m of LIBRARY) {
+    assert.ok(['videohub', 'lightware', 'turtle'].includes(m.kind), m.id);
+    assert.ok(m.inputs >= 1 && m.outputs >= 1, m.id);
+    assert.ok(!ids.has(m.id), `duplicate ${m.id}`);
+    ids.add(m.id);
+  }
+  const made = placeholderConfig({ name: 'Stage', model: 'bmd-videohub-40x40-12g' });
+  assert.equal(made.inputs, 40);
+  assert.equal(made.modelLabel, libraryModel('bmd-videohub-40x40-12g').label);
+  assert.equal(normaliseMatrices([made])[0].kind, 'placeholder');
+  assert.equal(placeholderConfig({ name: 'X', model: 'custom', inputs: '', outputs: '4' }).constructor, String);
+  assert.equal(placeholderConfig({ name: 'X', model: 'custom', inputs: '6', outputs: '4' }).outputs, 4);
+});
+
+/* The plugin's server half against a fake context: no HTTP, no disk. */
+async function matrixServer(initial) {
+  const saved = { matrices: initial };
+  const routes = new Map();
+  const disposers = [];
+  class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
+  const ctx = {
+    log: () => {},
+    stream: () => ({ send: () => {} }),
+    onDispose: (fn) => disposers.push(fn),
+    device: () => 'sim',
+    HttpError,
+    contribute: () => {},
+    route: (method, path, fn) => routes.set(`${method} ${path}`, fn),
+    storage: {
+      load: async (name) => saved[name] ?? null,
+      save: async (name, value) => { saved[name] = JSON.parse(JSON.stringify(value)); },
+    },
+  };
+  await activateMatrix(ctx);
+  const call = async (method, path, body) => {
+    let reply;
+    try {
+      await routes.get(`${method} ${path}`)({}, {}, {
+        readJson: async () => body ?? {},
+        json: (status, payload) => { reply = { status, ...payload }; },
+      });
+    } catch (err) {
+      reply = { status: err.status ?? 500, error: err.message };
+    }
+    return reply;
+  };
+  return { call, saved, dispose: () => disposers.forEach((fn) => fn()) };
+}
+
+test('server: a placeholder\'s routes become its plan, and survive a save without them', async () => {
+  const server = await matrixServer({ matrices: [
+    { id: 'stage', kind: 'placeholder', inputs: 8, outputs: 8, model: 'lw-mx2-8x8', modelLabel: 'MX2-8x8-HDMI20' },
+  ] });
+  assert.equal((await server.call('POST', '/route', { matrix: 'stage', output: 2, input: 7 })).ok, true);
+
+  /* The panel's save names the router by what describe() gave it: no size,
+     no plan. Both must survive, and the plan must be the click just made. */
+  const put = await server.call('PUT', '/', { matrices: [{ id: 'stage', name: 'Stage', kind: 'placeholder', host: '', port: 0 }] });
+  const stage = put.matrices.find((m) => m.id === 'stage');
+  assert.equal(stage.status, 'connected');
+  assert.equal(stage.placeholder, true);
+  assert.equal(stage.planning.inputs, 8);
+  assert.equal(stage.planning.plan[2], 7);
+  assert.equal(server.saved.matrices.matrices[0].plan[2], 7, 'written to disk');
+  server.dispose();
+});
+
+test('server: going live keeps the id and the plan; push refuses until it answers', async () => {
+  const server = await matrixServer({ matrices: [
+    { id: 'stage', kind: 'placeholder', inputs: 8, outputs: 8, plan: { 1: 4 } },
+  ] });
+  const put = await server.call('PUT', '/', { matrices: [
+    { id: 'stage', name: 'stage', kind: 'videohub', host: '127.0.0.1', port: 1 },
+  ] });
+  const stage = put.matrices.find((m) => m.id === 'stage');
+  assert.equal(stage.kind, 'videohub');
+  assert.equal(stage.placeholder, undefined);
+  assert.deepEqual(stage.planning.plan, { 1: 4 });
+
+  const push = await server.call('POST', '/plan/push', { matrix: 'stage' });
+  assert.equal(push.status, 409);
+  assert.match(push.error, /not answered/);
+
+  const discard = await server.call('POST', '/plan/discard', { matrix: 'stage' });
+  assert.equal(discard.ok, true);
+  assert.equal(discard.matrices[0].planning.plan, undefined);
+  assert.equal(server.saved.matrices.matrices[0].plan, undefined);
+  server.dispose();
 });

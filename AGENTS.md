@@ -301,6 +301,15 @@ Four things are load-bearing:
 - **A send adds and never takes away.** A router output always shows
   *something*, so "removing" a destination would mean choosing a different
   source for it, and there is no answer to which.
+- **A placeholder is the one driver that writes its own state** — there is no
+  router to ask, so it *is* the router. It is a size and a table, never a
+  protocol emulator. Its **plan** is only the crosspoints taken on it (never the
+  factory N-from-N table, which would overwrite every output on the real
+  frame). Going live keeps the router id, so the patch carries over; nothing is
+  sent on connect, and Push plan sends only what differs and names what does
+  not fit. A save that omits `model`/`inputs`/`outputs`/`plan` keeps the held
+  ones (`keepPlanning` in the plugin's server) — the panel saves from
+  `describe()`, which does not carry them.
 
 ⚠️ **The OSC addresses are ours, not mynah's** — the one exception to "this repo
 states no grammar of its own". Mynah is the single statement of the

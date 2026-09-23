@@ -81,7 +81,16 @@ export const MATRIX_KINDS = [
     what: 'The ASCII command set on TCP 8000. Answers what it is asked and pushes nothing, so it is polled.',
     defaultPort: 8000,
   },
+  {
+    id: 'placeholder',
+    label: 'Placeholder (no hardware)',
+    what: 'A router of the right size with nothing on the other end — patch, route and cue a show before the real one is on the network, then go live and push the plan.',
+    defaultPort: 0,
+  },
 ];
+
+/** The kinds that are a real frame on the network, which a placeholder can become. */
+export const LIVE_KINDS = MATRIX_KINDS.filter((k) => k.id !== 'placeholder');
 
 export const MATRIX_KIND_IDS = MATRIX_KINDS.map((k) => k.id);
 
@@ -106,23 +115,85 @@ export function normaliseMatrices(raw) {
   for (const item of list) {
     if (!item || typeof item !== 'object') continue;
     const id = slug(item.id ?? item.name);
+    const kind = MATRIX_KIND_IDS.includes(item.kind) ? item.kind : 'videohub';
+    const placeholder = kind === 'placeholder';
     const host = typeof item.host === 'string' ? item.host.trim() : '';
-    if (!id || !host || seen.has(id)) continue;
+    /* A placeholder has no address — that is what it is — but it has a size,
+       and a size is the one thing it cannot fall back on. */
+    const inputs = portCount(item.inputs);
+    const outputs = portCount(item.outputs);
+    if (!id || seen.has(id)) continue;
+    if (placeholder ? !(inputs && outputs) : !host) continue;
     seen.add(id);
 
-    const kind = MATRIX_KIND_IDS.includes(item.kind) ? item.kind : 'videohub';
     const defaultPort = MATRIX_KINDS.find((k) => k.id === kind).defaultPort;
     const port = Number(item.port);
+    const plan = normalisePlan(item.plan);
     out.push({
       id,
       kind,
       name: typeof item.name === 'string' && item.name.trim() ? item.name.trim() : id,
-      host,
-      port: Number.isInteger(port) && port > 0 && port < 65536 ? port : defaultPort,
+      host: placeholder ? '' : host,
+      port: placeholder ? 0 : Number.isInteger(port) && port > 0 && port < 65536 ? port : defaultPort,
       enabled: item.enabled !== false,
+      /* What it was planned as. A live router keeps these so the panel can say
+         when the frame that turned up is not the one the show was built on. */
+      ...(typeof item.model === 'string' && item.model ? { model: item.model } : {}),
+      ...(typeof item.modelLabel === 'string' && item.modelLabel ? { modelLabel: item.modelLabel } : {}),
+      ...(inputs && outputs ? { inputs, outputs } : {}),
+      ...(plan ? { plan } : {}),
     });
   }
   return out;
+}
+
+const portCount = (value) => {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 && n <= MAX_PORT ? n : 0;
+};
+
+/**
+ * A routing plan — `{ output: input }`, 1-based, the shape every driver
+ * reports — or null if there is nothing usable in it. Bad pairs are dropped
+ * one at a time, not the plan, for the same reason as everything else here.
+ */
+export function normalisePlan(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const output = portCount(key);
+    const input = portCount(value);
+    if (output && input) out[output] = input;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * The crosspoints that would make a router match a plan: every planned
+ * destination whose current source differs, within the size it reports.
+ *
+ * Returns what would be sent and, separately, what cannot be — a plan built on
+ * a 40×40 placeholder pushed to the 20×20 that turned up must say which half
+ * of the show did not make it, rather than routing the half that fits and
+ * looking finished.
+ *
+ * @param {Object<number,number>} plan
+ * @param {{inputs:number, outputs:number, routing:Object}} state  the live router's
+ */
+export function planCrosspoints(matrixId, plan, state) {
+  const crosspoints = [];
+  const outOfRange = [];
+  let already = 0;
+  for (const [key, input] of Object.entries(plan || {})) {
+    const output = Number(key);
+    if (output > state.outputs || input > state.inputs) {
+      outOfRange.push({ output, input });
+      continue;
+    }
+    if (Number(state.routing?.[output]) === input) { already++; continue; }
+    crosspoints.push({ matrix: matrixId, output, input });
+  }
+  return { crosspoints, outOfRange, already };
 }
 
 /**

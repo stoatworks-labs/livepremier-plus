@@ -228,9 +228,10 @@ export function installRouterSurfaces({ session, enabled = () => true, doc = doc
   /** "Fed by Hub output 3" with Change / Unpatch. */
   function cableLine(id, side, entry, matrix, draft) {
     const name = matrix ? matrix.name : entry.matrix;
-    const what = side === 'input'
+    const what = (side === 'input'
       ? `Fed by ${name} output ${entry.port}`
-      : `Arrives at ${name} input ${entry.port}`;
+      : `Arrives at ${name} input ${entry.port}`)
+      + (matrix && matrix.placeholder ? ' (placeholder — no hardware yet)' : '');
     const status = matrix ? matrix.status : 'not configured';
     return field('Cable',
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-flex-wrap' },

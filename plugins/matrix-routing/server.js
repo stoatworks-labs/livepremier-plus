@@ -24,15 +24,27 @@ import { MatrixSupervisor } from './routers/index.js';
 import {
   normaliseMatrices, normalisePatch, validate as validatePatch,
   feed as patchFeed, send as patchSend, groupCrosspoints, toPortList,
-  resolveMatrixOsc
+  resolveMatrixOsc, normalisePlan, planCrosspoints
 } from '../../src/core/patch.js';
 
 export default async function activate(ctx) {
   const supervisor = new MatrixSupervisor({ log: ctx.log });
-  const stream = ctx.stream('/stream', {
-    onOpen: (first) => first.send('matrix', supervisor.describe())
+  /* A router's link, as the driver reports it, plus what it was planned as —
+     which is configuration, not something any router said. */
+  let config = [];
+  const describe = () => supervisor.describe().map((d) => {
+    const m = config.find((c) => c.id === d.id);
+    if (!m) return d;
+    const planning = {};
+    for (const key of ['model', 'modelLabel', 'inputs', 'outputs', 'plan']) {
+      if (key in m) planning[key] = m[key];
+    }
+    return { ...d, planning };
   });
-  supervisor.on('change', () => stream.send('matrix', supervisor.describe()));
+  const stream = ctx.stream('/stream', {
+    onOpen: (first) => first.send('matrix', describe())
+  });
+  supervisor.on('change', () => stream.send('matrix', describe()));
   /* Every router socket is invisible to `server.close()`, and each holds a
      redial timer that would go on dialling a router after the app stopped. */
   ctx.onDispose(() => supervisor.stop());
@@ -41,8 +53,38 @@ export default async function activate(ctx) {
     (ctx.storage ? ctx.storage.load(name, { perDevice, device }) : null);
 
   const raw = await stored('matrices');
-  let config = normaliseMatrices(Array.isArray(raw) ? raw : (raw && raw.matrices) || []);
+  config = normaliseMatrices(Array.isArray(raw) ? raw : (raw && raw.matrices) || []);
   supervisor.apply(config);
+
+  /*
+   * A placeholder's routing is the show's plan, so it is saved into the
+   * router's own configuration whenever it moves: it survives a restart,
+   * travels in the setup file, and is still there when the router goes live.
+   * Debounced, because a send to 1-40 is forty changes in one breath.
+   */
+  let planTimer = null;
+  const savePlans = (persist = true) => {
+    let dirty = false;
+    config = config.map((m) => {
+      if (m.kind !== 'placeholder') return m;
+      const driver = supervisor.get(m.id);
+      if (!driver?.planned) return m;
+      const plan = normalisePlan(driver.planned);
+      if (JSON.stringify(plan) === JSON.stringify(m.plan ?? null)) return m;
+      dirty = true;
+      return plan ? { ...m, plan } : (({ plan: _, ...rest }) => rest)(m);
+    });
+    if (dirty && persist && ctx.storage) {
+      ctx.storage.save('matrices', { matrices: config })
+        .catch((err) => ctx.log(`matrix: could not save the plan: ${err.message}`));
+    }
+  };
+  supervisor.on('change', () => {
+    if (planTimer) clearTimeout(planTimer);
+    planTimer = setTimeout(() => { planTimer = null; savePlans(); }, 250);
+    planTimer.unref?.();
+  });
+  ctx.onDispose(() => { if (planTimer) { clearTimeout(planTimer); savePlans(); } });
 
   /* The patch for the switcher the app points at now — read again whenever
      that changes, because it describes one frame's sockets. */
@@ -62,7 +104,7 @@ export default async function activate(ctx) {
   const snapshot = async () => {
     const p = await currentPatch();
     return {
-      matrices: supervisor.describe(),
+      matrices: describe(),
       patch: p,
       problems: validatePatch(p, { matrices: config, state: supervisor.sizes() }),
       routing: supervisor.routing()
@@ -97,8 +139,12 @@ export default async function activate(ctx) {
      would draw it inconsistently. */
   ctx.route('GET', '/', async (req, res, h) => h.json(200, await snapshot()));
   const saveRouters = async (req, res, h) => {
-    const parsed = await h.readJson(64 * 1024);
-    config = normaliseMatrices(parsed.matrices ?? parsed);
+    const parsed = await h.readJson(256 * 1024);
+    /* Fold in any routing still inside the debounce first: going live must
+       carry the plan as it was on the last click, not 250 ms before it. The
+       save just below writes it, so this one only folds. */
+    savePlans(false);
+    config = normaliseMatrices(keepPlanning(parsed.matrices ?? parsed, config));
     if (ctx.storage) await ctx.storage.save('matrices', { matrices: config });
     /* Diff-based: a router whose address did not change keeps its socket and
        its grid. See `MatrixSupervisor.apply`. */
@@ -106,6 +152,23 @@ export default async function activate(ctx) {
     h.json(200, { ok: true, ...(await snapshot()) });
   };
   ctx.route('PUT', '/', saveRouters);
+  /* A panel rebuilds the list from what `describe()` told it, which is a
+     router's link, not its planning — so a save that names a router by id and
+     leaves its size, model or plan out keeps the ones already held. Saying
+     `plan: null` is how a plan is dropped on purpose. */
+  function keepPlanning(incoming, previous) {
+    if (!Array.isArray(incoming)) return incoming;
+    const held = new Map(previous.map((m) => [m.id, m]));
+    return incoming.map((item) => {
+      const was = item && held.get(item.id);
+      if (!was) return item;
+      const out = { ...item };
+      for (const key of ['model', 'modelLabel', 'inputs', 'outputs', 'plan']) {
+        if (!(key in out) && key in was) out[key] = was[key];
+      }
+      return out;
+    });
+  }
   ctx.route('POST', '/', saveRouters);
 
   /* The cable schedule, per switcher. */
@@ -160,6 +223,38 @@ export default async function activate(ctx) {
   });
 
   /*
+   * Push a router's plan — the routing it held as a placeholder — to the frame
+   * it has become. Only what differs is sent, and only what fits: a plan port
+   * past the size the real router reports is listed back, not dropped
+   * silently. `?dryRun=1` counts without sending, which is what the panel
+   * shows on the button before anybody presses it.
+   */
+  ctx.route('POST', '/plan/push', async (req, res, h) => {
+    const parsed = await h.readJson(16 * 1024);
+    const matrix = config.find((m) => m.id === String(parsed.matrix ?? ''));
+    if (!matrix) throw new ctx.HttpError(404, 'no such router');
+    if (!matrix.plan) throw new ctx.HttpError(409, `${matrix.name} has no plan to push`);
+    const state = supervisor.get(matrix.id)?.state;
+    if (!state) throw new ctx.HttpError(409, `${matrix.name} has not answered yet`);
+    const { crosspoints, outOfRange, already } = planCrosspoints(matrix.id, matrix.plan, state);
+    const summary = { already, outOfRange, toSend: crosspoints.length };
+    if (parsed.dryRun || !crosspoints.length) return h.json(200, { ok: true, dryRun: !!parsed.dryRun, ...summary });
+    const { status, body } = run({ ok: true, crosspoints });
+    h.json(status, { ...body, ...summary });
+  });
+
+  /* Forget a live router's plan once it has been pushed, or is not wanted. */
+  ctx.route('POST', '/plan/discard', async (req, res, h) => {
+    const parsed = await h.readJson(16 * 1024);
+    const id = String(parsed.matrix ?? '');
+    if (!config.some((m) => m.id === id)) throw new ctx.HttpError(404, 'no such router');
+    config = config.map((m) => (m.id === id ? (({ plan: _, ...rest }) => rest)(m) : m));
+    if (ctx.storage) await ctx.storage.save('matrices', { matrices: config });
+    supervisor.apply(config);
+    h.json(200, { ok: true, ...(await snapshot()) });
+  });
+
+  /*
    * Two sections of the one-file setup. The routers belong to the
    * installation and the patch to one frame's rig — see the head of this file.
    * A restore goes into the running supervisor as well as the file, so the
@@ -170,7 +265,7 @@ export default async function activate(ctx) {
     key: 'matrices',
     group: 'installation',
     label: 'External routers',
-    export: async () => (config.length ? config : undefined),
+    export: async () => { savePlans(false); return config.length ? config : undefined; },
     async import(data) {
       config = normaliseMatrices(data);
       if (ctx.storage) await ctx.storage.save('matrices', { matrices: config });
