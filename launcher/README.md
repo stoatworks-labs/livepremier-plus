@@ -21,7 +21,7 @@ re-points at a backup frame far more often than they restart a launcher, and a
 device baked in at process start would mean stopping and restarting the app to
 move. Keeping the launcher's contract to "interface and port" also means this
 shell is the stock one, with no fork to maintain — a copy of
-[av-launcher](https://github.com/stoatworks-labs/av-launcher) at `21bc307`
+[av-launcher](https://github.com/stoatworks-labs/av-launcher) at `804555c`
 (`src/`, `src-tauri/src/`, `src-tauri/crates/`, `Cargo.lock`).
 
 ## Building
