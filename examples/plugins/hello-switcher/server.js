@@ -43,5 +43,18 @@ export default function activate(ctx) {
   ctx.onDispose(() => clearInterval(timer));
 
   ctx.settings.onChange((next) => ctx.log(`greeting is now “${next.greeting}”`));
+
+  /* OSC addresses under /hello/ — answered over UDP, and from a line typed in
+     the Console, by this one handler. Return null for an address you do not
+     recognise, and it falls through to the switcher's own grammar. */
+  ctx.contribute('oscAddress', {
+    prefix: '/hello/',
+    describe: '/hello/ping answers with the greeting',
+    handle(address) {
+      if (address !== '/hello/ping') return null;
+      return { ok: true, summary: `${ctx.settings.get().greeting}, ${ctx.device() || 'switcher'}` };
+    }
+  });
+
   ctx.log('started');
 }

@@ -40,6 +40,7 @@ import {
 } from '../src/core/settings.js';
 import { API_VERSION, isEnabled as pluginOn, routeOwner } from '../src/core/plugins.js';
 import { createPluginHost } from './plugin-host.js';
+import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
 import { importMemories, exportMemories } from './memory-import.js';
 import { createOscServer } from './osc.js';
@@ -278,12 +279,10 @@ export async function createProxy({
          re-point the OSC input too, and an input still driving the old box
          would be the worst possible version of that feature. */
       deviceHost: () => (target ? target.host : null),
-      /* Read per message for the same reason `deviceHost` is: both the patch
-         and the routers can change under a listener that is already bound. */
-      matrix: {
-        patch: () => patch,
-        route: (groups) => matrices.route(groups),
-      },
+      /* The address subtrees plugins answer — Matrix Routing's `/lp/matrix/`
+         among them. Read per message for the same reason `deviceHost` is: a
+         plugin can be switched on or off under a listener that is bound. */
+      addresses: () => host.contributions('oscAddress'),
       onActivity: noteOsc,
       log,
     });
@@ -356,6 +355,27 @@ export async function createProxy({
       },
     };
   }
+
+  /*
+   * Matrix Routing's addresses, `/lp/matrix/…`, contributed as a plugin
+   * would. Until it moves into a plugin of its own it is wired in here, but
+   * the OSC listener and the Console find it the way they find any plugin's:
+   * as an `oscAddress` contribution. `resolveMatrixOsc` in `core/patch.js`
+   * says why these are this app's own addresses and not mynah's.
+   */
+  host.contribute('oscAddress', {
+    prefix: '/lp/matrix/',
+    describe: 'Route through the external routers — docs/OSC.md',
+    handle(address, args) {
+      const routed = resolveMatrixOsc(address, args, patch);
+      if (!routed) return null;
+      if (!routed.ok) return { ok: false, error: routed.error };
+      const { body } = runPatchAction(routed);
+      return body.ok
+        ? { ok: true, summary: routed.summary, count: routed.crosspoints.length }
+        : { ok: false, summary: routed.summary, error: body.error };
+    }
+  }, 'matrix-routing');
 
   await applyOsc();
 
@@ -589,6 +609,40 @@ export async function createProxy({
       return sendJson(res, 405, { error: 'method not allowed' });
     }
 
+    /*
+     * The address subtrees plugins answer, and one address run through them.
+     *
+     * This is how the Console reaches a plugin's addresses: a line typed there
+     * that falls under one of these prefixes is posted here and takes exactly
+     * the path the same address arriving over UDP takes. Two implementations
+     * of one address space is how they drift, and the drift would show up as a
+     * command that works from QLab and not from the Console — which is a
+     * miserable thing to debug on a show. The app's own; nobody switches it off.
+     */
+    if (rest === '/osc/addresses') {
+      return sendJson(res, 200, {
+        addresses: host.contributions('oscAddress').map((c) => ({
+          prefix: c.prefix, describe: c.describe || '', owner: c.owner
+        }))
+      });
+    }
+    if (rest === '/osc/run') {
+      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' });
+      const body = await collect(req, 16 * 1024);
+      let parsed;
+      try { parsed = JSON.parse(body.toString('utf8')); }
+      catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
+      const address = String(parsed.address ?? '');
+      const owner = oscAddressFor(host.contributions('oscAddress'), address);
+      let answer = null;
+      if (owner) {
+        try { answer = await owner.handle(address, Array.isArray(parsed.args) ? parsed.args : []); }
+        catch (err) { answer = { ok: false, error: err.message }; }
+      }
+      if (!answer) return sendJson(res, 404, { error: `no plugin answers ${address || 'that address'}` });
+      return sendJson(res, answer.ok ? 200 : 409, { ...answer, owner: owner.owner });
+    }
+
     /* What the OSC listener has heard. The tail first, then a live stream, so
        a console opened after a message arrived still shows it. */
     if (rest === '/osc/stream') {
@@ -733,30 +787,6 @@ export async function createProxy({
 
       const { status, body: payload } = runPatchAction(resolved);
       return sendJson(res, status, payload);
-    }
-
-    /*
-     * One OSC matrix address, resolved and routed.
-     *
-     * The Console posts here rather than resolving in the page, so that a
-     * `/lp/matrix/…` line typed at the keyboard and the same address arriving
-     * over UDP take **the same code path** — `resolveMatrixOsc` then the
-     * supervisor. Two implementations of one address space is how they drift,
-     * and the drift would show up as a command that works from QLab and not
-     * from the Console, which is a miserable thing to debug on a show.
-     */
-    if (rest === '/matrix/osc') {
-      if (req.method !== 'POST') return sendJson(res, 405, { error: 'method not allowed' });
-      const body = await collect(req, 16 * 1024);
-      let parsed;
-      try { parsed = JSON.parse(body.toString('utf8')); }
-      catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-
-      const resolved = resolveMatrixOsc(
-        String(parsed.address ?? ''), parsed.args ?? [], patch);
-      if (!resolved) return sendJson(res, 404, { error: 'not a matrix address' });
-      const { status, body: payload } = runPatchAction(resolved);
-      return sendJson(res, status, { ...payload, summary: resolved.summary });
     }
 
     /*

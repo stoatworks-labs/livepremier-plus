@@ -55,19 +55,15 @@ export const ACTION_KINDS = {
   SCREEN_PRESET: 'screenPreset',
   MASTER_PRESET: 'masterPreset',
   TAKE: 'take',
-  CUT: 'cut',
-  /*
-   * A crosspoint on an external router — see `core/patch.js`. Two kinds and
-   * not one, because feeding a switcher input and sending a switcher output
-   * are different operations with different arguments, and collapsing them
-   * into a "route" action would mean a cue sheet that reads the same for both.
-   */
-  MATRIX_FEED: 'matrixFeed',
-  MATRIX_SEND: 'matrixSend'
+  CUT: 'cut'
 };
 
-/** The action kinds that go to the router rather than to the switcher. */
-export const MATRIX_KINDS_SET = new Set([ACTION_KINDS.MATRIX_FEED, ACTION_KINDS.MATRIX_SEND]);
+/*
+ * Every other kind is a plugin's — a `cueAction` contribution, see
+ * `core/contributions.js`. Matrix Routing's two, `matrixFeed` and `matrixSend`,
+ * used to be listed here and special-cased in `fire`; they are contributed now,
+ * like anybody else's would be.
+ */
 
 export function makeCue(partial = {}) {
   return {
@@ -108,17 +104,21 @@ export class CueStack extends EventTarget {
    *   because which switcher is on the other end is only known once the store
    *   has arrived, and may change when the operator re-points at a backup
    *   frame. Defaults to the LivePremier table.
+   * @param {(kind: string) => ({run: Function, label?: string} | null)} [opts.actions]
+   *   who handles a kind the engine does not do itself — the `cueAction`
+   *   contributions. Asked at fire time, because plugins load after the stack
+   *   is built.
    */
-  constructor({ send, clock, commands, routeMatrix } = {}) {
+  constructor({ send, clock, commands, actions } = {}) {
     super();
     this.send = send || (() => false);
     /*
-     * Where a matrix action goes. Injected exactly as `send` is, and for the
-     * same reason: this engine knows no transport. A stack with no router
-     * wired up simply cannot fire one, and says so rather than failing
-     * silently — see `fire`.
+     * Where any other kind of action goes. Injected exactly as `send` is, and
+     * for the same reason: this engine knows no transport, and no router, and
+     * no plugin. A kind nobody handles is reported on the cue rather than
+     * dropped silently — see `fire`.
      */
-    this.routeMatrix = routeMatrix || null;
+    this._action = typeof actions === 'function' ? actions : () => null;
     this._commands = typeof commands === 'function' ? commands : () => (commands || commandsFor(NLC));
     this.clock = clock || {
       setTimeout: (...a) => setTimeout(...a),
@@ -311,45 +311,47 @@ export class CueStack extends EventTarget {
           break;
 
         /*
-         * Router crosspoints, sent immediately and outside the settle.
+         * Any other kind is a plugin's: sent immediately and outside the settle.
          *
-         * Immediately — in this loop, alongside the recalls — which puts them
+         * Immediately — in this loop, alongside the recalls — which puts it
          * ahead of the take whatever order the actions are listed in, because
-         * the take is deferred to `trigger()`. That is the ordering that
-         * matters: a signal has to be present on an input before anything
-         * switches to it, or the old source is on air for the length of the
-         * transition.
+         * the take is deferred to `trigger()`. That is the ordering a router
+         * crosspoint, the first of these, needs: a signal has to be present on
+         * an input before anything switches to it, or the old source is on air
+         * for the length of the transition.
          *
          * Outside the settle, because the settle exists to stop a TAKE
-         * overtaking its own preset recall, and a crosspoint is not a recall.
-         * Waiting for it would delay every cue that touches a router for a
+         * overtaking its own preset recall, and a plugin's action is not a
+         * recall. Waiting for it would delay every cue that uses one for a
          * reason that does not apply.
          *
-         * ⚠️ **This does not wait for the signal to lock.** An SDI reclock is
-         * fast; an HDMI or HDCP handshake through a router can take a second
-         * or more, and no protocol here reports when it is done. A cue that
-         * routes and takes in the same breath can take to black. Put the route
-         * in an earlier cue when the format may change.
+         * ⚠️ **Nothing here waits for what the action started to finish.** A
+         * router acknowledges receipt of a crosspoint, not the lock of the
+         * signal: an HDMI or HDCP handshake can take a second or more, and a
+         * cue that routes and takes in the same breath can take to black. Put
+         * the route in an earlier cue when the format may change.
          */
-        case ACTION_KINDS.MATRIX_FEED:
-        case ACTION_KINDS.MATRIX_SEND:
-          if (!this.routeMatrix) {
-            this._emit('warning', { cue, message: 'No matrix is wired up, so this cue cannot route.' });
+        default: {
+          const handler = this._action(a.kind);
+          if (!handler) {
+            this._emit('warning', {
+              cue, message: `Nothing handles “${a.kind}” — the plugin that adds it may be switched off.`
+            });
             break;
           }
+          const failed = (err) => this._emit('warning', {
+            cue, message: `${handler.label || a.kind} failed: ${err && err.message ? err.message : err}`
+          });
           try {
-            /* Fire-and-forget, exactly like every other write here: the
-               router acknowledges receipt and not success, so there is
-               nothing to await that would mean anything. */
-            this.routeMatrix(a);
+            /* Fire-and-forget, exactly like every other write here: a promise
+               is not awaited, and one that rejects is reported, not thrown. */
+            const out = handler.run(a, { cue });
+            if (out && typeof out.then === 'function') out.then(null, failed);
             sent++;
           } catch (err) {
-            this._emit('warning', { cue, message: `Matrix route failed: ${err.message}` });
+            failed(err);
           }
-          break;
-
-        default:
-          this._emit('warning', { cue, message: 'Unknown action kind: ' + a.kind });
+        }
       }
     }
 

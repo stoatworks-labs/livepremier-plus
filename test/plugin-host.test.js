@@ -488,8 +488,67 @@ test('the example plugin in examples/ works as a user plugin, unchanged', async 
     while (!seen.includes('event: tick')) seen += new TextDecoder().decode((await reader.read()).value);
     await reader.cancel();
 
+    /* Its OSC subtree, as the listener and the Console find it. */
+    const [ping] = host.contributions('oscAddress');
+    assert.equal(ping.prefix, '/hello/');
+    assert.deepEqual(await ping.handle('/hello/ping', []), { ok: true, summary: 'Hello, 10.1.2.3:80' });
+    assert.equal(await ping.handle('/hello/other', []), null, 'anything else falls through');
+
     const client = await fetch(base + '/__lpp/plugins/hello-switcher/client.js');
     assert.equal(client.status, 200);
     assert.equal(host.list().find((p) => p.id === 'hello-switcher').client, '/__lpp/plugins/hello-switcher/client.js');
   }, { plugins: {} });
+});
+
+/* ------------------------------------------------ contributions and services */
+
+test('a server half contributes addresses and offers services, and loses both when switched off', async () => {
+  const tree = {
+    giver: {
+      'server.js': `
+        export default function activate(ctx) {
+          ctx.contribute('oscAddress', { prefix: '/giver/', handle: () => ({ ok: true, summary: 'given' }) });
+          ctx.provide('counter', { count: () => 7 });
+        }`
+    },
+    taker: {
+      'server.js': `
+        export default function activate(ctx) {
+          ctx.route('GET', '/count', (req, res, h) => {
+            const counter = ctx.use('counter');
+            h.json(200, { count: counter ? counter.count() : null, addresses: ctx.contributions('oscAddress').map((a) => a.prefix) });
+          });
+        }`
+    },
+    wrongside: {
+      'server.js': `
+        export default function activate(ctx) {
+          ctx.contribute('cueAction', { kind: 'x:y', label: 'X', run() {} });
+        }`
+    }
+  };
+  const manifests = [manifest({ id: 'giver' }), manifest({ id: 'taker' }), manifest({ id: 'wrongside' })];
+  await withHost({ tree, manifests }, async ({ host, base, schemas }) => {
+    assert.deepEqual(await (await fetch(base + '/__lpp/taker/count')).json(), { count: 7, addresses: ['/giver/'] });
+    assert.match(host.list().find((p) => p.id === 'wrongside').reason, /page contribution — make it from the plugin's client\.js/);
+
+    await host.sync(normaliseSettings({ plugins: { giver: { enabled: false } } }, schemas));
+    assert.deepEqual(await (await fetch(base + '/__lpp/taker/count')).json(), { count: null, addresses: [] });
+    assert.deepEqual(host.contributions('oscAddress'), []);
+
+    await host.sync(normaliseSettings({ plugins: { giver: { enabled: true } } }, schemas));
+    assert.equal((await (await fetch(base + '/__lpp/taker/count')).json()).count, 7, 'and has them again when it is back');
+  });
+});
+
+test('a user plugin cannot answer the switcher’s own addresses', async () => {
+  const tree = {
+    greedy: userPlugin('greedy', {
+      'server.js': `export default (ctx) => ctx.contribute('oscAddress', { prefix: '/lp/screen/', handle: () => ({ ok: true }) });`
+    })
+  };
+  await withUserPlugins(tree, async ({ host }) => {
+    assert.match(host.list().find((p) => p.id === 'greedy').reason, /switcher’s own address space/);
+    assert.deepEqual(host.contributions('oscAddress'), []);
+  }, { plugins: { greedy: { enabled: true } } });
 });

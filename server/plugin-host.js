@@ -59,6 +59,7 @@ import { pathToFileURL } from 'node:url';
 
 import { API_VERSION, BUILTINS, createRegistry, routeBase, validateManifest } from '../src/core/plugins.js';
 import { changedPluginSettings } from '../src/core/settings.js';
+import { POINTS, createContributions, createServices } from '../src/core/contributions.js';
 
 /** What a plugin's folder may serve to the page, by extension. Nothing else is. */
 const SERVED = {
@@ -186,6 +187,11 @@ export async function createPluginHost({
   const schemas = {};
   /** User plugin folders whose `plugin.json` was refused: listed, never loaded. */
   const refused = [];
+  /* How plugins extend each other — see `src/core/contributions.js`. The app's
+     own features that are still wired in by hand contribute here too, through
+     `contribute` on the host. */
+  const contributions = createContributions();
+  const services = createServices();
   let settings = { plugins: {} };
 
   const newRecord = (manifest, dir, user) => ({
@@ -432,6 +438,34 @@ export async function createPluginHost({
       onDispose(fn) { guard('a disposer'); scope.disposers.push(fn); },
 
       /**
+       * Add to one of the app's contribution points — see
+       * `src/core/contributions.js` for what each takes. The server has
+       * `oscAddress`; page points are refused here with a pointer to the page
+       * half. Taken away again when the plugin stops.
+       */
+      contribute(point, spec) {
+        guard(`a ${point} contribution`);
+        const def = POINTS[point];
+        if (def && def.side !== 'server') {
+          throw new Error(`${r.id}: ${point} is a page contribution — make it from the plugin's client.js`);
+        }
+        contributions.add(point, spec, r.id, { builtIn: !r.user });
+      },
+
+      /** Everything contributed to a point by plugins that are on. */
+      contributions: (point) => contributions.list(point, ownerIsOn),
+
+      /** Offer a service under a name, for other plugins' `use`. Withdrawn when this plugin stops. */
+      provide(name, api) { guard(`service ${name}`); services.provide(name, api, r.id); },
+
+      /**
+       * A service another plugin provides, or null when none does — or its
+       * provider is off. Ask for it when it is needed rather than once at
+       * start: a provider can be switched off and on while this runs.
+       */
+      use: (name) => services.use(name, ownerIsOn),
+
+      /**
        * One AWJ exchange with the switcher: `[{op, path, value?}]` in, the
        * replies to its gets out. Opened, used and closed — see `server/awj.js`
        * for why nothing here ever holds that socket.
@@ -455,6 +489,8 @@ export async function createPluginHost({
       r.startError = null;
       log(`plugin ${r.id}: on`);
     } catch (err) {
+      contributions.removeOwner(r.id);
+      services.removeOwner(r.id);
       await scope.dispose(pluginLog(r));
       r.startError = `failed to start: ${err.message}`;
       log(`plugin ${r.id}: ${r.startError}`);
@@ -465,6 +501,8 @@ export async function createPluginHost({
     const scope = r.scope;
     r.scope = null;
     r.on = false;
+    contributions.removeOwner(r.id);
+    services.removeOwner(r.id);
     if (scope) {
       await scope.dispose(pluginLog(r));
       log(`plugin ${r.id}: off`);
@@ -477,6 +515,15 @@ export async function createPluginHost({
       settings: schemas[id].normalise({ ...((s && s.plugins && s.plugins[id] && s.plugins[id].settings) || {}) })
     }]))
   });
+
+  /**
+   * Whether a contribution's or a service's owner is on: a hosted plugin by
+   * its record, an in-place built-in by its switch.
+   */
+  const ownerIsOn = (owner) => {
+    const r = plugins.get(owner);
+    return r ? r.on : registry.isEnabled(settings.plugins, owner);
+  };
 
   /** Tell a running plugin its settings changed. A listener that throws is logged, not fatal. */
   function notify(r, prev, next) {
@@ -708,6 +755,15 @@ export async function createPluginHost({
     serveFile,
     list,
     stop,
+    /**
+     * For the app's own features still wired in by hand: contribute as the
+     * plugin `owner` would, so a consumer cannot tell the difference. Listed
+     * only while that owner's switch is on.
+     */
+    contribute: (point, spec, owner) => contributions.add(point, spec, owner, { builtIn: true }),
+    contributions: (point) => contributions.list(point, ownerIsOn),
+    provide: (name, api, owner) => services.provide(name, api, owner),
+    use: (name) => services.use(name, ownerIsOn),
     /** For tests and the status route: which hosted plugins are running. */
     running: () => [...plugins.values()].filter((r) => r.on).map((r) => r.id)
   };

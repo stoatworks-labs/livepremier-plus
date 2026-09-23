@@ -905,3 +905,39 @@ test('a plugin copied into the data directory is found, starts off, and runs onc
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+/* ------------------------------------------------------ contributed addresses */
+
+test('the Console’s path to a plugin’s addresses: listed, run, and gone when the plugin is off', async () => {
+  let saved = {};
+  const storage = { loadSettings: async () => saved, saveSettings: async (s) => { saved = s; } };
+  await withProxy({ storage }, async ({ base }) => {
+    const { addresses } = await (await fetch(base + '/__lpp/osc/addresses')).json();
+    assert.deepEqual(addresses.map((a) => [a.prefix, a.owner]), [['/lp/matrix/', 'matrix-routing']]);
+
+    /* Matrix Routing's own answer, through the same path a UDP message takes:
+       with nothing patched, a route is refused with the reason. */
+    const refused = await fetch(base + '/__lpp/osc/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: '/lp/matrix/input/1/source', args: [3] })
+    });
+    assert.equal(refused.status, 409);
+    const why = await refused.json();
+    assert.equal(why.ok, false);
+    assert.equal(why.owner, 'matrix-routing');
+    assert.ok(why.error);
+
+    const nobody = await fetch(base + '/__lpp/osc/run', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: '/nobody/here', args: [] })
+    });
+    assert.equal(nobody.status, 404);
+
+    await fetch(base + '/__lpp/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plugins: { 'matrix-routing': { enabled: false } } })
+    });
+    const after = await (await fetch(base + '/__lpp/osc/addresses')).json();
+    assert.deepEqual(after.addresses, [], 'switched off, its addresses are nobody’s');
+  });
+});

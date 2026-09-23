@@ -38,6 +38,8 @@ import { createGang } from './core/groups.js';
 import { detectPlatform, supports } from './core/platform.js';
 import { isEnabled as pluginOn } from './core/plugins.js';
 import { loadPlugins, byOrder } from './ui/plugin-host.js';
+import { createContributions, createServices } from './core/contributions.js';
+import { SIDES, parseConnectorId, logicalIndex } from './core/connectors.js';
 import { dialectFor } from './core/dialect.js';
 import { commandsFor } from './core/commands.js';
 import { createTimecodeSource } from './ui/timecode-source.js';
@@ -204,34 +206,80 @@ async function boot() {
    * different frame mid-show. Before the store has said, every command
    * declines to be built and a GO sends nothing. See `core/commands.js`.
    */
+  /*
+   * How plugins extend each other, and how the features still wired in here
+   * extend them too — see `core/contributions.js`. One registry of each for
+   * the page, shared with the plugin host, so a consumer cannot tell a
+   * built-in's contribution from a plugin's.
+   */
+  const contributions = createContributions();
+  const services = createServices();
+  /* Set once the plugins have loaded; until then only the app's own count. */
+  let listContributions = (point) => contributions.list(point, on);
+
   const stack = new CueStack({
     send: (cmd) => session.send(cmd),
     commands: () => commandsFor(dialectFor(session.store)),
-    /*
-     * Matrix actions do not go on the vendor socket — an external router is
-     * not in the device store and the switcher has never heard of it. They go
-     * to our own process, which holds the router connections.
-     *
-     * Not awaited, for the same reason a take is not: the router acknowledges
-     * receipt rather than success, so there is nothing to wait for that would
-     * mean anything. A failure is logged where an operator will see it.
-     */
-    routeMatrix: (action) => {
-      const path = action.kind === 'matrixFeed' ? 'feed' : 'send';
-      const body = action.kind === 'matrixFeed'
-        ? { connector: action.connector, source: action.source }
-        : { connector: action.connector, destinations: action.destinations };
-      fetch(`/__lpp/matrix/${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      }).then(async (res) => {
-        if (res.ok) return;
-        const payload = await res.json().catch(() => ({}));
-        console.warn(TAG, 'matrix cue refused:', payload.error || res.status);
-      }).catch((err) => console.warn(TAG, 'matrix cue failed', err));
-    }
+    /* Any kind the engine does not do itself is a plugin's `cueAction` —
+       Matrix Routing's two among them, contributed below. Asked at fire time,
+       because the plugins load after this is built. */
+    actions: (kind) => listContributions('cueAction').find((a) => a.kind === kind) || null
   });
+
+  /*
+   * Matrix Routing's two cue actions, contributed as a plugin would.
+   *
+   * They do not go on the vendor socket — an external router is not in the
+   * device store and the switcher has never heard of it. They go to our own
+   * process, which holds the router connections. Not awaited, for the same
+   * reason a take is not: the router acknowledges receipt rather than success.
+   * A refusal comes back as a warning on the cue.
+   */
+  if (on('matrix-routing')) {
+    const route = (verb, body) => fetch(`/__lpp/matrix/${verb}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(async (res) => {
+      if (res.ok) return;
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload.error || `the router answered ${res.status}`);
+    });
+    /* `input:IN_1` is how a cue stores it; `Input 1` is how a cue sheet says it. */
+    const connector = (id) => {
+      const c = parseConnectorId(id);
+      return c ? `${SIDES[c.side].label} ${logicalIndex(c.key) ?? c.key}` : String(id ?? '?');
+    };
+    contributions.add('cueAction', {
+      kind: 'matrixFeed',
+      label: 'Router to a switcher input',
+      run: (a) => route('feed', { connector: a.connector, source: a.source }),
+      describe: (a) => `feed ${connector(a.connector)} from router input ${a.source}`
+    }, 'matrix-routing');
+    contributions.add('cueAction', {
+      kind: 'matrixSend',
+      label: 'Switcher output to router outputs',
+      run: (a) => route('send', { connector: a.connector, destinations: a.destinations }),
+      describe: (a) => `send ${connector(a.connector)} to router outputs ${[].concat(a.destinations ?? []).join(', ')}`
+    }, 'matrix-routing');
+  }
+
+  /*
+   * The cue stack, offered to plugins as a service — `ctx.use('stack')`. The
+   * Timeline owns it, so switching the Timeline off withdraws it. A narrow
+   * face on purpose: what a show needs from outside the stack is to move
+   * through it and to hear it move, not to rewrite it.
+   */
+  services.provide('stack', Object.freeze({
+    go: () => stack.go(),
+    back: () => stack.back(),
+    stop: () => stack.stop(),
+    gotoId: (id) => stack.gotoId(id),
+    get standby() { return stack.standby ? { ...stack.standby } : null; },
+    cues: () => stack.cues.map((c) => ({ ...c, actions: c.actions.map((a) => ({ ...a })) })),
+    addEventListener: (...a) => stack.addEventListener(...a),
+    removeEventListener: (...a) => stack.removeEventListener(...a)
+  }), 'timeline');
 
   const saved = await storage.load();
   if (saved) stack.load(saved);
@@ -298,7 +346,10 @@ async function boot() {
   });
 
   const matrix = createMatrixPanel({ session, onRefresh: refresh });
-  const timeline = createTimelinePanel({ session, stack, storage, timecode, chase, onRefresh: refresh });
+  const timeline = createTimelinePanel({
+    session, stack, storage, timecode, chase, onRefresh: refresh,
+    cueActions: () => listContributions('cueAction')
+  });
   const consolePanel = createConsolePanel({ session, onRefresh: refresh });
   const midi = createMidiPanel({ session, onRefresh: refresh });
   /* The plugins' own settings cards are read at every render: the plugins
@@ -395,7 +446,10 @@ async function boot() {
    * the plugins the server says are on are loaded at all; one that fails is
    * logged and left out, and the rest of the page comes up regardless.
    */
-  hosted = await loadPlugins({ session, platform, can, refresh, settings: bootSettings });
+  hosted = await loadPlugins({
+    session, platform, can, refresh, settings: bootSettings, contributions, services, isOn: on
+  });
+  listContributions = hosted.contributions;
 
   /*
    * Console and Timeline live in the vendor's own tab strip on Screens / Aux.,
@@ -606,7 +660,7 @@ async function boot() {
   });
 
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels, routerBoxes, plugins: hosted };
+  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels, routerBoxes, plugins: hosted, contributions: listContributions, services };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

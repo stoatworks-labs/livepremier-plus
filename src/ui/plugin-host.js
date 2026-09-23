@@ -33,6 +33,7 @@
 
 import { h, button, readout, sectionTitle, fill, icon, card, note, picker } from './dom.js';
 import { panel } from './shell.js';
+import { POINTS, createContributions, createServices } from '../core/contributions.js';
 
 const TAG = '[LivePremier Plus]';
 
@@ -48,6 +49,10 @@ export const KIT = Object.freeze({ h, button, readout, sectionTitle, fill, icon,
  * @param {(cap: string) => boolean} o.can
  * @param {() => void} o.refresh ask for a repaint of whatever of ours is on screen
  * @param {object} o.settings    the settings as `/__lpp/settings` returned them at boot
+ * @param {object} [o.contributions]  the page's registry — shared with the app's own
+ *        features, which contribute through it too; see `core/contributions.js`
+ * @param {object} [o.services]  likewise, for `provide` / `use`
+ * @param {(id: string) => boolean} [o.isOn]  whether a contribution's owner is on
  * @param {typeof fetch} [o.fetch]
  * @param {(url: string) => Promise<object>} [o.load]  how a module is imported; tests stub it
  * @param {Console} [o.log]
@@ -55,6 +60,9 @@ export const KIT = Object.freeze({ h, button, readout, sectionTitle, fill, icon,
  */
 export async function loadPlugins({
   session, platform, can, refresh, settings,
+  contributions = createContributions(),
+  services = createServices(),
+  isOn = () => true,
   fetch: get = (...a) => fetch(...a),
   load = (url) => import(url),
   log = console
@@ -74,11 +82,29 @@ export async function loadPlugins({
     log.warn(TAG, 'could not list plugins', err);
   }
 
+  /* A plugin loaded here is on by definition — the server said so — whatever
+     the manifest table the caller's `isOn` reads has heard of it. */
+  const active = new Set();
+  const ownerOn = (owner) => active.has(owner) || isOn(owner);
+
   /* Each plugin's settings as the page last saw them, kept here so `set` can
      answer with what the server actually stored. */
   const stored = { ...(settings && settings.plugins ? settings.plugins : {}) };
 
-  for (const p of list) {
+  /* Page halves that other page halves need are started first, so a
+     plugin's `use` finds what its manifest said it requires. */
+  const ordered = [];
+  const seen = new Set();
+  const byId = new Map(list.map((p) => [p.id, p]));
+  const visit = (p) => {
+    if (!p || seen.has(p.id)) return;
+    seen.add(p.id);
+    for (const dep of (p.requires && p.requires.plugins) || []) visit(byId.get(dep));
+    ordered.push(p);
+  };
+  for (const p of list) visit(p);
+
+  for (const p of ordered) {
     if (!p.on || !p.client) continue;
 
     let mod;
@@ -170,12 +196,37 @@ export async function loadPlugins({
           const gated = gate({ id: p.id, ...entry });
           mine.sections.push({ ...gated, render: () => (gated.enabled() ? entry.render() : null) });
         }
-      })
+      }),
+
+      /**
+       * Add to one of the app's contribution points — see
+       * `core/contributions.js`. The page has `cueAction`; server points are
+       * refused here with a pointer to the server half.
+       */
+      contribute(point, spec) {
+        const def = POINTS[point];
+        if (def && def.side !== 'page') {
+          throw new Error(`${p.id}: ${point} is a server contribution — make it from the plugin's server.js`);
+        }
+        contributions.add(point, spec, p.id, { builtIn: p.builtIn !== false });
+        mine.contributed = true;
+      },
+      /** Everything contributed to a point by plugins that are on. */
+      contributions: (point) => contributions.list(point, ownerOn),
+      /** Offer a service under a name, for other plugins' `use`. */
+      provide(name, api) { services.provide(name, api, p.id); mine.provided = true; },
+      /** A service another plugin — or the app — provides, or null. */
+      use: (name) => services.use(name, ownerOn)
     });
 
+    active.add(p.id);
     try {
       await mod.default(ctx);
     } catch (err) {
+      /* Nothing it contributed or provided before it threw is kept either. */
+      active.delete(p.id);
+      contributions.removeOwner(p.id);
+      services.removeOwner(p.id);
       failed.push({ id: p.id, error: `failed to start: ${err.message}` });
       log.warn(TAG, `plugin ${p.id}: failed to start`, err);
       continue;
@@ -195,7 +246,9 @@ export async function loadPlugins({
        freeze every repaint in the app. */
     busy: () => busy.some((fn) => { try { return Boolean(fn()); } catch { return false; } }),
     loaded,
-    failed
+    failed,
+    contributions: (point) => contributions.list(point, ownerOn),
+    use: (name) => services.use(name, ownerOn)
   };
 }
 

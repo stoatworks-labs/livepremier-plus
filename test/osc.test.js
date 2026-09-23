@@ -514,3 +514,50 @@ function sampleArg(args) {
   const m = /(-?\d+)–(-?\d+)/.exec(args);
   return m ? m[1] : '0';
 }
+
+/*
+ * A plugin's address subtree — an `oscAddress` contribution — is answered
+ * before the switcher is consulted, and needs no switcher at all. A
+ * contribution may decline an address, which then falls through to the
+ * switcher's own grammar as if it had never been asked.
+ */
+test('a contributed address subtree is answered over UDP, and a declined address falls through', async () => {
+  const entries = [];
+  let wake = null;
+  const osc = createOscServer({
+    port: 0,
+    address: '127.0.0.1',
+    deviceHost: () => null,
+    addresses: () => [{
+      prefix: '/hello/',
+      owner: 'hello',
+      handle: (address, args) => (address === '/hello/greet'
+        ? { ok: true, summary: `greeted ${args[0]}`, count: 1 }
+        : null)
+    }],
+    onActivity: (e) => { entries.push(e); if (wake) wake(); }
+  });
+  await osc.start();
+  const send = (buf) => new Promise((r) => {
+    const client = dgram.createSocket('udp4');
+    client.send(buf, osc.state.port, '127.0.0.1', () => { client.close(); r(); });
+  });
+  const next = () => new Promise((r, rej) => { wake = r; setTimeout(() => rej(new Error('nothing heard')), 3000); });
+  try {
+    let heard = next();
+    await send(omsg('/hello/greet', 's', ostr('the room')));
+    await heard;
+    assert.equal(entries[0].summary, 'greeted the room');
+    assert.equal(entries[0].error, undefined);
+    assert.equal(osc.state.sent, 1);
+
+    heard = next();
+    await send(omsg('/hello/unknown', 'i', oint(1)));
+    await heard;
+    /* Declined: it went on to the switcher's grammar, which has no switcher. */
+    assert.ok(entries[1].error, 'refused by the switcher half, not answered by the plugin');
+    assert.notEqual(entries[1].summary, 'greeted 1');
+  } finally {
+    await osc.stop();
+  }
+});

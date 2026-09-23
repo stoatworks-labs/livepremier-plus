@@ -134,3 +134,30 @@ test('the kit cannot be changed under another plugin', () => {
   assert.equal(Object.isFrozen(KIT), true);
   for (const name of ['h', 'button', 'card', 'note', 'picker', 'panel']) assert.equal(typeof KIT[name], 'function', name);
 });
+
+test('a page half contributes cue actions and offers services; one that throws takes back what it added', async () => {
+  const { fetch } = server([entry('giver'), entry('broken'), entry('wrongside'), entry('taker', { requires: { capabilities: [], plugins: ['giver'] } })]);
+  let seen = null;
+  const hosted = await loadPlugins({
+    session: {}, platform: () => ({}), can: () => true, refresh() {}, settings: {},
+    fetch, log: quiet,
+    load: async (url) => {
+      if (url.includes('/giver/')) {
+        return { default: (ctx) => { ctx.contribute('cueAction', { kind: 'giver:go', label: 'Go', run() {} }); ctx.provide('clock', { now: () => 1 }); } };
+      }
+      if (url.includes('/broken/')) {
+        return { default: (ctx) => { ctx.contribute('cueAction', { kind: 'broken:go', label: 'Go', run() {} }); throw new Error('boom'); } };
+      }
+      if (url.includes('/wrongside/')) {
+        return { default: (ctx) => ctx.contribute('oscAddress', { prefix: '/x/', handle() {} }) };
+      }
+      return { default: (ctx) => { seen = { clock: ctx.use('clock'), kinds: ctx.contributions('cueAction').map((c) => c.kind) }; } };
+    }
+  });
+  assert.deepEqual(hosted.contributions('cueAction').map((c) => c.kind), ['giver:go'], 'nothing of the broken one’s');
+  assert.equal(hosted.use('clock').now(), 1);
+  assert.match(hosted.failed.find((f) => f.id === 'wrongside').error, /server contribution — make it from the plugin's server\.js/);
+  /* The taker needs the giver, so it started after it and could see it. */
+  assert.deepEqual(seen.kinds, ['giver:go']);
+  assert.equal(seen.clock.now(), 1);
+});

@@ -443,6 +443,23 @@ Four things worth knowing:
 and leaves output 5 alone even if it was showing this source a moment ago. A
 router output always shows *something*, so "removing" a destination would mean
 choosing a different source for it, and there is no answer to which.
+
+---
+
+## Addresses a plugin adds
+
+A plugin may answer a subtree of addresses of its own — the
+[plugin guide](PLUGINS.md#extending-each-other) has the how. The matrix
+addresses above are one: they belong to the Matrix Routing plugin, and
+switching it off takes them away. A plugin's subtree reaches it from UDP and
+from a line typed in the Console alike, and it may decline an address, which
+then goes on to the switcher's own.
+
+A plugin written elsewhere may not answer anything under `/lp/` — that is
+the switcher's address space, and a plugin that could answer `/lp/screen/…`
+could quietly take it over — and no two plugins may overlap. What is
+answered on a given install, and by whom, is at
+`GET /__lpp/osc/addresses`.
 ---
 
 ## How a message reaches the switcher

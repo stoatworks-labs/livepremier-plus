@@ -76,13 +76,25 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
 - **In place** — still wired into `src/main.js` and `server/proxy.js` by hand and
   gated there with `isEnabled`. Everything else, until its phase.
 
+**Features extend each other through `core/contributions.js`, never by
+name.** The cue engine had Matrix Routing's two actions in its switch, the
+Console intercepted `/lp/matrix/` by hand, and the OSC server took a hook only
+the router could use — three special cases no other plugin could have. Now the
+engine asks for a `cueAction` by kind, the OSC server and the Console for an
+`oscAddress` by prefix, and Matrix Routing contributes both from where it is
+wired in, exactly as a plugin would. Do not put a feature's name back into
+`cuestack.js`, `osc.js` or `console-panel.js`: if a feature needs a new kind of
+hook, add a point to `POINTS`, with the rules that stop one plugin taking
+another's — or the switcher's — over. Shared state goes the same way:
+`provide`/`use`, the cue stack being `use('stack')`.
+
 What the hosts own, so a plugin does not have to: routes under
 `/__lpp/<id>/…`, server-sent streams, relayed sockets, and disposal of all of
 it when the plugin is switched off — live, with no restart, on the server; on
 the next load in the page. A plugin that throws while starting is marked failed
 and says why on its settings row; nothing else goes down with it.
 
-Five things about it that break quietly:
+The things about it that break quietly:
 
 - **Importing a server half must do nothing.** The host imports every hosted
   plugin at startup, switched on or not, to read its settings schema.
@@ -112,6 +124,12 @@ Five things about it that break quietly:
 - **`examples/plugins/hello-switcher` is tested as a user plugin**, unchanged,
   through the host and through a real data directory. If the API moves, the
   example moves with it, or the suite says so.
+- **A cue action is not awaited, and runs ahead of the take.** A contributed
+  `run` goes out with the recalls; the take is deferred behind them. Awaiting
+  it would let one slow router hold a take hostage, and it is the reason
+  routing before a take works at all. A cue naming a kind nobody handles
+  keeps the action and warns when it fires — never drop it, it is somebody's
+  show file.
 
 ## Why a proxy, and the three things that make it work
 
@@ -913,6 +931,15 @@ no benefit. Read `wru` as "the panels".
   while focused" flag for this; and never focus a field on every render, the
   way the Console used to — it stole the caret from the vendor's own fields
   once a second.
+- **Every panel is drawn by a test — `test/panel-render.test.js`.** Against
+  an empty store and the simulator's, twice each (a render and a repaint), with
+  the dependencies `main.js` gives it, over a small stand-in DOM
+  (`test/helpers/fake-dom.js`). It exists because the Timeline took an option
+  called `actions` that a function of its own shadowed: the first cue holding a
+  plugin's action threw on every render and left an empty tab, and nothing
+  noticed, because nothing rendered the panel. Moving panels into plugins is
+  exactly the change that breaks a render without breaking an import — a new
+  panel, or a plugin's page half, goes in that test.
 - **Take the stream marker before fetching the snapshot**, not after. See
   `core/session.js` and [docs/TRANSPORT.md](docs/TRANSPORT.md). Getting this
   backwards makes the mirror quietly stale in a way nothing reports.

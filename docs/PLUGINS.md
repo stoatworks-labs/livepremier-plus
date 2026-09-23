@@ -14,7 +14,7 @@ and read [Adding your own](#adding-your-own) below.
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
 | 2 | The self-contained features moved: VPU Map, Pitch Compensation and the Pixelhue panel (**done**), the Edit page | in progress |
-| 3 | Contribution points, then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing — and MIDI, Memories, Layer, layer names and the Edit page, which turned out to share more than they looked (MIDI's port feeds the timecode source; Memories and Layer ride the pop-out machinery; layer names are read by five surfaces; the Edit page embeds the Layer panel and reads the names) | planned |
+| 3 | [Contribution points and services](#extending-each-other) (**done**), then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing — and MIDI, Memories, Layer, layer names and the Edit page, which turned out to share more than they looked (MIDI's port feeds the timecode source; Memories and Layer ride the pop-out machinery; layer names are read by five surfaces; the Edit page embeds the Layer panel and reads the names) | in progress |
 | 4 | **User plugins** loaded from the data directory; this guide; an example plugin | **done** — ahead of phase 3, on the phase-1 API |
 
 ## Switching features on and off
@@ -87,6 +87,8 @@ everything with an effect belongs in `activate`.
 | `device()` | The switcher this app points at, `host:port`, or null. Read it per use; it changes. |
 | `awj(messages)` | One AWJ exchange with the switcher — opened, used, closed. |
 | `selfAddress(req)` | `{ host, port, loopback }`: the address a request arrived on, which is the one address this process is known to be reachable at. `loopback` is the warning that it will not reach across a room. |
+| `contribute(point, spec)` / `contributions(point)` | Add to one of the server's [contribution points](#contribution-points) — `oscAddress` — or list what is there. Refused, saying why, for a malformed contribution, a clash, or a point that belongs to the page. |
+| `provide(name, api)` / `use(name)` | Offer an object to the other plugins in this process under a name, or find one. [Services](#services). |
 | `url(path)`, `log(msg)`, `id`, `manifest`, `apiVersion` | |
 
 **The host owns the lifetime.** Everything a plugin registers is recorded, and switching it off
@@ -112,7 +114,12 @@ page half of every plugin that is on, and calls `activate(ctx)`.
 | `settings.get()` / `settings.set(patch)` | This plugin's settings; `set` resolves with them as stored, which may differ if the schema corrected a field. |
 | `kit` | The app's DOM helpers — `h`, `button`, `readout`, `sectionTitle`, `fill`, `icon`, `panel`, and the settings page's `card`, `note` and `picker` — so a plugin looks like the rest of the app without importing files by path. What is in the kit is the stable surface; `/__lpp/src/…` is not. |
 | `session`, `platform()`, `can(capability)`, `refresh()` | The live store mirror and what this switcher supports. An entry is only offered where every capability in the manifest's `requires` is there. |
+| `contribute(point, spec)` / `contributions(point)` | Add to one of the page's [contribution points](#contribution-points) — `cueAction` — or list what is there. |
+| `provide(name, api)` / `use(name)` | Offer an object to the other plugins in the page, or find one — the app's cue stack is `use('stack')`. [Services](#services). |
 | `url(path)`, `log`, `id`, `manifest` | |
+
+The page halves start in dependency order: a plugin that lists another in `requires.plugins`
+activates after it, so what that one provides is there to `use`.
 
 **`order`** places an entry among the app's own, which are numbered in tens: in PLUS, Edit 10, VPU Map
 20, Memories 30, Layer Groups 40, Matrix Routing 50 — and Companion asks for 60. On the strip,
@@ -157,6 +164,79 @@ settings save is merged one level deeper for `plugins`. A plugin that is not ins
 entry — switch and settings — untouched, so one that is missing for a while comes back as you left
 it.
 
+## Extending each other
+
+A plugin can add to the app's features as well as beside them. The app's own features used to reach
+into each other by name — the cue engine had Matrix Routing's two actions in its switch, the Console
+intercepted `/lp/matrix/` by hand, and the OSC server took a hook only the matrix router could use.
+Those were special cases only a built-in could have. Now the engine, the Console and the OSC server
+ask a registry, and Matrix Routing contributes to it the way a plugin of yours would.
+
+### Contribution points
+
+A **contribution point** is a place in the app that takes additions from any plugin.
+[`src/core/contributions.js`](../src/core/contributions.js) defines them:
+
+| Point | Half | A contribution is |
+|---|---|---|
+| `cueAction` | page | `{ kind, label, run(action, { cue }), describe?(action) }` — a new thing a cue can do |
+| `oscAddress` | server | `{ prefix, describe?, handle(address, args) }` — a subtree of OSC addresses |
+
+**`cueAction`.** `kind` is the name a cue stores its action under — start it with your plugin's id
+(`hello-switcher:say`), which also keeps it clear of everybody else's; the cue engine's own kinds are
+refused. When the cue fires, `run(action, { cue })` is called in the order the cue lists its actions,
+alongside the recalls and **before any take or cut in the same cue** — the take is deferred and yours
+is not, which is what lets Matrix Routing put a signal on an input before anything switches to it. It
+is not awaited: a throw or a rejected promise becomes a warning on the cue, like a failed write.
+`describe(action)` is how the cue sheet says it, in the Timeline and in the editor.
+
+A cue can hold an action whose plugin is off — a cue file from another machine, or a plugin switched
+off since. It stays in the cue, listed by its bare kind, and firing the cue warns *Nothing handles
+"…"* rather than dropping it without a word. For now an action of a contributed kind gets into a cue
+from a cue file (Timeline ▸ Export / Import); the *New cue* form offers the switcher's own recalls
+only.
+
+**`oscAddress`.** `prefix` is an address ending in `/` — `/hello/` — and `handle(address, args)` is
+called for any address at or below it, whether it arrived over UDP or was typed in the Console. It
+answers `{ ok: true, summary?, count? }`, `{ ok: false, error }`, or **null to decline**, in which
+case the address goes on to the switcher's own. `describe` is one line for a listing. The longest
+prefix wins, so a plugin can answer `/a/` and — itself — `/a/b/` differently.
+
+The rules, each one there to stop a plugin quietly taking something over:
+
+- **No two plugins share a kind or overlap an address space.** A second is refused, naming the first.
+- **`/lp/…` is the switcher's address space.** Only a built-in may answer under it — Matrix Routing's
+  `/lp/matrix/` predates the rule — so no plugin can take `/lp/screen/…` away from the switcher.
+- **Each half has its own points.** A `cueAction` made from a server half is refused, and so is an
+  `oscAddress` made from a page half, each saying which file it belongs in.
+- **Switching a plugin off takes its contributions with it**, the same moment its routes go.
+
+What is answered on an install, and by whom, is at `GET /__lpp/osc/addresses`; the Console reads it,
+and sends a line in one of those subtrees to `POST /__lpp/osc/run` so a typed line and a UDP packet
+take the same path.
+
+### Services
+
+A **service** is an object one plugin offers the rest, under a name: `ctx.provide(name, api)` in the
+plugin that has it, `ctx.use(name)` in the one that wants it. It is how a plugin gets at another's
+state without importing its files.
+
+- **One provider per name.** A second is refused rather than silently replacing the first.
+- **`use` answers null** while nobody provides the name or its provider is off — check for it. List
+  the provider in `requires.plugins` if you cannot work without it.
+- A service goes when its provider is switched off or fails to start.
+- Each half has its own services; the page's are not the server's.
+
+**The app's own:** the page provides **`stack`**, the cue stack, owned by the Timeline —
+`go()`, `back()`, `stop()`, `gotoId(id)`, `standby`, `cues()` (copies), and
+`addEventListener`/`removeEventListener` for its events (`fired`, `took`, `armed`, `changed`,
+`stopped`, `end`, `warning`, `sendFailed`). It is narrow
+on purpose: moving through a show and hearing it move, not rewriting it.
+
+The example plugin uses all three: a cue action (`hello-switcher:say`), an address (`/hello/ping`,
+answered with the greeting — type it in the Console) and the `stack` service (its panel shows the
+standby cue).
+
 ## Adding your own
 
 A plugin of your own is a folder in the **`plugins` folder of the app's data directory**:
@@ -186,7 +266,7 @@ when one does not appear.
   "name": "Hello, switcher",
   "version": "1.0.0",
   "apiVersion": 1,
-  "description": "An example plugin: a page in the sidebar, a card in settings, a route and a live stream.",
+  "description": "An example plugin: a page in the sidebar, a card in settings, a route, a live stream, a cue action and an OSC address.",
   "where": "Sidebar, under PLUS, and a card in Settings",
   "server": "server.js",
   "client": "client.js",
@@ -250,7 +330,20 @@ the example and the built-ins, not of anybody else's plugin.
    the price is that a plugin author must not keep secrets beside their code.
 6. **No sandbox.** User plugins are trusted, off by default, and local-only.
 
-Still open, and decided in the phase that needs them: contribution points (`cueAction`,
-`oscAddress`, `consoleCommand` — Phase 3); storage under `<dataDir>/plugins/<id>/` and a section in
-the one-file setup (Phase 2, when the first plugin with data of its own moves); and `provide`/`use`
-for services one plugin offers another (Phase 3).
+Added in Phase 3, for the same review:
+
+7. **Two contribution points, not three.** The plan had a `consoleCommand` point as well; the Console
+   already hands anything that looks like an address to the OSC path, so a plugin's `oscAddress` is
+   its console command too, and one point means a typed line and a packet cannot drift apart.
+8. **`/lp/` is reserved for built-ins, and address spaces may not overlap.** The cost: a plugin that
+   wanted to extend the switcher's own grammar cannot. That grammar is mynah's, stated in one place.
+9. **A contributed cue action is not awaited, and runs ahead of the take.** Awaiting would let one
+   slow router hold a cue's take hostage; running after the take would put the wrong source on air
+   for the length of the transition.
+10. **Services are one provider per name, found at call time.** No versioning of a service yet — a
+    service that changes shape changes its name.
+
+Still open, and decided in the phase that needs them: storage under `<dataDir>/plugins/<id>/` and a
+section in the one-file setup (when the first plugin with data of its own moves); and how a
+contributed cue action is offered in the *New cue* form — a `fields` description on the
+contribution is the likely shape, decided when Matrix Routing moves and needs it.

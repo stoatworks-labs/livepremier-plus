@@ -66,9 +66,7 @@ import { PARAMS, paramsFor, mynahPlatform } from '../core/osc-dictionary.js';
 import { presetBanks, listDestinations } from '../core/screens.js';
 import { dialectFor } from '../core/dialect.js';
 import { DEFAULT_SETTINGS } from '../core/settings.js';
-
-/** The address prefix this app answers itself — see `resolveMatrixOsc`. */
-const MATRIX_PREFIX = '/lp/matrix/';
+import { oscAddressFor } from '../core/contributions.js';
 
 const HISTORY_MAX = 100;
 const LOG_MAX = 200;
@@ -97,8 +95,21 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
        because a line read as the wrong language produces an error about a
        character rather than about a command, and that reads like the
        operator's own typo. */
-    language: null
+    language: null,
+    /* The address subtrees plugins answer — Matrix Routing's `/lp/matrix/`
+       among them — as the server lists them. A line under one of these is the
+       plugin's, not mynah's. */
+    addresses: []
   };
+
+  /** Which subtrees the plugins answer. Asked once; switching a plugin applies on reload. */
+  async function loadAddresses() {
+    try {
+      const res = await fetch('/__lpp/osc/addresses', { cache: 'no-store' });
+      if (res.ok) state.addresses = (await res.json()).addresses || [];
+    } catch { /* without the list, every line is mynah's — as it always was */ }
+  }
+  void loadAddresses();
 
   /** Pull the settings from the process that owns them. */
   async function loadSettings() {
@@ -246,17 +257,19 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
     state.historyAt = -1;
 
     /*
-     * A matrix address, which is this app's own and not mynah's.
+     * An address a plugin answers — Matrix Routing's `/lp/matrix/…`, or
+     * anybody's — which is not mynah's.
      *
-     * Handed to the launcher rather than resolved here, so that a line typed
-     * at this keyboard and the identical address arriving over UDP take the
-     * same code path — see the `/matrix/osc` route. Recognised by prefix
-     * before `run()` sees it, because mynah would rightly reject an address
-     * from a grammar it does not have and the operator would read that as
-     * their own typo.
+     * Handed to the server rather than resolved here, so that a line typed at
+     * this keyboard and the identical address arriving over UDP take the same
+     * code path — see the `/osc/run` route. Recognised by prefix before
+     * `run()` sees it, because mynah would rightly reject an address from a
+     * grammar it does not have and the operator would read that as their own
+     * typo.
      */
-    if (text.startsWith(MATRIX_PREFIX)) {
-      void viaMatrix(text);
+    const address = text.split(/\s+/)[0];
+    if (oscAddressFor(state.addresses, address)) {
+      void viaPlugin(text);
       return finish();
     }
 
@@ -326,44 +339,44 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
    * two seconds and then reappeared would read as a dropped keystroke.
    */
   /**
-   * A `/lp/matrix/…` line, routed by the launcher.
+   * A line under an address a plugin answers, run by the server.
    *
    * The arguments are split off the address and typed loosely: a port list
    * like `1-4` has to survive as a string, and a bare number has to arrive as
    * a number. So a token that is entirely digits becomes one, and everything
-   * else stays text — which is exactly the distinction `resolveMatrixOsc`
-   * expects, and the same one an OSC sender makes with its type tags.
+   * else stays text — the same distinction an OSC sender makes with its type
+   * tags, and the one Matrix Routing's addresses expect.
    */
-  async function viaMatrix(text) {
+  async function viaPlugin(text) {
     const [address, ...rest] = text.split(/\s+/);
     const args = rest.map((token) => (/^\d+$/.test(token) ? Number(token) : token));
 
-    const entry = { at: Date.now(), kind: 'warn', text, detail: 'routing…', label: 'Matrix' };
+    const entry = { at: Date.now(), kind: 'warn', text, detail: 'sending…', label: 'OSC' };
     state.log.unshift(entry);
     if (state.log.length > LOG_MAX) state.log.length = LOG_MAX;
     onRefresh();
 
     try {
-      const res = await fetch('/__lpp/matrix/osc', {
+      const res = await fetch('/__lpp/osc/run', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ address, args })
       });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
+      if (!res.ok || !body.ok) {
         entry.kind = 'error';
-        entry.detail = body.error || `matrix route failed — HTTP ${res.status}`;
+        entry.detail = body.error || `refused — HTTP ${res.status}`;
       } else {
         /* Sent, never confirmed — the same rule the whole driver layer keeps.
            A router acknowledges receipt of a crosspoint and not the making of
            one; the Matrix Routing panel shows what actually moved. */
         entry.kind = 'ok';
-        entry.detail = `${body.summary || 'routed'} — ${body.crosspoints?.length ?? 0} crosspoint`
-          + `${body.crosspoints?.length === 1 ? '' : 's'} sent`;
+        entry.detail = `${body.summary || 'done'}`
+          + (Number.isInteger(body.count) ? ` — ${body.count} sent` : '');
       }
     } catch (err) {
       entry.kind = 'error';
-      entry.detail = `matrix route failed: ${err.message}`;
+      entry.detail = `failed: ${err.message}`;
     }
     onRefresh();
   }

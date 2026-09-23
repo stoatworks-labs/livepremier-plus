@@ -26,10 +26,17 @@ import { panel } from './shell.js';
 import { parseTimecodeString } from '../core/chase.js';
 import { formatTimecode } from '../core/timecode.js';
 import { ACTION_KINDS } from '../core/cuestack.js';
+import { describeContributed } from '../core/contributions.js';
 import { listDestinations } from '../core/screens.js';
 import { dialectFor } from '../core/dialect.js';
 
-export function createTimelinePanel({ session, stack, storage, timecode = null, chase = null, onRefresh }) {
+/**
+ * @param {object} o
+ * @param {() => object[]} [o.cueActions]  the `cueAction` contributions, so a
+ *        plugin's action reads in its own words — named so as not to shadow
+ *        this panel's own `actions()`, the toolbar
+ */
+export function createTimelinePanel({ session, stack, storage, timecode = null, chase = null, onRefresh, cueActions = () => [] }) {
   const view = { editing: null, adding: false, armedUntil: null, lastFired: null };
 
   stack.addEventListener('fired', (ev) => { view.lastFired = ev.detail; onRefresh(); });
@@ -322,7 +329,8 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
           return `master preset ${a.slot} ${a.mode === 'PROGRAM' ? '(PGM)' : '(PRW)'}`;
         case ACTION_KINDS.TAKE: return `take ${(a.targets || []).join(' ')}`;
         case ACTION_KINDS.CUT: return `cut ${(a.targets || []).join(' ')}`;
-        default: return a.kind;
+        /* A plugin's kind, in its own words — see `core/contributions.js`. */
+        default: return describeContributed(a, cueActions());
       }
     }).join(' · ');
   }

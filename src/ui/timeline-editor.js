@@ -30,6 +30,7 @@ import { h, button } from './dom.js';
 import { formatTimecode } from '../core/timecode.js';
 import { parseTimecodeString } from '../core/chase.js';
 import { ACTION_KINDS } from '../core/cuestack.js';
+import { describeContributed } from '../core/contributions.js';
 
 /** Columns of the list, in the order they are scanned. */
 const COLUMNS = [
@@ -183,7 +184,9 @@ export function buildTimelineEditor(doc, bridge) {
       case ACTION_KINDS.MASTER_PRESET: return `Master ${a.slot}`;
       case ACTION_KINDS.TAKE: return `Take ${a.screen}`;
       case ACTION_KINDS.CUT: return `Cut ${a.screen}`;
-      default: return a.kind;
+      /* A plugin's kind, in its own words — asked of the page that owns the
+         stack, which is where the plugins live. */
+      default: return describeContributed(a, bridge.contributions ? bridge.contributions('cueAction') : []);
     }
   }
 
