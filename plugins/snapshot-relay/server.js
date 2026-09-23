@@ -22,8 +22,8 @@
  */
 
 import http from 'node:http';
-import { normalise, SNAPSHOT_PATH } from './core.js';
-import { createRelay } from './relay.js';
+import { normalise, ageLimit, SNAPSHOT_PATH, MAX_HOT } from './core.js';
+import { createRelay, createHotSet } from './relay.js';
 import { createEncoder } from './encoder.js';
 
 export const settings = { normalise };
@@ -59,7 +59,10 @@ export default function activate(ctx) {
     });
   }
 
-  const relay = createRelay({ fetch: fetchFromDevice, transcode: encoder.transcode, settings: ctx.settings.get });
+  const hot = createHotSet();
+  const relay = createRelay({
+    fetch: fetchFromDevice, transcode: encoder.transcode, settings: ctx.settings.get, isHot: hot.has
+  });
 
   /**
    * Answer one vendor snapshot request, or say it is not ours (false) and let
@@ -69,7 +72,10 @@ export default function activate(ctx) {
     if (req.method !== 'GET' || !SNAPSHOT_PATH.test(url.pathname)) return false;
     let r;
     try {
-      r = await relay.get(url.pathname, req.headers);
+      const maxAgeMs = ageLimit({
+        hot: hot.has(url.pathname), editing: hot.editing(), settings: ctx.settings.get()
+      });
+      r = await relay.get(url.pathname, req.headers, { maxAgeMs });
     } catch (err) {
       ctx.log(`thumbnail relay: ${url.pathname}: ${err.message}`);
       /* Unreachable is the proxy's to report, the way it reports everything
@@ -100,12 +106,33 @@ export default function activate(ctx) {
 
   ctx.provide('snapshots', Object.freeze({ serve }));
 
-  ctx.route('GET', '/state', (req, res, h) => h.json(200, relay.stats()));
+  const state = () => ({ ...relay.stats(), hot: hot.list(), editing: hot.editing(), pages: hot.pages() });
+
+  ctx.route('GET', '/state', (req, res, h) => h.json(200, state()));
+
+  /*
+   * A page naming the sources it is drawing in a screen or aux canvas.
+   * Sent every couple of seconds while it draws any, so a page that goes away
+   * lets its sources go idle on its own. Only snapshot paths are taken: this
+   * list decides what reaches the switcher, so it is not a place for anything
+   * else to be written.
+   */
+  ctx.route('POST', '/hot', async (req, res, h) => {
+    const body = await h.readJson(16 * 1024);
+    const page = typeof body?.page === 'string' ? body.page.slice(0, 64) : '';
+    if (!page) throw new ctx.HttpError(400, 'a page id is required');
+    const paths = Array.isArray(body.paths)
+      ? [...new Set(body.paths.filter((p) => typeof p === 'string' && SNAPSHOT_PATH.test(p)))].slice(0, MAX_HOT)
+      : [];
+    hot.set(page, paths);
+    const s = ctx.settings.get();
+    h.json(200, { hot: hot.list(), hotHz: s.hotHz, idleMs: s.idleMs });
+  });
 
   /* The card follows the numbers live while it is open, and costs nothing
      while nobody is looking. */
-  const stream = ctx.stream('/stream', { onOpen: (first) => first.send('stats', relay.stats()) });
-  const beat = setInterval(() => { if (stream.size > 0) stream.send('stats', relay.stats()); }, 1000);
+  const stream = ctx.stream('/stream', { onOpen: (first) => first.send('stats', state()) });
+  const beat = setInterval(() => { if (stream.size > 0) stream.send('stats', state()); }, 1000);
   beat.unref();
 
   ctx.onDispose(async () => {

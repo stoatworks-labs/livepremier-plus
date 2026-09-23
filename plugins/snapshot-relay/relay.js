@@ -17,6 +17,16 @@
  * that is the cheaper half, but a tablet on the show Wi-Fi is exactly where
  * 590 KB against 30 KB matters.
  *
+ * ## Hot and idle
+ *
+ * While a page is editing — drawing some sources in a screen or aux canvas —
+ * it names those sources to this relay as **hot** (`createHotSet`). The server
+ * then lets every other source's frame age up to `idleMs` before asking the
+ * switcher again, and the page refreshes the hot ones itself, faster than the
+ * vendor would. The vendor's poller still asks for everything; what changes is
+ * how many of those asks reach the switcher. Which frame age is acceptable is
+ * the caller's decision, per request — this file only honours it.
+ *
  * ## What it measures
  *
  * How often each source's picture actually changes, seen from the fetches
@@ -38,15 +48,17 @@ const INTERVALS = 20;
  * @param {(path: string, headers: object) => Promise<{status: number, headers: object, body: Buffer}>} opts.fetch
  * @param {(png: Buffer) => Promise<{type: string, body: Buffer}|null>} opts.transcode
  *        null means "serve the original", for any reason
- * @param {() => {maxAgeMs: number}} opts.settings  read per request
+ * @param {() => {maxAgeMs: number}} opts.settings  read per request, for the default share window
+ * @param {(path: string) => boolean} [opts.isHot]  only for the stats
  * @param {() => number} [opts.now]
  */
-export function createRelay({ fetch, transcode, settings, now = Date.now }) {
+export function createRelay({ fetch, transcode, settings, isHot = () => false, now = Date.now }) {
   const entries = new Map();
   const totals = {
     requests: 0,        /* pages that asked */
     fetches: 0,         /* times the switcher was asked */
     shared: 0,          /* answered from a frame another request fetched */
+    idle: 0,            /* answered from an older frame, the source being idle */
     unchanged: 0,       /* fetched, and byte-identical to the frame before */
     encoded: 0,         /* transcodes run */
     encodeMs: 0,
@@ -113,22 +125,28 @@ export function createRelay({ fetch, transcode, settings, now = Date.now }) {
 
   /**
    * A snapshot for a page: `{ status, type, body, etag?, via }`, `via` saying
-   * where it came from — `fresh`, `shared`, `unchanged` or `passthrough`.
-   * Throws only when the switcher could not be reached at all.
+   * where it came from — `fresh`, `shared`, `idle`, `unchanged` or
+   * `passthrough`. Throws only when the switcher could not be reached at all.
    *
    * @param {string} path     the vendor's path, no query
    * @param {object} headers  the page's request headers, for the switcher
+   * @param {{maxAgeMs?: number}} [opts]  how old a kept frame may be and still
+   *        answer; the share window from the settings when not given. Past the
+   *        share window, an answer from the kept frame counts as `idle`.
    */
-  async function get(path, headers = {}) {
+  async function get(path, headers = {}, { maxAgeMs } = {}) {
     totals.requests++;
     const t = now();
     forget(t);
     const e = entryFor(path);
     e.lastAsked = t;
+    const share = settings().maxAgeMs;
+    const limit = maxAgeMs ?? share;
 
-    if (e.out && t - e.at <= settings().maxAgeMs) {
-      totals.shared++;
-      return count({ ...e.out, via: 'shared' });
+    if (e.out && t - e.at <= limit) {
+      const idle = t - e.at > share;
+      if (idle) totals.idle++; else totals.shared++;
+      return count({ ...e.out, via: idle ? 'idle' : 'shared' });
     }
     if (e.inflight) {
       totals.shared++;
@@ -178,10 +196,51 @@ export function createRelay({ fetch, transcode, settings, now = Date.now }) {
           bytesIn: e.raw ? e.raw.length : 0,
           bytesOut: e.out.body.length,
           type: e.out.type,
-          ageMs: t - e.at
+          ageMs: t - e.at,
+          hot: isHot(e.path)
         }))
     };
   }
 
   return { get, stats, size: () => entries.size };
+}
+
+/**
+ * The sources pages are editing, each page's list held on a lease.
+ *
+ * A page names its hot sources every couple of seconds; a page that stops —
+ * closed, crashed, put to sleep — drops out when its lease runs out, and its
+ * sources go idle with it. Several pages are a union: a source one tab is
+ * editing stays hot whatever another tab is showing.
+ *
+ * @param {{leaseMs?: number, now?: () => number}} [opts]
+ */
+export function createHotSet({ leaseMs = 5000, now = Date.now } = {}) {
+  const pages = new Map();
+
+  function live() {
+    const t = now();
+    for (const [id, p] of pages) if (t - p.at > leaseMs) pages.delete(id);
+    return pages;
+  }
+
+  return {
+    /** Replace one page's list. An empty list keeps the page but makes nothing hot. */
+    set(page, paths) { pages.set(page, { at: now(), paths: new Set(paths) }); },
+    has(path) {
+      for (const p of live().values()) if (p.paths.has(path)) return true;
+      return false;
+    },
+    /** Whether anybody is editing at all: some page has at least one hot source. */
+    editing() {
+      for (const p of live().values()) if (p.paths.size) return true;
+      return false;
+    },
+    list() {
+      const out = new Set();
+      for (const p of live().values()) for (const path of p.paths) out.add(path);
+      return [...out].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    },
+    pages: () => live().size
+  };
 }

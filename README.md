@@ -670,10 +670,22 @@ hands the same frame to every page that asks within 300 ms. The vendor's own sou
 unchanged. Anything it cannot improve — a 404, a placeholder that would grow —
 goes through as the switcher sent it; switched off, nothing is touched.
 
-The switcher still sends every PNG in full to this app; what shrinks is the
-traffic from here to the browsers, which matters most for a page on another
-machine — a tablet on the show Wi-Fi. Its card on the settings page shows the
-bytes in and out, and how often each source's picture really changed.
+The Web RCS asks for every input's thumbnail in turn, whether anybody is
+looking at it or not. The relay tells apart the ones being **edited** — drawn
+in a screen or aux canvas on Screens / Aux., or in this app's Edit page and
+previews, and on screen — from the rest. While any are, the page refreshes
+those itself (**Hot refresh**, 2 Hz by default) and the relay answers the vendor
+for every other source from the frame it already has until it is **Idle hold**
+old (4 s). Against the simulator with 32 inputs and three on S1/S2, the three
+went from a new frame every 1.28 s to four a second, the other 29 to one every
+5 s, and the switcher's link carried less than before. Nobody editing — a page
+of source cards alone — and every source is treated alike.
+
+The switcher still sends each PNG it is asked for in full; the hold is what
+reduces how often it is asked. The traffic from here to the browsers shrinks
+most, which matters for a page on another machine — a tablet on the show
+Wi-Fi. Its card on the settings page shows the bytes in and out, which sources
+are hot, and how often each source's picture really changed.
 
 > ⚠️ **Preview: never yet run against a real frame.** Proved against the
 > LivePremier Simulator with a stand-in serving hardware-shaped thumbnails.
