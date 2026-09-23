@@ -32,8 +32,17 @@ import http from 'node:http';
 import { EventEmitter } from 'node:events';
 import { createHash, randomBytes } from 'node:crypto';
 
-/** The RFC's magic string, appended to the key before the accept hash. */
-const GUID = '258EAFA5-E914-47DA-95CA-5AB0DC85B11D';
+/**
+ * The RFC's magic string, appended to the key before the accept hash.
+ * ⚠️ Until 2026-09-23 this carried a typo (`…95CA-5AB0DC85B11D`) that the test's
+ * stub server shared, so every test passed and no real UCenter ever finished a
+ * handshake. `test/pixelhue.test.js` now pins `acceptFor` to RFC 6455 §1.3's
+ * own worked example instead.
+ */
+const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+
+/** The `Sec-WebSocket-Accept` a server must answer `key` with. */
+export const acceptFor = (key) => createHash('sha1').update(key + GUID).digest('base64');
 
 const OP = { CONT: 0x0, TEXT: 0x1, BINARY: 0x2, CLOSE: 0x8, PING: 0x9, PONG: 0xa };
 
@@ -71,7 +80,7 @@ export class WsClient extends EventEmitter {
       throw new Error(`only ws:// is supported here, not ${target.protocol}`);
     }
     const key = randomBytes(16).toString('base64');
-    const accept = createHash('sha1').update(key + GUID).digest('base64');
+    const accept = acceptFor(key);
 
     const req = http.request({
       hostname: target.hostname,

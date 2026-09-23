@@ -91,6 +91,21 @@ proxied Web RCS runs on it perfectly well.
 Settings are installation-level, like the OSC listener and the matrices: a
 panel on the desk does not move when you re-point at a backup frame.
 
+⚠️ **The console's control service is shared, and the vendor's software
+publishes to it too.** With PixelFlow open, the panel shows *its* project's
+buses and every press is acted on by both apps; the last model published wins.
+A select of a screen this app did not publish is refused and says so in the
+panel's history, and the selection is cleared whenever the link is rebuilt —
+but the panel itself will still be showing someone else's keys. Close the
+vendor software.
+
+**Trying it with no console.** PixelFlow for macOS installs the same control
+service locally (`/Library/Ucenter`, port 19999), and its Event Controller page
+— a full virtual U5 — can be served on its own, without PixelFlow's main window
+publishing over this app. Pick **U5** or **U5 Pro** with host `127.0.0.1`. The
+serving script lives with the reverse-engineering notes, in
+`pixelhue-re/tools/rig/virtual-panel.mjs`.
+
 ---
 
 ## What it reads from the switcher, and what it does not

@@ -102,6 +102,7 @@ export class PixelhueSupervisor extends EventEmitter {
 
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     this.#config = want;
+    this.selection.reset();
     if (!want) { this.#note({ kind: 'stopped' }); return this.describe(); }
 
     const link = new UCenterLink({ host: want.host, port: want.port, log: this.log });
@@ -118,6 +119,7 @@ export class PixelhueSupervisor extends EventEmitter {
   async stop() {
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     this.#config = null;
+    this.selection.reset();
   }
 
   /* ------------------------------------------------------------- the switcher */
@@ -198,6 +200,7 @@ export class PixelhueSupervisor extends EventEmitter {
         selection: { destination: this.selection.list[0] || null, layer: this.selection.layer },
       });
       await this.#link.publish(model);
+      this.selection.restrict(model.screens.map((s) => s.uid));
       this.#note({
         kind: 'published',
         screens: model.screens.length,
@@ -242,6 +245,15 @@ export class PixelhueSupervisor extends EventEmitter {
     const code = report && report.command;
     if (!intent) {
       this.#note({ kind: 'ignored', command: commandName(code) });
+      return;
+    }
+
+    if (!this.selection.accepts(intent)) {
+      this.#note({
+        kind: 'noted',
+        command: commandName(code),
+        note: `refused — ${intent.destination || 'that screen'} is not one this app published`,
+      });
       return;
     }
 

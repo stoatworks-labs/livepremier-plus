@@ -332,14 +332,47 @@ function sourceSpec(dialect) {
  */
 export class Selection {
   constructor() {
+    this.reset();
+  }
+
+  /**
+   * Back to nothing selected and nothing published. A link that is rebuilt
+   * or stopped starts here: a selection outliving its console is how a
+   * screen from some other app's model ended up as a take target.
+   */
+  reset() {
     this.destinations = new Set();
     this.layer = 1;
     this.buffer = 'PREVIEW';
+    /* The uids the console was last given, or null before the first publish. */
+    this.known = null;
+    return this;
+  }
+
+  /**
+   * Hold only what was just published. ⚠️ A console's UCenter is shared: on
+   * a U5 the vendor's own software publishes its model to the same service,
+   * the panel then shows *its* screens, and pressing one reports a uid that
+   * means nothing to this switcher. Found on 2026-09-23 with PixelFlow's P20
+   * project open beside this app.
+   */
+  restrict(uids) {
+    this.known = new Set(uids);
+    for (const id of this.destinations) if (!this.known.has(id)) this.destinations.delete(id);
+    return this;
+  }
+
+  /** False for a select of anything this app did not publish. */
+  accepts(intent) {
+    if (!intent || intent.kind !== 'select') return true;
+    return !!this.known && this.known.has(intent.destination);
   }
 
   apply(intent) {
     if (!intent) return this;
-    if (intent.kind === 'select' && intent.destination) this.destinations.add(intent.destination);
+    if (intent.kind === 'select' && intent.destination && this.accepts(intent)) {
+      this.destinations.add(intent.destination);
+    }
     if (intent.kind === 'unselect') this.destinations.delete(intent.destination);
     if (intent.kind === 'selectLayer' && intent.layer) this.layer = intent.layer;
     /* PGM EDIT is a latch on the panel; here it only says which buffer the

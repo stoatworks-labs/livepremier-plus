@@ -26,7 +26,7 @@ import {
 import { NLC } from '../src/core/dialect.js';
 import { commandsFor } from '../src/core/commands.js';
 import { toAwj } from '../src/core/paths.js';
-import { WsClient } from '../plugins/pixelhue/ws-client.js';
+import { WsClient, acceptFor } from '../plugins/pixelhue/ws-client.js';
 import { normalisePixelhue as normalise, pixelhueChanged } from '../plugins/pixelhue/core.js';
 import { normalise as normaliseSettings } from '../src/core/settings.js';
 import { settings as schema } from '../plugins/pixelhue/server.js';
@@ -210,7 +210,7 @@ test('no platform yet means no writes at all', () => {
 /* ------------------------------------------------------------- the selection */
 
 test('the panel selection is kept here, because the switcher does not keep it', () => {
-  const sel = new Selection();
+  const sel = new Selection().restrict(['S1', 'S2']);
   sel.apply(readIntent(byCommand(COMMAND.screenSelect)));
   assert.deepEqual(sel.list, ['S2']);
   sel.apply({ kind: 'select', destination: 'S1' });
@@ -219,6 +219,31 @@ test('the panel selection is kept here, because the switcher does not keep it', 
   assert.deepEqual(sel.list, ['S1']);
   sel.apply({ kind: 'selectLayer', layer: 4 });
   assert.equal(sel.layer, 4);
+});
+
+test('only a screen this app published can be selected', () => {
+  const sel = new Selection();
+  assert.equal(sel.accepts({ kind: 'select', destination: 'S1' }), false,
+    'nothing is selectable before the first publish');
+  sel.restrict(['S1', 'S2']);
+  sel.apply({ kind: 'select', destination: 'S1' });
+  /* A uid from another app's model on the same UCenter — PixelFlow's P20. */
+  const foreign = { kind: 'select', destination: 'fb8c7c30-d82b-4f5b-a13d-f9afafb17e30' };
+  assert.equal(sel.accepts(foreign), false);
+  sel.apply(foreign);
+  assert.deepEqual(sel.list, ['S1']);
+});
+
+test('a republish drops what is no longer published, and reset forgets everything', () => {
+  const sel = new Selection().restrict(['S1', 'S2']);
+  sel.apply({ kind: 'select', destination: 'S1' });
+  sel.apply({ kind: 'select', destination: 'S2' });
+  sel.apply({ kind: 'selectLayer', layer: 3 });
+  sel.restrict(['S2']);
+  assert.deepEqual(sel.list, ['S2']);
+  sel.reset();
+  assert.deepEqual(sel.describe(), { destinations: [], layer: 1, buffer: 'PREVIEW' });
+  assert.equal(sel.known, null);
 });
 
 test('PGM EDIT moves which buffer a source change edits, and nothing else', () => {
@@ -263,7 +288,13 @@ test('the mini is the only model reachable over the LAN', () => {
 
 /* ------------------------------------------------------- the WebSocket client */
 
-const GUID = '258EAFA5-E914-47DA-95CA-5AB0DC85B11D';
+const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+
+test('the handshake answer matches RFC 6455 §1.3’s own worked example', () => {
+  /* Pinned to the RFC, not to a constant shared with the stub below — a typo
+     in both once passed every test while no real server would talk to it. */
+  assert.equal(acceptFor('dGhlIHNhbXBsZSBub25jZQ=='), 's3pPLMBiTxaQ9kYGzzhZRbK+xOo=');
+});
 
 /** A WebSocket server in thirty lines, so the client is tested against a socket. */
 function stubServer(onOpen) {
