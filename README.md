@@ -383,15 +383,15 @@ the whole network is meant to reach it. Set `LPP_DEVICE` to skip the setup page.
 
 ## Download
 
-**[v0.12.0](https://github.com/stoatworks-labs/livepremier-plus/releases/tag/v0.12.0)** — prebuilt for macOS, Windows and Linux. Pick your platform:
+**[v0.13.0](https://github.com/stoatworks-labs/livepremier-plus/releases/tag/v0.13.0)** — prebuilt for macOS, Windows and Linux. Pick your platform:
 
 <details>
 <summary><b>macOS</b> — Universal (Apple Silicon + Intel)</summary>
 
 | Build | Download | Size |
 | --- | --- | --- |
-| Universal (Apple Silicon + Intel) · .dmg disk image | [`livepremier-plus-0.12.0-macos-universal.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.12.0/livepremier-plus-0.12.0-macos-universal.dmg) | 82 MB |
-| Universal (Apple Silicon + Intel) · .pkg installer | [`livepremier-plus-0.12.0-macos-universal.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.12.0/livepremier-plus-0.12.0-macos-universal.pkg) | 82 MB |
+| Universal (Apple Silicon + Intel) · .dmg disk image | [`livepremier-plus-0.13.0-macos-universal.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.13.0/livepremier-plus-0.13.0-macos-universal.dmg) | 82 MB |
+| Universal (Apple Silicon + Intel) · .pkg installer | [`livepremier-plus-0.13.0-macos-universal.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.13.0/livepremier-plus-0.13.0-macos-universal.pkg) | 82 MB |
 
 </details>
 
@@ -400,7 +400,7 @@ the whole network is meant to reach it. Set `LPP_DEVICE` to skip the setup page.
 
 | Build | Download | Size |
 | --- | --- | --- |
-| x64 · .exe installer | [`LivePremier.Plus_0.12.0_x64-setup.exe`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.12.0/LivePremier.Plus_0.12.0_x64-setup.exe) | 25 MB |
+| x64 · .exe installer | [`LivePremier.Plus_0.13.0_x64-setup.exe`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.13.0/LivePremier.Plus_0.13.0_x64-setup.exe) | 25 MB |
 
 </details>
 
@@ -409,8 +409,8 @@ the whole network is meant to reach it. Set `LPP_DEVICE` to skip the setup page.
 
 | Build | Download | Size |
 | --- | --- | --- |
-| x64 · .deb package (Debian/Ubuntu) | [`LivePremier.Plus_0.12.0_amd64.deb`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.12.0/LivePremier.Plus_0.12.0_amd64.deb) | 50 MB |
-| x64 · .rpm package (Fedora/RHEL) | [`LivePremier.Plus-0.12.0-1.x86_64.rpm`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.12.0/LivePremier.Plus-0.12.0-1.x86_64.rpm) | 50 MB |
+| x64 · .deb package (Debian/Ubuntu) | [`LivePremier.Plus_0.13.0_amd64.deb`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.13.0/LivePremier.Plus_0.13.0_amd64.deb) | 50 MB |
+| x64 · .rpm package (Fedora/RHEL) | [`LivePremier.Plus-0.13.0-1.x86_64.rpm`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.13.0/LivePremier.Plus-0.13.0-1.x86_64.rpm) | 50 MB |
 
 </details>
 
