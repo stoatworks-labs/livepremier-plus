@@ -93,27 +93,51 @@ test('the advice names the page that is open and the loopback door with its port
 
 /* ------------------------------------------------------------------ over a socket */
 
-const lanAddress = () => {
-  for (const list of Object.values(networkInterfaces())) {
-    for (const i of list || []) if (i.family === 'IPv4' && !i.internal) return i.address;
+/* Every non-internal IPv4, wired and Wi-Fi interfaces (en*, eth*) first: a
+   VPN or overlay adapter (ZeroTier, Tailscale, a VM bridge) can hold an
+   address this machine cannot reach itself on, so the first one listed is
+   not a safe pick. */
+const lanCandidates = () => {
+  const found = [];
+  for (const [name, list] of Object.entries(networkInterfaces())) {
+    for (const i of list || []) if (i.family === 'IPv4' && !i.internal) found.push({ name, address: i.address });
   }
+  const rank = (n) => (/^(en|eth)\d/.test(n) ? 0 : 1);
+  return found.sort((a, b) => rank(a.name) - rank(b.name)).map((c) => c.address);
+};
+/* Whether a TCP connect to address:port completes within `ms`. */
+const answers = (address, port, ms = 1000) => new Promise((resolve) => {
+  const sock = net.connect({ host: address, port });
+  const done = (ok) => { clearTimeout(timer); sock.destroy(); resolve(ok); };
+  const timer = setTimeout(() => done(false), ms);
+  sock.once('connect', () => done(true));
+  sock.once('error', () => done(false));
+});
+/* The first LAN address the listener on `port` actually answers on. */
+const reachableLan = async (port) => {
+  for (const address of lanCandidates()) if (await answers(address, port)) return address;
   return null;
 };
 const listen = (server, host) => new Promise((resolve) => server.listen(0, host, () => resolve(server.address().port)));
 const close = (s) => new Promise((r) => { s.closeRelays?.(); s.closeAllConnections?.(); s.close(r); });
 
-test('a LAN-bound proxy redirects a local top-level navigation to its loopback listener, and only that', { skip: !lanAddress() && 'no non-loopback IPv4 on this machine' }, async () => {
-  const lan = lanAddress();
+test('a LAN-bound proxy redirects a local top-level navigation to its loopback listener, and only that', { skip: !lanCandidates().length && 'no non-loopback IPv4 on this machine' }, async (t) => {
   const proxy = await createProxy({ device: null, root: ROOT, log: () => {}, loopbackPort: 1 });
   /* `loopbackPort: 1` is a stand-in: the port is only interpolated into the
      Location header, so the test reads it back rather than opening a second
      listener. index.js passes the real port. */
   const port = await listen(proxy, '0.0.0.0');
   try {
+    const lan = await reachableLan(port);
+    if (!lan) {
+      t.skip(`no LAN address answers a connect to itself (tried ${lanCandidates().join(', ')})`);
+      return;
+    }
     const get = (host, headers) => new Promise((resolve, reject) => {
-      http.get({ host, port, path: `${NS}/status`, headers }, (res) => {
+      http.get({ host, port, path: `${NS}/status`, headers, timeout: 5000 }, (res) => {
         res.resume(); res.on('end', () => resolve(res));
-      }).on('error', reject);
+      }).on('timeout', function () { this.destroy(new Error(`timed out reaching ${host}:${port}`)); })
+        .on('error', reject);
     });
     /* Arriving by the LAN address, wanting a page: 302 to loopback. */
     const page = await get(lan, { accept: 'text/html' });
