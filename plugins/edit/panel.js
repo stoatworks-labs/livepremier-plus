@@ -50,14 +50,6 @@ import { fittedLayers, writeCmd, catalogueFor } from '../../src/core/properties.
 import { layerLabel } from '../../src/core/layer-names.js';
 import { EDIT } from '../../src/core/programmer.js';
 
-/** Card widths, the same ladder the preview wall offers. */
-const SIZES = [
-  { id: 'small', label: 'S', width: 240 },
-  { id: 'medium', label: 'M', width: 340 },
-  { id: 'large', label: 'L', width: 460 },
-  { id: 'huge', label: 'XL', width: 640 }
-];
-
 /** Vendor input thumbnails move at about 1 Hz; matching it is enough. */
 const SNAPSHOT_MS = 1000;
 
@@ -94,7 +86,6 @@ export function createEditPanel({
        service mid-session appears instead of falling outside a stale set. */
     screens: null,
     auxes: null,
-    size: 'medium',
     rail: 'layer',
     sourcesOpen: true,
     tick: Date.now(),
@@ -300,8 +291,6 @@ export function createEditPanel({
 
   /* --------------------------------------------------------------- render */
 
-  const sizeOf = () => (SIZES.find((s) => s.id === view.size) || SIZES[1]).width;
-
   function render() {
     return panel({ toolbar: toolbar(), body: body() });
   }
@@ -339,9 +328,6 @@ export function createEditPanel({
         }, 'offline')),
       group('Screens', 'screen', screens),
       group('Aux.', 'aux', auxes),
-      h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
-        h('span', { class: 'aw-font-overline aw-text-tertiary', text: 'Size' }),
-        SIZES.map((s) => chip(s.label, view.size === s.id, () => { view.size = s.id; onRefresh(); }))),
       chip(view.sourcesOpen ? '‹ Sources' : 'Sources ›', view.sourcesOpen,
         () => { view.sourcesOpen = !view.sourcesOpen; onRefresh(); }));
   }
@@ -355,7 +341,7 @@ export function createEditPanel({
       h('div', { class: 'lpp-edit-main' },
         noteLine(),
         dests.length
-          ? h('div', { class: 'lpp-wall' }, dests.map(card))
+          ? h('div', { class: 'lpp-wall lpp-wall--fill' }, dests.map(card))
           : h('div', {
             class: 'wru-empty',
             text: 'No screen or auxiliary in service matches the filter.'
@@ -374,7 +360,6 @@ export function createEditPanel({
   /* ----------------------------------------------------------------- card */
 
   function card(dest) {
-    const width = sizeOf();
     const live = programmer.has(dest.id);
     const { dest: selDest, layer: selLayer } = selected();
 
@@ -409,10 +394,7 @@ export function createEditPanel({
       })
       : emptyStage(dest);
 
-    return h('div', {
-      class: ['lpp-card', selDest === dest.id ? 'lpp-card--on' : ''],
-      style: { width: width + 'px' }
-    },
+    return h('div', { class: ['lpp-card', 'lpp-card--fill', selDest === dest.id ? 'lpp-card--on' : ''] },
     h('div', { class: 'lpp-card-head aw-flex-row-center-v aw-gap-col-small' },
       h('button', {
         class: 'lpp-card-name', type: 'button',
@@ -421,9 +403,26 @@ export function createEditPanel({
       dest.label ? h('span', { class: 'aw-text-secondary aw-text-ellipsis', text: dest.label }) : null,
       h('div', { style: { flex: '1' } }),
       h('span', { class: 'aw-font-caption aw-text-tertiary', text: `${dest.layerCount ?? '?'}L` })),
-    frame,
+    fit(dest, frame),
     cardTools(dest, live),
     live ? layerStrip(dest) : null);
+  }
+
+  /**
+   * The stage, as large as the column lets it be.
+   *
+   * The vendor's Screens / Aux. page with only PRW showing gives each
+   * destination an equal share of the width and the full height, and letterboxes
+   * the canvas into what is left under the column's furniture. This is that:
+   * the box is a size container and the stage is the larger of "as wide as the
+   * box" and "as tall as the box" that still fits, at the canvas's own shape.
+   */
+  function fit(dest, frame) {
+    const box = h('div', { class: 'lpp-fit' }, frame);
+    /* A custom property, so `style.setProperty` — `Object.assign` onto
+       `style` drops names that start with `--`. */
+    box.style.setProperty('--lpp-ar', String(dest.canvas.width / dest.canvas.height));
+    return box;
   }
 
   function emptyStage(dest) {

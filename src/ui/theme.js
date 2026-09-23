@@ -426,6 +426,24 @@ const CSS = `
 .lpp-rail-tab--on { background: #2185D0; border-color: #2185D0; color: #fff; }
 .lpp-rail-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
 
+/* The vendor's PRW-only Screens / Aux. layout: one column per destination,
+   equal shares of the width, the full height, the canvas letterboxed into
+   whatever the column's furniture leaves. Past a comfortable minimum the wall
+   scrolls sideways rather than shrinking every stage to a thumbnail. */
+.lpp-edit-main { display: flex; flex-direction: column; }
+.lpp-wall--fill {
+  flex: 1 1 auto; min-height: 0; flex-wrap: nowrap; align-content: stretch;
+  gap: 0.5rem; overflow-x: auto;
+}
+.lpp-card--fill { flex: 1 1 0; min-width: 20rem; min-height: 0; }
+.lpp-fit {
+  flex: 1 1 auto; min-height: 12rem; container-type: size;
+  display: flex; align-items: center; justify-content: center;
+  background: #0E1A21; border-radius: 0.25rem;
+}
+.lpp-fit > .lpp-stage { width: min(100cqw, calc(100cqh * var(--lpp-ar, 1.7778))); flex: none; box-sizing: border-box; }
+.lpp-card--fill .lpp-layer-strip { flex: none; max-height: 9rem; overflow-y: auto; }
+
 .lpp-card--on { border-color: #E8A33D; }
 .lpp-card-name {
   background: transparent; border: 0; padding: 0; cursor: pointer; color: inherit;
