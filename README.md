@@ -312,10 +312,16 @@ or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 > tab's edits and the Memories panel's own buttons have written to the
 > simulators only. The Console is the one panel to have written to a real box.
 
-**[Watch it work (50s)](https://www.youtube.com/watch?v=mGjGiNO_tSo)** — the real
-application, driven through its own controls: the VPU map off a real Aquilon C
-capture, a command typed into the Console, and `1080-80` becoming 1000 in a
-layer width.
+[![A tour of LivePremier Plus: the Edit page, Companion, layer groups, matrix routing, the VPU map, the Console and the Timeline](docs/video-thumb.png)](https://www.youtube.com/watch?v=gYI1xJLEYXE)
+
+**[Watch the tour (77s)](https://www.youtube.com/watch?v=gYI1xJLEYXE)** — the real
+application, filmed on Analog Way's LivePremier simulator: the Edit page building
+a look off air and saving it into a real memory slot, Companion served inside the
+app, layer groups and the `…` on a source card, routing through a Videohub
+emulator, the VPU map, the Console and the Timeline. It was filmed on 0.12.0;
+0.13.0 changed how the app is built, not what it shows. The first video, with
+the VPU map off a real Aquilon C capture and `1080-80` becoming 1000 in a layer
+width, [is still up](https://www.youtube.com/watch?v=mGjGiNO_tSo).
 
 ---
 
