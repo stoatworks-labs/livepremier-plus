@@ -118,7 +118,7 @@ or from the command line with Node 20. It works on a **LivePremier** and — for
 the Timeline, Console, Memories, Layer and Pitch Compensation — on a **Midra 4K
 or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 
-> **Status: field testing — v0.14.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.15.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -233,6 +233,21 @@ or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.15.0 (2026-09-23).** Six new plugins, each proven on the simulator only.
+> **Layer Lock** keeps a layer through a take, or takes one layer alone — the
+> switcher has neither, so both are built from a layer identical in program and
+> preview; takes from the front panel, T-bar, OSC or direct AWJ are not held.
+> **HyperDecks** plays, cues and records Blackmagic HyperDecks (or Mitti's
+> emulation) with Mitti-style rules that follow the show: play on program,
+> rewind in preview, take off air when a clip ends. An **EDID builder** on the
+> Setup ▸ EDID page builds one EDID per custom format with Otter and saves it
+> into the bank, and opens the whole Otter editor on any slot. **Mosaic inputs**
+> group inputs 2X1/2X2 and load each plug with its tiled EDID, so a Mac joins
+> them into one display. **Pixelhue Mapping** draws the U5 as a Virtual RC400T
+> with every key, fader and encoder remappable. **Speed Editor** *(preview)*
+> drives the switcher from a DaVinci Resolve Speed Editor over WebHID, never yet
+> tried with a physical panel. None of these has met real hardware.
 >
 > **0.14.0 (2026-09-23).** **Thumbnail relay** *(preview, off by default)*: the
 > switcher's source thumbnails re-encoded as JPEG and shared between pages, a

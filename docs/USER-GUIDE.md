@@ -83,6 +83,10 @@ because the switcher allows five AWJ clients at once.
 > **0.14.0 adds the Thumbnail relay and placeholder routers**, both proven on the simulator only.
 > The relay is off until you switch it on.
 >
+> **0.15.0 adds Layer Lock, HyperDecks, the EDID builder, Mosaic inputs, Pixelhue Mapping and the
+> Speed Editor**, all proven on the simulator (and emulated decks and panels) only — none has met
+> real hardware yet.
+>
 > Built with AI assistance, directed and reviewed by a human author.
 
 ---
