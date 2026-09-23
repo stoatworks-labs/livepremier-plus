@@ -191,6 +191,14 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'speed-editor',
+    name: 'Speed Editor',
+    where: 'Sidebar, under Virtual RC400T',
+    description: 'A DaVinci Resolve Speed Editor driving the switcher over WebHID, from this page.',
+    requires: { capabilities: ['console'] },
+    client: 'client.js'
+  },
+  {
     id: 'pixelhue',
     name: 'Pixelhue panel',
     where: 'Settings (preview)',

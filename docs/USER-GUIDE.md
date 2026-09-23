@@ -33,6 +33,9 @@ as a bolt-on.
 - **OSC input** — QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
   no browser open.
 - **MIDI Mapping** — a control surface driving the switcher, from the page itself.
+- **Speed Editor** *(preview)* — a DaVinci Resolve Speed Editor as a switcher panel, over USB or
+  Bluetooth: CAM 1–9 pick sources, CUT and DIS cut and take, and the wheel moves opacity,
+  position and size. Chrome or Edge, with DaVinci Resolve quit.
 - **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini driving the switcher.
 - **Your setup in one file** — cue stack, groups, layer names, router patch and settings, saved and
   restored together.

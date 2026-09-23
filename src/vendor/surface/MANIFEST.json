@@ -1,14 +1,16 @@
 {
   "upstream": "stoatworks-labs/awj-surface",
   "path": "core",
-  "commit": "171ed5366e999b1bdc992f5f4065972755ba2bc6",
-  "synced": "2026-09-12",
+  "commit": "7baad92e7ed59d0aea0d50bd87ee9d8ca63531d6",
+  "synced": "2026-09-23",
   "files": {
     "catalogue-mng.json": "a36c0ea7c248a677d77cbb803b3980f28357c2c270a78f71c0d49d03cb3527f7",
     "catalogue.js": "5c0a3ea6672ea274094b4ffc612658f4ca87889e20ad3a00cc503f37f65e4d95",
     "catalogue.json": "7653fd6ff0fdb6714ca89586a0ac48376a761e7d4a1dd6f62415a220eb1addcc",
     "coverage.js": "0abfef5b2700eb8dfcaa9037fe7c2bffeabb0d6fd799ce2e9b7645f350213373",
     "engine.js": "9edbf781a6db0ec12e0509aec7126b59c7c7f733efa40750d89b4cdbbeedbca8",
+    "hid/speed-editor.js": "00e40edc00456cc46e1c95df7d75e47e6d051f64afe4cd83c56b5284aba07afc",
+    "hid/surface.js": "18f055849a85ed6f4809d15bdab905a3583d0d07ce4526cf5dfb527587932835",
     "midi/encoders.js": "c0b8a69d98a58cfc515411426290f8e77ef1377a62a12f0cecab5293a7dbc944",
     "midi/mcu.js": "8de2ac0085cb4dd512918782f5266146ea7ed6131402b3a54b8d8974e528ea51",
     "midi/message.js": "a9aa98772d51dd433f29866b8a56ccb43026c467f1fba1211dd256e0895a9127",
@@ -22,6 +24,7 @@
     "profiles/midicon-2.json": "bdab5bbd7042e2fd8177456c282cda2167e5bc36cc07995def6d17b7e1e17c2f",
     "profiles/midicon-pro.json": "17266ab7e234caea42486c987315e885f96148f0d57101f934acac195453cf0f",
     "profiles/osc-default.json": "29ae83f4e2ddff6deceb75fddc6543094f7a2676092d7d10711d83b34c81186e",
+    "profiles/speed-editor.json": "4ce3b4dc14e23d7a752d6658972b1fb5fb15fd29f1b224414d07c84d3fa77f99",
     "profiles/x-touch-mcu.json": "d0f724629db820cb24217bb8f745a3d82e684ba873334df88f74d36d3b10b39b"
   }
 }
