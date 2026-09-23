@@ -570,6 +570,22 @@ export async function createProxy({
       return;
     }
 
+    /*
+     * Source thumbnails, when a plugin offers to answer them — the `snapshots`
+     * service, which the Thumbnail relay provides while it is on. It answers
+     * false for anything it will not take, and then the request is relayed
+     * exactly as if it had never been asked; with no provider, it never is.
+     */
+    if (req.method === 'GET' && url.pathname.startsWith('/api/device/snapshots/')) {
+      const snapshots = host.use('snapshots');
+      if (snapshots) {
+        snapshots.serve(req, res, url)
+          .catch((err) => { log(`snapshots: ${err.message}`); return false; })
+          .then((served) => { if (!served && !res.headersSent) proxyHttp(req, res, url); });
+        return;
+      }
+    }
+
     proxyHttp(req, res, url);
   };
   const server = http.createServer(onRequest);

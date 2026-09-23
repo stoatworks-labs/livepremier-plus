@@ -18,13 +18,18 @@ import {
   normalise as normaliseSettings, DEFAULT_SETTINGS, liftLegacy, mergeSettings, changedPluginSettings
 } from '../src/core/settings.js';
 
+/* Built-ins that arrived switched off, because nobody had them before and they
+   have not yet run against a real switcher. Anyone upgrading loses nothing. A
+   feature leaves this list when it is proved, and is on from then. */
+const OFF_UNTIL_TESTED = new Set(['snapshot-relay']);
+
 test('every built-in is described once, on the current API, and on by default', () => {
   const ids = BUILTINS.map((p) => p.id);
   assert.equal(new Set(ids).size, ids.length, 'no id twice');
   for (const p of BUILTINS) {
     assert.equal(p.apiVersion, API_VERSION);
     assert.equal(p.builtIn, true);
-    assert.equal(p.enabledByDefault, true, `${p.id} must be on for anyone upgrading`);
+    assert.equal(p.enabledByDefault, !OFF_UNTIL_TESTED.has(p.id), `${p.id} must be on for anyone upgrading`);
     assert.ok(p.name && p.description && p.where, `${p.id} says what and where`);
     assert.ok(Array.isArray(p.requires.capabilities) && Array.isArray(p.requires.plugins));
   }

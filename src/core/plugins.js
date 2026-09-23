@@ -199,6 +199,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'snapshot-relay',
+    name: 'Thumbnail relay',
+    where: 'Settings (preview), and every source thumbnail',
+    description: 'The switcher’s source thumbnails re-encoded as JPEG and shared between pages — about a twentieth of the bytes. Never yet run against a real frame.',
+    /* Off until it has been: it sits in front of every thumbnail the vendor's
+       own pages draw. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'setup-file',
     name: 'Setup file',
     where: '/__lpp/config',

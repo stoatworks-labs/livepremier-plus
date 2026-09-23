@@ -69,6 +69,11 @@ rather than as a bolt-on:
 - **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini drives the
   switcher from a model of it rather than from a key map. It has never yet been
   run against a real console.
+- **Thumbnail relay** *(preview, off by default)* — the switcher's source
+  thumbnails re-encoded as JPEG and shared between pages: a twentieth or less of
+  the bytes the vendor's pages would otherwise pull, and every Web RCS tab gets
+  it without a change to the vendor's code. It has never yet run against a real
+  frame.
 - **Your setup in one file** — the cue stack, layer groups, layer names, router
   patch and settings, written as one plain JSON file and read back the same way,
   so a rig restores with its `.awc` rather than half of it.
@@ -650,6 +655,30 @@ that is actually open, the loopback door with its port, and the fact that
 another machine would need HTTPS, which this app does not serve yet. Only
 top-level navigations are redirected; the vendor app's fetches and its socket
 stay where they are.
+
+## Thumbnail relay — preview
+
+The switcher's source thumbnails are PNGs its firmware writes with next to no
+compression — about 148 KB each at 256×144 on an Aquilon C, 590 KB at 512×288
+on a Pulse 4K — and the Web RCS asks for every input's about once a second.
+Ten inputs on a Pulse is some 47 Mbit/s of thumbnails.
+
+Switch the relay on in Preconfig ▸ LivePremier Plus → Plugins and this app
+answers those requests itself: it fetches each PNG from the switcher, re-encodes
+it as a JPEG in a worker thread (10–40 KB, by how busy the picture is), and
+hands the same frame to every page that asks within 300 ms. The vendor's own source cards draw the JPEG
+unchanged. Anything it cannot improve — a 404, a placeholder that would grow —
+goes through as the switcher sent it; switched off, nothing is touched.
+
+The switcher still sends every PNG in full to this app; what shrinks is the
+traffic from here to the browsers, which matters most for a page on another
+machine — a tablet on the show Wi-Fi. Its card on the settings page shows the
+bytes in and out, and how often each source's picture really changed.
+
+> ⚠️ **Preview: never yet run against a real frame.** Proved against the
+> LivePremier Simulator with a stand-in serving hardware-shaped thumbnails.
+> `node tools/snapshot-probe.mjs --device <ip>` measures how often a real
+> switcher rewrites a thumbnail — the number that decides what comes next.
 
 ## Pixelhue panel — preview
 

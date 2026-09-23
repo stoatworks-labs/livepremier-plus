@@ -284,6 +284,11 @@ file restores `installation.settings` through it, so a restored setting reaches 
 over the link Companion's plugin already holds and answering `{ ok, results, error }`, and
 `connected`. The Pixelhue panel sends a console's cue transport keys through it when told to.
 
+**What the app asks for on the server:** **`snapshots`** — `serve(req, res, url)`, answering a
+`GET /api/device/snapshots/…` in the proxy's place and resolving `true`, or `false` to have the
+proxy relay it to the switcher as it always did. With no provider, or its provider off, the proxy
+never asks. The Thumbnail relay is the one there is.
+
 **What the built-ins offer in the page:** **`names`**, from Layer names — `get()` the whole
 `{ 'S1/2': 'IMAG' }` map, `rename(id, layer, value)`, `describe()` for what the vendor-page labels
 found; **`groups`**, from Layer Groups — `list()`, `recent()`, `remember(target)`, `load()`, and
