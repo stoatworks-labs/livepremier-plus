@@ -69,7 +69,8 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
   loaded by `server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a
   plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
   Compensation**, the **Pixelhue panel**, the **Console**, **Memories**, **MIDI
-  Mapping**, **Field arithmetic**, **Layer** and **Layer names** so far; a
+  Mapping**, **Field arithmetic**, **Layer**, **Layer names**, **Layer Groups**
+  and **Send to** so far; a
   built-in may import `src/` directly, and shared engines and components stay
   in `src/` where every plugin can reach them (`core/vpu.js`, `ui/stage.js`,
   `ui/properties-panel.js` — the Layer tab and the Edit page both draw it —
@@ -127,11 +128,18 @@ The things about it that break quietly:
   judges "changed" on schema-read settings, so the defaults that fill in are
   not a change. Do not "simplify" discovery into importing — a test counts
   imports.
+- **A plugin may ask for a repaint before the sidebar exists.** A page half
+  that loads its data as it starts repaints when the data lands, which can be
+  while later plugins are still loading — so `main.js` declares `shell` and
+  `tabs` before `refresh` and skips a repaint until both are built. With them
+  as `const` further down, that repaint was a ReferenceError; found when Layer
+  Groups moved.
 - **A built-in's `ctx.storage` writes the files the app always wrote.**
   `names-<switcher>.json` beside the stacks, keyed by `safeDeviceKey` from
   `server/storage.js` — the same function `StackStore` uses — so moving a
   feature into a plugin moves nothing on disk, an older build still reads it,
-  and `server/config-file.js` finds it where it always did. A user plugin's
+  and `server/config-file.js` finds it where it always did. The per-switcher
+  `{ data }` route three features share is `server/documents.js`. A user plugin's
   documents go in `<data dir>/plugin-data/<id>/`, never its code folder, which
   the page is served from.
 - **`examples/plugins/hello-switcher` is tested as a user plugin**, unchanged,
@@ -469,7 +477,7 @@ reports `settled: false` mid-take and the panel **refuses the write** rather
 than guessing, because the wrong choice during a transition lands on the
 output. A buffer that is on air gets a red banner saying so.
 
-### Layer groups and the send-to menu (`core/groups.js`, `ui/groups-panel.js`, `ui/send-to.js`, `ui/preset-lock.js`)
+### Layer groups and the send-to menu (`core/groups.js`, `plugins/layer-groups/`, `plugins/send-to/`, `ui/preset-lock.js`)
 
 A group is several layers — one screen or many — driven as one, kept per
 device beside the cue stack. Two halves, and only one of them writes on its

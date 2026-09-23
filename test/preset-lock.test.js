@@ -210,7 +210,7 @@ test('the roles are spelled the way the vendor spells them', () => {
  * will reach for the same class for the same good reason.
  */
 test('the send-to popover does not wear the vendor card class', async () => {
-  const { SENDTO_MENU_CLASS } = await import('../src/ui/send-to.js');
+  const { SENDTO_MENU_CLASS } = await import('../plugins/send-to/send-to.js');
   const classes = SENDTO_MENU_CLASS.split(/\s+/);
   assert.ok(classes.includes('wru-sendto'), 'it still carries its own class');
   assert.ok(!classes.includes('aw-card'),

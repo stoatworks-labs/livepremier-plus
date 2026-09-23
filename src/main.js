@@ -21,14 +21,11 @@ import { createTimelinePanel } from './ui/timeline-panel.js';
 import { TabHost, watchVendorTabs } from './ui/tabs.js';
 import { createSettingsPanel } from './ui/settings-panel.js';
 import { createPropertiesPanel } from './ui/properties-panel.js';
-import { createGroupsPanel } from './ui/groups-panel.js';
 import { createEditPanel } from './ui/edit-panel.js';
 import { createProgrammer, EDIT } from './core/programmer.js';
 import { composeMemory, saveViaPreview, applyLook, lookFromMemory } from './core/save-look.js';
 import { fromMemory } from './core/preset-file.js';
 import { installRouterSurfaces } from './ui/router-box.js';
-import { installSendTo } from './ui/send-to.js';
-import { createGang } from './core/groups.js';
 import { detectPlatform, supports } from './core/platform.js';
 import { isEnabled as pluginOn } from './core/plugins.js';
 import { loadPlugins, byOrder } from './ui/plugin-host.js';
@@ -282,17 +279,26 @@ async function boot() {
   /* Declared here rather than at their construction so `refresh` can close
      over them: the panels are built further down, and a `const` referenced
      before its declaration runs is a ReferenceError, not an undefined. */
-  let groups = null;
   let edit = null;
   let editProps = null;
   /* The plugins' page halves, loaded below — see `ui/plugin-host.js`. */
   let hosted = null;
   let settingsPage = null;
+  /*
+   * The sidebar and the tab strip, built once the plugins have said what goes
+   * in them. Until then a repaint has nothing to paint — and one is asked for
+   * early: a plugin that loads its data as it starts repaints when the data
+   * arrives, which can be while the plugins after it are still loading. With
+   * `const` further down, that repaint was a ReferenceError (found when Layer
+   * Groups moved, 2026-09-23).
+   */
+  let shell = null;
+  let tabs = null;
   const editing = () =>
-    [groups, edit, editProps, settingsPage].some((p) => p && p.busy && p.busy())
+    [edit, editProps, settingsPage].some((p) => p && p.busy && p.busy())
     || Boolean(hosted && hosted.busy());
   const refresh = throttleFrame(() => {
-    if (editing()) return;
+    if (!shell || !tabs || editing()) return;
     shell.refresh();
     tabs.refresh();
   });
@@ -350,16 +356,6 @@ async function boot() {
   const namer = () => (hosted ? hosted.use('names') : null);
   const names = () => { const n = namer(); return n ? n.get() : {}; };
   const rename = (...a) => { const n = namer(); if (n) n.rename(...a); };
-  /*
-   * Layer groups, and the two things that read them.
-   *
-   * The panel owns the list and its file; the `…` menu on the vendor's source
-   * cards aims at it; and the gang follows a change made anywhere. All three
-   * are handed the same object rather than a copy, because the panel edits
-   * the list while the other two are running and a snapshot would gang the
-   * arrangement the page was opened with. See `core/groups.js`.
-   */
-  groups = createGroupsPanel({ session, storage: makeStorage('/__lpp/groups'), onRefresh: refresh, names: () => names() });
 
   /*
    * The Edit page: a preset buffer that is not on the device.
@@ -417,7 +413,7 @@ async function boot() {
    * looks for per-screen tools, not in a separate corner of the app. The VPU
    * map does not: it is a whole-device view, so it stays a sidebar entry.
    */
-  const tabs = new TabHost({
+  tabs = new TabHost({
     tabs: byOrder([
       /* `short` is what the tab falls back to when the strip runs out of room,
          which it does at any ordinary window size — the panel is about 360px
@@ -426,29 +422,13 @@ async function boot() {
          one thing nor the other. */
       { id: 'timeline', label: 'Timeline', short: 'Cues', icon: 'timer-14', order: 20, enabled: () => can('cueStack') && on('timeline'), render: () => timeline.render() },
       /* Layer comes here, at 30 — from its plugin, `plugins/layer/`. */
-      /*
-       * Layer Groups is on the strip *as well as* in the sidebar, which no
-       * other panel is.
-       *
-       * The sidebar entry is still the right home — a group crosses screens,
-       * so it is a whole-device view. But it is also the thing you reach for
-       * while you are looking at the screens, and walking to the sidebar and
-       * back to check which layers a group holds is the kind of trip that
-       * stops an operator using a feature at all. Both, deliberately.
-       *
-       * ⚠️ This is the fourth of ours on a strip about 360px wide, beside the
-       * vendor's own Properties and Memories. The fit ladder in `ui/tabs.js`
-       * measures and drops a rung rather than overflowing, so nothing breaks
-       * — but the whole strip now reaches icon-only at a wider window than it
-       * did. That is the cost, and it is why a fifth would need a better
-       * argument than this one had.
-       */
-      { id: 'groups', label: 'Groups', short: 'Grps', icon: ['group-14', 'layer-stacked-14'], order: 40, enabled: () => can('layerGroups') && on('layer-groups'), render: () => groups.render() },
+      /* Layer Groups comes here, at 40 — from its plugin, `plugins/layer-groups/`,
+         which is on the strip as well as in the sidebar. */
       ...hosted.tabs
     ])
   });
 
-  const shell = new Shell({
+  shell = new Shell({
     title: 'PLUS',
     /* Ordered by `order`, in tens so a plugin can put itself between two of
        these. The hosted ones already do: VPU Map asks for 20, Companion for
@@ -465,11 +445,8 @@ async function boot() {
        */
       { id: 'edit', label: 'Edit', icon: ['properties-18', 'layer-stacked-18'], order: 10, enabled: () => can('layerProperties') && on('edit'), render: () => edit.render() },
       /* VPU Map comes here, at 20 — from its plugin, `plugins/vpu-map/` —
-         and Memories at 30, from `plugins/memories/`. */
-      /* Also a whole-device view, and for the sharpest version of the reason:
-         a group exists precisely because it crosses screens, so it could not
-         live on a per-screen tab strip even if that strip had room. */
-      { id: 'groups', label: 'Layer Groups', icon: ['group-18', 'layer-stacked-18'], order: 40, enabled: () => can('layerGroups') && on('layer-groups'), render: () => groups.render() },
+         Memories at 30, from `plugins/memories/`, and Layer Groups at 40,
+         from `plugins/layer-groups/`. */
       /* Also a whole-device view, and for the same reason as the VPU map: it
          is about the back of the frame rather than about one screen. It is
          the only panel here that reads something other than the store — an
@@ -501,25 +478,6 @@ async function boot() {
   session.addEventListener('frame', refresh);
   stack.addEventListener('changed', refresh);
 
-  /*
-   * The gang: a ganged group follows whichever of its members was changed.
-   *
-   * Wired to `frame` rather than to anything of ours on purpose — the point
-   * is that it follows a change made by *any* route, including the vendor's
-   * own drag-and-drop and a memory recall. `Session` does not dispatch the
-   * frames it replays during hydration, so opening a page onto a desk that is
-   * already out of step does not rewrite it; the gang only ever acts on a
-   * change someone just made. `core/groups.js` has the rest of the rules,
-   * including why this cannot loop.
-   */
-  const gang = createGang({
-    store: session.store,
-    groups: () => (groups ? groups.list() : []),
-    send: (cmd) => session.send(cmd),
-    onActivity: (report) => { groups.reportActivity(report); }
-  });
-  /* A switched-off Layer Groups plugin must not go on ganging in the background. */
-  if (on('layer-groups')) session.addEventListener('frame', (ev) => gang.onFrame(ev.detail));
 
   /* The sidebar may not exist yet - the vendor app mounts React after its own
      bundle runs. Retry briefly rather than racing it. */
@@ -560,34 +518,8 @@ async function boot() {
   shell.remount();
   tabs.remount();
 
-  /*
-   * The groups, and the `…` on the vendor's source cards.
-   *
-   * Both wait for the store: the menu has nothing to offer without a screen
-   * list, and a card cannot be named for a source without a dialect to ask.
-   * The installer declines on a platform that has no layers to group, which
-   * is the same answer the sidebar entry gives.
-   */
-  await groups.load();
-  const sendTo = installSendTo({
-    session,
-    groups,
-    names,
-    enabled: () => can('layerGroups') && on('send-to'),
-    /*
-     * A send aimed at a whole group has already written every member, so the
-     * echoes are that send landing — not one member drifting for the rest to
-     * chase. Telling the gang stops it writing the same values a second time
-     * and reporting that as work it did. A send to a single layer is NOT
-     * announced, even when that layer is in a group: following it is the
-     * whole point of ganging. See `core/groups.js`.
-     */
-    onWrote: ({ target, cmds }) => { if (target.kind === 'group') gang.expect(cmds); },
-    onSent: (r) => console.info(TAG, 'send to', r.source, r.mode, '->', r.sent, 'layer(s)')
-  });
-
   console.info(TAG, 'ready on', location.host, '- store', session.store.ready ? 'mirrored' : 'unavailable');
-  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups, gang, sendTo, names, rename, labels: { describe: () => (namer() ? namer().describe() : null) }, routerBoxes, plugins: hosted, contributions: listContributions, services };
+  window.__WRU = { session, stack, shell, tabs, transport, platform, timecode, chase, groups: hosted.use('groups'), names, rename, labels: { describe: () => (namer() ? namer().describe() : null) }, routerBoxes, plugins: hosted, contributions: listContributions, services };
 }
 
 boot().catch((err) => console.error(TAG, 'failed to start', err));

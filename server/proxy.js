@@ -832,30 +832,6 @@ export async function createProxy({
     }
 
     /*
-     * Layer groups, on the cue stack's terms.
-     *
-     * Same shape, same device key, same reason: a group names this box's
-     * screens and layer slots and means nothing pointed at another one.
-     * Smaller ceiling than the stack's because a group list is a few dozen
-     * short rows — a megabyte is already far more than any show could need.
-     */
-    if (rest === '/groups') {
-      if (!storage || !storage.loadGroups) return sendJson(res, 501, { error: 'no storage configured' });
-      if (req.method === 'GET') {
-        return sendJson(res, 200, { data: await storage.loadGroups(state.device) });
-      }
-      if (req.method === 'PUT' || req.method === 'POST') {
-        const body = await collect(req, 1024 * 1024);
-        let parsed;
-        try { parsed = JSON.parse(body.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-        await storage.saveGroups(state.device, parsed && parsed.data !== undefined ? parsed.data : parsed);
-        return sendJson(res, 200, { ok: true });
-      }
-      return sendJson(res, 405, { error: 'method not allowed' });
-    }
-
-    /*
      * The portable configuration file — everything this app holds, in one
      * document. See `server/config-file.js` for what is in it and why it is
      * split three ways.

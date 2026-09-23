@@ -20,28 +20,9 @@
  * as much as to the rest.
  */
 
-/** Names are short and there are at most a few hundred layers on a frame. */
-const LIMIT = 256 * 1024;
+import { documentRoute } from '../../server/documents.js';
 
 export default function activate(ctx) {
-  const store = () => {
-    if (!ctx.storage) throw new ctx.HttpError(501, 'no storage configured');
-    return ctx.storage;
-  };
-
-  ctx.route('GET', '/', async (req, res, h) => {
-    h.json(200, { data: await store().load('names', { perDevice: true }) });
-  });
-
-  const save = async (req, res, h) => {
-    const storage = store();
-    /* An empty body is refused rather than saved: it would wipe every name. */
-    const raw = await h.readBody(LIMIT);
-    let parsed;
-    try { parsed = JSON.parse(raw.toString('utf8')); } catch { throw new ctx.HttpError(400, 'invalid JSON'); }
-    await storage.save('names', parsed && parsed.data !== undefined ? parsed.data : parsed, { perDevice: true });
-    h.json(200, { ok: true });
-  };
-  ctx.route('PUT', '/', save);
-  ctx.route('POST', '/', save);
+  /* Names are short and there are at most a few hundred layers on a frame. */
+  documentRoute(ctx, 'names', { limit: 256 * 1024 });
 }

@@ -129,14 +129,19 @@ export const BUILTINS = [
     name: 'Layer Groups',
     where: 'Sidebar, under PLUS, and a Groups tab',
     description: 'Several layers, across screens, driven as one — and a gang that follows a change to any of them.',
-    requires: { capabilities: ['layerGroups'] }
+    requires: { capabilities: ['layerGroups'] },
+    /* Where the groups always were: a route base moved rather than a URL. */
+    routeBase: '/groups',
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'send-to',
     name: 'Send to',
     where: 'The … on every source card',
     description: 'Route an input to a layer or a whole group, in preview or program, without a drag.',
-    requires: { capabilities: ['layerGroups'], plugins: ['layer-groups'] }
+    requires: { capabilities: ['layerGroups'], plugins: ['layer-groups'] },
+    client: 'client.js'
   },
   {
     id: 'matrix-routing',
@@ -327,7 +332,6 @@ const ROUTES = [
   ['/timecode', 'timecode'],
   ['/stack', 'timeline'],
   ['/timeline', 'timeline'],
-  ['/groups', 'layer-groups'],
   ['/config', 'setup-file'],
   ...BUILTINS.filter((p) => p.hosted).map((p) => [routeBase(p), p.id])
 ].sort((a, b) => b[0].length - a[0].length);

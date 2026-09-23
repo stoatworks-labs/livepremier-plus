@@ -88,7 +88,7 @@ function renders(name, panel) {
 const noStorage = { load: async () => null, save: async () => {} };
 
 /** Page halves that put nothing in the sidebar or on a strip. */
-const DECORATIONS = new Set(['arithmetic', 'layer-names']);
+const DECORATIONS = new Set(['arithmetic', 'layer-names', 'send-to']);
 
 for (const [storeName, makeStore] of Object.entries(STORES)) {
   test(`every panel in src/ui renders against ${storeName === 'empty' ? 'an empty store' : 'the simulator’s store'}`, async () => {
@@ -100,7 +100,6 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
       const { createTimelinePanel } = await import('../src/ui/timeline-panel.js');
       const { createMatrixPanel } = await import('../src/ui/matrix-panel.js');
       const { createPropertiesPanel } = await import('../src/ui/properties-panel.js');
-      const { createGroupsPanel } = await import('../src/ui/groups-panel.js');
       const { createEditPanel } = await import('../src/ui/edit-panel.js');
       const { createProgrammer } = await import('../src/core/programmer.js');
       const { createSettingsPanel } = await import('../src/ui/settings-panel.js');
@@ -129,7 +128,6 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
       const names = () => ({});
       const properties = createPropertiesPanel({ session, onRefresh() {}, names, onRename: null });
       renders('properties', properties);
-      renders('groups', createGroupsPanel({ session, storage: noStorage, onRefresh() {}, names }));
       const programmer = createProgrammer({ session });
       const editProps = createPropertiesPanel({
         session: programmer, onRefresh() {}, popoutEnabled: false, names, onRename: null, buffers: ['EDIT'], roles: false

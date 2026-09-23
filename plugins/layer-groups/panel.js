@@ -34,14 +34,14 @@
  * to vanish from somewhere else.
  */
 
-import { h, button, icon, isEnter } from './dom.js';
-import { panel } from './shell.js';
-import { listDestinations, sourceLabel } from '../core/screens.js';
-import { fittedLayers, bankLetter, readValue } from '../core/properties.js';
+import { h, button, icon, isEnter } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
+import { listDestinations, sourceLabel } from '../../src/core/screens.js';
+import { fittedLayers, bankLetter, readValue } from '../../src/core/properties.js';
 import {
   normalise, newId, addMember, memberKey, resolveMembers, sourceSpec, GROUPS_VERSION
-} from '../core/groups.js';
-import { layerLabel } from '../core/layer-names.js';
+} from '../../src/core/groups.js';
+import { layerLabel } from '../../src/core/layer-names.js';
 
 /** How many recently-used targets the `…` menu is offered. */
 const RECENT_MAX = 5;
@@ -205,7 +205,7 @@ export function createGroupsPanel({ session, storage, onRefresh = () => {}, name
 
   function groupCard(group) {
     const members = resolveMembers(store(), group);
-    /* ⚠️ Not `aw-card`, for the reason `ui/send-to.js` sets out at length: the
+    /* ⚠️ Not `aw-card`, for the reason `plugins/send-to/send-to.js` sets out at length: the
        vendor's card lightens on hover, which says "click me" about a container
        that is only holding other controls — and on a floating surface the same
        rule turns it see-through. `.wru-groups-card` carries the background and

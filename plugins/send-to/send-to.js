@@ -53,13 +53,13 @@
  * quietly stepped over it would make the rail worthless everywhere.
  */
 
-import { h, icon, button, spriteId } from './dom.js';
-import { dialectFor } from '../core/dialect.js';
-import { listDestinations, sourceLabel } from '../core/screens.js';
-import { fittedLayers } from '../core/properties.js';
-import { sourceCommands, resolveMembers } from '../core/groups.js';
-import { lockedFor, ROLE_LABEL } from './preset-lock.js';
-import { layerLabel, nameOf } from '../core/layer-names.js';
+import { h, icon, button, spriteId } from '../../src/ui/dom.js';
+import { dialectFor } from '../../src/core/dialect.js';
+import { listDestinations, sourceLabel } from '../../src/core/screens.js';
+import { fittedLayers } from '../../src/core/properties.js';
+import { sourceCommands, resolveMembers } from '../../src/core/groups.js';
+import { lockedFor, ROLE_LABEL } from '../../src/ui/preset-lock.js';
+import { layerLabel, nameOf } from '../../src/core/layer-names.js';
 
 /**
  * The popover's own classes.
@@ -92,7 +92,7 @@ const CARDS_SEL = '[class*="sources-container__c__sections___"] .aw-card';
 /**
  * @param {{session: object, groups: object, enabled?: () => boolean,
  *          onSent?: Function, onWrote?: Function, doc?: Document}} opts
- *   `groups` is the store from `ui/groups-panel.js` — `list()`, and
+ *   `groups` is the Layer Groups plugin's `groups` service — `list()`, and
  *   `remember()` for the recently-used targets. `onWrote` is handed every
  *   command actually sent, with the target they were aimed at, so the gang
  *   can be told when a whole group has already been written.
