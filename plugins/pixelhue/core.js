@@ -62,18 +62,30 @@ export const COMMAND = Object.freeze({
   deviceUnselect: 1,
   screenCreate: 100,
   screenSelect: 101,        // ✓
-  screenActive: 102,
-  screenUnselect: 103,
-  layerSelect: 201,
+  /* A quick press on a screen already selected but not active: make it the
+     active one (its layers take the layer bus). A LONG press on a selected
+     screen is what reports 103. */
+  screenActive: 102,        // ✓
+  screenUnselect: 103,      // ✓ long press
+  /* What a screen key reports while DEL is armed. Never acted on: deleting a
+     screen from a panel is not something this app offers. */
+  screenDelete: 104,        // ✓
+  /* What an EMPTY layer key reports. Never acted on either. */
+  layerCreate: 200,         // ✓
+  layerSelect: 201,         // ✓
   inputSwitch: 300,         // ✓
-  savePreset: 400,
+  savePreset: 400,          // ✓ — SAVE TO armed, then a preset key
   playPreset: 401,          // ✓
+  timeAdd: 509,             // ✓ TIME
   screenFreeze: 517,        // ✓
   screenFTB: 518,           // ✓
+  presetSaveMode: 520,      // ✓ SAVE TO arms / disarms
+  switchDel: 521,           // ✓ DEL arms / disarms
   matchPGM: 529,            // ✓
   pgmEdit: 530,             // ✓
   take: 531,                // ✓
   cut: 532,                 // ✓
+  swap: 533,                // ✓
   pageUp: 549,
   pageDown: 550,
 });
@@ -87,6 +99,24 @@ const SCREEN_TYPE = { normal: 2, AUX: 4 };
 const SOURCE_TYPE = { input: 2 };
 const SCREEN_ACTIVE = { INACTIVATED: 1, PGM: 2, PVW: 4 };
 const PLAY = { default: 1 };
+/* ⚠️ `LayerTypeE`: the console binds only normal (2), aux (4), fill (256),
+   bkg (16) and logo (32) layers — PixelFlow's own `isaVailableLayer`. This
+   app used to send 0, which is why the layer bus stayed empty. */
+const LAYER_TYPE = { normal: 2 };
+/* `LayerSceneTypeE`: which buffer a layer belongs to. */
+const LAYER_SCENE = { none: 1, PGM: 2, PVW: 4 };
+
+/**
+ * Layers of different screens share one id space on the console, and the id
+ * is what a layer key reports back. So a layer's id carries its screen's
+ * position as well as its slot: slot 3 of the second screen is 2003.
+ */
+const LAYER_ID_STRIDE = 1000;
+export const layerIdFor = (screenIndex, key) => (screenIndex + 1) * LAYER_ID_STRIDE + Number(key);
+export const layerKeyOf = (id) => {
+  const n = Number(id);
+  return Number.isFinite(n) && n > 0 ? (n % LAYER_ID_STRIDE) || null : null;
+};
 
 /**
  * How many positions a bus shows before the console pages it.
@@ -111,8 +141,11 @@ export const DEFAULT_LIMITS = Object.freeze({ screens: 24, inputs: 64, presets: 
  * @param {Array}  facts.destinations `{id, kind, label, isUsed}` from the dialect
  * @param {Array}  facts.inputs       `{source, label}` — `source` is `LIVE_3`
  * @param {Array}  facts.presets      `{slot, label}` — screen memories
- * @param {Array}  [facts.layers]     `{id, label}` for the selected destination
- * @param {object} [facts.selection]  `{destination, layer}` as we hold it
+ * @param {Array}  [facts.layers]     `{destination, key, label}` — every fitted
+ *                                    layer of every published destination; the
+ *                                    console shows the selected screen's own
+ * @param {object} [facts.selection]  `{destinations, layer, buffer}` as we hold
+ *                                    it (`destination` alone is still read)
  * @param {object} [facts.limits]
  */
 export function businessModel(facts) {
@@ -132,32 +165,71 @@ export function businessModel(facts) {
   const at = (i) => [i + 1];
 
   const used = destinations.filter((d) => d.isUsed).slice(0, limits.screens);
+  /*
+   * ⚠️ Every selected screen is marked, not only the first. The console
+   * decides between select (101) and unselect (103) from this flag, so a
+   * screen published as unselected can never be deselected from the panel —
+   * pressing it again only selects it again.
+   */
+  const chosen = new Set(selection.destinations
+    || (selection.destination ? [selection.destination] : []));
+  const flag = (on) => (on ? ENABLE.on : ENABLE.off);
+  /*
+   * ⚠️ The layer bus shows only the ACTIVE screen's layers, and a screen is
+   * active only when published with `activeRegion: PVW` to match its layers'
+   * `region: PVW` — found by publishing variants at a live UCenter,
+   * 2026-09-23. PGM on both sides binds nothing. PixelFlow activates the
+   * screen last selected, and so does this.
+   */
+  const list = [...chosen];
+  const active = list.length ? list[list.length - 1] : null;
+  const position = new Map(used.map((d, i) => [d.id, i]));
+
+  /* Each screen's layers are numbered from key 1 on the bus: the console
+     shows one screen's layers at a time. */
+  const perScreen = new Map();
+  const bound = [];
+  for (const l of layers) {
+    const i = position.get(l.destination);
+    if (i === undefined) continue;
+    const n = perScreen.get(l.destination) || 0;
+    if (n >= limits.layers) continue;
+    perScreen.set(l.destination, n + 1);
+    bound.push({ ...l, screenIndex: i, slot: n });
+  }
 
   return {
     screens: used.map((d, i) => ({
       uid: d.id,
+      screenId: i + 1,
       name: d.label || d.id,
       index: at(i),
-      selected: d.id === selection.destination ? ENABLE.on : ENABLE.off,
+      enable: ENABLE.on,
+      isEmpty: false,
+      selected: flag(chosen.has(d.id)),
       type: d.kind === 'aux' ? SCREEN_TYPE.AUX : SCREEN_TYPE.normal,
-      activeRegion: SCREEN_ACTIVE.INACTIVATED,
+      activeRegion: d.id === active ? SCREEN_ACTIVE.PVW : SCREEN_ACTIVE.INACTIVATED,
       lockedPgm: ENABLE.on,
+      /* These three light the console's own PGM EDIT, FRZ and FTB keys. */
+      pgmEdit: flag(selection.buffer === 'PROGRAM'),
+      freeze: flag(d.frozen),
+      ftb: flag(d.faded),
       originId: deviceId,
     })),
 
-    layers: layers.slice(0, limits.layers).map((l, i) => ({
-      attachScreenId: 1,
-      attachScreenUid: selection.destination || (used[0] && used[0].id) || '',
-      id: l.id,
-      type: 0,
-      region: 0,
+    layers: bound.map((l) => ({
+      attachScreenId: l.screenIndex + 1,
+      attachScreenUid: l.destination,
+      id: layerIdFor(l.screenIndex, l.key),
+      type: LAYER_TYPE.normal,
+      region: LAYER_SCENE.PVW,
       sourceType: SOURCE_TYPE.input,
-      name: l.label || `Layer ${l.id}`,
-      selected: l.id === selection.layer ? ENABLE.on : ENABLE.off,
-      index: at(i),
+      name: l.label || `Layer ${l.key}`,
+      selected: flag(Number(l.key) === Number(selection.layer) && chosen.has(l.destination)),
+      index: at(l.slot),
       sourceId: 0,
       deviceSn: deviceId,
-      serial: l.id,
+      serial: Number(l.key),
       originId: deviceId,
       enable: ENABLE.on,
     })),
@@ -211,12 +283,16 @@ export function readIntent(report) {
 
   switch (command) {
     case COMMAND.screenSelect:
-    case COMMAND.screenActive:
       return { kind: 'select', destination: String(payload.uid || ''), at };
+    case COMMAND.screenActive:
+      return { kind: 'activate', destination: String(payload.uid || ''), at };
     case COMMAND.screenUnselect:
       return { kind: 'unselect', destination: String(payload.uid || ''), at };
     case COMMAND.layerSelect:
-      return { kind: 'selectLayer', layer: Number(payload.id) || null, at };
+      /* The id is the one `layerIdFor` published, so it carries the screen
+         too; the selection keeps only the slot, which every selected screen
+         shares. */
+      return { kind: 'selectLayer', layer: layerKeyOf(payload.id), at };
     case COMMAND.inputSwitch:
       return { kind: 'source', input: Number(payload.id) || null, label: payload.text || '', at };
     case COMMAND.playPreset:
@@ -246,6 +322,11 @@ export function readIntent(report) {
  * @param {(id:string)=>string|null} ctx.letterFor
  *        the preset LETTER for `ctx.buffer` on that destination, read from the
  *        device. Returning null refuses the write rather than guessing.
+ * @param {(id:string)=>boolean|null} [ctx.fadedOf]
+ *        whether that destination is faded to black now, read from the device
+ * @param {(id:string)=>{programDest:string, layers:Array<{key:string, freeze:string[]}>}|null} [ctx.freezeOf]
+ *        the preset destination (`'UP'`/`'DOWN'`) on air, and each fitted
+ *        layer's freeze list, read from the device
  * @returns {{writes: Array<{path: string[], value: unknown}>, note: string}}
  */
 export function writesFor(intent, ctx) {
@@ -302,17 +383,118 @@ export function writesFor(intent, ctx) {
       out.note = `${value} on layer ${layer} of ${selected.join(' ')} (${buffer})`;
       break;
     }
-    /* Reported, understood, and deliberately not acted on yet. */
-    case 'ftb':
-    case 'freeze':
-      return { ...out, note: `${intent.kind} is not mapped on this platform yet` };
+    case 'store': {
+      /*
+       * SAVE TO, then a preset key. A published key reports its slot; an
+       * EMPTY key reports `id: 0`, and the caller has already chosen a free
+       * slot and a label for it (`intent.slot`, `intent.label`). The buffer
+       * saved is the one the panel edits — preview unless PGM EDIT is on.
+       */
+      /*
+       * ⚠️ From the ACTIVE screen only. A bank slot holds one preset — one
+       * layer set, one screen size — not one per screen, so saving the same
+       * slot from each selected screen keeps only the last and recalls it
+       * everywhere. Found on the simulator 2026-09-23: S2 recalled S1's layers.
+       */
+      if (!intent.slot) return { ...out, note: 'a store with no slot' };
+      const from = selected[selected.length - 1];
+      const save = dialect.save('screen', intent.slot, { mode: buffer, id: from });
+      if (!save) return { ...out, note: 'this platform cannot store that memory' };
+      out.writes.push(save);
+      if (intent.label) out.writes.push(dialect.label('screen', intent.slot, intent.label));
+      out.note = `store ${buffer} of ${from} to memory ${intent.slot}`
+        + (intent.label ? ` as "${intent.label}"` : '');
+      break;
+    }
+    case 'ftb': {
+      /*
+       * A toggle on the panel; a bool per destination on the switcher. One
+       * answer for the whole selection, as the Web RCS gives: if anything
+       * selected is still up, everything fades out; only when all of it is
+       * black does the key fade back in.
+       */
+      if (!dialect.fadeToBlackPath || !dialect.fadeToBlackPath(selected[0])) {
+        return { ...out, note: 'fade to black is not mapped on this platform yet' };
+      }
+      const now = selected.map((id) => (ctx.fadedOf ? ctx.fadedOf(id) : null));
+      if (now.some((v) => v === null || v === undefined)) {
+        return { ...out, note: 'refused — could not read whether the selection is faded' };
+      }
+      const target = !now.every(Boolean);
+      for (const id of selected) out.writes.push({ path: dialect.fadeToBlackPath(id), value: target });
+      out.note = `${target ? 'fade to black' : 'fade up'} ${selected.join(' ')}`;
+      break;
+    }
+    case 'freeze': {
+      /*
+       * Freeze what is on air. A layer's freeze is a list of preset
+       * destinations, so freezing adds the on-air one ('UP' or 'DOWN') to
+       * every fitted layer and unfreezing takes it out — leaving any other
+       * destination the operator froze from the Web RCS alone.
+       */
+      if (!dialect.layerFreezePath || !selected.some((id) => dialect.layerFreezePath(id, 1))) {
+        return { ...out, note: 'freeze is not mapped on this platform yet' };
+      }
+      const states = new Map(selected.map((id) => [id, ctx.freezeOf ? ctx.freezeOf(id) : null]));
+      const usable = [...states].filter(([id, st]) => st && dialect.layerFreezePath(id, 1));
+      if (!usable.length || usable.some(([, st]) => !st.programDest)) {
+        return { ...out, note: 'refused — could not read what is on air to freeze' };
+      }
+      const frozen = usable.every(([, st]) => st.layers.length
+        && st.layers.every((l) => l.freeze.includes(st.programDest)));
+      const target = !frozen;
+      for (const [id, st] of usable) {
+        for (const l of st.layers) {
+          const next = target
+            ? [...new Set([...l.freeze, st.programDest])]
+            : l.freeze.filter((d) => d !== st.programDest);
+          out.writes.push({ path: dialect.layerFreezePath(id, l.key), value: next });
+        }
+      }
+      out.note = `${target ? 'freeze' : 'unfreeze'} ${usable.map(([id]) => id).join(' ')}`;
+      break;
+    }
     default:
       return { ...out, note: `nothing to send for ${intent.kind}` };
   }
   return out;
 }
 
-const NEEDS_DESTINATION = new Set(['take', 'cut', 'matchProgram', 'recall', 'store', 'source']);
+const NEEDS_DESTINATION = new Set([
+  'take', 'cut', 'matchProgram', 'recall', 'store', 'source', 'ftb', 'freeze',
+]);
+
+/**
+ * One T-bar report as `tbarPosition` writes.
+ *
+ * ⚠️ The console reports progress **within a stroke** — `mapValue` of
+ * `maxValue`, 0 at the start of a throw and full at its end, whichever way the
+ * lever travels — not where the lever sits. A LivePremier's `tbarPosition` is
+ * absolute: from rest at 0 a throw to 65535 completes the take, and from rest
+ * at 65535 a throw back to 0 does. So the mapping needs where each destination
+ * RESTED when the stroke began (`restOf`), read once per stroke; the console's
+ * own `direction` is not trusted, because a take fired from a key leaves the
+ * lever and the switcher at opposite ends.
+ *
+ * @param {{mapValue:number, maxValue:number, percent:number}} report
+ * @param {object} ctx `{dialect, selected, restOf(id) -> 0 | 65535 | null}`
+ */
+export function tbarWrites(report, ctx) {
+  const { dialect, selected = [], restOf = () => null } = ctx || {};
+  if (!dialect || !selected.length || !report) return { writes: [], progress: null };
+  const max = Number(report.maxValue) || 0;
+  const raw = max > 0 ? Number(report.mapValue) / max : Number(report.percent) / 100;
+  if (!Number.isFinite(raw)) return { writes: [], progress: null };
+  const progress = Math.min(1, Math.max(0, raw));
+  const writes = [];
+  for (const id of selected) {
+    const rest = restOf(id);
+    if (rest !== 0 && rest !== 65535) continue;
+    const value = Math.round(rest === 0 ? progress * 65535 : (1 - progress) * 65535);
+    writes.push({ path: dialect.takeControl(id, 'tbarPosition'), value });
+  }
+  return { writes, progress };
+}
 
 /** The path tail of the layer parameter naming a source, from the catalogue. */
 function sourceSpec(dialect) {
@@ -364,13 +546,19 @@ export class Selection {
 
   /** False for a select of anything this app did not publish. */
   accepts(intent) {
-    if (!intent || intent.kind !== 'select') return true;
+    if (!intent || (intent.kind !== 'select' && intent.kind !== 'activate')) return true;
     return !!this.known && this.known.has(intent.destination);
   }
 
   apply(intent) {
     if (!intent) return this;
     if (intent.kind === 'select' && intent.destination && this.accepts(intent)) {
+      this.destinations.add(intent.destination);
+    }
+    /* The last one in is the active one (`businessModel` publishes it so), so
+       activating is moving a destination to the end. */
+    if (intent.kind === 'activate' && intent.destination && this.accepts(intent)) {
+      this.destinations.delete(intent.destination);
       this.destinations.add(intent.destination);
     }
     if (intent.kind === 'unselect') this.destinations.delete(intent.destination);

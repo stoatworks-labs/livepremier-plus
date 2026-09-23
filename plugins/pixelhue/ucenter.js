@@ -44,6 +44,14 @@ import { TAGS } from '../../src/vendor/pixelhue/tags.js';
 export const DEFAULT_PORT = 19999;
 export const MINI_PORT = 8088;
 
+/**
+ * ⚠️ The T-bar reports on `0x00101358`, not the `TAGS.TBAR` (`0x00101304`)
+ * the vendored `tags.js` guessed: `{index, direction, percent, mapValue,
+ * maxValue, minValue}`, read off a virtual U5 on 2026-09-23. The correction
+ * belongs upstream in pixelhue-bridge; the vendored file stays as it came.
+ */
+export const TBAR_REPORT = 0x00101358;
+
 const PING_MS = 1000;
 const RECONNECT_MS = 3000;
 const REST_TIMEOUT_MS = 8000;
@@ -158,8 +166,9 @@ export class UCenterLink extends EventEmitter {
         this.state.keys++;
         this.emit('keystate', [].concat(frame.data || []));
         break;
+      case TBAR_REPORT:
       case TAGS.TBAR:
-        this.emit('tbar', frame.data);
+        if (frame.data && typeof frame.data === 'object') this.emit('tbar', frame.data);
         break;
       default:
         break;

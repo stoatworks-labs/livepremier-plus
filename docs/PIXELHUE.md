@@ -2,9 +2,11 @@
 
 > ⚠️ **This has never been run against a console.** Every byte of it was worked
 > out from the consoles' own firmware and then proved against the vendor's
-> control service — a real UCenter from a U5 Pro image — running headless in a
-> VM with no panel attached. That is a long way from a panel on a desk. Turn it
-> on in rehearsal, not in a show.
+> control service — a real UCenter, first from a U5 Pro image in a VM, then the
+> one PixelFlow for macOS installs, driven from PixelFlow's own virtual U5 with
+> a LivePremier simulator on the other end. Every key below was exercised that
+> way on 2026-09-23. That is still not a panel on a desk. Turn it on in
+> rehearsal, not in a show.
 
 A Pixelhue U5, U5 Pro or U5 mini is an **event controller**: a console built
 for Pixelhue's own switchers. This makes one drive an Analog Way LivePremier
@@ -49,16 +51,22 @@ remembers.
 
 | the panel | the console reports | this app does |
 |---|---|---|
-| screen bus | `101` screenSelect / `103` unselect | holds the selection |
-| layer bus | `201` layerSelect | holds the selected layer |
+| screen bus, press | `101` screenSelect | adds the screen to the selection |
+| a selected screen, press | `102` screenActive | makes it the **active** one — its layers take the layer bus |
+| a selected screen, **long** press | `103` unselect | drops it |
+| layer bus | `201` layerSelect | holds the selected layer (the active screen's layers are shown) |
 | input bus | `300` inputSwitch | writes `source.inputNum` on the selected layer |
-| preset bus | `401` playPreset | recalls that memory **to preview** |
+| preset bus | `401` playPreset | recalls that memory **to preview** on every selected screen |
+| SAVE TO, then a preset | `520`, then `400` | stores the active screen's edited buffer in that slot |
+| SAVE TO, then an **empty** preset key | `520`, then `400` with `id: 0` | the same, into the first free slot, named `Memory <n>` |
 | TAKE | `531` | `xTake` on every selected destination |
 | CUT | `532` | `xCut` |
 | MATCH PGM | `529` | `xCopyProgramToPreview` |
-| PGM EDIT | `530` | moves which buffer a *source change* edits |
-| FTB / FRZ | `518` / `517` | **reported and not sent** — see below |
-| page up/down | `549` / `550` | nothing; the console pages itself |
+| PGM EDIT | `530` | moves which buffer a *source change* (and a store) edits |
+| FTB | `518` | fades the selection to black, or back up once all of it is black |
+| FRZ | `517` | freezes what is on air on every fitted layer, or unfreezes |
+| T-bar | tag `0x00101358` | `tbarPosition` on every selected destination |
+| page up/down | none | nothing; the console pages itself |
 
 Everything else a console reports — PTZ, media, timecode, cue transport — is
 ignored on purpose. Those are about a Pixelhue show, not this switcher.
@@ -71,7 +79,26 @@ convenience, and every other recall path in this app makes the same choice.
 ⚠️ **A source change is refused when the preset letter is not known.** Which
 letter is preview changes on every take, it is device state, and it is read
 from the switcher at the moment of the write. If that read fails, nothing is
-sent — the same refusal `server/osc.js` makes, for the same reason.
+sent — the same refusal `server/osc.js` makes, for the same reason. FTB and FRZ
+make the same refusal: both are toggles, and which way to toggle is read from
+the switcher first.
+
+⚠️ **A store saves ONE screen — the active one.** A LivePremier memory slot
+holds one preset: one layer set, one screen size. Saving a slot from every
+selected screen keeps only the last and recalls it on all of them, which is
+what the simulator did the first time this was tried.
+
+**The T-bar follows the switcher, not the lever.** The console reports how far
+through a stroke the lever is; a LivePremier's `tbarPosition` is absolute, 0 at
+one end and 65535 at the other, and whichever end a screen rests at is where a
+throw starts. So each stroke reads where every selected screen rests, and maps
+from there — which is why a take fired from the TAKE key, leaving the lever and
+the switcher at opposite ends, is still finished by the next throw either way.
+LOCK T-BAR is the console's own and silences the reports.
+
+**Deleting and creating are never acted on.** A screen key pressed with DEL
+armed reports `104` (delete that screen); an empty layer key reports `200`
+(create a layer). Neither is something this app offers from a panel.
 
 ---
 
@@ -98,6 +125,11 @@ A select of a screen this app did not publish is refused and says so in the
 panel's history, and the selection is cleared whenever the link is rebuilt —
 but the panel itself will still be showing someone else's keys. Close the
 vendor software.
+
+**The console can drop the model.** When another PixelFlow client connects to
+the same UCenter, every key loses its label, and nobody tells the publisher.
+This app watches for a whole-panel redraw carrying none of its labels and
+publishes again, at most once every three seconds.
 
 **Trying it with no console.** PixelFlow for macOS installs the same control
 service locally (`/Library/Ucenter`, port 19999), and its Event Controller page
@@ -151,6 +183,14 @@ silently drops the first object of every bus — no error, no complaint, just a
 panel that is one short. This cost an afternoon; `test/pixelhue.test.js` pins
 it.
 
+⚠️ **A layer binds only when three things line up**, found by publishing
+variants at a live UCenter: its `type` is one the console knows (2, a normal
+layer — this app sent 0 for months and the layer bus sat empty); its
+`attachScreenId` / `attachScreenUid` name a published screen; and that screen
+is published **active on preview**, `activeRegion: 4`, matching the layer's
+`region: 4`. The console shows the active screen's layers and nobody else's.
+Program on both sides binds nothing.
+
 ⚠️ **A rejected field comes back as a Go unmarshal error naming the struct and
 field** — `{"Struct":"RInput","Field":"inputs.hasBackup"}` — which is by far
 the most useful thing this API says, so `ucenter.js` passes it through whole.
@@ -168,15 +208,15 @@ worth doing.
 
 ## Known gaps
 
-- **FTB and freeze are reported and not sent.** The console asks for them
-  (`518`, `517`); no verified LivePremier path for either is in hand yet. The
-  Web RCS bundle's own Virtual RC400T is where to recover them.
-- **Layers are published but do not bind.** The console leaves the layer bus
-  empty, so a layer key produces no command and the selected layer stays
-  whatever a `201` last said. Probably a field the layer model is missing.
-- **The T-bar, faders and encoders are not read.** They come from the console's
-  panel hardware, which the rig does not have, so their report shapes are still
+- **FTB and freeze are LivePremier only.** The paths were recovered from the
+  Web RCS bundle and proved on the 6.2.73 simulator; Midra 4K / Alta 4K have
+  no verified path yet and say so.
+- **Faders and encoders are not read.** The virtual U5 sent nothing for either
+  to a `client-type=5` socket; a real panel may. Their report shapes are
   unverified.
+- **Layer names are `Layer <n>`.** The console shows the layer bus from the
+  model; the names the Layer names plugin keeps live on the page side, not
+  where this reads.
 - **The key displays are the console's own.** This publishes a model and the
   console draws from it; there is no path here that pushes a picture. The one
   the API offers takes a *filesystem path on the console*, not image bytes.

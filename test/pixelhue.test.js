@@ -20,10 +20,10 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import {
-  businessModel, readIntent, writesFor, Selection, commandName,
-  COMMAND, CONSOLE_MODELS,
+  businessModel, readIntent, writesFor, tbarWrites, Selection, commandName,
+  COMMAND, CONSOLE_MODELS, layerIdFor, layerKeyOf,
 } from '../plugins/pixelhue/core.js';
-import { NLC } from '../src/core/dialect.js';
+import { NLC, MNG } from '../src/core/dialect.js';
 import { commandsFor } from '../src/core/commands.js';
 import { toAwj } from '../src/core/paths.js';
 import { WsClient, acceptFor } from '../plugins/pixelhue/ws-client.js';
@@ -89,6 +89,66 @@ test('the selection is published so the panel can light it', () => {
   const model = businessModel({ ...FACTS, selection: { destination: 'S2' } });
   assert.equal(model.screens.find((s) => s.uid === 'S2').selected, 1);
   assert.equal(model.screens.find((s) => s.uid === 'S1').selected, 0);
+});
+
+test('every selected screen is lit, so pressing one again can deselect it', () => {
+  /* The console picks select (101) or unselect (103) from this flag. Lighting
+     only the first selected screen made every other one impossible to drop. */
+  const model = businessModel({ ...FACTS, selection: { destinations: ['S1', 'A1'] } });
+  const lit = model.screens.filter((s) => s.selected === 1).map((s) => s.uid);
+  assert.deepEqual(lit, ['S1', 'A1']);
+});
+
+test('screens carry the fields PixelFlow sends: screenId, enable and the key lamps', () => {
+  const facts = {
+    ...FACTS,
+    destinations: FACTS.destinations.map((d) => (d.id === 'S2' ? { ...d, faded: true, frozen: true } : d)),
+  };
+  const model = businessModel({ ...facts, selection: { buffer: 'PROGRAM' } });
+  const [s1, s2] = model.screens;
+  assert.deepEqual([s1.screenId, s2.screenId], [1, 2]);
+  assert.equal(s1.enable, 1);
+  assert.equal(s1.isEmpty, false);
+  assert.deepEqual([s1.ftb, s2.ftb, s2.freeze], [0, 1, 1]);
+  assert.equal(s1.pgmEdit, 1, 'PGM EDIT lamp follows the buffer the panel edits');
+});
+
+test('layers bind: type normal, attached to their own screen, ids unique across screens', () => {
+  /* type 0 is not a type the console binds (PixelFlow's isaVailableLayer), and
+     a layer pinned to screen 1 whatever its screen never showed on S2. */
+  const layers = [
+    { destination: 'S1', key: 1 }, { destination: 'S1', key: 2 },
+    { destination: 'S2', key: 1 }, { destination: 'S3', key: 1 },
+  ];
+  const model = businessModel({ ...FACTS, layers, selection: { destinations: ['S2'], layer: 1 } });
+  assert.equal(model.layers.length, 3, 'S3 is not in service, so neither is its layer');
+  for (const l of model.layers) assert.equal(l.type, 2);
+  const s2 = model.layers.find((l) => l.attachScreenUid === 'S2');
+  assert.equal(s2.attachScreenId, 2);
+  assert.deepEqual(s2.index, [1], "each screen's layers start at the first key");
+  assert.equal(s2.selected, 1);
+  assert.equal(model.layers.find((l) => l.attachScreenUid === 'S1' && l.serial === 1).selected, 0);
+  assert.equal(new Set(model.layers.map((l) => l.id)).size, 3);
+  assert.equal(model.layers.find((l) => l.attachScreenUid === 'S1' && l.serial === 2).name, 'Layer 2');
+  for (const l of model.layers) assert.equal(l.region, 4);
+});
+
+test('the screen selected last is the active one, so its layers are the ones shown', () => {
+  const model = businessModel({ ...FACTS, selection: { destinations: ['S1', 'S2'] } });
+  const active = model.screens.filter((s) => s.activeRegion === 4).map((s) => s.uid);
+  assert.deepEqual(active, ['S2']);
+  const none = businessModel(FACTS);
+  assert.equal(none.screens.every((s) => s.activeRegion === 1), true);
+});
+
+test('a layer key reports the published id, and the selection keeps its slot', () => {
+  assert.equal(layerIdFor(1, 3), 2003);
+  assert.equal(layerKeyOf(2003), 3);
+  assert.equal(layerKeyOf(0), null);
+  const intent = readIntent({ command: COMMAND.layerSelect, payload: { id: 2003 } });
+  assert.deepEqual(intent, { kind: 'selectLayer', layer: 3, at: null });
+  /* An empty layer key reports 200, "create"; that is never acted on. */
+  assert.equal(readIntent({ command: COMMAND.layerCreate, payload: {} }), null);
 });
 
 test('every object carries the device id back', () => {
@@ -194,12 +254,93 @@ test('nothing is sent when the panel has no destination selected', () => {
   }
 });
 
-test('freeze and FTB are understood and deliberately not sent', () => {
+test('store saves the active screen\'s edited buffer into the reported slot', () => {
+  /* One slot is one preset: saving it from every selected screen would keep
+     only the last one's layers and recall them on all of them. */
+  const { writes, note } = writesFor({ kind: 'store', slot: 7 }, ctx({ selected: ['S1', 'S2'] }));
+  assert.deepEqual(writes.map((w) => toAwj(w.path)), [
+    toAwj(NLC.save('screen', 7, { mode: 'PREVIEW', id: 'S2' }).path),
+  ]);
+  assert.match(note, /of S2 to memory 7/);
+  const pgm = writesFor({ kind: 'store', slot: 7 }, ctx({ buffer: 'PROGRAM' }));
+  assert.match(toAwj(pgm.writes[0].path), /PROGRAM/);
+});
+
+test('store to a new slot names it, so it shows on the preset bus', () => {
+  const { writes } = writesFor({ kind: 'store', slot: 3, label: 'Memory 3' }, ctx());
+  assert.equal(writes.length, 2);
+  assert.equal(toAwj(writes[1].path), toAwj(NLC.label('screen', 3, '').path));
+  assert.equal(writes[1].value, 'Memory 3');
+  assert.match(writesFor({ kind: 'store', slot: null }, ctx()).note, /no slot/);
+});
+
+test('FTB fades the selection out unless all of it is already black', () => {
+  const sel = ['S1', 'A1'];
+  const out = writesFor({ kind: 'ftb' }, ctx({ selected: sel, fadedOf: (id) => id === 'A1' }));
+  assert.deepEqual(out.writes.map((w) => [toAwj(w.path), w.value]), [
+    [toAwj(NLC.fadeToBlackPath('S1')), true],
+    [toAwj(NLC.fadeToBlackPath('A1')), true],
+  ]);
+  const back = writesFor({ kind: 'ftb' }, ctx({ selected: sel, fadedOf: () => true }));
+  assert.deepEqual(back.writes.map((w) => w.value), [false, false]);
+  assert.match(back.note, /fade up/);
+});
+
+test('FTB refuses rather than guesses when the state could not be read', () => {
+  const { writes, note } = writesFor({ kind: 'ftb' }, ctx({ fadedOf: () => null }));
+  assert.equal(writes.length, 0);
+  assert.match(note, /refused/);
+});
+
+test('freeze adds the on-air destination to every fitted layer, and only that', () => {
+  const freezeOf = () => ({
+    programDest: 'DOWN',
+    layers: [{ key: '1', freeze: [] }, { key: '2', freeze: ['UP'] }],
+  });
+  const on = writesFor({ kind: 'freeze' }, ctx({ freezeOf }));
+  assert.deepEqual(on.writes.map((w) => [toAwj(w.path), w.value]), [
+    [toAwj(NLC.layerFreezePath('S1', '1')), ['DOWN']],
+    [toAwj(NLC.layerFreezePath('S1', '2')), ['UP', 'DOWN']],
+  ]);
+  const frozen = () => ({
+    programDest: 'DOWN',
+    layers: [{ key: '1', freeze: ['DOWN'] }, { key: '2', freeze: ['UP', 'DOWN'] }],
+  });
+  const off = writesFor({ kind: 'freeze' }, ctx({ freezeOf: frozen }));
+  assert.deepEqual(off.writes.map((w) => w.value), [[], ['UP']],
+    'unfreezing leaves a freeze the operator set elsewhere');
+});
+
+test('freeze refuses without knowing what is on air', () => {
+  const out = writesFor({ kind: 'freeze' }, ctx({ freezeOf: () => ({ programDest: null, layers: [] }) }));
+  assert.equal(out.writes.length, 0);
+  assert.match(out.note, /refused/);
+});
+
+test('FTB and freeze stay unmapped on Midra, which has no verified path', () => {
   for (const kind of ['ftb', 'freeze']) {
-    const { writes, note } = writesFor({ kind }, ctx());
+    const { writes, note } = writesFor({ kind }, ctx({ dialect: MNG, commands: commandsFor(MNG) }));
     assert.equal(writes.length, 0);
     assert.match(note, /not mapped/);
   }
+});
+
+test('the T-bar maps stroke progress from wherever each screen rests', () => {
+  /* The console reports progress within a stroke; the switcher's T-bar is
+     absolute. From rest at 0 a stroke climbs, from rest at 65535 it falls. */
+  const report = { mapValue: 1024, maxValue: 4096, percent: 25, direction: 1 };
+  const rests = { S1: 0, S2: 65535, S3: null };
+  const { writes, progress } = tbarWrites(report, {
+    dialect: NLC, selected: ['S1', 'S2', 'S3'], restOf: (id) => rests[id],
+  });
+  assert.equal(progress, 0.25);
+  assert.deepEqual(writes.map((w) => [toAwj(w.path), w.value]), [
+    [toAwj(NLC.takeControl('S1', 'tbarPosition')), 16384],
+    [toAwj(NLC.takeControl('S2', 'tbarPosition')), 49151],
+  ], 'a screen whose rest could not be read is left alone');
+  const end = tbarWrites({ mapValue: 4096, maxValue: 4096 }, { dialect: NLC, selected: ['S2'], restOf: () => 65535 });
+  assert.equal(end.writes[0].value, 0);
+  assert.equal(end.progress, 1);
 });
 
 test('no platform yet means no writes at all', () => {
@@ -246,6 +387,19 @@ test('a republish drops what is no longer published, and reset forgets everythin
   assert.equal(sel.known, null);
 });
 
+test('activating a selected screen makes it the one whose layers the bus shows', () => {
+  const sel = new Selection().restrict(['S1', 'S2']);
+  sel.apply(readIntent({ command: COMMAND.screenSelect, payload: { uid: 'S1' } }));
+  sel.apply(readIntent({ command: COMMAND.screenSelect, payload: { uid: 'S2' } }));
+  sel.apply(readIntent({ command: COMMAND.screenActive, payload: { uid: 'S1' } }));
+  assert.deepEqual(sel.list, ['S2', 'S1']);
+  const model = businessModel({ ...FACTS, selection: { destinations: sel.list } });
+  assert.equal(model.screens.find((s) => s.activeRegion === 4).uid, 'S1');
+  /* A long press reports 103 and drops it. */
+  sel.apply(readIntent({ command: COMMAND.screenUnselect, payload: { uid: 'S1' } }));
+  assert.deepEqual(sel.list, ['S2']);
+});
+
 test('PGM EDIT moves which buffer a source change edits, and nothing else', () => {
   const sel = new Selection();
   assert.equal(sel.buffer, 'PREVIEW');
@@ -277,6 +431,19 @@ test('the panel’s settings live in its own plugin entry, lifted from where the
   const same = normalise({ pixelhueEnabled: true, pixelhueHost: '10.0.0.9' });
   assert.equal(pixelhueChanged(same, { ...same }), false);
   assert.equal(pixelhueChanged(same, { ...same, pixelhueModel: 'u5' }), true);
+});
+
+test('both dialects can ask which layers are fitted without a store', () => {
+  const nlc = NLC.layerProbe('S1', 4);
+  assert.deepEqual(nlc.slots, ['1', '2', '3', '4']);
+  assert.equal(toAwj(nlc.path('2')), 'DeviceObject/$screen/@items/S1/$layer/@items/2/status/@props/capability');
+  assert.equal(nlc.fitted('DUAL'), true);
+  assert.equal(nlc.fitted('OFF'), false);
+  const mng = MNG.layerProbe('S1', 16);
+  assert.equal(mng.slots.length, 8);
+  assert.equal(mng.fitted('DISABLE'), false);
+  assert.deepEqual(MNG.layerProbe('A1').slots, []);
+  assert.equal(NLC.layerFreezePath('A1', 1), null, 'auxes have no layer freeze');
 });
 
 test('the mini is the only model reachable over the LAN', () => {

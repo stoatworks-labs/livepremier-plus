@@ -310,6 +310,41 @@ export const NLC = {
     return out;
   },
 
+  /**
+   * `fittedLayers`' question for a reader with no store: which paths to `get`
+   * for slots 1..`max`, and which answer means fitted. The Pixelhue panel's
+   * supervisor reads the switcher in bursts and holds no mirror.
+   */
+  layerProbe(id, max = 16) {
+    return {
+      slots: Array.from({ length: max }, (_, i) => String(i + 1)),
+      path: (key) => [ROOT, this.listNameFor(id), 'items', id, 'layerList', 'items', String(key), 'status', 'pp', 'capability'],
+      fitted: (v) => typeof v === 'string' && v !== '' && v !== 'OFF',
+    };
+  },
+
+  /**
+   * A destination's fade to black: a bool, `true` fades out. The Web RCS's
+   * own FTB writes exactly this on every selected screen and aux (its
+   * `handleFadeOut` / `handleFadeIn`), not the `xFadeOut` / `xFadeIn`
+   * triggers beside it. Proved on the 6.2.73 simulator 2026-09-23.
+   */
+  fadeToBlackPath(id) {
+    return [ROOT, this.listNameFor(id), 'items', id, 'control', 'fader', 'pp', 'fadeToBlack'];
+  },
+
+  /**
+   * A screen layer's freeze: a LIST of preset destinations, `'UP'` and/or
+   * `'DOWN'`, naming which buffer's copy of the layer is frozen. The Web RCS
+   * freezes a layer by adding the destination of the preset it shows
+   * (`axSetFreezePresetDestinationKeys`). Screens only; auxes have no layer
+   * freeze here. Proved on the 6.2.73 simulator 2026-09-23.
+   */
+  layerFreezePath(id, key) {
+    if (this.listNameFor(id) !== 'screenList') return null;
+    return [ROOT, 'screenList', 'items', id, 'layerList', 'items', String(key), 'control', 'pp', 'freeze'];
+  },
+
   /** Where one buffer's layer geometry lives, and how it is spelled. */
   layerGeometry(store, dest, buffer, key) {
     const node = store.get([ROOT, dest.listName, 'items', dest.id, 'presetList', 'items', buffer, 'layerList', 'items', String(key)]);
@@ -690,6 +725,22 @@ export const MNG = {
     }
     return out;
   },
+
+  /** As nlc's: `fittedLayers` asked over AWJ. Eight slots, screens only. */
+  layerProbe(id, max = 8) {
+    const s = this.split(id);
+    if (!s || s.kind !== 'screen') return { slots: [], path: () => null, fitted: () => false };
+    return {
+      slots: Array.from({ length: Math.min(max, 8) }, (_, i) => String(i + 1)),
+      path: (key) => [...CURRENT, 'screenList', 'items', s.key, 'liveLayerList', 'items', String(key), 'pp', 'mode'],
+      fitted: (v) => typeof v === 'string' && v !== '' && v !== 'DISABLE',
+    };
+  },
+
+  /* No verified fade-to-black or freeze path on this platform yet. Callers
+     treat null as "not mapped here" rather than guessing a spelling. */
+  fadeToBlackPath() { return null; },
+  layerFreezePath() { return null; },
 
   /**
    * One buffer's layer geometry. Position and size are separate nodes here,

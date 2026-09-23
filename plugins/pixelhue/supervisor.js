@@ -42,7 +42,7 @@ import { commandsFor } from '../../src/core/commands.js';
 import { letterFor } from '../../src/vendor/surface/preset.js';
 import { toAwj } from '../../src/core/paths.js';
 import {
-  businessModel, readIntent, writesFor, Selection, commandName, CONSOLE_MODELS,
+  businessModel, readIntent, writesFor, tbarWrites, Selection, commandName, CONSOLE_MODELS,
 } from './core.js';
 
 export { CONSOLE_MODELS };
@@ -54,7 +54,17 @@ export { CONSOLE_MODELS };
 const SCREENS = 24;
 const INPUTS = 24;
 const MEMORIES = 32;
+const LAYERS = 16;
 const HISTORY = 40;
+
+/* A console that has lost the model shows a panel with no labels. Noticing
+   that and publishing again is bounded so two publishers on one UCenter cannot
+   hammer each other: at most one republish in this window. */
+const REPUBLISH_MIN_MS = 3000;
+/* A key-state batch this long is a whole-panel redraw, not a key press. */
+const FULL_REDRAW_KEYS = 40;
+/* A T-bar stroke with no report for this long is over. */
+const STROKE_IDLE_MS = 2000;
 
 const IDENTITY = {
   nlc: 'DeviceObject/system/$device/@items/1/@props/dev',
@@ -66,6 +76,10 @@ export class PixelhueSupervisor extends EventEmitter {
   #config = null;
   #dialect = null;
   #facts = null;
+  #names = new Set();
+  #lastRepublish = 0;
+  #republishTimer = null;
+  #stroke = null;
 
   /**
    * @param {object} opts
@@ -111,6 +125,8 @@ export class PixelhueSupervisor extends EventEmitter {
     link.on('close', () => this.#note({ kind: 'disconnected' }));
     link.on('failure', (err) => this.#note({ kind: 'error', error: err.message }));
     link.on('command', (report) => { void this.#onCommand(report); });
+    link.on('keystate', (items) => this.#watchForWipe(items));
+    link.on('tbar', (report) => this.#onTbar(report));
     link.start();
     this.#note({ kind: 'starting', host: want.host, port: want.port, model: want.model });
     return this.describe();
@@ -120,6 +136,8 @@ export class PixelhueSupervisor extends EventEmitter {
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     this.#config = null;
     this.selection.reset();
+    clearTimeout(this.#republishTimer); this.#republishTimer = null;
+    this.#endStroke();
   }
 
   /* ------------------------------------------------------------- the switcher */
@@ -153,6 +171,8 @@ export class PixelhueSupervisor extends EventEmitter {
     for (let slot = 1; slot <= MEMORIES; slot++) {
       const built = dialect.label('screen', slot, '');
       if (built) gets.push({ op: 'get', path: toAwj(built.path) });
+      const valid = slotValidPath(dialect, slot);
+      if (valid) gets.push({ op: 'get', path: toAwj(valid) });
     }
 
     const replies = await exchange({ host, port: this.awjPort, messages: gets });
@@ -175,19 +195,71 @@ export class PixelhueSupervisor extends EventEmitter {
     }
 
     const presets = [];
+    const freeSlots = [];
     for (let slot = 1; slot <= MEMORIES; slot++) {
       const built = dialect.label('screen', slot, '');
       if (!built) continue;
       const label = byPath.get(toAwj(built.path));
-      /* A slot with no label is an empty one. Publishing a bus full of
-         "Memory 17" that recalls nothing is worse than a short bus. */
-      if (!label) continue;
+      const valid = slotValidPath(dialect, slot);
+      /* A slot with no label is not published: a bus full of "Memory 17" that
+         recalls nothing is worse than a short bus. A slot with no label AND no
+         stored memory is free for SAVE TO on an empty key. ⚠️ Unlabelled is
+         not empty — the simulator's slot 1 holds a memory with no name. */
+      if (!label) {
+        if (!valid || at(valid) !== true) freeSlots.push(slot);
+        continue;
+      }
       presets.push({ slot, label: String(label) });
     }
 
+    /* Second burst, for what is in service only: the fitted layers (the layer
+       bus), and the FTB and freeze lamps. */
+    const used = destinations.filter((d) => d.isUsed);
+    const more = [];
+    const probes = new Map(used.map((d) => [d.id, dialect.layerProbe(d.id, LAYERS)]));
+    for (const d of used) {
+      const probe = probes.get(d.id);
+      for (const key of probe.slots) {
+        more.push({ op: 'get', path: toAwj(probe.path(key)) });
+        const frz = dialect.layerFreezePath(d.id, key);
+        if (frz) more.push({ op: 'get', path: toAwj(frz) });
+      }
+      const ftb = dialect.fadeToBlackPath(d.id);
+      if (ftb) more.push({ op: 'get', path: toAwj(ftb) });
+    }
+    const second = more.length ? await exchange({ host, port: this.awjPort, messages: more }) : [];
+    const got = new Map(second.map((r) => [r.path, r.value]));
+    const layers = [];
+    for (const d of used) {
+      const probe = probes.get(d.id);
+      let anyFrozen = false;
+      for (const key of probe.slots) {
+        if (!probe.fitted(got.get(toAwj(probe.path(key))))) continue;
+        layers.push({ destination: d.id, key: Number(key), label: `Layer ${key}` });
+        const frz = dialect.layerFreezePath(d.id, key);
+        const list = frz ? got.get(toAwj(frz)) : null;
+        if (Array.isArray(list) && list.length) anyFrozen = true;
+      }
+      const ftb = dialect.fadeToBlackPath(d.id);
+      d.faded = ftb ? got.get(toAwj(ftb)) === true : false;
+      d.frozen = anyFrozen;
+    }
+
     this.#dialect = dialect;
-    this.#facts = { destinations, inputs, presets, deviceId: host };
+    this.#facts = { destinations, inputs, presets, layers, freeSlots, deviceId: host };
     return this.#facts;
+  }
+
+  /** The model for the facts in hand and the selection as it stands. */
+  #modelFrom(facts) {
+    return businessModel({
+      ...facts,
+      selection: {
+        destinations: this.selection.list,
+        layer: this.selection.layer,
+        buffer: this.selection.buffer,
+      },
+    });
   }
 
   /** Read the switcher and hand the console a fresh model. */
@@ -195,15 +267,14 @@ export class PixelhueSupervisor extends EventEmitter {
     if (!this.#link) return null;
     try {
       const facts = await this.readFacts();
-      const model = businessModel({
-        ...facts,
-        selection: { destination: this.selection.list[0] || null, layer: this.selection.layer },
-      });
+      const model = this.#modelFrom(facts);
       await this.#link.publish(model);
+      this.#remember(model);
       this.selection.restrict(model.screens.map((s) => s.uid));
       this.#note({
         kind: 'published',
         screens: model.screens.length,
+        layers: model.layers.length,
         inputs: model.inputs.length,
         presets: model.presets.length,
       });
@@ -212,6 +283,79 @@ export class PixelhueSupervisor extends EventEmitter {
       this.#note({ kind: 'error', error: err.message });
       return null;
     }
+  }
+
+  /** The labels a panel showing our model carries — how a wipe is noticed. */
+  #remember(model) {
+    this.#names = new Set([...model.screens, ...model.inputs, ...model.presets]
+      .map((o) => o.name).filter(Boolean));
+  }
+
+  /** One burst of `get`s, answered by path. */
+  async #read(paths) {
+    const host = this.deviceHost();
+    if (!host || !paths.length) return new Map();
+    const replies = await exchange({
+      host, port: this.awjPort, messages: paths.map((p) => ({ op: 'get', path: toAwj(p) })),
+    });
+    return new Map(replies.map((r) => [r.path, r.value]));
+  }
+
+  /** Whether each destination is faded to black now. */
+  async #fadedFor(ids) {
+    const dialect = this.#dialect;
+    const paths = ids.map((id) => dialect.fadeToBlackPath(id)).filter(Boolean);
+    const got = await this.#read(paths);
+    const out = new Map();
+    for (const id of ids) {
+      const path = dialect.fadeToBlackPath(id);
+      const v = path ? got.get(toAwj(path)) : undefined;
+      out.set(id, typeof v === 'boolean' ? v : null);
+    }
+    return out;
+  }
+
+  /**
+   * What freezing each destination's program means now: the preset
+   * destination on air (`'UP'` when program is the group's up preset) and
+   * every fitted layer's freeze list.
+   */
+  async #freezeFor(ids) {
+    const dialect = this.#dialect;
+    const props = ['presetUp', 'presetDown', 'presetPrevious'];
+    const paths = [];
+    const plan = new Map();
+    for (const id of ids) {
+      const keys = ((this.#facts && this.#facts.layers) || [])
+        .filter((l) => l.destination === id).map((l) => String(l.key));
+      plan.set(id, keys);
+      for (const p of props) paths.push(dialect.takeControl(id, p));
+      paths.push(dialect.takeStatus(id, 'transition'));
+      for (const key of keys) {
+        const frz = dialect.layerFreezePath(id, key);
+        if (frz) paths.push(frz);
+      }
+    }
+    const got = await this.#read(paths);
+    const out = new Map();
+    for (const id of ids) {
+      const control = Object.fromEntries(props.map((p) => [p, got.get(toAwj(dialect.takeControl(id, p)))]));
+      const group = {
+        control: { pp: control },
+        status: { pp: { transition: got.get(toAwj(dialect.takeStatus(id, 'transition'))) } },
+      };
+      const onAir = letterFor('PROGRAM', group);
+      const programDest = onAir && onAir === control.presetUp ? 'UP'
+        : onAir && onAir === control.presetDown ? 'DOWN' : null;
+      const layers = [];
+      for (const key of plan.get(id)) {
+        const frz = dialect.layerFreezePath(id, key);
+        const list = frz ? got.get(toAwj(frz)) : null;
+        if (Array.isArray(list)) layers.push({ key, freeze: list.map(String) });
+      }
+      out.set(id, { programDest, layers });
+    }
+    return out;
   }
 
   /** Which preset letter is the panel's buffer, read from the device now. */
@@ -261,23 +405,39 @@ export class PixelhueSupervisor extends EventEmitter {
     this.selection.apply(intent);
     const selectionMoved = JSON.stringify(before) !== JSON.stringify(this.selection.describe());
 
-    let letters = new Map();
-    if (intent.kind === 'source') {
-      try {
-        letters = await this.#lettersFor(this.selection.list);
-      } catch (err) {
-        this.#note({ kind: 'error', command: commandName(code), error: err.message });
+    let action = intent;
+    if (intent.kind === 'store' && !intent.slot) {
+      /* SAVE TO on an EMPTY key reports no slot; the next free one is used
+         and named, so the new memory shows on the bus. */
+      const slot = this.#facts && this.#facts.freeSlots && this.#facts.freeSlots[0];
+      if (!slot) {
+        this.#note({ kind: 'noted', command: commandName(code), note: `refused — no free memory slot in 1–${MEMORIES}` });
         return;
       }
+      action = { ...intent, slot, label: `Memory ${slot}` };
     }
 
-    const { writes, note } = writesFor(intent, {
+    let letters = new Map();
+    let faded = new Map();
+    let freeze = new Map();
+    try {
+      if (intent.kind === 'source') letters = await this.#lettersFor(this.selection.list);
+      if (intent.kind === 'ftb' && this.#dialect) faded = await this.#fadedFor(this.selection.list);
+      if (intent.kind === 'freeze' && this.#dialect) freeze = await this.#freezeFor(this.selection.list);
+    } catch (err) {
+      this.#note({ kind: 'error', command: commandName(code), error: err.message });
+      return;
+    }
+
+    const { writes, note } = writesFor(action, {
       dialect: this.#dialect,
       commands: commandsFor(this.#dialect),
       selected: this.selection.list,
       layer: this.selection.layer,
       buffer: this.selection.buffer,
       letterFor: (id) => letters.get(id) || null,
+      fadedOf: (id) => (faded.has(id) ? faded.get(id) : null),
+      freezeOf: (id) => freeze.get(id) || null,
     });
 
     if (!writes.length) {
@@ -298,17 +458,119 @@ export class PixelhueSupervisor extends EventEmitter {
     } catch (err) {
       this.#note({ kind: 'error', command: commandName(code), error: err.message });
     }
-    if (selectionMoved) void this.#republish();
+    /* A new memory, or an FTB / freeze lamp, is device state the model has to
+       be read again for; a selection change only needs the model re-sent. */
+    if (REREAD.has(intent.kind)) void this.refresh();
+    else if (selectionMoved) void this.#republish();
+  }
+
+  /* ------------------------------------------------------------ the T-bar */
+
+  /**
+   * One report from the lever. Where each selected destination rests is read
+   * once, at the start of the stroke (`tbarWrites` says why); after that each
+   * report becomes a write, one in flight at a time and the newest winning, so
+   * a lever moved fast does not queue a backlog of stale positions.
+   */
+  #onTbar(report) {
+    if (!this.#dialect || !this.selection.list.length) return;
+    if (!this.#stroke) {
+      this.#stroke = { ids: this.selection.list, rests: null, pending: null, busy: false, timer: null };
+      void this.#readRests(this.#stroke);
+    }
+    const stroke = this.#stroke;
+    stroke.pending = report;
+    clearTimeout(stroke.timer);
+    stroke.timer = setTimeout(() => this.#endStroke(), STROKE_IDLE_MS);
+    if (stroke.timer.unref) stroke.timer.unref();
+    void this.#pumpTbar();
+  }
+
+  async #readRests(stroke) {
+    try {
+      const paths = stroke.ids.map((id) => this.#dialect.takeStatus(id, 'tbarPosition'));
+      const got = await this.#read(paths);
+      stroke.rests = new Map(stroke.ids.map((id) => {
+        const v = got.get(toAwj(this.#dialect.takeStatus(id, 'tbarPosition')));
+        return [id, typeof v === 'number' ? (v >= 32768 ? 65535 : 0) : null];
+      }));
+      this.#note({ kind: 'noted', command: 'tbar', note: `T-bar stroke on ${stroke.ids.join(' ')}` });
+    } catch (err) {
+      this.#note({ kind: 'error', command: 'tbar', error: err.message });
+      this.#endStroke();
+      return;
+    }
+    void this.#pumpTbar();
+  }
+
+  async #pumpTbar() {
+    const stroke = this.#stroke;
+    if (!stroke || stroke.busy || !stroke.rests || !stroke.pending) return;
+    const report = stroke.pending;
+    stroke.pending = null;
+    stroke.busy = true;
+    const { writes, progress } = tbarWrites(report, {
+      dialect: this.#dialect,
+      selected: stroke.ids,
+      restOf: (id) => stroke.rests.get(id) ?? null,
+    });
+    try {
+      if (writes.length) {
+        await exchange({
+          host: this.deviceHost(),
+          port: this.awjPort,
+          messages: writes.map((w) => ({ op: 'replace', path: toAwj(w.path), value: w.value })),
+        });
+      }
+    } catch (err) {
+      this.#note({ kind: 'error', command: 'tbar', error: err.message });
+    }
+    stroke.busy = false;
+    if (progress >= 1) {
+      this.#note({ kind: 'sent', command: 'tbar', note: `T-bar completed on ${stroke.ids.join(' ')}` });
+      this.#endStroke();
+      return;
+    }
+    if (stroke.pending) void this.#pumpTbar();
+  }
+
+  #endStroke() {
+    if (!this.#stroke) return;
+    clearTimeout(this.#stroke.timer);
+    this.#stroke = null;
+  }
+
+  /* ------------------------------------------------------ a wiped console */
+
+  /**
+   * ⚠️ The console's UCenter drops a published model when another PixelFlow
+   * client connects — a whole-panel key-state redraw arrives with every label
+   * gone — and says nothing to the publisher. Found 2026-09-23 by reloading
+   * the virtual U5. So a whole-panel redraw carrying none of our labels means
+   * publish again; bounded, because two publishers on one UCenter would
+   * otherwise take turns forever.
+   */
+  #watchForWipe(items) {
+    if (!Array.isArray(items) || items.length < FULL_REDRAW_KEYS || !this.#names.size) return;
+    if (items.some((k) => k && this.#names.has(k.text))) return;
+    if (this.#republishTimer) return;
+    const wait = Math.max(500, this.#lastRepublish + REPUBLISH_MIN_MS - Date.now());
+    this.#republishTimer = setTimeout(() => {
+      this.#republishTimer = null;
+      this.#lastRepublish = Date.now();
+      this.#note({ kind: 'noted', note: 'the console dropped the model; publishing it again' });
+      void this.refresh();
+    }, wait);
+    if (this.#republishTimer.unref) this.#republishTimer.unref();
   }
 
   /** Re-send the model so the panel's lamps agree with the selection we hold. */
   async #republish() {
     if (!this.#link || !this.#facts) return;
     try {
-      await this.#link.publish(businessModel({
-        ...this.#facts,
-        selection: { destination: this.selection.list[0] || null, layer: this.selection.layer },
-      }));
+      const model = this.#modelFrom(this.#facts);
+      await this.#link.publish(model);
+      this.#remember(model);
     } catch (err) {
       this.#note({ kind: 'error', error: err.message });
     }
@@ -361,6 +623,16 @@ export class PixelhueSupervisor extends EventEmitter {
  * same identifier means screen 1 of `screenList` keyed plain `1`. Asking the
  * dialect rather than spelling either is the whole point of `core/dialect.js`.
  */
+/* Intents after which the model must be read again, not just re-sent. */
+const REREAD = new Set(['store', 'ftb', 'freeze']);
+
+/** Where a memory slot says it holds something, beside its label. */
+function slotValidPath(dialect, slot) {
+  const bank = dialect.bankFor && dialect.bankFor('screen');
+  if (!bank || !dialect.slotList) return null;
+  return [...dialect.slotList(bank), 'items', String(slot), 'status', 'pp', 'isValid'];
+}
+
 function labelPath(dialect, id) {
   const [listName, key] = dialect.split ? dialect.split(id) : [dialect.listNameFor(id), id];
   return ['device', listName, 'items', key, 'control', 'pp', 'label'];
