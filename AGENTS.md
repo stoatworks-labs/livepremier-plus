@@ -644,11 +644,14 @@ Alta and the only one proven to work on a box.
 ### Companion, mounted inside us, and the five things that make it honest
 
 A Bitfocus Companion is served at `/__lpp/companion/ui` on our own origin, and a
-PLUS ▸ Companion panel manages the show beside it. It is a hosted plugin,
-`plugins/companion/`: `server.js` wires it into the host, `link.js` is the
-supervised link and the mount, `core.js` the no-I/O half both sides share, and
-`panel.js` the page. The reasoning is in the heads of `link.js` and `core.js`;
-these are the parts that break quietly if "simplified".
+PLUS ▸ Companion panel manages the show beside it, draws its buttons natively,
+and holds the memory triggers. It is a hosted plugin, `plugins/companion/`:
+`server.js` wires it into the host (and owns `/press` and `/triggers`), `link.js`
+is the supervised link and the mount, `core.js` the no-I/O half both sides share,
+`surface.js` the page's own tRPC socket and the button grid, `client.js` the
+cue action and the recall watcher, and `panel.js` the page. The reasoning is in
+the heads of `link.js`, `core.js` and `surface.js`; these are the parts that
+break quietly if "simplified".
 
 - **The prefix is stripped, not forwarded.** Companion (4.1+) serves under a
   sub-path by rewriting a `/ROOT_URL_HERE` token according to a
@@ -673,10 +676,37 @@ these are the parts that break quietly if "simplified".
   redialled with no error at either end (found 2026-09-23, in every release
   since Companion support). `link.js` replies `PONG`, as tRPC's client does.
 - **The panel builds its frame once.** Rebuilt whole on every repaint — about
-  once a second from the switcher's timers — it took the iframe with it, and
-  Companion's editor reloaded every second it was open, losing whatever was
-  half-done in it (found 2026-09-22, on 0.12.0). `panel.js` returns the same
-  element each time and replaces the iframe only when the view changes.
+  once a second from the switcher's timers — it took the (then) iframe with it,
+  and Companion's editor reloaded every second it was open (found 2026-09-22, on
+  0.12.0). The iframe is gone — the grid is ours now and the editor opens in a
+  window of its own — but the rule stays: the grid swaps a button's image in
+  place and the trigger editor is redrawn only by its own events, so neither
+  flickers nor loses a half-typed slot to a frame from the switcher.
+- **Buttons are drawn from Companion's renders, over the page's own socket.**
+  `preview.graphics.location` (`{ location: { pageNumber, row, column } }`)
+  yields `{ image, isUsed }`, a PNG data URL, first at once and then on every
+  repaint — the emulator's own feed. `pages.watch` and
+  `userConfig.watchConfig` (for `gridSize`) are doorbells past their first
+  frame. **`gridSize` may start below 0/0** — a grid grown upwards has row −1 —
+  so never loop from 0. The grid pauses its subscriptions when it is off screen.
+  This socket goes through `ws-hook.js`'s patched constructor like any other on
+  the page; the hook only adopts a socket carrying Analog Way envelopes, so it
+  ignores this one.
+- **A press is `controls.hotPressControl` over the server's link, not the HTTP
+  API.** `/api/location/…/press` answers only while Companion's *HTTP API*
+  setting is on, and a cue that silently pressed nothing would be the worst
+  failure a show can have. Down, then up 60 ms later, as surface
+  `livepremier-plus`. Cues and memory triggers go through `POST
+  /__lpp/companion/press` because the page that fires a cue may never have
+  opened the panel; the grid presses on its own socket so that a held button
+  stays held.
+- **Memory triggers fire on this page's own outbound writes.** `recallOf` in
+  `core.js` reads any `…/control/load/slotList/items/<slot>/…/xRequest = true`
+  write — ours or the vendor's, both are `dir: 'out'` frames — against the
+  dialect's banks. A recall from the front panel, from Companion, or from a
+  browser not going through us is never seen; that is also what keeps two open
+  pages from pressing twice. A recall to several screens in one breath is one
+  press (250 ms per bank:slot).
 - **`server/ws-client.js` exists because there can be no dependency.** This repo
   has none, and CI runs Node 20, where there is no global WebSocket. It is the
   smallest thing RFC 6455 allows; its tests drive it from a server written in

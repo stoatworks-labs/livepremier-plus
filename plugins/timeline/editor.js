@@ -30,7 +30,7 @@ import { h, button } from '../../src/ui/dom.js';
 import { formatTimecode } from '../../src/core/timecode.js';
 import { parseTimecodeString } from '../../src/core/chase.js';
 import { ACTION_KINDS } from '../../src/core/cuestack.js';
-import { describeContributed } from '../../src/core/contributions.js';
+import { describeContributed, fieldActions, fieldText } from '../../src/core/contributions.js';
 
 /** Columns of the list, in the order they are scanned. */
 const COLUMNS = [
@@ -181,12 +181,16 @@ export function buildTimelineEditor(doc, bridge) {
     return cue.actions.map(describeAction).join(', ');
   };
 
+  const targetsOf = (a) => (Array.isArray(a.targets) ? a.targets.join(' ') : a.screen) || '—';
+
   function describeAction(a) {
     switch (a.kind) {
-      case ACTION_KINDS.SCREEN_PRESET: return `Recall ${a.slot} → ${a.screen}`;
+      /* A cue names its screens in `targets` — `screen` is what this editor
+         once read, and every recall said "→ undefined". */
+      case ACTION_KINDS.SCREEN_PRESET: return `Recall ${a.slot} → ${targetsOf(a)}`;
       case ACTION_KINDS.MASTER_PRESET: return `Master ${a.slot}`;
-      case ACTION_KINDS.TAKE: return `Take ${a.screen}`;
-      case ACTION_KINDS.CUT: return `Cut ${a.screen}`;
+      case ACTION_KINDS.TAKE: return `Take ${targetsOf(a)}`;
+      case ACTION_KINDS.CUT: return `Cut ${targetsOf(a)}`;
       /* A plugin's kind, in its own words — asked of the page that owns the
          stack, which is where the plugins live. */
       default: return describeContributed(a, bridge.contributions ? bridge.contributions('cueAction') : []);
@@ -240,7 +244,11 @@ export function buildTimelineEditor(doc, bridge) {
       if ('number' in patch || 'label' in patch) {
         heading.textContent = `Cue ${cue.number || ''} ${cue.label || ''}`.trim();
       }
+      if ('actions' in patch) paintActions();
     };
+    actionsHost = h('div', { class: 'aw-flex-col aw-gap-row-small' });
+    actionsCue = cue;
+    actionsSet = set;
 
     const number = h('input', { class: 'wru-input', value: cue.number || '',
       onChange: (ev) => set({ number: ev.target.value }) });
@@ -304,13 +312,79 @@ export function buildTimelineEditor(doc, bridge) {
           'Fire the next cue automatically, this many seconds later'),
         field('Notes', notes)),
       tcWarning,
-      actionsBlock(cue, set));
+      actionsHost);
+    paintActions();
   }
 
   /*
-   * Actions are listed and removable but not yet composable here.
+   * The cue's actions, and a field for each plugin that offers one — the
+   * *Companion trigger* among them. Drawn into a host of its own and redrawn
+   * whenever the actions change, so removing a trigger with × empties its
+   * field too, without rebuilding the Number and Name fields around the
+   * operator's caret.
+   */
+  let actionsHost = h('div');
+  let actionsCue = null;
+  let actionsSet = null;
+
+  function paintActions() {
+    const cue = actionsCue;
+    if (!cue) return;
+    actionsHost.textContent = '';
+    actionsHost.append(...[...contributedFields(cue), actionsBlock(cue, actionsSet)].filter(Boolean));
+  }
+
+  const contributed = () => (bridge.contributions ? bridge.contributions('cueAction') : []).filter((c) => c.field);
+
+  /**
+   * One text field per contributed kind that describes one (`field` on a
+   * `cueAction`, see `core/contributions.js`). What is typed replaces the
+   * cue's actions of that kind and nothing else; what cannot be read is
+   * refused with the plugin's own sentence and the field put back.
+   */
+  function contributedFields(cue) {
+    const list = contributed();
+    if (!list.length) return [];
+    return [h('div', { class: 'lpp-inspector-grid' }, list.map((c) => {
+      const warn = h('span', { class: 'aw-font-caption wru-warn' });
+      const apply = (text) => {
+        let actions;
+        try {
+          actions = fieldActions(cue.actions, c, text);
+        } catch (err) {
+          warn.textContent = err.message;
+          input.value = fieldText(cue.actions, c);
+          return;
+        }
+        warn.textContent = '';
+        actionsSet({ actions });
+      };
+      const input = h('input', {
+        class: 'wru-input', value: fieldText(cue.actions, c), spellcheck: 'false',
+        placeholder: c.field.placeholder || '',
+        onChange: (ev) => apply(ev.target.value)
+      });
+      const pick = c.field.pick ? button('Choose…', {
+        title: `Choose from ${c.label}`,
+        onClick: async () => {
+          let text = null;
+          try { text = await c.field.pick({ doc, text: input.value }); } catch (err) { warn.textContent = err.message; }
+          if (text != null) apply(text);
+        }
+      }) : null;
+      return h('label', { class: 'lpp-field' },
+        h('span', { class: 'aw-font-overline aw-text-tertiary', text: c.field.label }),
+        h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' }, input, pick),
+        c.field.hint ? h('span', { class: 'aw-font-caption aw-text-tertiary', text: c.field.hint }) : null,
+        warn);
+    }))];
+  }
+
+  /*
+   * The switcher's own actions are listed and removable but not composable
+   * here — a plugin's are, through the fields above.
    *
-   * Building a cue action needs a screen picker, a preset picker and a live
+   * Building a recall needs a screen picker, a preset picker and a live
    * list of what this device actually has — the tab's own panel already does
    * that against the store, and doing it twice, differently, is how the two
    * come to disagree. Adding actions stays where it already works until this
@@ -329,7 +403,7 @@ export function buildTimelineEditor(doc, bridge) {
               onClick: () => set({ actions: cue.actions.filter((_, j) => j !== i) })
             }))))
         : h('div', { class: 'aw-font-caption aw-text-tertiary',
-          text: 'Nothing yet. Actions are added from the Timeline tab in Web RCS, which can see the device’s screens and memories.' }));
+          text: 'Nothing yet. Recalls and takes are added from the Timeline tab in Web RCS, which can see the device’s screens and memories.' }));
   }
 
   /* ------------------------------------------------------------- keyboard */

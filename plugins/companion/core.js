@@ -413,25 +413,55 @@ export function originAllowed(origin, host) {
  *
  * A page is a fixed grid and Companion addresses a button by
  * `pageNumber/row/column` — not by a key number, which is a surface's idea
- * rather than a page's. The default 4x8 is Companion's own default page size;
- * a show that has changed it says so in `pages.watch`, so this takes the
- * shape rather than assuming it.
+ * rather than a page's. The default 4x8 is Companion's own default page size.
+ * A show that has changed it says so in its user config, as `gridSize` —
+ * `{ minRow, maxRow, minColumn, maxColumn }`, inclusive, and the minimums may
+ * be **negative**: a grid grown upwards or leftwards keeps the buttons it had
+ * at 0/0 and adds rows at -1, -2. So this takes either the plain
+ * `{ rows, columns }` or that shape, and never assumes a grid starts at 0.
  *
  * **The field really is `pageNumber`.** Companion's `zodLocation` names it
  * that, and a `{page,…}` sent instead is refused with the same "Invalid or
  * malformed input" every other shape error produces — which names the
  * procedure but not the field. This spelling is kept end to end rather than
  * translated at the socket, so there is nowhere for the two names to drift
- * apart. Note also that pages count from **1** and rows and columns from
- * **0**; the schema pins the first of those and only a wrong answer reveals
- * the second.
+ * apart. Note also that pages count from **1**; rows and columns count from
+ * whatever `gridSize` says, 0 by default.
  */
-export function pageGrid(pageNumber, { rows = 4, columns = 8 } = {}) {
+export function pageGrid(pageNumber, size = {}) {
+  const { rows, columns } = gridAxes(size);
   const out = [];
-  for (let row = 0; row < rows; row++) {
-    for (let column = 0; column < columns; column++) out.push({ pageNumber, row, column });
+  for (const row of rows) {
+    for (const column of columns) out.push({ pageNumber, row, column });
   }
   return out;
+}
+
+/** Companion's own default, 4 rows by 8 columns from 0/0. */
+export const DEFAULT_GRID = Object.freeze({ minRow: 0, maxRow: 3, minColumn: 0, maxColumn: 7 });
+
+/**
+ * The row and column numbers a grid spans, from either spelling of its size.
+ * A malformed or absurd size falls back to Companion's default rather than
+ * drawing nothing — or drawing ten thousand subscriptions.
+ */
+export function gridAxes(size = {}) {
+  const int = (v) => (Number.isInteger(v) ? v : null);
+  let minRow, maxRow, minColumn, maxColumn;
+  if (int(size.rows) != null || int(size.columns) != null) {
+    minRow = 0; maxRow = (int(size.rows) ?? 4) - 1;
+    minColumn = 0; maxColumn = (int(size.columns) ?? 8) - 1;
+  } else {
+    minRow = int(size.minRow) ?? DEFAULT_GRID.minRow;
+    maxRow = int(size.maxRow) ?? DEFAULT_GRID.maxRow;
+    minColumn = int(size.minColumn) ?? DEFAULT_GRID.minColumn;
+    maxColumn = int(size.maxColumn) ?? DEFAULT_GRID.maxColumn;
+  }
+  const span = (a, b) => (b >= a && b - a < 64 ? Array.from({ length: b - a + 1 }, (_, i) => a + i) : null);
+  const rows = span(minRow, maxRow);
+  const columns = span(minColumn, maxColumn);
+  if (!rows || !columns) return gridAxes(DEFAULT_GRID);
+  return { rows, columns };
 }
 
 /**
@@ -442,3 +472,116 @@ export function pageGrid(pageNumber, { rows = 4, columns = 8 } = {}) {
  * with a verb on the end rather than a second way of spelling a location.
  */
 export const locationKey = ({ pageNumber, row, column }) => `${pageNumber}/${row}/${column}`;
+
+/* ------------------------------------------------------- pressing a button */
+
+/**
+ * A location as an operator types it: `page/row/column`, the order Companion's
+ * own HTTP and OSC APIs spell it in and the one its button editor shows.
+ * A dot or a space does as well as a slash. Rows and columns may be negative
+ * (see `pageGrid`); a page may not. Null for anything else — a typed trigger
+ * that half-parsed would press some other button entirely.
+ */
+export function parseLocation(text) {
+  const m = /^\s*(\d+)\s*[/. ]\s*(-?\d+)\s*[/. ]\s*(-?\d+)\s*$/.exec(String(text ?? ''));
+  if (!m) return null;
+  const pageNumber = Number(m[1]);
+  if (pageNumber < 1 || pageNumber > 999) return null;
+  return { pageNumber, row: Number(m[2]), column: Number(m[3]) };
+}
+
+/** A location in its own validated shape, or null — for anything read back off disk. */
+export function normaliseLocation(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  return parseLocation(`${raw.pageNumber}/${raw.row}/${raw.column}`);
+}
+
+/**
+ * The cue action this plugin contributes: press one Companion button.
+ *
+ * The kind starts with the plugin's id, as `docs/PLUGINS.md` asks, and the
+ * location is stored in Companion's own spelling so a cue file means the same
+ * thing to anybody who reads it next to a Companion export.
+ */
+export const PRESS_KIND = 'companion:press';
+
+export const pressAction = (location) => ({
+  kind: PRESS_KIND,
+  pageNumber: location.pageNumber,
+  row: location.row,
+  column: location.column,
+});
+
+/**
+ * Several locations typed into one field: `1/0/3, 2/1/0`. Answers the
+ * locations, or throws with a sentence naming the part that did not read —
+ * a cue field that dropped the bad half without a word would be a cue that
+ * pressed one button of the two its operator asked for.
+ */
+export function parseLocationList(text) {
+  const parts = String(text ?? '').split(/[,;]+/).map((p) => p.trim()).filter(Boolean);
+  return parts.map((part) => {
+    const loc = parseLocation(part);
+    if (!loc) throw new Error(`“${part}” is not a button — write page/row/column, like 1/0/3`);
+    return loc;
+  });
+}
+
+export const formatLocationList = (locations) => (locations || []).map(locationKey).join(', ');
+
+/* -------------------------------------------------------- memory triggers */
+
+/**
+ * Buttons pressed when a memory is recalled, kept per switcher — a memory
+ * slot means one box's memory and nothing on another.
+ *
+ *   { version: 1, memories: { "<bank>:<slot>": [ {pageNumber,row,column}, … ] } }
+ *
+ * `bank` is the dialect's bank kind — `master`, `screen`, `layer` on a
+ * LivePremier, `aux` as well on a Midra — so a trigger reads the same way the
+ * Memories panel names the bank.
+ */
+export const EMPTY_TRIGGERS = Object.freeze({ version: 1, memories: {} });
+
+export const triggerKey = (bank, slot) => `${bank}:${slot}`;
+
+export function normaliseTriggers(raw) {
+  const out = { version: 1, memories: {} };
+  const memories = raw && typeof raw === 'object' && raw.memories && typeof raw.memories === 'object'
+    ? raw.memories : {};
+  for (const [key, list] of Object.entries(memories)) {
+    if (!/^[a-z]+:\d+$/.test(key) || !Array.isArray(list)) continue;
+    const locations = list.map(normaliseLocation).filter(Boolean);
+    if (locations.length) out.memories[key] = locations;
+  }
+  return out;
+}
+
+/**
+ * Which memory a write recalls, if it recalls one — the inverse of the
+ * dialect's `recall()`, read off the path rather than asked of the dialect,
+ * so it does not care which part of the page sent it: this app's Memories
+ * panel, a cue, the Console, or the vendor's own Memories tab.
+ *
+ * Every recall on both platforms is
+ * `[device, …bank.root, 'control', 'load', 'slotList', 'items', <slot>, …, 'xRequest']`
+ * written `true`, and the bank is whichever of the dialect's banks the path
+ * starts with. `mode` is the buffer, when the path names one.
+ *
+ * @param {{banks: {kind: string, root: string[]}[]}} dialect
+ */
+export function recallOf(dialect, path, value) {
+  if (!dialect || !Array.isArray(dialect.banks) || value !== true || !Array.isArray(path)) return null;
+  if (path[path.length - 1] !== 'xRequest') return null;
+  for (const bank of dialect.banks) {
+    const at = 1 + bank.root.length;
+    if (!bank.root.every((seg, i) => path[1 + i] === seg)) continue;
+    if (path[at] !== 'control' || path[at + 1] !== 'load' || path[at + 2] !== 'slotList' || path[at + 3] !== 'items') continue;
+    const slot = Number(path[at + 4]);
+    if (!Number.isInteger(slot) || slot < 1) return null;
+    const i = path.indexOf('presetList', at + 5);
+    const mode = i > 0 && path[i + 1] === 'items' ? path[i + 2] : null;
+    return { bank: bank.kind, slot, mode: mode === 'PROGRAM' || mode === 'PREVIEW' ? mode : null };
+  }
+  return null;
+}

@@ -18,7 +18,7 @@
  *
  * | point           | where  | keyed by | a contribution is |
  * |-----------------|--------|----------|-------------------|
- * | `cueAction`     | page   | `kind`   | `{ kind, label, run(action, { cue }), describe?(action) }` |
+ * | `cueAction`     | page   | `kind`   | `{ kind, label, run(action, { cue }), describe?(action), field? }` |
  * | `oscAddress`    | server | `prefix` | `{ prefix, describe?, handle(address, args) }` |
  * | `configSection` | server | `key`    | `{ key, group, label, perDevice?, byDefault?, export(device), import(data, device) }` |
  *
@@ -26,6 +26,15 @@
  * its actions, alongside the recalls and before any take or cut in the same cue
  * — the take is deferred and yours is not. It is not awaited; a promise that
  * rejects is reported as a warning on the cue, like a failed write.
+ *
+ * `cueAction.field`, when there is one, is how a cue editor offers the kind:
+ * one text field per cue, `{ label, placeholder?, hint?, parse(text),
+ * format(actions), pick?({ doc, text }) }`. `parse` answers the cue's
+ * actions of this kind — an empty list clears them — or throws a sentence
+ * the editor shows; `format` turns them back into the text. `pick`, when
+ * given, is a chooser the editor puts a button beside the field for: drawn
+ * in `doc`, the editor's own document, starting from the field's `text`, and
+ * resolving with the new text, or null to leave it. See `fieldActions`.
  *
  * `oscAddress.handle` is called for any address at or below `prefix`, from UDP
  * and from a line typed in the Console alike. It answers
@@ -79,6 +88,13 @@ export const POINTS = {
       if (!text(spec.label)) return 'it needs a label, which is what a cue sheet shows';
       if (!fn(spec.run)) return 'it needs a run(action, { cue }) function';
       if (spec.describe !== undefined && !fn(spec.describe)) return 'describe must be a function';
+      if (spec.field !== undefined) {
+        const f = spec.field;
+        if (!f || typeof f !== 'object') return 'field must be an object';
+        if (!text(f.label)) return 'its field needs a label';
+        if (!fn(f.parse) || !fn(f.format)) return 'its field needs parse(text) and format(actions)';
+        if (f.pick !== undefined && !fn(f.pick)) return 'field.pick must be a function';
+      }
       return null;
     },
     clash: (a, b) => a.kind === b.kind
@@ -191,6 +207,35 @@ export function oscAddressFor(list, address) {
  * whose plugin is switched off shows, so the action is not silently hidden.
  * A `describe` that throws is its plugin's fault, not the cue sheet's.
  */
+/**
+ * Put what a contributed field was given into a cue's actions.
+ *
+ * The cue's actions of that kind are replaced by what `field.parse` answers —
+ * **where the first of them was**, so a trigger that the operator had placed
+ * after a recall stays after it — and every other action is left exactly as
+ * it was. Throws what `parse` throws, having changed nothing.
+ *
+ * @returns {object[]} the cue's new action list
+ */
+export function fieldActions(actions, contribution, text) {
+  const made = contribution.field.parse(String(text ?? ''));
+  if (!Array.isArray(made)) throw new Error(`${contribution.label}: the field answered no actions`);
+  const kind = contribution.kind;
+  const fresh = made.map((a) => ({ ...a, kind }));
+  const list = actions || [];
+  const at = list.findIndex((a) => a.kind === kind);
+  const rest = list.filter((a) => a.kind !== kind);
+  if (at < 0) return [...rest, ...fresh];
+  const before = list.slice(0, at).filter((a) => a.kind !== kind).length;
+  return [...rest.slice(0, before), ...fresh, ...rest.slice(before)];
+}
+
+/** The text a contributed field shows for a cue's actions — its own `format`, over its own kind. */
+export function fieldText(actions, contribution) {
+  const mine = (actions || []).filter((a) => a.kind === contribution.kind);
+  try { return String(contribution.field.format(mine) ?? ''); } catch { return ''; }
+}
+
 export function describeContributed(action, list) {
   const c = (list || []).find((x) => x.kind === action.kind);
   if (!c) return action.kind;

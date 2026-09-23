@@ -12,7 +12,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  POINTS, createContributions, createServices, oscAddressFor, describeContributed
+  POINTS, createContributions, createServices, oscAddressFor, describeContributed, fieldActions, fieldText
 } from '../src/core/contributions.js';
 import { CueStack, ACTION_KINDS } from '../src/core/cuestack.js';
 
@@ -174,4 +174,51 @@ test('a kind nobody handles, a run that throws and a run that rejects each becom
   assert.match(warnings[0], /Nothing handles “x:missing” — the plugin that adds it may be switched off/);
   assert.match(warnings[1], /Thrower failed: bang/);
   assert.match(warnings[2], /Rejecter failed: later/);
+});
+
+/* ------------------------------------------------------- a cue action's field */
+
+const withField = (kind, over = {}) => cueAction(kind, {
+  field: {
+    label: 'Thing',
+    parse: (text) => text.split(',').map((t) => t.trim()).filter(Boolean).map((n) => {
+      if (!/^\d+$/.test(n)) throw new Error(`“${n}” is not a number`);
+      return { n: Number(n) };
+    }),
+    format: (actions) => actions.map((a) => a.n).join(', '),
+  },
+  ...over,
+});
+
+test('a cue action may describe a field for the editors, and a bad one is refused', () => {
+  const c = createContributions();
+  c.add('cueAction', withField('p:ok'), 'p');
+  assert.throws(() => c.add('cueAction', cueAction('p:a', { field: 'text' }), 'p'), /field must be an object/);
+  assert.throws(() => c.add('cueAction', cueAction('p:b', { field: { parse() {}, format() {} } }), 'p'), /needs a label/);
+  assert.throws(() => c.add('cueAction', cueAction('p:c', { field: { label: 'X', parse() {} } }), 'p'), /parse\(text\) and format/);
+  assert.throws(() => c.add('cueAction', withField('p:d', { field: { label: 'X', parse() {}, format() {}, pick: 1 } }), 'p'), /pick must be a function/);
+});
+
+test('a field replaces its own kind where it stood, and leaves every other action alone', () => {
+  const contribution = withField('p:thing');
+  const actions = [
+    { kind: ACTION_KINDS.SCREEN_PRESET, slot: 1 },
+    { kind: 'p:thing', n: 1 },
+    { kind: 'other:x' },
+    { kind: 'p:thing', n: 2 },
+    { kind: ACTION_KINDS.TAKE, targets: ['S1'] },
+  ];
+  assert.equal(fieldText(actions, contribution), '1, 2');
+
+  const next = fieldActions(actions, contribution, '7, 8, 9');
+  assert.deepEqual(next.map((a) => a.kind === 'p:thing' ? a.n : a.kind),
+    [ACTION_KINDS.SCREEN_PRESET, 7, 8, 9, 'other:x', ACTION_KINDS.TAKE]);
+
+  /* Empty clears them; a cue that had none gains them at the end. */
+  assert.deepEqual(fieldActions(actions, contribution, '').map((a) => a.kind),
+    [ACTION_KINDS.SCREEN_PRESET, 'other:x', ACTION_KINDS.TAKE]);
+  assert.deepEqual(fieldActions([{ kind: ACTION_KINDS.CUT }], contribution, '3'), [{ kind: ACTION_KINDS.CUT }, { kind: 'p:thing', n: 3 }]);
+
+  /* A refusal changes nothing and says why. */
+  assert.throws(() => fieldActions(actions, contribution, '1, x'), /“x” is not a number/);
 });

@@ -39,13 +39,23 @@ import {
   normaliseCompanion,
   normaliseHost,
   originAllowed,
+  PRESS_KIND,
+  gridAxes,
+  normaliseTriggers,
   pageGrid,
   parseFrames,
+  parseLocation,
+  parseLocationList,
+  formatLocationList,
+  pressAction,
+  recallOf,
+  triggerKey,
   pickVersion,
   planConnections,
   request,
   stopRequest,
 } from '../plugins/companion/core.js';
+import { NLC, MNG } from '../src/core/dialect.js';
 
 /* ------------------------------------------------------------- the settings */
 
@@ -380,4 +390,79 @@ test('the location field is pageNumber, which is what Companion’s schema deman
 
 test('the default grid is Companion’s own default page size', () => {
   assert.equal(pageGrid(1).length, 32);
+});
+
+test('a grid grown up and left keeps its negative rows and columns', () => {
+  /* Companion's gridSize is inclusive and may start below 0/0 — a grid grown
+     upwards keeps its old buttons where they were. */
+  const { rows, columns } = gridAxes({ minRow: -1, maxRow: 3, minColumn: 0, maxColumn: 7 });
+  assert.deepEqual(rows, [-1, 0, 1, 2, 3]);
+  assert.equal(columns.length, 8);
+  assert.equal(pageGrid(2, { minRow: -1, maxRow: 3, minColumn: 0, maxColumn: 7 })[0].row, -1);
+  /* Nonsense falls back to the default rather than drawing nothing, or
+     subscribing to ten thousand buttons. */
+  assert.equal(pageGrid(1, { minRow: 5, maxRow: 0 }).length, 32);
+  assert.equal(pageGrid(1, { minRow: 0, maxRow: 9999 }).length, 32);
+});
+
+test('a typed button reads as page/row/column, and nothing half-reads', () => {
+  assert.deepEqual(parseLocation('1/0/3'), { pageNumber: 1, row: 0, column: 3 });
+  assert.deepEqual(parseLocation(' 12 . -1 . 4 '), { pageNumber: 12, row: -1, column: 4 });
+  for (const bad of ['', '1/0', '0/0/0', '1/0/3/4', 'a/b/c', '1/0/x', null]) {
+    assert.equal(parseLocation(bad), null, String(bad));
+  }
+  assert.deepEqual(parseLocationList('1/0/3, 2/1/0').map(locationKey), ['1/0/3', '2/1/0']);
+  assert.deepEqual(parseLocationList('  '), []);
+  assert.throws(() => parseLocationList('1/0/3, 2/1'), /“2\/1” is not a button/);
+  assert.equal(formatLocationList([{ pageNumber: 1, row: 0, column: 3 }, { pageNumber: 2, row: 1, column: 0 }]), '1/0/3, 2/1/0');
+});
+
+test('a press action keeps Companion’s own spelling of a location, under the plugin’s kind', () => {
+  const a = pressAction({ pageNumber: 3, row: 1, column: 2 });
+  assert.equal(a.kind, PRESS_KIND);
+  assert.ok(PRESS_KIND.startsWith('companion:'), 'kinds start with the plugin id');
+  assert.equal(locationKey(a), '3/1/2');
+});
+
+test('every recall either dialect spells is read back as the memory it recalls', () => {
+  /* The inverse of the dialect's own `recall()`, for every bank and both
+     buffers — so a trigger fires whichever panel spelled the recall. */
+  const cases = [
+    [NLC, 'master', {}],
+    [NLC, 'screen', { id: 'S1' }],
+    [NLC, 'screen', { id: 'A2' }],
+    [NLC, 'layer', { id: 'S3', layer: 2 }],
+    [MNG, 'master', {}],
+    [MNG, 'screen', { id: 'S2' }],
+    [MNG, 'aux', { id: 'A1' }],
+  ];
+  for (const [dialect, kind, target] of cases) {
+    for (const mode of ['PREVIEW', 'PROGRAM']) {
+      const cmd = dialect.recall(kind, 17, { ...target, mode });
+      assert.ok(cmd, `${kind} ${mode} spells a recall`);
+      assert.deepEqual(recallOf(dialect, cmd.path, cmd.value), { bank: kind, slot: 17, mode }, `${kind} ${mode}`);
+    }
+  }
+});
+
+test('a save, a label, a false write or somebody else’s path is not a recall', () => {
+  const save = NLC.save('screen', 4, { mode: 'PREVIEW', id: 'S1' });
+  assert.equal(recallOf(NLC, save.path, save.value), null);
+  const recall = NLC.recall('screen', 4, { mode: 'PREVIEW', id: 'S1' });
+  assert.equal(recallOf(NLC, recall.path, false), null, 'the release of a request is not another recall');
+  assert.equal(recallOf(NLC, ['device', 'screenList', 'items', 'S1', 'control', 'pp', 'xTake'], true), null);
+  assert.equal(recallOf(null, recall.path, true), null);
+});
+
+test('memory triggers are normalised on the way in and out', () => {
+  const t = normaliseTriggers({
+    memories: {
+      [triggerKey('screen', 5)]: [{ pageNumber: 1, row: 0, column: 3 }, { pageNumber: 0, row: 0, column: 0 }],
+      'screen:x': [{ pageNumber: 1, row: 0, column: 0 }],
+      'master:2': [],
+      'layer:9': 'nonsense',
+    },
+  });
+  assert.deepEqual(t, { version: 1, memories: { 'screen:5': [{ pageNumber: 1, row: 0, column: 3 }] } });
+  assert.deepEqual(normaliseTriggers(null), { version: 1, memories: {} });
 });

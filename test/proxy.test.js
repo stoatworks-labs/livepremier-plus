@@ -859,6 +859,28 @@ test('a switched-off plugin answers 404 on every route it owns, and comes back w
   });
 });
 
+test('a Companion press is refused, saying why, until there is a Companion to press', async () => {
+  await withProxy({}, async ({ base }) => {
+    const press = (body) => fetch(base + '/__lpp/companion/press', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    let res = await press({ location: { pageNumber: 1, row: 0, column: 3 } });
+    assert.equal(res.status, 409);
+    assert.match((await res.json()).error, /no Companion configured/);
+
+    /* A location that does not read is the caller's mistake, whatever the link. */
+    for (const bad of [{}, { location: { pageNumber: 0, row: 0, column: 0 } }, { locations: [{ page: 1, row: 0, column: 0 }] }]) {
+      res = await press(bad);
+      assert.equal(res.status, 400, JSON.stringify(bad));
+    }
+    res = await press({ locations: Array.from({ length: 17 }, () => ({ pageNumber: 1, row: 0, column: 0 })) });
+    assert.equal(res.status, 400);
+
+    /* No data directory, no triggers — the built-ins' answer. */
+    assert.equal((await fetch(base + '/__lpp/companion/triggers')).status, 501);
+  });
+});
+
 test('an untouched install has every plugin on', async () => {
   await withProxy({}, async ({ base }) => {
     assert.equal((await fetch(base + '/__lpp/companion/state')).status, 200);

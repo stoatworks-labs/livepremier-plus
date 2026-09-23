@@ -66,7 +66,7 @@ export const BUILTINS = [
     id: 'companion',
     name: 'Companion',
     where: 'Sidebar, under PLUS',
-    description: 'A Bitfocus Companion on this address — its buttons, web buttons and emulator — and the connections that belong in the show for this switcher.',
+    description: 'A Bitfocus Companion: its buttons drawn and pressable here, buttons pressed by a cue or a memory recall, its editor on this address, and the connections that belong in the show for this switcher.',
     /* Hosted: plugins/companion/, loaded through the plugin hosts. */
     server: 'server.js',
     client: 'client.js'

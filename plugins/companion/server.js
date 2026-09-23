@@ -14,6 +14,8 @@
  *     GET  /state         the link, the settings, the show and the plan
  *     GET  /stream        server-sent `show` events when the show changes
  *     POST /connections   add what the plan says is missing
+ *     POST /press         press one or more buttons — a cue, a memory trigger
+ *     GET|PUT /triggers   the buttons each memory recall presses, per switcher
  *     *    /ui/…          Companion's own web UI, mounted whole
  *     WS   /ui/trpc       and its socket
  *
@@ -29,7 +31,11 @@ import {
   CompanionLink, addConnections, listConnections, prefixHeaderFor,
   proxyToCompanion, relayUpgradeToCompanion,
 } from './link.js';
-import { MODULES, companionChanged, normaliseCompanion, planConnections } from './core.js';
+import {
+  MODULES, companionChanged, locationKey, normaliseCompanion, normaliseLocation,
+  normaliseTriggers, planConnections,
+} from './core.js';
+import { documentSection } from '../../server/documents.js';
 
 /**
  * The settings schema, read by the plugin host whether the plugin is on or off.
@@ -48,6 +54,24 @@ export const settings = {
 
 /** Where Companion's UI is mounted, below this plugin's base — so `/__lpp/companion/ui`. */
 const UI = '/ui';
+
+/**
+ * The surface a press is reported as coming from. Companion logs it, and a
+ * button whose actions branch on `$(internal:…)` surface variables sees it —
+ * so it names this app rather than borrowing the HTTP API's.
+ */
+const SURFACE_ID = 'livepremier-plus';
+
+/**
+ * How long a press is held before it is let go. Companion's own HTTP `press`
+ * waits 20 ms; a little longer here, because a button with a "long press"
+ * step must still read this as a short one, and nothing an operator can see
+ * happens in 60 ms.
+ */
+const HOLD_MS = 60;
+
+/** The most buttons one request may press. A cue that presses more is a typo. */
+const MAX_PRESSES = 16;
 
 export default function activate(ctx) {
   /*
@@ -71,9 +95,9 @@ export default function activate(ctx) {
    *
    * A panel that only updated when you touched it would be a panel that was
    * right when it was opened, and this one has the sharpest version of that
-   * problem: Companion's own Connections page is embedded in the panel, so the
-   * most likely way for the show to change is the operator changing it two
-   * clicks away, inside our own iframe.
+   * problem: Companion's own editor opens from the panel, so the most likely
+   * way for the show to change is the operator changing it in the window
+   * beside it.
    */
   const show = ctx.stream('/stream');
   link.on('showChanged', () => {
@@ -192,5 +216,87 @@ export default function activate(ctx) {
       connections: after,
       plan: planConnections(after),
     });
+  });
+
+  /*
+   * Press a button, for a cue or a memory trigger.
+   *
+   * Over the link's tRPC socket, `controls.hotPressControl` — the call
+   * Companion's own emulator makes — rather than the HTTP API's
+   * `/api/location/…/press`, because the HTTP API answers only while
+   * Companion's "HTTP API" setting is on, and a cue that silently pressed
+   * nothing on a Companion where somebody had switched it off would be the
+   * worst kind of failure: the show goes on and one thing does not happen.
+   * The socket is already open, and it has no such switch.
+   *
+   * Here and not from the page: a cue fires in whichever page pressed GO, and
+   * that page may never have opened the Companion panel, so it has no socket
+   * of its own to press with. The link is up whenever a Companion is set.
+   *
+   * `{ location }` or `{ locations: [...] }`; `direction` `down` or `up` for
+   * a hold, anything else is a press — down, then up `HOLD_MS` later.
+   */
+  ctx.route('POST', '/press', async (req, res, h) => {
+    const body = (await h.readJson(8192)) || {};
+    const raw = Array.isArray(body.locations) ? body.locations : [body.location];
+    const locations = raw.map(normaliseLocation);
+    if (!locations.length || locations.some((l) => !l)) {
+      return h.json(400, { error: 'a press needs a location: { pageNumber, row, column }' });
+    }
+    if (locations.length > MAX_PRESSES) return h.json(400, { error: `at most ${MAX_PRESSES} buttons at once` });
+    if (!link.target) return h.json(409, { error: 'no Companion configured' });
+    if (!link.state.connected) return h.json(409, { error: 'not connected to Companion' });
+
+    const hot = (location, down) => link.call('mutation', 'controls.hotPressControl', {
+      location, direction: down, surfaceId: SURFACE_ID,
+    });
+    const direction = body.direction === 'down' || body.direction === 'up' ? body.direction : 'press';
+
+    const results = await Promise.all(locations.map(async (location) => {
+      try {
+        if (direction !== 'up') await hot(location, true);
+        if (direction === 'press') await new Promise((r) => setTimeout(r, HOLD_MS));
+        if (direction !== 'down') await hot(location, false);
+        return { location: locationKey(location), ok: true };
+      } catch (err) {
+        return { location: locationKey(location), ok: false, error: err.message };
+      }
+    }));
+    const failed = results.filter((r) => !r.ok);
+    if (failed.length) ctx.log(`companion press failed: ${failed.map((r) => `${r.location} ${r.error}`).join('; ')}`);
+    return h.json(failed.length ? 502 : 200, {
+      ok: !failed.length, results, error: failed.length ? failed[0].error : null,
+    });
+  });
+
+  /*
+   * The buttons each memory recall presses.
+   *
+   * Per switcher, like a cue stack: a memory slot means one box's memory.
+   * Normalised on the way in as well as out, so a hand-edited or restored
+   * file cannot put a location in front of Companion that `/press` would
+   * refuse anyway.
+   */
+  const TRIGGERS = 'companion-triggers';
+  const storage = () => {
+    if (!ctx.storage) throw new ctx.HttpError(501, 'no storage configured');
+    return ctx.storage;
+  };
+  ctx.route('GET', '/triggers', async (req, res, h) => {
+    h.json(200, { data: normaliseTriggers(await storage().load(TRIGGERS, { perDevice: true })) });
+  });
+  ctx.route('PUT', '/triggers', async (req, res, h) => {
+    const store = storage();
+    const body = await h.readJson(256 * 1024);
+    const data = normaliseTriggers(body && body.data !== undefined ? body.data : body);
+    await store.save(TRIGGERS, data, { perDevice: true });
+    h.json(200, { ok: true, data });
+  });
+  /* In the one-file setup beside the cue stack, which is where it belongs:
+     both are a show written against one box. */
+  documentSection(ctx, TRIGGERS, {
+    group: 'show',
+    label: 'Companion memory triggers',
+    empty: (data) => !data || !Object.keys(normaliseTriggers(data).memories).length,
   });
 }

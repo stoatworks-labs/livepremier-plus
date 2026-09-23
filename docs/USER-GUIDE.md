@@ -24,9 +24,10 @@ as a bolt-on.
 - **Matrix Routing** — patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
   Videohub, a Lightware or a Turtle AV router, and route through it from the panel, a cue, the
   Console or OSC.
-- **Companion** — a Bitfocus Companion served inside this app, on the same address as Web RCS:
-  its button editor, web buttons and emulator, plus a panel that knows which switcher you are on
-  and offers to add the connections that belong in the show.
+- **Companion** — a Bitfocus Companion linked to this app: its buttons drawn and pressable here,
+  a Companion trigger on cues and memory recalls, its own editor on the same address as Web RCS,
+  and a panel that knows which switcher you are on and offers to add the connections that belong
+  in the show.
 - **Pitch Compensation** — the H and V ratios a screen spanning LED walls of different pitches
   needs, worked out from the pitches you give it.
 - **OSC input** — QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
@@ -246,6 +247,7 @@ Each cue can carry:
 | **delay** | wait this long after GO before firing — a second GO during the wait fires it at once |
 | **follow** | after this cue fires, fire the next one by itself, after a follow time you set |
 | **timecode** | fire when incoming timecode passes this point (below) |
+| **Companion trigger** | press these Companion buttons as the cue fires — see *Companion* below |
 
 A few things behave the way a desk does rather than the way a switcher does:
 
@@ -453,9 +455,9 @@ describes that frame's own sockets.
 
 ## Companion
 
-**PLUS ▸ Companion.** A [Bitfocus Companion](https://bitfocus.io/companion) (5.0 or newer) served
-through this app, so its pages open on the same address as Web RCS — no second port to allow
-through a firewall, and nothing to switch between.
+**PLUS ▸ Companion.** A [Bitfocus Companion](https://bitfocus.io/companion) (5.0 or newer) linked to
+this app: its buttons drawn and pressable here, a cue or a memory recall that presses them, and its
+own editor served on the same address as Web RCS — no second port to allow through a firewall.
 
 ### Connecting
 
@@ -467,7 +469,7 @@ be one you could reason about.
 ### What is in the show
 
 The panel lists the show's connections — label, module and status — and **follows them live**, so
-a connection added or disabled in Companion (including in the pages embedded below) shows up
+a connection added or disabled in Companion (including in its editor, opened from here) shows up
 without a reload. The two it has an opinion about are highlighted:
 
 - **AWJ** — the switcher itself: sources, presets, takes, layers.
@@ -491,11 +493,45 @@ What it does with them is an **offer, never a sync**:
 be given, and a Companion on another machine cannot dial it. The panel warns you; open this app by
 its network address first if Companion is somewhere else.
 
-### Companion's own pages
+### Buttons
 
-**Buttons**, **Web buttons** and **Emulator** open Companion's real pages in the panel — the button
-editor itself, the touch surface a tablet would see, and a Stream Deck on screen. They are
-Companion, not a copy of it, so they are always the version you have installed.
+The panel draws Companion's pages as a grid, in this app's own look: each button exactly as
+Companion renders it — text, colours, feedbacks, variables — and updated the moment it changes.
+Press one and it is pressed in Companion; hold it and it is held, so a long-press or a *while held*
+action behaves as it does under a finger. Pick the page from the list, or step through with ‹ and ›.
+Dim buttons have nothing on them.
+
+- **Pop out** puts the grid in a window of its own, for a second monitor or a touch screen.
+- **Edit in Companion** opens Companion's own button editor in a new window, through this app, for
+  programming a button. Everything you change there shows here at once.
+
+The grid only runs while it is on screen: move to another panel and it stops asking Companion for
+images.
+
+### A cue that presses a button
+
+Each cue has a **Companion trigger** field — in the cue editor (Timeline ▸ Pop out) and in the
+Timeline tab's **New cue** form. Type buttons as `page/row/column`, the way Companion numbers them
+(`1/0/3`; several separated by commas), or press **Choose…** and click one in the grid — nothing is
+pressed while choosing. When the cue fires, the buttons are pressed alongside its recalls and ahead
+of its take, the same moment a matrix route goes out. An address that does not read is refused and
+the field says why.
+
+The press goes through this app's own link, not the page: it works whether or not the Companion
+panel has been opened, and whether or not Companion's *HTTP API* setting is on.
+
+### A memory recall that presses a button
+
+**Memory triggers**, at the bottom of the panel: choose a bank and a slot, the buttons to press,
+and **Set**. From then on, recalling that memory presses them — from the Memories panel, a cue, the
+Console or the vendor's own Memories tab. **Test** presses them now. One recall sent to several
+screens at once presses once.
+
+> **Only recalls made in this page are seen.** A memory recalled from the switcher's front panel,
+> from Companion itself, or from a browser not going through this app presses nothing — this app
+> has no way to hear about it. That is also why two open pages do not press the button twice.
+
+Triggers are kept per switcher, beside the cue stack, and travel in the setup file.
 
 > **Linking a Companion widens what this app exposes.** Everything below `/__lpp/companion` is
 > Companion's admin UI, reachable by anyone who can reach this app. On the default loopback binding
@@ -701,7 +737,7 @@ was written against, and three separate groups:
 
 - **installation** — app settings (console language, OSC port and bind) and your external
   routers. Not tied to a switcher.
-- **show** — the cue stack, layer groups and layer names. Tied to the switcher they were
+- **show** — the cue stack, layer groups, layer names and Companion memory triggers. Tied to the switcher they were
   built on, because they name screens and layer slots like `S1/2`.
 - **rig** — the patch between the frame and the routers.
 

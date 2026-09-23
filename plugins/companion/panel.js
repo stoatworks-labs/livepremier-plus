@@ -9,37 +9,34 @@
  * a backup frame. So it sits in the sidebar beside the other whole-rig views
  * rather than on the Screens / Aux. strip.
  *
- * ## Why the embedded UI is an iframe, and why that is not a cop-out
+ * ## Companion's buttons, drawn in this app's own look
  *
- * Everything below `Buttons` is Companion's own web app, served through this
- * app's proxy at `/__lpp/companion/ui` and therefore **on this origin**. That
- * is worth being precise about, because "we embedded their web page" usually
- * means something worse than this does:
+ * Until 0.13 everything below the show was Companion's own web app in an
+ * iframe — its Buttons, Web buttons and Emulator pages, served through the
+ * mount. It worked, and it looked like somebody else's program pasted into
+ * the switcher's. Now the grid is ours (`surface.js`): the page list and
+ * the buttons, as Companion renders them, in the app's chrome, pressable, and
+ * poppable onto a second monitor. The one thing still left to Companion is
+ * *programming* a button — a large, fast-moving editor with its own release
+ * cadence, which a copy here would only do worse — and that opens Companion's
+ * own editor, through the same mount, in a window of its own.
  *
- * - It is not a remote page in a box. Companion supports being served under a
- *   sub-path, so every URL it emits — assets, API, its own WebSocket — already
- *   points back through us. No mixed content, no CORS, no second port.
- * - It is **the real thing**, not a reimplementation. The button editor is a
- *   large, fast-moving piece of somebody else's software with its own release
- *   cadence. Redrawing it here would be a permanent maintenance tax on a UI
- *   nobody on this side controls, and it would be worse at the job.
- * - What this app adds is the part Companion cannot do: knowing which
- *   switcher you are pointed at, and what belongs in the show because of it.
+ * What this app adds is still the part Companion cannot do: knowing which
+ * switcher you are pointed at, what belongs in the show because of it — and
+ * now, which buttons a cue or a memory recall presses.
  *
- * So the panel is ours where it has something to say — the link, the plan,
- * the two connections — and theirs where they are better at it.
- *
- * ## Drawn in place, because of the iframe
+ * ## Drawn in place
  *
  * Every other panel is rebuilt whole on each repaint, and the app repaints on
  * every frame the switcher sends — about once a second from its timers alone.
- * Rebuilt whole, this panel took the iframe with it: Companion's editor
- * reloaded every second it was open, and anything half-done in it was lost
- * (found 2026-09-22, on 0.12.0). So this panel builds its frame once and
- * returns the same element every time; each repaint refills the parts that
- * change, and the iframe is replaced only when the operator picks another
- * view. `ui/shell.js` leaves a panel alone when it hands back the element
- * already on screen.
+ * This one builds its frame once and returns the same element every time; the
+ * parts that follow the link are refilled, and the button grid and the
+ * trigger editor are left alone, so a button's image is only ever swapped in
+ * place and a half-typed trigger survives a frame from the switcher. It
+ * started with the iframe (Companion's editor reloaded every second it was
+ * open, found 2026-09-22, on 0.12.0); the grid and the fields need it as much.
+ * `ui/shell.js` leaves a panel alone when it hands back the element already
+ * on screen.
  *
  * ## The plan is an offer, not a sync
  *
@@ -50,22 +47,16 @@
  * it.
  */
 
-import { MODULES } from './core.js';
+import { MODULES, formatLocationList, locationKey, parseLocationList, triggerKey } from './core.js';
+import { createButtonGrid } from './surface.js';
+import { dialectOrDefault } from '../../src/core/dialect.js';
 
-/**
- * The pages of Companion's own UI worth reaching from here.
- *
- * Deliberately short. This is not a second navigation for the whole of
- * Companion — an operator who wants Triggers has Companion open. These are
- * the three an operator wants *while looking at the switcher*: the buttons
- * they are programming, the buttons they are pressing, and a surface to press
- * them on.
- */
-const VIEWS = [
-  { id: 'buttons', label: 'Buttons', path: '/buttons', what: 'Programme the page — the real button editor.' },
-  { id: 'web', label: 'Web buttons', path: '/tablet', what: 'The touch surface, as a tablet would see it.' },
-  { id: 'emulator', label: 'Emulator', path: '/emulator', what: 'A Stream Deck on screen.' },
-];
+/* The Buttons window, beside this file in the plugin's folder. */
+const POPOUT = new URL('./popout.html', import.meta.url).href;
+
+/* How often an off-screen grid is noticed and paused. Its subscriptions are a
+   PNG per repaint per button, and nothing is looking at them. */
+const VISIBILITY_MS = 1500;
 
 /**
  * @param {object} o
@@ -73,8 +64,11 @@ const VIEWS = [
  * @param {(path: string) => string} o.url   this plugin's routes — `ctx.url`
  * @param {{get: Function, set: Function}} o.settings  this plugin's settings — `ctx.settings`
  * @param {() => void} [o.onRefresh]
+ * @param {object} [o.session]   the live store mirror, for the memory banks' names
+ * @param {object} [o.triggers]  the memory triggers — `client.js`
+ * @param {(o: object) => Promise<object|null>} [o.pick]  the button chooser
  */
-export function createCompanionPanel({ kit, url, settings, onRefresh }) {
+export function createCompanionPanel({ kit, url, settings, onRefresh, session = null, triggers = null, pick = null }) {
   const { h, button, readout, sectionTitle, panel, fill } = kit;
   const API = url('/');
   const UI = url('/ui');
@@ -101,11 +95,6 @@ export function createCompanionPanel({ kit, url, settings, onRefresh }) {
   let typing = false;
   let letGo = null;
 
-  /* Which of Companion's own pages is showing, and nothing until the operator
-     asks. An iframe that mounted itself on first paint would have Companion's
-     whole web app booting behind a panel nobody had opened yet. */
-  let view = null;
-
   /* The live subscription, opened once the panel has been looked at. */
   let stream = null;
 
@@ -125,10 +114,10 @@ export function createCompanionPanel({ kit, url, settings, onRefresh }) {
    * Follow the show rather than sampling it.
    *
    * The same argument the Matrix Routing panel (`plugins/matrix-routing/panel.js`) makes about a router, and here it
-   * is sharper: Companion's own Connections page is embedded a few lines
-   * below, so the most likely way for this list to change is the operator
-   * changing it inside our own iframe. A panel that only refreshed when it
-   * was opened would contradict the page sitting underneath it.
+   * is sharper: Companion's own editor is one button away (Edit in
+   * Companion), so the most likely way for this list to change is the
+   * operator changing it in the window beside this one. A panel that only
+   * refreshed when it was opened would contradict it.
    *
    * EventSource reconnects by itself, so a launcher restart heals without
    * anybody reloading Web RCS.
@@ -383,81 +372,222 @@ export function createCompanionPanel({ kit, url, settings, onRefresh }) {
       })));
   }
 
+  /* ------------------------------------------------------ memory triggers */
+
+  /*
+   * Which buttons each memory recall presses.
+   *
+   * Drawn into a host of its own, redrawn when the triggers change or the
+   * operator does something here — never by a frame from the switcher, which
+   * would take the half-typed slot number with it.
+   */
+  const trig = { bank: null, slot: '', buttons: '', note: null, busy: false };
+
+  function banks() {
+    const store = session ? session.store : null;
+    return dialectOrDefault(store).banks;
+  }
+
+  function drawTriggers() {
+    if (!triggersHost) return;
+    if (!triggers) { fill(triggersHost); return; }
+    const all = banks();
+    if (!trig.bank || !all.some((b) => b.kind === trig.bank)) trig.bank = (all.find((b) => b.kind === 'screen') || all[0]).kind;
+    const current = triggers.get();
+    const entries = Object.entries(current.memories)
+      .map(([key, locations]) => {
+        const [bank, slot] = key.split(':');
+        return { key, bank, slot: Number(slot), locations };
+      })
+      .sort((a, b) => a.bank.localeCompare(b.bank) || a.slot - b.slot);
+    const bankLabel = (kind) => (all.find((b) => b.kind === kind) || { label: kind }).label;
+
+    const save = async (next, note) => {
+      trig.busy = true;
+      trig.note = null;
+      drawTriggers();
+      try {
+        await triggers.save(next);
+        trig.note = note ? { tone: 'ok', text: note } : null;
+        return true;
+      } catch (err) {
+        trig.note = { tone: 'warn', text: err.message };
+        return false;
+      } finally {
+        trig.busy = false;
+        drawTriggers();
+      }
+    };
+
+    const remove = (key) => {
+      const memories = { ...triggers.get().memories };
+      delete memories[key];
+      save({ version: 1, memories });
+    };
+
+    const test = async (locations) => {
+      try {
+        await triggers.test(locations);
+        trig.note = { tone: 'ok', text: `Pressed ${formatLocationList(locations)}.` };
+      } catch (err) {
+        trig.note = { tone: 'warn', text: err.message };
+      }
+      drawTriggers();
+    };
+
+    const bankSelect = h('select', {
+      class: 'wru-input',
+      style: { width: 'auto', flex: '0 0 auto' },
+      onChange: (ev) => { trig.bank = ev.target.value; },
+    }, all.map((b) => {
+      const opt = h('option', { value: b.kind, text: b.label });
+      if (b.kind === trig.bank) opt.selected = true;
+      return opt;
+    }));
+    const slotInput = h('input', {
+      type: 'number', min: '1', class: 'wru-input wru-input--narrow', placeholder: 'slot',
+      style: { width: '5rem', flex: '0 0 auto' },
+      value: trig.slot, onInput: (ev) => { trig.slot = ev.target.value; },
+    });
+    const buttonsInput = h('input', {
+      type: 'text', class: 'wru-input', placeholder: 'page/row/column, e.g. 1/0/3',
+      value: trig.buttons, spellcheck: 'false', style: { flex: '1 1 10rem' },
+      onInput: (ev) => { trig.buttons = ev.target.value; },
+    });
+
+    const add = async () => {
+      const slot = Number(trig.slot);
+      if (!Number.isInteger(slot) || slot < 1) { trig.note = { tone: 'warn', text: 'Give the memory’s slot number.' }; return drawTriggers(); }
+      let locations;
+      try { locations = parseLocationList(trig.buttons); } catch (err) { trig.note = { tone: 'warn', text: err.message }; return drawTriggers(); }
+      if (!locations.length) { trig.note = { tone: 'warn', text: 'Choose at least one button.' }; return drawTriggers(); }
+      const key = triggerKey(trig.bank, slot);
+      const ok = await save({ version: 1, memories: { ...triggers.get().memories, [key]: locations } },
+        `${bankLabel(trig.bank)} memory ${slot} now presses ${formatLocationList(locations)}.`);
+      if (ok) { trig.slot = ''; trig.buttons = ''; drawTriggers(); }
+    };
+
+    fill(triggersHost,
+      sectionTitle('Memory triggers'),
+      h('div', { class: 'aw-font-caption aw-text-tertiary', text:
+        'Press Companion buttons whenever a memory is recalled from this page — from Memories, a cue, the '
+        + 'Console or the vendor’s own Memories tab. A recall from the front panel or another program is '
+        + 'not seen here, and presses nothing.' }),
+      entries.length
+        ? h('table', { class: 'wru-table' },
+          h('thead', {}, h('tr', {}, h('th', { text: 'Memory' }), h('th', { text: 'Presses' }), h('th', {}))),
+          h('tbody', {}, entries.map((e) => h('tr', {},
+            h('td', { text: `${bankLabel(e.bank)} ${e.slot}` }),
+            h('td', { class: 'wru-cue-number', text: formatLocationList(e.locations) }),
+            h('td', {}, h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
+              button('Test', { variant: 'ghost', title: 'Press these buttons now', disabled: trig.busy, onClick: () => test(e.locations) }),
+              button('Edit', { variant: 'ghost', disabled: trig.busy, onClick: () => {
+                trig.bank = e.bank; trig.slot = String(e.slot); trig.buttons = formatLocationList(e.locations); drawTriggers();
+              } }),
+              button('×', { variant: 'ghost', title: 'Remove this trigger', disabled: trig.busy, onClick: () => remove(e.key) })))))))
+        : h('div', { class: 'aw-font-body-2 aw-text-tertiary', text: 'No memory presses anything yet.' }),
+      h('div', { class: 'aw-flex-row-center-v aw-flex-wrap aw-gap-col-small aw-gap-row-small' },
+        bankSelect, slotInput, buttonsInput,
+        pick ? button('Choose…', {
+          title: 'Choose the button from Companion’s grid',
+          disabled: !(data && data.link && data.link.connected),
+          onClick: async () => {
+            let current = [];
+            try { current = parseLocationList(trig.buttons); } catch { /* choose afresh */ }
+            const chosen = await pick({ current });
+            if (!chosen) return;
+            trig.buttons = formatLocationList([...current.filter((l) => locationKey(l) !== locationKey(chosen)), chosen]);
+            drawTriggers();
+          },
+        }) : null,
+        button(trig.busy ? 'Saving…' : 'Set', { variant: 'primary', disabled: trig.busy, onClick: add })),
+      trig.note ? h('div', { class: ['aw-font-caption', trig.note.tone === 'warn' ? 'wru-warn' : 'aw-text-tertiary'], text: trig.note.text }) : null);
+  }
+
   /* ---------------------------------------------------------- the frame */
 
   /*
    * Built once and kept. `head` and `top` are refilled on every repaint; the
-   * embedded section is built when a Companion is first configured, and its
-   * iframe is replaced only when the chosen view changes. Refilling a parent
-   * of the iframe would detach it, and a detached iframe reloads.
+   * buttons section is rebuilt only when the link comes or goes, and the
+   * trigger editor only when it has something new to say.
    */
   let root = null;
   let head = null;
   let top = null;
-  let embed = null;
-  /* The embedded section's parts, while a Companion is configured. */
-  let parts = null;
-  /* The view whose iframe is in `parts.body` now: undefined for none yet,
-     null for the "pick a view" caption. */
-  let shown;
+  let buttonsHost = null;
+  let triggersHost = null;
+  /* The live grid while a Companion is connected, and the link state it was
+     built for. */
+  let grid = null;
+  let gridFor = null;
+  let watcher = null;
+  let gridNote = null;
+  let triggersDrawnFor = null;
 
   function frame() {
     if (root) return;
     head = h('div', { style: { display: 'contents' } });
     top = h('div', { class: 'aw-flex-col aw-gap-row-medium' });
-    embed = h('div', { class: 'aw-flex-col aw-gap-row-small' });
-    root = panel({ toolbar: head, body: h('div', { class: 'aw-flex-col aw-gap-row-medium' }, top, embed) });
+    buttonsHost = h('div', { class: 'aw-flex-col aw-gap-row-small' });
+    triggersHost = h('div', { class: 'aw-flex-col aw-gap-row-small' });
+    root = panel({ toolbar: head, body: h('div', { class: 'aw-flex-col aw-gap-row-large' }, top, buttonsHost, triggersHost) });
+    if (triggers) triggers.onChange(() => drawTriggers());
+    drawTriggers();
+  }
+
+  function popOut() {
+    const w = window.open(POPOUT, 'lpp-companion-buttons', 'popup,width=900,height=560');
+    if (w) w.focus();
+  }
+
+  function openEditor() {
+    const w = window.open(UI + '/buttons', 'lpp-companion-editor');
+    if (w) w.focus();
   }
 
   /**
-   * Companion's own pages, on this origin.
-   *
-   * The iframe is rebuilt when the view changes rather than having its `src`
-   * reassigned, so going back to a view is a fresh load rather than a history
-   * entry in a frame nobody can navigate.
+   * The button grid: built when the link comes up, taken down when it goes,
+   * and paused whenever the panel is off screen.
    */
-  function syncEmbed() {
+  function syncButtons() {
     const link = (data && data.link) || {};
-    if (!link.configured) {
-      if (parts) { fill(embed); parts = null; shown = undefined; }
+    const want = link.configured ? (link.connected ? 'live' : 'down') : 'none';
+    if (want === gridFor) {
+      if (grid) grid.resume();
       return;
     }
-    if (!parts) {
-      parts = { tabs: h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' }), body: h('div') };
-      fill(embed, sectionTitle('Companion'), parts.tabs, parts.body);
-      shown = undefined;
+    gridFor = want;
+    if (grid) { grid.dispose(); grid = null; }
+
+    if (want === 'none') { fill(buttonsHost); return; }
+    if (want === 'down') {
+      fill(buttonsHost, sectionTitle('Buttons'),
+        h('div', { class: 'aw-font-caption aw-text-tertiary', text: 'Connect to a Companion to show its buttons here.' }));
+      return;
     }
 
-    fill(parts.tabs,
-      VIEWS.map((v) => button(v.label, {
-        active: view === v.id,
-        title: v.what,
-        disabled: !link.connected,
-        onClick: () => { view = view === v.id ? null : v.id; repaint(); },
-      })),
-      view ? button('Close', { onClick: () => { view = null; repaint(); } }) : null);
+    gridNote = h('div', { class: 'aw-font-caption wru-warn' });
+    grid = createButtonGrid({
+      kit, ui: UI, mode: 'press',
+      onError: (msg) => { gridNote.textContent = msg; },
+    });
+    fill(buttonsHost,
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
+        sectionTitle('Buttons'),
+        h('div', { style: { flex: '1' } }),
+        button('Pop out', { variant: 'ghost', title: 'Open the buttons in a window of their own', onClick: popOut }),
+        button('Edit in Companion', { variant: 'ghost', title: 'Programme buttons in Companion’s own editor, in a new window', onClick: openEditor })),
+      grid.el,
+      gridNote);
 
-    const chosen = VIEWS.find((v) => v.id === view);
-    if (chosen) {
-      if (shown !== chosen.id) {
-        fill(parts.body, h('iframe', {
-          src: UI + chosen.path,
-          /* Tall enough to be usable and not so tall that the panel's own
-             controls are pushed off the top on a laptop. */
-          style: {
-            width: '100%', height: '32rem', border: '0',
-            borderRadius: '0.25rem', background: '#1c2226',
-          },
-          title: `Companion — ${chosen.label}`,
-        }));
-        shown = chosen.id;
-      }
-    } else {
-      fill(parts.body, h('div', { class: 'aw-font-caption aw-text-tertiary', text:
-        link.connected
-          ? 'Pick a view to open Companion here. It runs on this app’s own address, so it needs nothing extra opened up.'
-          : 'Connect to a Companion to open its pages here.' }));
-      shown = null;
+    /* Pause the grid's subscriptions while it is off screen, and let the next
+       render resume them. Checked on a timer rather than observed: the shell
+       swaps panels by replacing a subtree, and a MutationObserver over the
+       whole page to catch that would cost more than this does. */
+    if (!watcher) {
+      watcher = setInterval(() => {
+        if (grid && grid.running && !grid.el.isConnected) grid.pause();
+      }, VISIBILITY_MS);
     }
   }
 
@@ -479,7 +609,11 @@ export function createCompanionPanel({ kit, url, settings, onRefresh }) {
         addressForm(),
         linkState()),
       showSection());
-    syncEmbed();
+    syncButtons();
+    /* The trigger editor's chooser needs the link; redraw it when that
+       changes, and only then. */
+    const connected = !!(data && data.link && data.link.connected);
+    if (connected !== triggersDrawnFor) { triggersDrawnFor = connected; drawTriggers(); }
     return root;
   }
 

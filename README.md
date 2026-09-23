@@ -49,11 +49,14 @@ rather than as a bolt-on:
   Blackmagic Videohub, a Lightware or a Turtle AV router, and route through it
   from the panel, a cue, the Console or OSC. You describe the cable; the
   direction inverts on its own.
-- **Companion** — a Bitfocus Companion served inside this app's own origin: its
-  admin pages, web buttons and emulator on the same address as Web RCS, with no
-  second port and no CORS. A panel lists the show's real connections, follows
-  them live, and offers to add the AWJ and LivePremier Plus connections pointed
-  at whichever switcher you are on — saying what it will create before it does.
+- **Companion** — a Bitfocus Companion linked to this app: its pages of buttons
+  drawn in the app's own look, live and pressable, and poppable onto a second
+  monitor; a **Companion trigger** on any cue and on any memory recall, so the
+  show presses the buttons as it runs; and Companion's own editor served on the
+  same address as Web RCS, with no second port and no CORS. A panel lists the
+  show's real connections, follows them live, and offers to add the AWJ and
+  LivePremier Plus connections pointed at whichever switcher you are on —
+  saying what it will create before it does.
 - **Pitch Compensation** — a screen spanning LED walls of different pixel
   pitches needs H and V ratios per output, and the device has the fields and no
   help filling them in. Give it the pitches; it reads everything else off the

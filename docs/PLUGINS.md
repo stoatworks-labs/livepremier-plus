@@ -200,7 +200,7 @@ A **contribution point** is a place in the app that takes additions from any plu
 
 | Point | Half | A contribution is |
 |---|---|---|
-| `cueAction` | page | `{ kind, label, run(action, { cue }), describe?(action) }` — a new thing a cue can do |
+| `cueAction` | page | `{ kind, label, run(action, { cue }), describe?(action), field? }` — a new thing a cue can do |
 | `oscAddress` | server | `{ prefix, describe?, handle(address, args) }` — a subtree of OSC addresses |
 | `configSection` | server | `{ key, group, label, perDevice?, byDefault?, export(device), import(data, device) }` — a section of the setup file |
 
@@ -212,11 +212,21 @@ is not, which is what lets Matrix Routing put a signal on an input before anythi
 is not awaited: a throw or a rejected promise becomes a warning on the cue, like a failed write.
 `describe(action)` is how the cue sheet says it, in the Timeline and in the editor.
 
+**`field`** is how the cue editors offer your kind: one text field per cue, drawn in the Timeline's
+pop-out editor and its *New cue* form under your `label`. `{ label, placeholder?, hint?,
+parse(text), format(actions), pick?({ doc, text }) }` — `parse` answers the cue's actions of your
+kind for what was typed (an empty list clears them) or throws a sentence the editor shows, having
+changed nothing; `format` turns them back into text. What is typed replaces your kind's actions
+**where the first of them stood** and leaves every other action alone (`fieldActions` in
+`contributions.js`). `pick`, when given, gets a *Choose…* button beside the field: draw your
+chooser in `doc` — the editor's own document, which may be a popped-out window's — and resolve with
+the field's new text, or null. Companion's *Companion trigger* is the example: `page/row/column`
+text, and a chooser that is its button grid.
+
 A cue can hold an action whose plugin is off — a cue file from another machine, or a plugin switched
 off since. It stays in the cue, listed by its bare kind, and firing the cue warns *Nothing handles
-"…"* rather than dropping it without a word. For now an action of a contributed kind gets into a cue
-from a cue file (Timeline ▸ Export / Import); the *New cue* form offers the switcher's own recalls
-only.
+"…"* rather than dropping it without a word. A kind with no `field` still gets into a cue only from
+a cue file (Timeline ▸ Export / Import).
 
 **`oscAddress`.** `prefix` is an address ending in `/` — `/hello/` — and `handle(address, args)` is
 called for any address at or below it, whether it arrived over UDP or was typed in the Console. It
@@ -417,6 +427,7 @@ Still open:
   its next save puts that back. The restore's answer carries `reloadPages: true` and the user guide
   says to reload; a page that noticed by itself would need a stream for it, and the page has only
   six connections to share.
-- **How a contributed cue action is offered in the *New cue* form.** For now an action of a
-  plugin's kind gets into a cue from a cue file; a `fields` description on the contribution is the
-  likely shape.
+- **A contributed cue action is one text field, not a form.** `field` (added after 0.13.0, for
+  the Companion trigger) covers a kind whose actions read naturally as a line of text. A kind that
+  needs several inputs per action — a router's source *and* destination — still arrives from a cue
+  file; a `fields` list is the likely next shape if one needs it.

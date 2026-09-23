@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Companion — LivePremier Plus</title>
+<!--
+  Deliberately bare — see plugins/console/popout.html; the reasoning is identical.
+
+  The Companion buttons on a monitor of their own: the same grid as the
+  sidebar panel (`surface.js`), filling the window. It needs nothing of the
+  switcher; the Web RCS window is only where the plugin shared the app's DOM
+  kit and the mount's address from (`ctx.share` in client.js).
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #08141B; color: #fff; }
+  body { font-family: OpenSans, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<script type="module">
+  import { bootPopout } from '/__lpp/src/ui/popout.js';
+  import { createButtonGrid } from './surface.js';
+  bootPopout({
+    doc: document,
+    opener: window.opener,
+    plugin: 'companion',
+    build: ({ doc, own }) => {
+      const note = own.kit.h('div', { class: 'aw-font-caption wru-warn' });
+      const grid = createButtonGrid({
+        kit: own.kit,
+        ui: own.ui,
+        mode: 'press',
+        onError: (msg) => { note.textContent = msg; },
+      });
+      doc.body.append(own.kit.h('div', {
+        class: 'lpp-popout aw-flex-col aw-gap-row-small',
+        style: { padding: '0.75rem', boxSizing: 'border-box' },
+      }, grid.el, note));
+      return { stop: () => grid.dispose() };
+    }
+  });
+</script>
+</body>
+</html>

@@ -26,7 +26,7 @@ import { panel } from '../../src/ui/shell.js';
 import { parseTimecodeString } from '../../src/core/chase.js';
 import { formatTimecode } from '../../src/core/timecode.js';
 import { ACTION_KINDS } from '../../src/core/cuestack.js';
-import { describeContributed } from '../../src/core/contributions.js';
+import { describeContributed, fieldActions } from '../../src/core/contributions.js';
 import { listDestinations } from '../../src/core/screens.js';
 import { dialectFor } from '../../src/core/dialect.js';
 
@@ -366,15 +366,47 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
       return { id, cb, node: h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini' }, cb, h('span', { text: id })) };
     });
 
+    /* A field for each plugin's action that offers one — the Companion
+       trigger among them. See `field` in `core/contributions.js`. */
+    const warn = h('div', { class: 'wru-warn aw-font-caption' });
+    /* Kept in `view`, not only in the field: this form is redrawn with the
+       panel, and a button chosen in the picker must still be there after. */
+    const typed = view.extraText || (view.extraText = {});
+    const extras = cueActions().filter((c) => c.field).map((c) => {
+      const input = h('input', {
+        class: 'wru-input', placeholder: c.field.placeholder || '', spellcheck: 'false', title: c.field.hint || '',
+        value: typed[c.kind] || '',
+        onInput: (ev) => { typed[c.kind] = ev.target.value; }
+      });
+      const pick = c.field.pick ? button('Choose…', {
+        variant: 'ghost',
+        onClick: async () => {
+          try {
+            const text = await c.field.pick({ doc: document, text: typed[c.kind] || '' });
+            if (text != null) { typed[c.kind] = text; onRefresh(); }
+          } catch (err) { warn.textContent = err.message; }
+        }
+      }) : null;
+      return { c, input, node: field(c.field.label, h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' }, input, pick)) };
+    });
+
     const commit = () => {
       const chosen = boxes.filter((b) => b.cb.checked).map((b) => b.id);
-      const actions = [];
+      let actions = [];
       if (kind.value === ACTION_KINDS.SCREEN_PRESET) {
         actions.push({ kind: ACTION_KINDS.SCREEN_PRESET, slot: Number(slot.value), targets: chosen, mode: mode.value });
       } else {
         actions.push({ kind: ACTION_KINDS.MASTER_PRESET, slot: Number(slot.value), mode: mode.value });
       }
       if (takeKind.value) actions.push({ kind: takeKind.value, targets: chosen });
+      /* Refused whole, with the plugin's own sentence, rather than adding a
+         cue that quietly lost the half of it that did not read. */
+      try {
+        for (const x of extras) actions = fieldActions(actions, x.c, typed[x.c.kind] || '');
+      } catch (err) {
+        warn.textContent = err.message;
+        return;
+      }
       stack.add({
         number: String(stack.cues.length + 1),
         label: label.value,
@@ -382,6 +414,7 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
         actions
       });
       view.adding = false;
+      view.extraText = null;
       save();
       onRefresh();
     };
@@ -390,15 +423,17 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
       sectionTitle('New cue'),
       h('div', { class: 'aw-flex-row aw-flex-wrap aw-gap-col-large aw-gap-row-medium aw-margin-bottom-medium' },
         field('Recall', kind), field('Slot', slot), field('Into', mode),
-        field('Then', takeKind), field('Fade', fade), field('Label', label)),
+        field('Then', takeKind), field('Fade', fade), field('Label', label),
+        ...extras.map((x) => x.node)),
       h('div', { class: 'aw-margin-bottom-medium' },
         h('div', { class: 'aw-font-overline aw-text-tertiary aw-margin-bottom-mini', text: 'Targets' }),
         boxes.length
           ? h('div', { class: 'aw-flex-row aw-flex-wrap aw-gap-col-large' }, ...boxes.map((b) => b.node))
           : h('div', { class: 'aw-text-tertiary', text: 'The device reports no screens or auxiliaries in use.' })),
+      warn,
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
         button('Add', { onClick: commit }),
-        button('Cancel', { onClick: () => { view.adding = false; onRefresh(); }, variant: 'ghost' })));
+        button('Cancel', { onClick: () => { view.adding = false; view.extraText = null; onRefresh(); }, variant: 'ghost' })));
   }
 
   const field = (label, control) =>
