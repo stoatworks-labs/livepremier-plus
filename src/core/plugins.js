@@ -172,6 +172,15 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'edid',
+    name: 'EDID builder',
+    where: 'The vendor’s EDID page: a From Formats tab, Create EDID… and Edit on each bank slot',
+    description: 'Build EDIDs with the Otter EDID editor — by hand, or one per custom format — and save them straight into the EDID bank.',
+    requires: { capabilities: ['edidBank'] },
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'pitch',
     name: 'Pitch Compensation',
     where: 'Preconfig flyout',

@@ -54,6 +54,13 @@ rather than as a bolt-on:
   the input it feeds and it can follow the show the way Mitti follows an ATEM:
   play when put on air, load the next clip when taken off, and take when its
   clip ends — a set number of seconds early, so the mix lands on the last frame.
+- **EDID builder** — the Otter EDID editor on the switcher's own EDID page.
+  **From Formats**, a tab beside Default EDIDS and EDID Bank, builds one EDID
+  per custom format in Setup ▸ Formats — every porch kept, the CTA VIC carried
+  when the raster is one — and saves it into the bank in one click, or keeps the
+  bank filled with them on its own. **Create EDID…** and an **Edit** tool on
+  every bank slot open the full editor in a window of its own, including its
+  Mosaic mode for tiled multi-plug EDIDs, saving straight into a slot.
 - **Companion** — a Bitfocus Companion linked to this app: its pages of buttons
   drawn in the app's own look, live and pressable, and poppable onto a second
   monitor; a **Companion trigger** on any cue and on any memory recall, so the
@@ -1030,7 +1037,7 @@ under plain Node, which is what the test suite does. The browser panels are one
 front-end over it; a standalone client talking AWJ over TCP 10606 is meant to
 be another, and only needs a second `transports/` module.
 
-## Four things are vendored, not reimplemented
+## Six things are vendored, not reimplemented
 
 | in `src/vendor/` | from | what it is |
 | --- | --- | --- |
@@ -1038,6 +1045,8 @@ be another, and only needs a second `transports/` module.
 | `mynah-lang.mjs` | mynah | the command language |
 | `surface/` | awj-surface | the control-surface engine and profiles |
 | `pixelhue/` | pixelhue-bridge | the U-series console's frame codec |
+| `pitch-engine.js` | aquilon-pitch | the pitch-compensation arithmetic |
+| `otter-edid-embed.js` | otter-edid-editor | the EDID editor and encoder, React included |
 
 Each is copied rather than re-derived for the same reason, and it is not
 convenience: two implementations of one grammar, one device model or one decode
@@ -1091,6 +1100,7 @@ what the device's store contains rather than by its model name:
 | Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |
 | OSC input | yes — 173 addresses, widened by the device's own catalogue | **yes** — 44 addresses, mynah's vouched-for table; the Midra catalogue is vendored for the Layer tab but not yet merged into the dictionary |
 | MIDI Mapping | yes | not yet — the surface engine still spells LivePremier |
+| EDID builder | yes — the 100-slot bank and M1–M16, read off the simulator | not yet seen — it lights up by itself if the store has the same `system/edid/bankList` |
 | Arithmetic in fields, Settings | yes | yes |
 
 Destinations keep one spelling everywhere — `S1`, `A2` — and only the last step

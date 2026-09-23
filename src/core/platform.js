@@ -231,6 +231,21 @@ export const CAPABILITIES = [
     },
     needs: 'input groups in its preconfig',
     absent: 'This switcher has no input groups, so it cannot take a Mac\'s plugs back in as one picture.'
+  },
+  {
+    id: 'edidBank',
+    label: 'EDID bank',
+    /* A hundred custom EDID slots under `system/edid/bankList`, read off a
+       LivePremier Simulator 6.2.73. A slot is written through the vendor's
+       own `POST /api/device/edid/save`, not the socket — see
+       `plugins/edid/bank.js`. Only read off a LivePremier: a Midra that
+       spells it the same way lights this up on its own. */
+    probes: {
+      nlc: [ROOT, 'system', 'edid', 'bankList', 'items'],
+      mng: [ROOT, 'system', 'edid', 'bankList', 'items']
+    },
+    needs: 'the EDID bank',
+    absent: 'This switcher has no EDID bank this app knows how to write.'
   }
 ];
 

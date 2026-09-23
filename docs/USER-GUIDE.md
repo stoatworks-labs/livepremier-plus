@@ -31,6 +31,8 @@ as a bolt-on.
   a Companion trigger on cues and memory recalls, its own editor on the same address as Web RCS,
   and a panel that knows which switcher you are on and offers to add the connections that belong
   in the show.
+- **EDID builder** — EDIDs made beside the EDID bank and saved straight into it: one per custom
+  format, automatically if you like, or by hand in the full Otter editor.
 - **Pitch Compensation** — the H and V ratios a screen spanning LED walls of different pitches
   needs, worked out from the pitches you give it.
 - **OSC input** — QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
@@ -590,6 +592,56 @@ Triggers are kept per switcher, beside the cue stack, and travel in the setup fi
 > **Linking a Companion widens what this app exposes.** Everything below `/__lpp/companion` is
 > Companion's admin UI, reachable by anyone who can reach this app. On the default loopback binding
 > that is only this machine; see *On binding wide* above before you change that.
+
+---
+
+## EDID builder
+
+**Setup ▸ EDID.** The switcher keeps a hundred custom EDID slots — the **EDID Bank** tab, ED1 to
+ED100 — and has nowhere to make an EDID to put in them: it takes a file. This puts the
+[Otter EDID editor](https://otter-edid.stoatworks-labs.com) beside the bank, so an EDID is built and
+saved without a file changing hands.
+
+### From your custom formats
+
+**From Formats** is a third tab beside Default EDIDS and EDID Bank. It lists every valid custom format
+in Setup ▸ Formats (M1–M16) with an EDID already built for it:
+
+- **Every porch is kept.** The EDID is built around the format's exact timing, not re-derived from its
+  resolution and rate. Where the raster is exactly a CTA-861 mode (1080p60 is VIC 16), the VIC goes in
+  too, because consumer sources act on VICs; anything else is a detailed timing.
+- **Its name** is the label you gave the format when it fits the EDID's 13 characters, otherwise
+  `M3 1080p50` — it is what the bank card and every input show.
+- **Save to ED…** puts it in the next empty slot. **Save N to the bank** does every one that is missing.
+  **Edit…** opens it in the editor first. The download button saves the `.bin`.
+- **Keep the bank filled** does it for you: whenever a format has no EDID in the bank, one is added to
+  the next empty slot. It never overwrites a slot and never deletes one — a format you change leaves
+  its old EDID where it was, because an input may be using it.
+
+A format counts as *in the bank* when some slot's EDID has the format as its preferred mode — so an
+EDID you opened from here, renamed and saved still counts, and the switch will not add a second copy
+beside it.
+
+> **The rate can read 0.01 Hz low.** An EDID states its pixel clock in 10 kHz steps, so a format whose
+> clock falls between two steps comes back as the nearest: 3000x1000 at 50 Hz is 162.424 MHz, stored
+> as 162.42, which the bank shows as 49.99Hz. Every porch is exact; it is the nearest rate an EDID can
+> say.
+
+### Creating or editing one by hand
+
+**Create EDID…**, at the end of the same row of tabs, opens the full editor in a window of its own. An
+**edit** tool on every filled bank card opens it on that slot. It is the same editor as the website:
+Simple (a resolution and a rate), Advanced (every field), Mosaic (one tiled EDID per plug, so a Mac
+bonds its outputs into one display), the signal cost, and which Analog Way, Barco and PixelHue inputs
+will take it.
+
+**Save to the switcher**, at the top right, writes it: pick the slot — it starts on the first empty
+one, or on the slot you opened — and it says what it would replace before you press. A mosaic saves
+its tiles into that many slots in a row, as their exact bytes. The save finishes when the switcher
+reports the new EDID, not when it accepts the request.
+
+The window works through the Web RCS tab it came from, like every popped-out panel here; close that
+tab and it says it can no longer save.
 
 ---
 

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDID builder — LivePremier Plus</title>
+<!--
+  Unlike every other popout here, this one does NOT borrow the vendor's
+  stylesheet: it is the Otter EDID editor, which brings its own and styles
+  `body` with it. The two would fight. See `vendorChrome` in src/ui/popout.js.
+
+  It still opens no connection of its own. The bank, and every save into it,
+  go through the Web RCS tab that opened it (`ctx.share` in client.js).
+-->
+<style>
+  html, body { margin: 0; min-height: 100%; background: #12151a; color: #dfe6f0; }
+</style>
+</head>
+<body>
+<div id="otter"></div>
+<script type="module">
+  import { bootPopout } from '/__lpp/src/ui/popout.js';
+  import { buildEditor } from './popout.js';
+  bootPopout({
+    doc: document,
+    opener: window.opener,
+    plugin: 'edid',
+    vendorChrome: false,
+    build: ({ doc, own }) => buildEditor(doc, own)
+  });
+</script>
+</body>
+</html>

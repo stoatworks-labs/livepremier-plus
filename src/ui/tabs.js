@@ -119,10 +119,20 @@ export class TabHost {
    * difference between "these tabs change what is shown here" and "these
    * links go somewhere else", and it does not depend on a class name, a route
    * or a label.
+   *
+   * **And its tabs carry an icon.** The EDID page heads its bank column with
+   * a pane switcher too — Default EDIDS, EDID Bank: two labelled anchors, no
+   * `href` — and passed every test above, so Console, Timeline, Layer and
+   * Groups were appended to it, labelled "EDID BankConsole" because its label
+   * is an `h3` rather than the `h5` a clone rewrites. The per-screen strip's
+   * tabs are an icon and a label on LivePremier and on Midra 4K alike; the
+   * EDID page's are a bare heading. (The EDID plugin puts its own tab on that
+   * strip, deliberately — see `plugins/edid/page.js`.)
    */
   _strip() {
     for (const strip of document.querySelectorAll(STRIP_SEL)) {
-      if (this._switchers(strip).length >= 2) return strip;
+      const tabs = this._switchers(strip);
+      if (tabs.length >= 2 && tabs.every((a) => a.querySelector('i.icon') || a.querySelector('svg'))) return strip;
     }
     return null;
   }

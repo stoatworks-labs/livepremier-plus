@@ -88,9 +88,9 @@ export function adoptVendorChrome(doc, openerDoc) {
  * `build` is called with the live bridge and returns whatever it likes; it is
  * only reached when there is genuinely a session to drive.
  *
- * @param {{doc: Document, opener: Window, build: Function}} opts
+ * @param {{doc: Document, opener: Window, plugin?: string, vendorChrome?: boolean, build: Function}} opts
  */
-export function bootPopout({ doc = document, opener = window.opener, plugin = null, build }) {
+export function bootPopout({ doc = document, opener = window.opener, plugin = null, vendorChrome = true, build }) {
   const bridge = opener && !opener.closed ? opener.__WRU : null;
   if (!bridge || !bridge.session) return mountOrphan(doc, 'no session');
   /* What the plugin that owns this window shared with it (`ctx.share`). A
@@ -98,7 +98,11 @@ export function bootPopout({ doc = document, opener = window.opener, plugin = nu
      that half-works is worse than one that says why. */
   const own = plugin ? (bridge.shared ? bridge.shared(plugin) : null) : null;
   if (plugin && !own) return mountOrphan(doc, 'plugin off');
-  if (!adoptVendorChrome(doc, opener.document)) return mountOrphan(doc, 'no vendor page');
+  /* A window that brings a whole stylesheet of its own — the EDID builder's
+     Otter editor styles `body` — takes only this app's few rules, for the
+     banner below, and none of the vendor's to fight with. */
+  if (!vendorChrome) installStyles(doc);
+  else if (!adoptVendorChrome(doc, opener.document)) return mountOrphan(doc, 'no vendor page');
 
   const banner = h('div');
   doc.body.append(banner);

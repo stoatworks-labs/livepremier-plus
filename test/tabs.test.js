@@ -337,6 +337,57 @@ test('a page with only route links gets no tabs at all', async () => {
 });
 
 /*
+ * The EDID page heads its bank column with a pane switcher of its own —
+ * Default EDIDS, EDID Bank: labelled anchors, no href, each an `h3` and no
+ * icon. Before the icon rule, Console, Timeline, Layer and Groups were appended
+ * to it (read off LivePremier Simulator 6.2.73, 2026-09-23).
+ */
+function withEdidStrip(stub, { alone = false } = {}) {
+  if (alone) stub.container.children = stub.container.children.filter((c) => c !== stub.strip);
+  const section = new stub.El('div');
+  section.className = 'banks-section__c___v8oWs aw-flex-col';
+  const strip = new stub.El('div');
+  strip.className = 'ui tabular aw-gap-col-mini menu';
+  for (const label of ['Default EDIDS', 'EDID Bank']) {
+    const a = new stub.El('a');
+    a.className = 'item aw-padding-big';
+    const h3 = new stub.El('h3'); h3.textContent = label;
+    a.append(h3);
+    strip.append(a);
+  }
+  section.append(strip);
+  /* First in the document, so a rule that only counted labelled anchors would take it. */
+  stub.doc.children.unshift(section);
+  section.parentElement = stub.doc;
+  return strip;
+}
+
+test('the EDID page’s strip is not taken for the per-screen one', async () => {
+  await withDom(async (stub) => {
+    const edid = withEdidStrip(stub);
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({
+      tabs: [{ id: 'console', label: 'Console', icon: 'mini-list-14', render: () => stub.doc.createElement('div') }]
+    });
+    host._mount();
+    assert.equal(edid.querySelectorAll('[data-lpp-tab]').length, 0, 'nothing added to Default EDIDS / EDID Bank');
+    assert.equal(stub.strip.querySelectorAll('[data-lpp-tab]').length, 1, 'added to the per-screen strip');
+  });
+});
+
+test('the EDID page on its own gets no per-screen tabs at all', async () => {
+  await withDom(async (stub) => {
+    const edid = withEdidStrip(stub, { alone: true });
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({
+      tabs: [{ id: 'console', label: 'Console', icon: 'mini-list-14', render: () => stub.doc.createElement('div') }]
+    });
+    assert.equal(host._mount(), false);
+    assert.equal(edid.querySelectorAll('[data-lpp-tab]').length, 0);
+  });
+});
+
+/*
  * Midra 4K and Alta 4K build the same strip from the same Semantic UI
  * `Menu.Item`, but hand it `content` as a string: the label is a bare text
  * node beside the icon, and there is no `h5`. Read off a Pulse 4K's bundle on
