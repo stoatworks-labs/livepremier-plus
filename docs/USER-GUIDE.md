@@ -72,6 +72,9 @@ because the switcher allows five AWJ clients at once.
 > Videohub emulator as it moved; what each one does did not change. A plugin of your own runs with
 > the same access to the switcher as the app itself, so switch on only what you trust.
 >
+> **0.14.0 adds the Thumbnail relay and placeholder routers**, both proven on the simulator only.
+> The relay is off until you switch it on.
+>
 > Built with AI assistance, directed and reviewed by a human author.
 
 ---
@@ -404,6 +407,18 @@ another operator. A Videohub answers a route it will not make with an acknowledg
 unchanged crosspoints, so a panel that showed your request back to you would look right and be
 wrong — during exactly the minute that matters.
 
+### Placeholder routers — building before the rack
+
+A router you have not got yet can still be patched and routed. Add it with **Protocol ▸
+Placeholder (no hardware)** and pick its **Model** — Videohub, Lightware MX2 or MX-FR, Turtle AV,
+or a custom size — and it behaves like the real one everywhere: the panel, the Router tabs, cues,
+OSC and the Console all route through it. Nothing is on the other end; its crosspoints are kept
+here as the router's **plan**.
+
+When the rack arrives, **Go live…** gives it an address. The patch carries over, nothing is sent on
+connect, and **Push plan** sends only the crosspoints that differ. A planned port past the real
+frame's size is named, not dropped.
+
 ### On the input and output pages
 
 You do not have to leave the socket you are working on. **Inputs ▸ an input** and **Outputs ▸ an
@@ -624,8 +639,41 @@ when a firmware moves a key.
 
 > ⚠️ **This has never been run against a real console.** It was built from the consoles' firmware
 > and proved against the vendor's own control service running with no panel attached. Treat the
-> first show with one as a rehearsal. Fade-to-black and freeze, which the console asks for, are not
-> sent yet.
+> first show with one as a rehearsal. Fade-to-black and freeze are sent on LivePremier, not yet
+> on a Midra 4K. docs/PIXELHUE.md lists what each key does.
+
+---
+
+## Thumbnail relay (preview)
+
+Off until you switch it on in **Preconfig ▸ LivePremier Plus → Plugins**.
+
+The switcher's source thumbnails are PNGs with next to no compression — about 150 KB each on an
+Aquilon C, 590 KB on a Pulse 4K — and the Web RCS asks for every input's once a second or so,
+whether anybody is looking at it or not. With the relay on, this app answers those requests
+itself: one fetch from the switcher, re-encoded as a JPEG of 10–40 KB, handed to every page that
+asks. The vendor's own source cards show it unchanged.
+
+**The sources you are editing are refreshed faster; the rest are held.** A thumbnail drawn in a
+screen or aux card on Screens / Aux. — or on the Edit page — and on screen is *hot*: the page
+refreshes it itself, twice a second by default. While any are hot, every other source is answered
+from the frame the relay already has until it is four seconds old. With nothing being edited,
+every source is treated alike.
+
+Its card on this settings page has the five settings and what the relay is doing:
+
+| Setting | |
+|---|---|
+| **JPEG quality** | 30–95; 70 is hard to tell from the original on a card |
+| **Max width** | 0 keeps the switcher's size |
+| **Share for** | how old a frame may be and still go to a second page |
+| **Hot refresh** | how often the edited sources refresh, 0.5–10 a second; 0 leaves them to the vendor |
+| **Idle hold** | how old any other source may get while somebody edits; 0 turns holding off |
+
+> ⚠️ **Proven on the simulator only.** A hot refresh faster than the switcher redraws its thumbnails
+> fetches the same picture again. `node tools/snapshot-probe.mjs --device <address>` measures how
+> fast that is — run it against a moving source before raising **Hot refresh**. The switcher still
+> sends each thumbnail it is asked for in full; the saving is largest for a page on another machine.
 
 ---
 

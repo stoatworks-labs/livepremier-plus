@@ -100,7 +100,7 @@ or from the command line with Node 20. It works on a **LivePremier** and — for
 the Timeline, Console, Memories, Layer and Pitch Compensation — on a **Midra 4K
 or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 
-> **Status: field testing — v0.13.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.14.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -215,6 +215,25 @@ or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.14.0 (2026-09-23).** **Thumbnail relay** *(preview, off by default)*: the
+> switcher's source thumbnails re-encoded as JPEG and shared between pages, a
+> twentieth or less of the bytes; the sources being edited on Screens / Aux.
+> refresh up to 10 times a second while the rest are held — see
+> [Thumbnail relay](#thumbnail-relay--preview). **Placeholder routers** in Matrix
+> Routing: a Videohub, Lightware or Turtle AV model of the right size with
+> nothing on the other end, so a show's routing can be built before the rack
+> arrives, then taken live with **Push plan**. **Companion** draws its button
+> pages natively instead of embedding Companion's own, and a cue or a memory
+> recall can press a button. The **Edit page** gives each destination the full
+> column, as the vendor's PRW-only view does. The **Pixelhue panel** *(preview)*
+> gains layer binding and stepping, store and delete, the T-bar, TIME and SWAP,
+> SIGNAL SOURCE, LOCK PANEL, faders and encoders, cue transport, MVR and SOURCE
+> BACKUP, and fade-to-black and freeze on LivePremier — all proved against
+> PixelFlow's virtual U5 and the simulator, still never a console — and its
+> WebSocket handshake is fixed: a typo in the RFC's magic string meant no real
+> UCenter would ever have accepted it. The tray app now stops its server with
+> SIGTERM, so it saves its state and nothing it started is left running.
 >
 > **0.13.0 (2026-09-23).** **Every feature is a plugin.** Each panel, page and
 > background service — the Console, the Timeline, Matrix Routing, Companion and
@@ -706,9 +725,10 @@ published. So there is nothing to remap when a firmware moves a key.
 > ⚠️ **Preview: this has never been run against a console.** It was built from
 > the consoles' firmware and proved against the vendor's own control service
 > running headless with no panel attached. `docs/PIXELHUE.md` has the wire
-> detail, how to rig one, and the list of what is still unverified — including
-> fade-to-black and freeze, which the console asks for and this does not yet
-> send.
+> detail, how to rig one, and the list of what is still unverified. Since
+> 0.14.0 it has been driven key by key from PixelFlow's own virtual U5 against
+> the simulator; fade-to-black and freeze are sent on LivePremier, not yet on a
+> Midra 4K.
 
 A **U5 mini** answers on the LAN, so it is driven from wherever this app
 already runs. A **U5 or U5 Pro** serves its control port on loopback only, so

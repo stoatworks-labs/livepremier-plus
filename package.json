@@ -1,6 +1,6 @@
 {
   "name": "livepremier-plus",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "type": "module",
   "description": "The panels an Analog Way LivePremier or Midra 4K Web RCS is missing — an off-bus programmer, a VPU map, a command line, a cue stack, layer groups, matrix routing and an embedded Companion — served inside the vendor's own UI by a local proxy.",
