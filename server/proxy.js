@@ -42,7 +42,6 @@ import { API_VERSION, isEnabled as pluginOn, routeOwner } from '../src/core/plug
 import { createPluginHost } from './plugin-host.js';
 import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
-import { importMemories, exportMemories } from './memory-import.js';
 import { createOscServer } from './osc.js';
 import { loopbackRedirect } from './local-client.js';
 import { MatrixSupervisor } from './matrix/index.js';
@@ -555,57 +554,6 @@ export async function createProxy({
            an operator to go and check the device's own AWJ setting. */
         return sendJson(res, 502, { error: err.message });
       }
-    }
-
-    /*
-     * A memory, written into the bank without a bus.
-     *
-     * The one thing the Edit page asks of the device. It is here and not in
-     * the page for two reasons: the browser cannot open TCP 10606, and the
-     * file has to be written to a disk. `memory-import.js` has the three-step
-     * conversation and the warning about whose filesystem that path is on.
-     *
-     * A GET reads slots back out, which is how a real memory is loaded into
-     * the programmer — a slot's contents are not in the store mirror and never
-     * have been.
-     */
-    if (rest === '/memory') {
-      if (!target) return sendJson(res, 409, { error: 'no switcher configured' });
-      const dir = settings.memoryImportDir || undefined;
-
-      if (req.method === 'POST' || req.method === 'PUT') {
-        const body = await collect(req, 8 * 1024 * 1024);
-        let parsed;
-        try { parsed = JSON.parse(body.toString('utf8')); }
-        catch { return sendJson(res, 400, { error: 'invalid JSON' }); }
-
-        const memories = Array.isArray(parsed.memories) ? parsed.memories : null;
-        if (!memories) return sendJson(res, 400, { error: 'no memories' });
-
-        try {
-          const result = await importMemories({ host: target.host, memories, dir });
-          log(`memory import: ${result.ok ? 'ok' : 'failed'} ${result.slots.join(', ') || ''}`
-            + (result.error ? ' — ' + result.error : ''));
-          return sendJson(res, result.ok ? 200 : 502, result);
-        } catch (err) {
-          return sendJson(res, 502, { error: err.message });
-        }
-      }
-
-      if (req.method === 'GET') {
-        const slots = (url.searchParams.get('slots') || '')
-          .split(',').map((s) => Number(s.trim())).filter(Boolean);
-        if (!slots.length) return sendJson(res, 400, { error: 'name at least one slot' });
-        try {
-          const out = await exportMemories({ host: target.host, slots, dir });
-          if (!out.ok) return sendJson(res, 502, out);
-          const file = await readFile(out.path, 'utf8');
-          return sendJson(res, 200, { ok: true, memories: JSON.parse(file) });
-        } catch (err) {
-          return sendJson(res, 502, { error: err.message });
-        }
-      }
-      return sendJson(res, 405, { error: 'method not allowed' });
     }
 
     /*

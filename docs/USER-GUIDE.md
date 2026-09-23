@@ -159,7 +159,8 @@ a label, and choose a route:
 - **Direct** — writes the memory bank itself. No preset buffer is written and no take is fired, so
   neither preview nor program moves. This needs the switcher to be able to read a file this app
   writes, which it can when both are on the same machine — a simulator, or an installation where
-  `memoryImportDir` points at a share they both see.
+  the **Shared directory** under *Saving memories from the Edit page* (Preconfig ▸ LivePremier Plus)
+  points at a share they both see.
 - **Via preview** — puts the look into the preview buffer, fires the switcher's own save, then puts
   preview back property-for-property. **Program never moves.** Preview shows the look for about a
   second, and afterwards the bank will call it *modified* even though the content is identical —

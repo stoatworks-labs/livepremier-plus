@@ -771,8 +771,8 @@ test('the hosted Companion is listed with its page half, which is served — its
     assert.equal(companion.on, true);
     assert.equal(companion.base, '/__lpp/companion');
     assert.equal(companion.client, '/__lpp/plugins/companion/client.js');
-    /* An in-place built-in is listed too, with no page half to load. */
-    assert.equal(plugins.find((p) => p.id === 'edit').client, null);
+    /* A built-in still wired in by hand is listed too, with no page half to load. */
+    for (const p of plugins.filter((x) => !x.hosted)) assert.equal(p.client, null, p.id);
 
     for (const file of ['client.js', 'panel.js', 'core.js']) {
       const res = await fetch(`${base}/__lpp/plugins/companion/${file}`);
@@ -780,6 +780,31 @@ test('the hosted Companion is listed with its page half, which is served — its
       assert.match(res.headers.get('content-type'), /javascript/);
     }
     assert.equal((await fetch(base + '/__lpp/plugins/companion/server.js')).status, 404);
+  });
+});
+
+test('the Edit page kept its memory route and its setting when it became a plugin', async () => {
+  /* `memoryImportDir` was a top-level setting; it is the Edit plugin's now,
+     lifted from wherever an older file still has it. */
+  let saved = { memoryImportDir: '/Volumes/showshare/lpp' };
+  const storage = { loadSettings: async () => saved, saveSettings: async (s) => { saved = s; } };
+  await withProxy({ storage }, async ({ base }) => {
+    const { settings } = await (await fetch(base + '/__lpp/settings')).json();
+    assert.equal(settings.memoryImportDir, undefined, 'not at the top level any more');
+    assert.equal(settings.plugins.edit.settings.memoryImportDir, '/Volumes/showshare/lpp');
+
+    const relative = await fetch(base + '/__lpp/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plugins: { edit: { settings: { memoryImportDir: 'relative/path' } } } })
+    });
+    assert.equal((await relative.json()).settings.plugins.edit.settings.memoryImportDir, '',
+      'resolved by the switcher, so only an absolute path means anything');
+
+    /* Still at /__lpp/memory: what the Edit page posts to. */
+    const empty = await fetch(base + '/__lpp/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    assert.equal(empty.status, 400);
+    assert.equal((await empty.json()).error, 'no memories');
+    assert.equal((await fetch(base + '/__lpp/memory')).status, 400, 'a read names its slots');
   });
 });
 

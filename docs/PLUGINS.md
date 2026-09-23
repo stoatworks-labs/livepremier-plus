@@ -13,7 +13,7 @@ and read [Adding your own](#adding-your-own) below.
 |---|---|---|
 | 0 | Every built-in feature described as a plugin and **switchable** | **done** |
 | 1 | The plugin host (server and page), and **Companion moved into it** as the pilot | **done** — [checkpoint](#checkpoint-the-api-shape) |
-| 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups and Send to (**done**), the Edit page | in progress |
+| 2 | The self-contained features moved: VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to and the Edit page | **done** |
 | 3 | [Contribution points and services](#extending-each-other) (**done**), then the entangled features: Timeline and timecode, OSC input, Console, Layer Groups and Send-to, Matrix Routing — and MIDI, Memories, Layer, layer names and the Edit page, which turned out to share more than they looked (MIDI's port feeds the timecode source; Memories and Layer ride the pop-out machinery; layer names are read by five surfaces; the Edit page embeds the Layer panel and reads the names) | in progress |
 | 4 | **User plugins** loaded from the data directory; this guide; an example plugin | **done** — ahead of phase 3, on the phase-1 API |
 
@@ -41,7 +41,7 @@ of those off would leave no way to switch it back on.
 
 ## What a plugin is
 
-A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups and Send to.
+A folder. The built-ins are under [`plugins/`](../plugins): Companion was the first to move there, then VPU Map, Pitch Compensation, the Pixelhue panel, the Console, Memories, MIDI Mapping, Field arithmetic, Layer, Layer names, Layer Groups, Send to and the Edit page.
 
 ```
 plugins/companion/
@@ -171,7 +171,8 @@ Its **schema** — `export const settings` from the server half — says what is
 - `legacy`, for built-ins only, names top-level keys the feature used before plugins had a
   namespace. They are lifted into the namespace wherever they appear — an old `settings.json`, an old
   setup file, a caller still sending the old shape — and a lifted value wins, because it can only be
-  there because it is newer. Companion's three fields were the first.
+  there because it is newer. Companion's three fields were the first; the Edit page's
+  `memoryImportDir` followed.
 
 A switch never wipes a plugin's settings, and saving its settings never flips its switch: a
 settings save is merged one level deeper for `plugins`. A plugin that is not installed keeps its
@@ -342,8 +343,9 @@ the example and the built-ins, not of anybody else's plugin.
    leave built-ins' settings at the top level for ever and namespace only user plugins — two models
    instead of one. Downgrading below the release that ships this loses the Companion address (the old
    build does not read the namespace); an upgrade loses nothing.
-2. **Routes are `/__lpp/<id>/…`, and a manifest may move the base** (`routeBase`), so Matrix Routing
-   can keep `/__lpp/matrix` when it moves in Phase 3.
+2. **Routes are `/__lpp/<id>/…`, and a manifest may move the base** (`routeBase`), so a feature
+   keeps the address it had: Layer Groups answers at `/__lpp/groups` and the Edit page at
+   `/__lpp/memory`, and Matrix Routing will keep `/__lpp/matrix`.
 3. **`kit` is the stable UI surface.** Built-ins still import `src/` freely; a user plugin that does
    is on its own.
 4. **The page half applies on reload.** Live page switching is possible but would move sidebar

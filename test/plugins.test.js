@@ -112,7 +112,9 @@ test('a hosted built-in names its halves, and an in-place one has none', () => {
   assert.equal(companion.hosted, true);
   assert.equal(companion.server, 'server.js');
   assert.equal(companion.client, 'client.js');
-  assert.equal(manifestOf('edit').hosted, false);
+  /* Hosted means having a half of its own, for every built-in, whichever
+     phase has moved it. */
+  for (const b of BUILTINS) assert.equal(b.hosted, Boolean(b.server || b.client), b.id);
   /* Its routes are still owned — the table reads the base off the manifest. */
   assert.equal(routeOwner('/companion/stream'), 'companion');
 });

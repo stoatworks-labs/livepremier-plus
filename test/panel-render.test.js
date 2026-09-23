@@ -67,11 +67,17 @@ const quietFetch = async () => ({ ok: false, status: 404, json: async () => ({})
 async function withDom(fn) {
   const dom = install();
   const before = globalThis.fetch;
+  const setIntervalBefore = globalThis.setInterval;
   globalThis.fetch = quietFetch;
+  /* A page half may start a clock the way a page would — the Edit page's
+     snapshot refresh does — and a page is never closed here, so the clock
+     must not be what keeps this process alive after the test. */
+  globalThis.setInterval = (...a) => { const t = setIntervalBefore(...a); if (t && t.unref) t.unref(); return t; };
   try {
     await fn(dom);
   } finally {
     globalThis.fetch = before;
+    globalThis.setInterval = setIntervalBefore;
     dom.uninstall();
   }
 }
@@ -100,8 +106,6 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
       const { createTimelinePanel } = await import('../src/ui/timeline-panel.js');
       const { createMatrixPanel } = await import('../src/ui/matrix-panel.js');
       const { createPropertiesPanel } = await import('../src/ui/properties-panel.js');
-      const { createEditPanel } = await import('../src/ui/edit-panel.js');
-      const { createProgrammer } = await import('../src/core/programmer.js');
       const { createSettingsPanel } = await import('../src/ui/settings-panel.js');
 
       const stack = new CueStack({ send: () => true });
@@ -128,14 +132,6 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
       const names = () => ({});
       const properties = createPropertiesPanel({ session, onRefresh() {}, names, onRename: null });
       renders('properties', properties);
-      const programmer = createProgrammer({ session });
-      const editProps = createPropertiesPanel({
-        session: programmer, onRefresh() {}, popoutEnabled: false, names, onRename: null, buffers: ['EDIT'], roles: false
-      });
-      renders('edit', createEditPanel({
-        session, programmer, properties: editProps, onRefresh() {}, names,
-        onSave: async () => ({ ok: true }), onLoad: async () => ({ ok: true })
-      }));
       renders('settings', createSettingsPanel({ session, platform, onRefresh() {}, sections: () => [] }));
     });
   });

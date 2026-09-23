@@ -97,16 +97,6 @@ export const DEFAULT_SETTINGS = {
   oscEnabled: false,
   oscPort: 8000,
   oscBind: '127.0.0.1',
-  /*
-   * Where the Edit page's memory file is written for the device to read.
-   *
-   * Empty means a temporary directory on this machine, which is right for a
-   * simulator — the device software is running here, so our disk is its disk.
-   * On a real switcher that path is the SWITCHER's filesystem, so this is the
-   * setting an installation points at a share both machines can see. See
-   * `server/memory-import.js`.
-   */
-  memoryImportDir: '',
   /* Which features are switched on, and each plugin's own settings, as
      `{ id: { enabled, settings } }`. Empty means every built-in at its
      default, which is on — see `core/plugins.js`. */
@@ -215,7 +205,6 @@ export function normalise(raw, schemas = {}) {
        surprising thing for this app to ask for. */
     oscPort: Number.isInteger(port) && port > 1024 && port < 65536 ? port : DEFAULT_SETTINGS.oscPort,
     oscBind: pick(input.oscBind, OSC_BIND_CHOICES, DEFAULT_SETTINGS.oscBind),
-    memoryImportDir: pathOrNothing(input.memoryImportDir),
     plugins,
   };
 }
@@ -246,7 +235,7 @@ export function changedPluginSettings(prev, next, schemas = {}) {
  * installation this names a directory on the *switcher*, which this machine
  * has no way to stat.
  */
-function pathOrNothing(raw) {
+export function pathOrNothing(raw) {
   const value = String(raw ?? '').trim();
   if (!value || value.length > 1024) return '';
   return value.startsWith('/') ? value : '';

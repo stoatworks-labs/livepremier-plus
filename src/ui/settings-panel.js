@@ -600,43 +600,6 @@ export function createSettingsPanel({
     ];
   }
 
-  /**
-   * Where the Edit page's memory file is written for the switcher to read.
-   *
-   * ⚠️ The only setting on this page that names a path on the OTHER machine.
-   * `presetBank/import/extract` is resolved by the device, so on a simulator
-   * this app's own temporary directory is also the device's and the default
-   * works; on a real switcher it is the switcher's disk, and an installation
-   * has to give both of them one directory they can each see. Left empty it
-   * falls back to a temporary directory here, which is right for a simulator
-   * and wrong for a box — and the save says so rather than failing silently.
-   */
-  function memorySection() {
-    return card('Saving memories from the Edit page',
-      h('div', { class: 'aw-flex-col aw-gap-row-mini' },
-        h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Shared directory' }),
-        h('input', {
-          class: 'wru-input', type: 'text', value: state.settings.memoryImportDir || '',
-          placeholder: '/Volumes/showshare/lpp',
-          style: { maxWidth: '20rem' },
-          disabled: state.saving ? 'disabled' : null,
-          onBlur: (ev) => {
-            const value = ev.target.value.trim();
-            if (value !== (state.settings.memoryImportDir || '')) void put({ memoryImportDir: value });
-          },
-          onKeyDown: (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); ev.target.blur(); } }
-        })),
-      note(null,
-        'The Edit page can write a memory straight into the bank, touching neither preview nor '
-        + 'program. It does it by handing the switcher a file — and the path is resolved by the '
-        + 'switcher, not by this app. Both are the same machine on a simulator, so leaving this '
-        + 'empty works there.'),
-      note('warn',
-        'On real hardware this has to be an absolute path both machines can see, and it has not '
-        + 'been proven on one. The Edit page’s “Via preview” route needs none of this and works '
-        + 'on any switcher.'));
-  }
-
   /* A feature's own settings card goes with its plugin: there is nothing to
      configure about a listener that cannot run. */
   const shown = (id) => pluginStatus((state.settings && state.settings.plugins) || {}, id).on;
@@ -664,7 +627,6 @@ export function createSettingsPanel({
       compatibilitySection(),
       consoleSection(),
       shown('osc-input') ? oscSection() : null,
-      shown('edit') ? memorySection() : null,
       shown('timecode') ? timecodeSection() : null,
       pluginCards(),
       proxySection(),

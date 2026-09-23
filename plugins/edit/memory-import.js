@@ -43,7 +43,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import os from 'node:os';
 
-import { exchange } from './awj.js';
+import { exchange } from '../../server/awj.js';
 
 /** The device always calls it this. */
 const FILE_NAME = 'Preset.json';
@@ -62,11 +62,17 @@ export const defaultDir = () => join(os.tmpdir(), 'livepremier-plus', 'memory-im
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const get = (host, paths) =>
-  exchange({ host, messages: paths.map((path) => ({ op: 'get', path })) });
+/*
+ * One AWJ exchange: the plugin's own `ctx.awj`, or, given only a host, a
+ * connection opened for the purpose — the same conversation either way.
+ * Everything below takes the exchange rather than an address, so the Edit
+ * plugin never has to know how the app reaches the switcher.
+ */
+const exchangeFor = ({ host, awj }) => awj || ((messages) => exchange({ host, messages }));
 
-const put = (host, pairs) =>
-  exchange({ host, messages: pairs.map(([path, value]) => ({ op: 'replace', path, value })) });
+const get = (ex, paths) => ex(paths.map((path) => ({ op: 'get', path })));
+
+const put = (ex, pairs) => ex(pairs.map(([path, value]) => ({ op: 'replace', path, value })));
 
 /**
  * Wait for one property to stop saying what it is saying now.
@@ -74,11 +80,11 @@ const put = (host, pairs) =>
  * A write is answered with silence on AWJ, so every step here is confirmed by
  * reading rather than by being told. `settled` decides when the answer counts.
  */
-async function waitFor(host, path, settled, timeoutMs) {
+async function waitFor(ex, path, settled, timeoutMs) {
   const until = Date.now() + timeoutMs;
   let last = null;
   while (Date.now() < until) {
-    const [reply] = await get(host, [path]);
+    const [reply] = await get(ex, [path]);
     last = reply ? reply.value : null;
     if (settled(last)) return last;
     await sleep(POLL_MS);
@@ -90,12 +96,14 @@ async function waitFor(host, path, settled, timeoutMs) {
  * Install memories into the bank.
  *
  * @param {object} opts
- * @param {string} opts.host       the switcher
+ * @param {Function} [opts.awj]    one AWJ exchange, `messages -> replies` — a plugin's `ctx.awj`
+ * @param {string} [opts.host]     or the switcher's address, to open one for the purpose
  * @param {Array<object>} opts.memories  entries as `core/preset-file.js` composes them
  * @param {string} [opts.dir]      the directory the DEVICE will read the file from
  * @returns {Promise<{ok:boolean, slots:number[], steps:object[], error?:string}>}
  */
-export async function importMemories({ host, memories, dir = defaultDir() }) {
+export async function importMemories({ host, awj, memories, dir = defaultDir() }) {
+  const ex = exchangeFor({ host, awj });
   const steps = [];
   const record = (step, detail) => { steps.push({ step, ...detail }); };
 
@@ -119,9 +127,9 @@ export async function importMemories({ host, memories, dir = defaultDir() }) {
   }
 
   /* 1. Extract. */
-  await put(host, [[`${EXTRACT}/cmd/@props/path`, path], [`${EXTRACT}/cmd/@props/xRequest`, true]]);
+  await put(ex, [[`${EXTRACT}/cmd/@props/path`, path], [`${EXTRACT}/cmd/@props/xRequest`, true]]);
   const extracted = await waitFor(
-    host, `${EXTRACT}/status/@props/status`,
+    ex, `${EXTRACT}/status/@props/status`,
     (v) => typeof v === 'string' && v !== 'IN_PROGRESS' && v !== 'NO_REQUEST',
     EXTRACT_TIMEOUT_MS
   );
@@ -140,7 +148,7 @@ export async function importMemories({ host, memories, dir = defaultDir() }) {
      in whatever order it likes and has never promised ours. */
   const staged = [];
   for (let n = 1; n <= memories.length; n++) {
-    const [valid, org] = (await get(host, [
+    const [valid, org] = (await get(ex, [
       `${LOAD}/$bank/@items/${n}/@props/isValid`,
       `${LOAD}/$bank/@items/${n}/@props/orgIndex`
     ])).map((r) => (r ? r.value : null));
@@ -160,17 +168,17 @@ export async function importMemories({ host, memories, dir = defaultDir() }) {
     const wanted = slots.includes(entry.orgIndex) ? entry.orgIndex : slots[staged.indexOf(entry)];
     writes.push([`${LOAD}/$bank/@items/${entry.n}/@props/dstIndex`, wanted]);
   }
-  await put(host, writes);
+  await put(ex, writes);
   record('destinations', { writes: writes.length });
 
   /* 3. Load, then confirm from the bank itself — the only honest confirmation
      there is, since the write that does it is answered with silence. */
-  await put(host, [[`${LOAD}/cmd/@props/xRequest`, true]]);
+  await put(ex, [[`${LOAD}/cmd/@props/xRequest`, true]]);
 
   const landed = [];
   for (const slot of slots) {
     const valid = await waitFor(
-      host, `${BANK}/$bank/@items/${slot}/status/@props/isValid`,
+      ex, `${BANK}/$bank/@items/${slot}/status/@props/isValid`,
       (v) => v === true, LOAD_TIMEOUT_MS
     );
     if (valid === true) landed.push(slot);
@@ -197,7 +205,8 @@ export async function importMemories({ host, memories, dir = defaultDir() }) {
  * file onto its own disk, and reading it back here only works where the two
  * are the same machine or share a directory.
  */
-export async function exportMemories({ host, slots, dir = defaultDir(), slotCount = 1000 }) {
+export async function exportMemories({ host, awj, slots, dir = defaultDir(), slotCount = 1000 }) {
+  const ex = exchangeFor({ host, awj });
   const wanted = (Array.isArray(slots) ? slots : [slots]).map(Number).filter(Boolean);
   if (!wanted.length) return { ok: false, path: null, error: 'no slots named' };
 
@@ -210,14 +219,14 @@ export async function exportMemories({ host, slots, dir = defaultDir(), slotCoun
   const selection = Array.from({ length: slotCount }, (_, i) => wanted.includes(i + 1));
   /* A trailing separator, because this end wants a DIRECTORY and answers
      ERROR_INVALID_PATH for anything that looks like a file. */
-  await put(host, [
+  await put(ex, [
     [`${BANK}/export/cmd/@props/selection`, selection],
     [`${BANK}/export/cmd/@props/path`, dir.endsWith('/') ? dir : dir + '/'],
     [`${BANK}/export/cmd/@props/xRequest`, true]
   ]);
 
   const status = await waitFor(
-    host, `${BANK}/export/status/@props/status`,
+    ex, `${BANK}/export/status/@props/status`,
     (v) => typeof v === 'string' && v !== 'IN_PROGRESS' && v !== 'NO_REQUEST',
     EXTRACT_TIMEOUT_MS
   );

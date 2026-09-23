@@ -42,13 +42,13 @@
  *   which changes with the size chip and with the window.
  */
 
-import { h, button, icon } from './dom.js';
-import { panel } from './shell.js';
-import { stage } from './stage.js';
-import { listDestinations, listSources, readLayers, sourceLabel, topLeftToAnchor } from '../core/screens.js';
-import { fittedLayers, writeCmd, catalogueFor } from '../core/properties.js';
-import { layerLabel } from '../core/layer-names.js';
-import { EDIT } from '../core/programmer.js';
+import { h, button, icon } from '../../src/ui/dom.js';
+import { panel } from '../../src/ui/shell.js';
+import { stage } from '../../src/ui/stage.js';
+import { listDestinations, listSources, readLayers, sourceLabel, topLeftToAnchor } from '../../src/core/screens.js';
+import { fittedLayers, writeCmd, catalogueFor } from '../../src/core/properties.js';
+import { layerLabel } from '../../src/core/layer-names.js';
+import { EDIT } from '../../src/core/programmer.js';
 
 /** Card widths, the same ladder the preview wall offers. */
 const SIZES = [

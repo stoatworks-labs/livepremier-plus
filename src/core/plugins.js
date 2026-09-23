@@ -58,7 +58,11 @@ export const BUILTINS = [
     name: 'Edit',
     where: 'Sidebar, under PLUS',
     description: 'The Screens / Aux. layout with one row, on neither bus. Programme a look, then save it into a real memory.',
-    requires: { capabilities: ['layerProperties'] }
+    requires: { capabilities: ['layerProperties'] },
+    /* Its one route is where it always was. */
+    routeBase: '/memory',
+    server: 'server.js',
+    client: 'client.js'
   },
   {
     id: 'companion',
@@ -326,7 +330,6 @@ export const isEnabled = builtins.isEnabled;
  * manifest rather than being written here a second time.
  */
 const ROUTES = [
-  ['/memory', 'edit'],
   ['/matrix', 'matrix-routing'],
   ['/osc/stream', 'osc-input'],
   ['/timecode', 'timecode'],

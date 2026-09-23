@@ -69,8 +69,8 @@ switchable in Preconfig ▸ LivePremier Plus → Plugins. The move is in phases
   loaded by `server/plugin-host.js` and `src/ui/plugin-host.js` exactly as a
   plugin written elsewhere will be. **Companion**, **VPU Map**, **Pitch
   Compensation**, the **Pixelhue panel**, the **Console**, **Memories**, **MIDI
-  Mapping**, **Field arithmetic**, **Layer**, **Layer names**, **Layer Groups**
-  and **Send to** so far; a
+  Mapping**, **Field arithmetic**, **Layer**, **Layer names**, **Layer Groups**,
+  **Send to** and the **Edit page** so far; a
   built-in may import `src/` directly, and shared engines and components stay
   in `src/` where every plugin can reach them (`core/vpu.js`, `ui/stage.js`,
   `ui/properties-panel.js` — the Layer tab and the Edit page both draw it —
@@ -565,7 +565,7 @@ full screen, and layer 2 does not exist. The preset says *where*; the screen's
 own `layerList/items/<n>/status/pp/capability` says *whether*. Drawing the
 preset alone covers every screen in stale full-frame layers.
 
-### The Edit page, and the two things that decide its whole shape
+### The Edit page (`plugins/edit/`), and the two things that decide its whole shape
 
 The Edit page is the Screens / Aux. layout with one row instead of two: a
 programmer buffer per destination that is on neither bus. Two device facts

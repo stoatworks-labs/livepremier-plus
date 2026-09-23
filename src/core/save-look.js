@@ -7,7 +7,7 @@
  * **Direct.** Compose the bank's own file and hand it to the device's import.
  * Nothing is written to a preset buffer, nothing is taken, and neither bus
  * moves. This is the route the Edit page exists to make possible and it is the
- * default. Its catch is not in this file: `server/memory-import.js` explains
+ * default. Its catch is not in this file: `plugins/edit/memory-import.js` explains
  * that the path the device reads is the *device's* filesystem, which is this
  * machine on a simulator and an open question on a real Aquilon.
  *
