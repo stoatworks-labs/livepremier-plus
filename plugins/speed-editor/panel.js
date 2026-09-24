@@ -1,32 +1,23 @@
 /*
- * Speed Editor — a DaVinci Resolve Speed Editor driving the switcher, over
- * WebHID from the page itself.
+ * Speed Editor — a DaVinci Resolve Speed Editor driving the switcher. The
+ * panel is held by the server (`link.js`, and why); this is the page half.
  *
- * The sibling of MIDI Mapping, and built the same way: this file owns no
- * engine. The panel's protocol (the handshake, the reports) and the adapter
- * that turns reports into control events are awj-surface's `core/hid/`,
- * vendored under `src/vendor/surface/hid/`; mapping, pickup and feedback are
- * the same Engine the MIDI panel runs. What is here is the transport: WebHID,
- * the handshake's lease, and reconnecting when the panel comes back.
+ * The sibling of MIDI Mapping, and built the same way: mapping, pickup and
+ * feedback are the same Engine the MIDI panel runs, and the adapter that
+ * turns the panel's reports into control events is awj-surface's `core/hid/`,
+ * vendored under `src/vendor/surface/hid/`. What is here is the page's side of
+ * the transport: the server's `/stream` brings the input reports and the
+ * panel's state, `/output` takes the lamps, and `/driver` is the lease that
+ * says which page acts — see `server.js`.
  *
- * ## Three things WebHID makes this do
+ * Because the page never touches the panel, none of WebHID's conditions
+ * apply: any browser, any address, no choosing the panel. The panel has to be
+ * plugged into the machine this app runs on.
  *
- * - **Choosing the panel needs a click.** `navigator.hid.requestDevice` only
- *   runs from a user gesture. After that the browser remembers the grant, so
- *   `getDevices()` finds it again on the next load and on every plug-in.
- * - **It is a secure-context API**, like Web MIDI, and served from loopback
- *   this page is one. Only Chromium browsers have it at all.
- * - **Report IDs travel separately.** An `inputreport` event carries the ID
- *   beside the data; the vendored decoder wants it as byte 0, so it is put
- *   back. `receiveFeatureReport` returns it in byte 0 on some platforms and
- *   not on others, so that is normalised too.
- *
- * ## The lease
- *
- * The panel is silent until the host answers its challenge, and goes silent
- * again when the answer lapses — `authenticate` says how many seconds that
- * is. It is redone at half that, as node-blackmagic-controller does, with a
- * short retry if one attempt fails.
+ * The stream is held only while the Speed Editor is started. A page has six
+ * connections to its origin and the vendor's own app uses some of them; a
+ * stream for a panel nobody started would be one fewer for everybody else.
+ * Stopped, the panel's state is fetched when the panel is looked at.
  */
 
 import { h, button } from '../../src/ui/dom.js';
@@ -34,24 +25,30 @@ import { panel } from '../../src/ui/shell.js';
 import { Engine } from '../../src/vendor/surface/engine.js';
 import { validate } from '../../src/vendor/surface/profile.js';
 import { SpeedEditorSurface } from '../../src/vendor/surface/hid/surface.js';
-import { VENDOR_ID, PRODUCT_ID, authenticate } from '../../src/vendor/surface/hid/speed-editor.js';
-import { insecureContextAdvice } from '../../src/core/secure-context.js';
 
 const PROFILE_URL = '/__lpp/src/vendor/surface/profiles/speed-editor.json';
-const FILTERS = [{ vendorId: VENDOR_ID, productId: PRODUCT_ID }];
 const ACTIVITY_MAX = 40;
-const RETRY_S = 15;
+const BEAT_MS = 4000;
+const POLL_MS = 3000;
 
-const hid = () => (typeof navigator !== 'undefined' ? navigator.hid : undefined);
+const newId = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : `p${Math.random().toString(36).slice(2)}`);
 
-export function createSpeedEditorPanel({ session, onRefresh = () => {} }) {
+function fromBase64(text) {
+  const bin = atob(text);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/**
+ * @param o.session    the page's live session: `store`, `send`
+ * @param o.url        fn(path) -> this plugin's route, `ctx.url`
+ * @param o.onRefresh  ask the shell to repaint
+ */
+export function createSpeedEditorPanel({ session, url, onRefresh = () => {} }) {
   const state = {
-    support: !!hid(),
-    secure: typeof window !== 'undefined' ? window.isSecureContext : false,
-    device: null,
-    authed: false,
-    lease: null,
-    authTimer: null,
+    pageId: newId(),
+    server: null,     // the server's snapshot: available, connected, authed, battery, driver, …
     error: null,
     profile: null,
     engine: null,
@@ -60,7 +57,10 @@ export function createSpeedEditorPanel({ session, onRefresh = () => {} }) {
     activity: [],
     writes: 0,
     unsub: null,
-    watching: false
+    stream: null,
+    beating: null,
+    polledAt: 0,
+    handshakes: null,
   };
 
   function log(kind, text) {
@@ -68,115 +68,99 @@ export function createSpeedEditorPanel({ session, onRefresh = () => {} }) {
     if (state.activity.length > ACTIVITY_MAX) state.activity.length = ACTIVITY_MAX;
   }
 
-  /* ------------------------------------------------------------ device */
+  const driving = () => !!state.server && state.server.driver === state.pageId;
+  const running = () => !!state.engine;
 
-  /** The device as the vendored protocol code wants it: bytes with the ID first. */
-  const io = (device) => ({
-    sendFeature: (bytes) => device.sendFeatureReport(bytes[0], bytes.subarray(1)),
-    getFeature: async (id, length) => {
-      const view = await device.receiveFeatureReport(id);
-      const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
-      if (bytes.length >= length && bytes[0] === id) return bytes;
-      const out = new Uint8Array(bytes.length + 1);
-      out[0] = id;
-      out.set(bytes, 1);
-      return out;
-    }
-  });
+  /* ------------------------------------------------------------ server */
 
-  const sendReport = (bytes) => {
-    const device = state.device;
-    if (!device?.opened) return;
-    device.sendReport(bytes[0], bytes.subarray(1)).catch(() => { /* unplugged mid-write */ });
-  };
-
-  /** Ask the browser for the panel. Must run from a click. */
-  async function choose() {
-    state.error = null;
-    if (!state.support) {
-      state.error = state.secure
-        ? 'This browser has no WebHID. Use Chrome or Edge.'
-        : insecureContextAdvice(window.location);
-      return onRefresh();
-    }
+  async function poll() {
+    state.polledAt = Date.now();
     try {
-      const [device] = await hid().requestDevice({ filters: FILTERS });
-      if (!device) return onRefresh();      // the chooser was dismissed
-      await open(device);
-    } catch (err) {
-      state.error = `Could not choose the panel: ${err.message}`;
-      onRefresh();
-    }
-  }
-
-  /** Reopen a panel the browser already has permission for, if one is here. */
-  async function reconnect() {
-    if (!state.support || state.device) return;
-    try {
-      const devices = await hid().getDevices();
-      const device = devices.find((d) => d.vendorId === VENDOR_ID && d.productId === PRODUCT_ID);
-      if (device) await open(device);
-    } catch { /* nothing granted yet */ }
-  }
-
-  function watch() {
-    if (state.watching || !state.support) return;
-    state.watching = true;
-    hid().addEventListener('connect', (ev) => {
-      if (ev.device.vendorId === VENDOR_ID && ev.device.productId === PRODUCT_ID) {
-        log('info', 'panel plugged in');
-        if (!state.device) open(ev.device);
-      }
-    });
-    hid().addEventListener('disconnect', (ev) => {
-      if (ev.device !== state.device) return;
-      log('warn', 'panel unplugged');
-      drop();
-      onRefresh();
-    });
-  }
-
-  async function open(device) {
-    try {
-      if (!device.opened) await device.open();
-    } catch (err) {
-      state.error = `Could not open the panel: ${err.message}. Is DaVinci Resolve running? Quit it and try again.`;
-      return onRefresh();
-    }
-    state.device = device;
-    device.addEventListener('inputreport', onReport);
-    log('info', `opened ${device.productName || 'Speed Editor'}`);
-    await auth();
-  }
-
-  async function auth(attempt = 1) {
-    clearTimeout(state.authTimer);
-    if (!state.device) return;
-    try {
-      state.lease = await authenticate(io(state.device));
-      if (!state.authed) log('info', `authenticated (lease ${state.lease}s)`);
-      state.authed = true;
+      const res = await fetch(url('/'), { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      absorb(await res.json());
       state.error = null;
-      state.surface?.reset();
-      state.engine && refreshFeedback();
-      state.authTimer = setTimeout(() => auth(), (state.lease || 600) * 500);
     } catch (err) {
-      state.authed = false;
-      log('warn', `authentication failed: ${err.message}`);
-      if (attempt < 3) state.authTimer = setTimeout(() => auth(attempt + 1), RETRY_S * 1000);
-      else state.error = 'The panel would not authenticate. Unplug it, plug it back in, and choose it again.';
+      state.error = `Could not reach LivePremier Plus: ${err.message}`;
     }
     onRefresh();
   }
 
-  function drop() {
-    clearTimeout(state.authTimer);
-    if (state.device) {
-      state.device.removeEventListener('inputreport', onReport);
-      state.device.close().catch(() => {});
+  /** A new snapshot of the panel from the server. */
+  function absorb(next) {
+    const was = state.server;
+    const wasDriving = driving();
+    state.server = next;
+    if (was && was.present !== next.present) {
+      log(next.present ? 'info' : 'warn', next.present ? `${next.product || 'panel'} plugged in` : 'panel unplugged');
     }
-    state.device = null;
-    state.authed = false;
+    if (was && next.authed && !was.authed) log('info', `authenticated (lease ${next.lease}s)`);
+    if (next.error && next.error !== was?.error) log('warn', next.error);
+    if (!running()) return;
+    if (driving() && !wasDriving) log('info', 'driving the panel from this page');
+    if (!driving() && wasDriving) log('warn', next.driver ? 'another page took the panel over' : 'no longer driving the panel');
+    /* A fresh handshake, or just becoming the driver: the panel's lamps and
+       wheel mode are whatever somebody last left them, so set them again. */
+    const reauthed = next.authed && next.handshakes !== state.handshakes;
+    state.handshakes = next.handshakes;
+    if (driving() && next.authed && (reauthed || !wasDriving)) {
+      state.surface?.reset();
+      refreshFeedback();
+    }
+  }
+
+  function listen() {
+    if (state.stream) return;
+    try {
+      const stream = new EventSource(url('/stream'));
+      stream.addEventListener('state', (ev) => {
+        try { absorb(JSON.parse(ev.data)); } catch { return; }
+        onRefresh();
+      });
+      stream.addEventListener('report', (ev) => {
+        if (!driving()) return;
+        let bytes;
+        try { bytes = fromBase64(ev.data); } catch { return; }
+        onReport(bytes);
+      });
+      state.stream = stream;
+    } catch (err) {
+      state.error = `Could not listen to the panel: ${err.message}`;
+    }
+  }
+
+  async function beat({ release = false, take = false } = {}) {
+    try {
+      const res = await fetch(url('/driver'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: state.pageId, release, take }), keepalive: release,
+      });
+      if (!res.ok) return;
+      const { driver } = await res.json();
+      if (state.server && (state.server.driver !== driver || release)) absorb({ ...state.server, driver });
+      onRefresh();
+    } catch { /* the next beat tries again */ }
+  }
+
+  /* The lamps, batched: one render can light several at once. */
+  let outbox = [];
+  let flushing = null;
+  function sendReport(bytes) {
+    if (!driving()) return;
+    outbox.push([...bytes]);
+    if (!flushing) flushing = Promise.resolve().then(flush);
+  }
+  async function flush() {
+    const reports = outbox.splice(0, 16);
+    try {
+      if (reports.length) {
+        await fetch(url('/output'), {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: state.pageId, reports }),
+        });
+      }
+    } catch { /* feedback is best-effort */ }
+    flushing = outbox.length ? Promise.resolve().then(flush) : null;
   }
 
   /* ------------------------------------------------------------ engine */
@@ -218,27 +202,32 @@ export function createSpeedEditorPanel({ session, onRefresh = () => {} }) {
       try { state.engine.deviceChanged(path); } catch { /* ignore */ }
     }, { immediate: false });
 
-    if (state.authed) state.surface.reset();
-    refreshFeedback();
+    state.handshakes = null;
+    listen();
+    /* The lease is judged against a snapshot, so have one before claiming it. */
+    if (!state.server) await poll();
+    await beat();
+    state.beating = setInterval(() => beat(), BEAT_MS);
     log('info', 'running');
     onRefresh();
   }
 
   function refreshFeedback() {
-    try { state.engine.refresh(); } catch { /* nothing to show yet */ }
+    try { state.engine?.refresh(); } catch { /* nothing to show yet */ }
   }
 
   function stop() {
     if (state.unsub) { state.unsub(); state.unsub = null; }
-    if (state.surface && state.authed) state.surface.reset();   // lamps out
+    if (state.surface && driving() && state.server?.authed) state.surface.reset();   // lamps out
+    clearInterval(state.beating);
+    state.beating = null;
+    if (state.stream) { state.stream.close(); state.stream = null; }
+    if (driving()) void beat({ release: true });
     state.engine = null;
     state.surface = null;
   }
 
-  function onReport(ev) {
-    const bytes = new Uint8Array(ev.data.byteLength + 1);
-    bytes[0] = ev.reportId;
-    bytes.set(new Uint8Array(ev.data.buffer, ev.data.byteOffset, ev.data.byteLength), 1);
+  function onReport(bytes) {
     if (!state.surface) return;
     let events;
     try { events = state.surface.handle(bytes); } catch { return; }
@@ -253,44 +242,45 @@ export function createSpeedEditorPanel({ session, onRefresh = () => {} }) {
     if (events.length) onRefresh();
   }
 
+  globalThis.addEventListener?.('pagehide', () => { if (driving()) void beat({ release: true }); });
+
   /* ------------------------------------------------------------ render */
 
   function render() {
-    watch();
-    const running = !!state.engine;
+    if (!running() && Date.now() - state.polledAt > POLL_MS) void poll();
     const body = h('div', { class: 'aw-flex-col aw-gap-row-large' },
-      contextNotice(),
       state.error ? h('div', { class: 'wru-tag wru-warn', text: state.error }) : null,
+      state.server && !state.server.available ? h('div', { class: 'wru-tag wru-warn', text: state.server.reason }) : null,
       deviceSection(),
-      running ? selectionSection() : null,
+      running() ? selectionSection() : null,
       activitySection());
-    return panel({ toolbar: toolbar(running), body });
-  }
-
-  function contextNotice() {
-    if (state.support && state.secure) return null;
-    return h('div', { class: 'wru-tag wru-warn' },
-      h('span', {
-        text: state.secure
-          ? 'This browser has no WebHID. The Speed Editor needs Chrome or Edge.'
-          : insecureContextAdvice(window.location)
-      }));
+    return panel({ toolbar: toolbar(), body });
   }
 
   function deviceSection() {
-    const battery = state.surface?.battery;
-    const status = !state.device
-      ? 'No panel connected.'
-      : state.authed
-        ? `${state.device.productName || 'Speed Editor'} — connected${battery ? `, battery ${battery.level}%${battery.charging ? ' (charging)' : ''}` : ''}.`
-        : `${state.device.productName || 'Speed Editor'} — waiting for the handshake…`;
+    const s = state.server;
+    const name = s?.product || 'Speed Editor';
+    const battery = s?.battery;
+    const status = !s
+      ? 'Asking LivePremier Plus…'
+      : !s.available
+        ? 'Not available in this build.'
+        : !s.connected && !s.present
+          ? 'No panel. Plug it into this machine by USB, or pair it over Bluetooth.'
+          : !s.connected
+            ? (running() && driving() ? `${name} — opening…` : `${name} — found. Press Start to use it.`)
+          : s.authed
+            ? `${name} — connected${battery ? `, battery ${battery.level}%${battery.charging ? ' (charging)' : ''}` : ''}.`
+            : `${name} — waiting for the handshake…`;
+    const elsewhere = running() && s?.driver && s.driver !== state.pageId;
     return h('div', { class: 'aw-flex-col aw-gap-row-medium' },
       h('div', { class: 'aw-font-subtitle-1', text: 'Panel' }),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium' },
         h('span', { class: 'aw-text-secondary', text: status }),
-        state.device ? null : button('Choose panel…', { onClick: choose, variant: 'primary', disabled: !state.support })),
+        elsewhere ? h('span', { class: 'wru-tag wru-warn', text: 'Another page is driving it' }) : null,
+        elsewhere ? button('Take over', { onClick: () => beat({ take: true }), variant: 'primary' }) : null),
       h('div', { class: 'aw-text-tertiary aw-font-caption',
-        text: 'USB or Bluetooth. Quit DaVinci Resolve first — both would hear every key. ' +
+        text: 'Plugged into the machine LivePremier Plus runs on. Quit DaVinci Resolve first — both would hear every key. ' +
           'CAM 1–9 put a live input on the selected layer; CUT cuts; DIS and STOP/PLAY take; ' +
           'the eight keys top left select layers 1–8; TRANS flips preview/program; SNAP is shift. ' +
           'JOG / SHTL / SCRL set what the wheel moves: opacity, position H, position V — shifted, T-bar, size H, size V.' }));
@@ -315,20 +305,19 @@ export function createSpeedEditorPanel({ session, onRefresh = () => {} }) {
           h('div', { class: ['wru-console-row', a.kind === 'warn' || a.kind === 'unmapped' ? 'wru-console-warn' : 'wru-console-ok'] },
             h('code', { class: 'wru-console-cmd', text: a.kind }),
             h('span', { class: 'wru-console-detail aw-text-secondary', text: a.text }))))
-        : h('div', { class: 'wru-empty', text: 'Nothing yet. Choose the panel, then Start.' }));
+        : h('div', { class: 'wru-empty', text: 'Nothing yet. Press Start.' }));
   }
 
-  function toolbar(running) {
+  function toolbar() {
     return h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium' },
       h('div', { class: 'aw-font-subtitle-1', text: 'Speed Editor' }),
-      h('span', { class: ['wru-tag', running ? '' : 'wru-warn'], text: running ? 'running' : 'stopped' }),
-      running ? h('span', { class: 'wru-tag', text: `${state.writes} write${state.writes === 1 ? '' : 's'}` }) : null,
+      h('span', { class: ['wru-tag', running() ? '' : 'wru-warn'], text: running() ? 'running' : 'stopped' }),
+      running() ? h('span', { class: 'wru-tag', text: `${state.writes} write${state.writes === 1 ? '' : 's'}` }) : null,
       h('div', { style: { flex: '1' } }),
-      running
+      running()
         ? button('Stop', { onClick: () => { stop(); onRefresh(); }, variant: 'ghost' })
-        : button('Start', { onClick: start, variant: 'primary' }));
+        : button('Start', { onClick: start, variant: 'primary', disabled: state.server?.available === false }));
   }
 
-  reconnect();
-  return { render, state, choose, start, stop, onReport };
+  return { render, state, start, stop, onReport, poll };
 }

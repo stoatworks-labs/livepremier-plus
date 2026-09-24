@@ -91,9 +91,9 @@ rather than as a bolt-on:
 - **MIDI Mapping** — a control surface driving the switcher, from the page
   itself. Faders to opacity, encoders to size and position, buttons to select.
 - **Speed Editor** *(preview)* — a DaVinci Resolve Speed Editor as a switcher
-  panel, over USB or Bluetooth: CAM 1–9 put a source on the selected layer, CUT
-  and DIS cut and take, and the wheel moves opacity, position, size or the
-  T-bar. It has never yet met a real panel.
+  panel, plugged into the machine this app runs on: CAM 1–9 put a source on the
+  selected layer, CUT and DIS cut and take, and the wheel moves opacity,
+  position, size or the T-bar. First run on a real panel 2026-09-24.
 - **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini drives the
   switcher from a model of it rather than from a key map, and **Pixelhue
   Mapping** draws the console so every key, fader and encoder can be given a
@@ -471,8 +471,8 @@ network without binding it to the venue LAN. Both are off until switched on.
 
 | | what you get | what it needs |
 | --- | --- | --- |
-| **Tailscale — HTTPS on the tailnet name** | `https://<machine>.<tailnet>.ts.net/`, through `tailscale serve`, with a real certificate. The app stays on loopback. An https page is a secure context, so MIDI, audio input for LTC and the Speed Editor work from the remote browser too. | HTTPS certificates switched on for the tailnet (admin console ▸ DNS), once. The first load after that waits ~15 s while the certificate is issued. Port 443, 8443 or 10000 — the card refuses a port something else is already served on. |
-| **Tailscale — plain http on the tailnet address** | `http://100.x.y.z:<port>/`, a listener on this host's tailnet addresses only. | Any tailnet. Not a secure context: no MIDI, audio input or WebHID from there. |
+| **Tailscale — HTTPS on the tailnet name** | `https://<machine>.<tailnet>.ts.net/`, through `tailscale serve`, with a real certificate. The app stays on loopback. An https page is a secure context, so MIDI and audio input for LTC work from the remote browser too. | HTTPS certificates switched on for the tailnet (admin console ▸ DNS), once. The first load after that waits ~15 s while the certificate is issued. Port 443, 8443 or 10000 — the card refuses a port something else is already served on. |
+| **Tailscale — plain http on the tailnet address** | `http://100.x.y.z:<port>/`, a listener on this host's tailnet addresses only. | Any tailnet. Not a secure context: no MIDI or audio input from there. |
 | **ZeroTier** | `http://<zerotier address>:<port>/` on every network this host is authorised on, opened as the controller authorises it and closed when it leaves. | `zerotier-cli` able to read the service's auth token — root, or a copy at `~/.zeroTierOneAuthToken` for the account the app runs as. Same secure-context limit. |
 
 Switching Tailscale serving off, or stopping the app, removes the `tailscale serve`
@@ -821,26 +821,40 @@ stay where they are.
 
 ## Speed Editor — preview
 
-Under Virtual RC400T, beside MIDI Mapping. A DaVinci Resolve Speed Editor,
-over USB or Bluetooth, as a switcher panel: **Choose panel…** once (WebHID
-needs the click; the browser remembers the grant after that), then **Start**.
+Under Virtual RC400T, beside MIDI Mapping. A DaVinci Resolve Speed Editor as a
+switcher panel, plugged into the machine LivePremier Plus runs on — USB, or
+paired over Bluetooth. The page says when it has found the panel; press
+**Start**.
 
 ![The stock Speed Editor profile grouped by job: layer select, screen and preset, transitions, sources on CAM 1–9, and what the wheel moves in each mode](docs/diagrams/speed-editor.svg)
 
 It is MIDI Mapping's sibling and owns no engine: the panel's handshake and
 reports are [awj-surface](https://github.com/stoatworks-labs/awj-surface)'s
 `core/hid/`, vendored under `src/vendor/surface/hid/`, and mapping, soft
-pickup and feedback are the same engine the MIDI panel runs. What is here is
-the transport — WebHID, the handshake's lease, which it renews at half its
-life, and reconnecting when the panel comes back.
+pickup and feedback are the same engine the MIDI panel runs, in the page.
 
-Chrome or Edge only, from loopback (WebHID is a secure-context API), and with
-**DaVinci Resolve quit** — both would hear every key and fight over the lamps.
+**The server holds the panel, not the page.** The first build used WebHID, and
+on a real panel Chrome on macOS could not read the handshake's challenge: it
+reads every feature report at the length of the largest (33 bytes), and the
+panel refuses a 10-byte report read that way. So the plugin's server half
+(`plugins/speed-editor/link.js`) opens it through
+[node-hid](https://github.com/node-hid/node-hid) — this app's one dependency,
+and an optional one — answers the challenge, renews it at half its lease,
+finds the panel again whenever it is plugged back in, and streams its reports
+to the page. The panel is only opened while a page has the Speed Editor
+started, and let go when none has; one page drives it at a time, and **Take
+over** moves it to another. Any browser works, from any address.
 
-> ⚠️ **Preview: never yet on a real panel.** The host is tested against a fake
-> panel that runs the real handshake and stays silent until it is answered, as
-> the hardware does; whether Chrome lets a page open the real one is the
-> hardware check still to be made.
+Without node-hid — a checkout nobody ran `npm install` in, or the Docker image,
+which has no USB — the panel says it is not available in that build and the
+rest of the app is unaffected. **Quit DaVinci Resolve** first: both would hear
+every key and fight over the lamps.
+
+> ⚠️ **Preview.** The handshake and the input reports are proven on a real
+> panel over USB on macOS (2026-09-24); the lamps, Bluetooth, the battery
+> report and Windows/Linux are not yet. The tests run a fake panel that plays
+> the real handshake and, like the hardware, refuses a read at the wrong
+> length.
 
 ## Thumbnail relay — preview
 

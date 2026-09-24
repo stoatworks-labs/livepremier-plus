@@ -30,3 +30,22 @@ test('the desktop bundle stages every tree the app runs from', async () => {
     assert.ok(prepare.includes(`cp -R "$REPO/${tree}" "$APP/${tree}"`), `prepare.sh stages ${tree}/`);
   }
 });
+
+/*
+ * node-hid is optional to the app — a checkout without it runs, the Speed
+ * Editor says it has no USB — so nothing else fails when the desktop bundle
+ * leaves it out. This is the check that it does not.
+ */
+test('the desktop bundle stages node-hid from the lockfile, and signs its addon', async () => {
+  const pkg = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
+  const lock = JSON.parse(await readFile(join(ROOT, 'package-lock.json'), 'utf8'));
+  assert.equal(lock.packages['node_modules/node-hid']?.version, pkg.optionalDependencies['node-hid'], 'the lockfile pins what package.json asks for');
+  assert.deepEqual(Object.keys(pkg.dependencies ?? {}), [], 'node-hid stays optional; nothing else is a dependency');
+
+  const prepare = await readFile(join(ROOT, 'launcher/scripts/prepare.sh'), 'utf8');
+  assert.ok(prepare.includes('cp "$REPO/package-lock.json" "$APP/package-lock.json"'), 'prepare.sh copies the lockfile');
+  assert.match(prepare, /npm ci --omit=dev --ignore-scripts/, 'prepare.sh installs node-hid from it');
+
+  const sign = await readFile(join(ROOT, 'launcher/scripts/sign-embedded.sh'), 'utf8');
+  assert.match(sign, /-name '\*\.node'/, 'sign-embedded.sh signs the addon');
+});

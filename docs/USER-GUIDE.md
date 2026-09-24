@@ -40,9 +40,9 @@ as a bolt-on.
 - **OSC input** — QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
   no browser open.
 - **MIDI Mapping** — a control surface driving the switcher, from the page itself.
-- **Speed Editor** *(preview)* — a DaVinci Resolve Speed Editor as a switcher panel, over USB or
-  Bluetooth: CAM 1–9 pick sources, CUT and DIS cut and take, and the wheel moves opacity,
-  position and size. Chrome or Edge, with DaVinci Resolve quit.
+- **Speed Editor** *(preview)* — a DaVinci Resolve Speed Editor as a switcher panel, plugged into
+  the machine this app runs on: CAM 1–9 pick sources, CUT and DIS cut and take, and the wheel
+  moves opacity, position and size. Any browser, with DaVinci Resolve quit.
 - **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini driving the switcher, with
   **Pixelhue Mapping** to give any key, fader or encoder a different job.
 - **Your setup in one file** — cue stack, groups, layer names, router patch and settings, saved and
@@ -766,26 +766,32 @@ that is what you are seeing.
 
 ## Speed Editor (preview)
 
-Under **Virtual RC400T**, beside MIDI Mapping. A DaVinci Resolve Speed Editor as a switcher panel,
-over USB or Bluetooth.
+Under **Virtual RC400T**, beside MIDI Mapping. A DaVinci Resolve Speed Editor as a switcher panel.
 
-1. **Quit DaVinci Resolve.** Both would hear every key and fight over the lamps.
-2. Open this app in **Chrome or Edge**, at `http://127.0.0.1:<port>/` — WebHID is Chromium-only and
-   needs the secure context loopback gives.
-3. Press **Choose panel…** and pick the Speed Editor. The browser remembers the choice, so this is
-   once; after that it is found on every load and every time it is plugged back in.
-4. Press **Start**.
+1. **Plug the panel into the machine LivePremier Plus runs on** — by USB, or pair it over
+   Bluetooth. Not the machine your browser is on, if those differ: the app holds the panel, not
+   the page.
+2. **Quit DaVinci Resolve.** Both would hear every key and fight over the lamps.
+3. Open **Speed Editor**. It says *found* once it sees the panel.
+4. Press **Start**. The app opens the panel, answers its handshake, and the JOG lamp lights.
+
+Only one page drives the panel at a time. Another page with it started says *Another page is
+driving it*, with **Take over** to move it there. Press **Stop**, or close the page, and the app lets
+the panel go within a few seconds. The desktop app includes the panel's USB access; the Docker image
+does not, and says so.
 
 The keys act on the selected screen, preset and layer:
 
 ![The stock Speed Editor profile grouped by job: layer select, screen and preset, transitions, sources on CAM 1–9, and what the wheel moves in each mode](diagrams/speed-editor.svg)
 
 The wheel has the same **soft pickup** as a MIDI fader, and the panel's activity list shows each
-write it made. The panel only talks after a handshake with this page, which is renewed before it
-lapses; if a renewal fails the panel goes quiet and the page says so, then tries again.
+write it made. The panel only talks after a handshake with the app, which is renewed before it
+lapses; if a renewal fails the panel goes quiet and the page says so, then tries again. Unplug it
+and plug it back in and it is found and answered again by itself.
 
-> ⚠️ **This has never been run with a real Speed Editor.** It is tested against a fake panel that
-> runs the real handshake. Treat the first session with one as a rehearsal.
+> ⚠️ **Preview.** Proven on a real panel over USB on macOS: the handshake and the keys. The lamps,
+> Bluetooth, the battery level and Windows or Linux have not been tried yet. Treat the first show
+> with one as a rehearsal.
 
 ---
 
@@ -1057,7 +1063,7 @@ a `.awc` you export from Web RCS afterwards will not contain it.
 | **No panels in Web RCS** | You opened the switcher's address directly. Go through the proxy. |
 | **MIDI does nothing** | Same cause — Web MIDI needs a secure context, which loopback is and a LAN address is not. |
 | **A fader does not move anything** | Soft pickup. Sweep it through the current value. |
-| **The Speed Editor does nothing** | DaVinci Resolve is still running, or this is not Chrome or Edge, or the page is not on `127.0.0.1`. |
+| **The Speed Editor does nothing** | DaVinci Resolve is still running, or the panel is plugged into a different machine from the one the app runs on, or another page is driving it (**Take over**), or this is the Docker image, which has no USB. |
 | **A console command means the wrong thing** | The grammar is mynah's; the fix is there. |
 | **Arithmetic does not work in a field** | It is not one the vendor marks numeric — opacity and zoom are deliberately excluded. |
 | **The VPU panel says there is nothing to draw** | A simulator has no VPU. That is correct, not a failure. |

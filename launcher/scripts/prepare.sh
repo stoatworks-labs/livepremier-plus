@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 # Assemble the embedded LivePremier Plus app for the desktop bundle.
 #
-# This is the simplest prepare.sh in the fleet, and deliberately so: LivePremier
-# Plus has no dependencies, no build step and no native addons, so staging it is
-# a copy of two directories. There is no npm install here and there should never
-# need to be one — if this script ever grows a build, something has gone wrong
-# with the app's zero-dependency rule.
+# This is nearly the simplest prepare.sh in the fleet, and deliberately so:
+# LivePremier Plus has no build step, and one dependency, which is optional —
+# node-hid, the Speed Editor's USB access (plugins/speed-editor/link.js says why
+# a page cannot do it). Staging the app is a copy of three directories and an
+# `npm ci` of that one package, trimmed to the prebuilt addon for the target.
+# node-hid ships N-API prebuilds for every platform, so nothing is compiled
+# here; if this script ever grows a build, something has gone wrong.
 #
 # Produces src-tauri/node[.exe] and src-tauri/livepremier-plus-app/ (both
 # git-ignored; they ship inside the bundle). Run before `npm run tauri build`.
 #
 # NODE_PLATFORM overrides the embedded runtime arch (win-x64 / darwin-arm64 /
-# darwin-x64 / linux-x64 / linux-arm64); defaults to the host. Unlike the
-# launchers that carry native prebuilds, this one can be cross-staged freely.
+# darwin-x64 / linux-x64 / linux-arm64); defaults to the host. node-hid's
+# prebuilds cover every target, so this can still be cross-staged: the addon
+# for the target is kept and the rest removed.
 set -euo pipefail
 
 NODE_VERSION="v22.20.0"
@@ -54,6 +57,30 @@ cp -R "$REPO/server" "$APP/server"
 cp -R "$REPO/src" "$APP/src"
 cp -R "$REPO/plugins" "$APP/plugins"
 cp "$REPO/package.json" "$APP/package.json"
+cp "$REPO/package-lock.json" "$APP/package-lock.json"
+
+echo "==> staging node-hid (the Speed Editor's USB access)"
+# --ignore-scripts: its install script only checks for a prebuild and falls back
+# to node-gyp; the prebuilds are in the package, and a fallback compile on a
+# release runner would build for the wrong target when cross-staging.
+( cd "$APP" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund )
+case "$PLATFORM" in
+  darwin-universal) __keep="darwin-arm64 darwin-x64" ;;
+  win-*)            __keep="win32-${PLATFORM#win-}" ;;
+  *)                __keep="$PLATFORM" ;;
+esac
+for __d in "$APP/node_modules/node-hid/prebuilds"/*; do
+  __name="$(basename "$__d")"; __ok=""
+  for __k in $__keep; do
+    case "$__name" in HID-"$__k"|HID_hidraw-"$__k") __ok=1 ;; esac
+  done
+  [ -n "$__ok" ] || rm -rf "$__d"
+done
+# Headers and C sources, needed only to compile what is already prebuilt.
+rm -rf "$APP/node_modules/node-addon-api" "$APP/node_modules/node-hid/src" "$APP/node_modules/node-hid/hidapi"
+__left="$(ls "$APP/node_modules/node-hid/prebuilds" | tr '\n' ' ')"
+[ -n "$__left" ] || { echo "no node-hid prebuild for $PLATFORM" >&2; exit 1; }
+echo "    node-hid prebuilds: $__left"
 
 echo "==> fetching self-contained Node $NODE_VERSION ($PLATFORM)"
 # nodejs.org publishes no universal macOS build, so the single universal macOS

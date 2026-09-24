@@ -23,7 +23,7 @@
   <text x="54" y="256" fill="#b7c4d1" font-size="12">Edit · Timeline · Console · Layer</text>
   <text x="54" y="274" fill="#b7c4d1" font-size="12">Groups · Matrix · HyperDecks</text>
   <text x="54" y="292" fill="#b7c4d1" font-size="12">MIDI · Speed Editor · Companion</text>
-  <text x="54" y="312" fill="#8fa3b8" font-size="11">Web MIDI, WebHID: loopback only</text>
+  <text x="54" y="312" fill="#8fa3b8" font-size="11">Web MIDI: loopback only</text>
 
   <!-- proxy -->
   <rect x="355" y="40" width="250" height="300" rx="8" fill="#212932" stroke="#f5a623"/>
@@ -78,7 +78,7 @@
   <rect x="24" y="378" width="250" height="104" rx="8" fill="#212932" stroke="#3a4552"/>
   <text x="40" y="404" fill="#e8edf2" font-size="14" font-weight="600">Surfaces on this machine</text>
   <text x="40" y="426" fill="#b7c4d1" font-size="12">MIDI controllers (Web MIDI)</text>
-  <text x="40" y="444" fill="#b7c4d1" font-size="12">Speed Editor (WebHID)</text>
+  <text x="40" y="444" fill="#b7c4d1" font-size="12">Speed Editor (USB, via the app)</text>
   <text x="40" y="462" fill="#b7c4d1" font-size="12">LTC / MTC timecode</text>
   <line x1="149" y1="376" x2="149" y2="342" stroke="#8fa3b8" stroke-width="2" marker-end="url(#a)"/>
 

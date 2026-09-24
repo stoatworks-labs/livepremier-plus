@@ -18,11 +18,11 @@ const TAILSCALE_CHOICES = [
   { id: 'off', label: 'Off', what: 'Not served over Tailscale.' },
   {
     id: 'serve', label: 'HTTPS on the tailnet name',
-    what: 'tailscale serve puts this app at https://<machine>.<tailnet>.ts.net/ with a real certificate, while it stays on loopback here. A secure context, so MIDI, audio input and WebHID work from the remote browser too. Needs HTTPS certificates switched on for the tailnet.'
+    what: 'tailscale serve puts this app at https://<machine>.<tailnet>.ts.net/ with a real certificate, while it stays on loopback here. A secure context, so MIDI and audio input work from the remote browser too. Needs HTTPS certificates switched on for the tailnet.'
   },
   {
     id: 'bind', label: 'Plain http on the tailnet address',
-    what: 'Also answers on this host’s 100.x address at the app’s own port. Works on any tailnet, but plain http off loopback is not a secure context — no MIDI, audio input or WebHID from there.'
+    what: 'Also answers on this host’s 100.x address at the app’s own port. Works on any tailnet, but plain http off loopback is not a secure context — no MIDI or audio input from there.'
   }
 ];
 

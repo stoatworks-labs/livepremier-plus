@@ -8,7 +8,7 @@
  * - **HTTPS (`tailscale serve`)** — the default, and the better one. The app
  *   stays on loopback; tailscaled terminates TLS for `https://<machine>.<tailnet>.ts.net/`
  *   with a real certificate and proxies to `127.0.0.1:<port>`. An https page
- *   is a *secure context*, so Web MIDI, audio input for LTC and WebHID work
+ *   is a *secure context*, so Web MIDI and audio input for LTC work
  *   from the remote browser too — which plain http on any address but
  *   loopback never gives (see server/local-client.js). It needs HTTPS
  *   certificates switched on for the tailnet, once, in its admin console.

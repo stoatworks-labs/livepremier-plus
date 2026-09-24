@@ -20,6 +20,9 @@
     "sync:pixelhue-core": "node tools/sync-pixelhue-core.mjs",
     "sync:otter-edid": "node tools/sync-otter-edid.mjs"
   },
+  "optionalDependencies": {
+    "node-hid": "3.4.0"
+  },
   "engines": {
     "node": ">=20"
   }

@@ -777,7 +777,10 @@ break quietly if "simplified".
   pages from pressing twice. A recall to several screens in one breath is one
   press (250 ms per bank:slot).
 - **`server/ws-client.js` exists because there can be no dependency.** This repo
-  has none, and CI runs Node 20, where there is no global WebSocket. It is the
+  has one, optional, native, and only for USB — node-hid, for the Speed Editor
+  (see `plugins/speed-editor/link.js`); nothing may import it but that plugin,
+  and it must be loaded with a dynamic `import()` that is allowed to fail. CI
+  installs nothing and runs Node 20, where there is no global WebSocket. It is the
   smallest thing RFC 6455 allows; its tests drive it from a server written in
   the test file so fragmentation, interleaved pings and both extended-length
   forms can each be produced on purpose.

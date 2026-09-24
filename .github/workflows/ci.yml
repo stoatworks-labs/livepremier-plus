@@ -20,7 +20,8 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
-      # No dependencies and no build step, so there is nothing to install.
+      # No build step, and the one dependency (node-hid, optional) is faked in
+      # the tests, so there is nothing to install.
       - name: test
         run: npm test
 

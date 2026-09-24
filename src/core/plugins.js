@@ -237,8 +237,9 @@ export const BUILTINS = [
     id: 'speed-editor',
     name: 'Speed Editor',
     where: 'Sidebar, under Virtual RC400T',
-    description: 'A DaVinci Resolve Speed Editor driving the switcher over WebHID, from this page.',
+    description: 'A DaVinci Resolve Speed Editor, plugged into this machine, driving the switcher from an open page.',
     requires: { capabilities: ['console'] },
+    server: 'server.js',
     client: 'client.js'
   },
   {

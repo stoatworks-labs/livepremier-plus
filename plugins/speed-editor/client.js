@@ -3,13 +3,14 @@
  *
  * Beside MIDI Mapping, under Virtual RC400T, for the same reason: it is a
  * control surface. The protocol and the surface adapter are vendored from
- * awj-surface (`src/vendor/surface/hid/`); this plugin is the WebHID host.
+ * awj-surface (`src/vendor/surface/hid/`). The panel itself is held by the
+ * server half (`server.js`, `link.js`); this half runs the mapping.
  */
 
 import { createSpeedEditorPanel } from './panel.js';
 
 export default function activate(ctx) {
-  const speedEditor = createSpeedEditorPanel({ session: ctx.session, onRefresh: ctx.refresh });
+  const speedEditor = createSpeedEditorPanel({ session: ctx.session, url: ctx.url, onRefresh: ctx.refresh });
   ctx.ui.sidebar({
     id: 'speed-editor',
     label: 'Speed Editor',
