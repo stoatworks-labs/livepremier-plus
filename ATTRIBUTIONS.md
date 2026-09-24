@@ -70,6 +70,16 @@ Same fleet, copied rather than shared: src/vendor/otter-edid-embed.js is otter-e
 
 Libraries, SDKs and frameworks the project is built on or bundles.
 
+### Tauri
+
+<https://tauri.app>  
+Licence: MIT or Apache-2.0  
+Copyright: The Tauri Programme within The Commons Conservancy
+
+A Cargo and npm dependency — of the app itself under src-tauri/, or of the desktop launcher under launcher/src-tauri/.
+
+Wraps a web front end in a native desktop app using the platform's own webview rather than a bundled browser, so the binary stays small.
+
 ### React, React DOM and Scheduler
 
 <https://react.dev>  
@@ -79,6 +89,16 @@ Copyright: Meta Platforms, Inc. and affiliates
 Compiled into the vendored Otter EDID editor build, otter-edid-embed.js, with each package's MIT header kept in place (React 19.3.0 at the pinned build).
 
 The UI layer of the embedded EDID editor. The repo does not depend on React itself; it arrives only inside that one vendored file.
+
+### The Rust crate ecosystem
+
+<https://crates.io>  
+Licence: predominantly MIT or Apache-2.0  
+Copyright: the individual crate authors
+
+Cargo dependencies, resolved and pinned in Cargo.lock.
+
+Async runtimes, protocol codecs, serialisation and GUI toolkits. The exact set and versions for any build are in that repo's Cargo.lock, which is the authoritative list.
 
 ### The npm ecosystem
 
