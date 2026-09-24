@@ -1466,3 +1466,7 @@ opposite ends — that one reaches the device directly and can run headless, thi
 one has the whole device store for free but only inside a browser tab.
 `core/vpu.js` exposes `toMixerRecords()`, which emits the exact record shape
 that tool reads, so a map from either can be opened in the other.
+
+<!-- attributions:start -->
+This project is built on other people's work — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
+<!-- attributions:end -->
