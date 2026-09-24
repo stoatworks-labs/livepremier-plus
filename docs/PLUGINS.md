@@ -142,7 +142,7 @@ anything that needs the screen list to set itself up waits for the event — Sen
 its menu has nothing to offer without one.
 
 **`order`** places an entry among the app's own, which are numbered in tens: in PLUS, Edit 10, VPU Map
-20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix Routing 50 — and Companion asks for 60. On the strip,
+20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix Routing 50, Audio Matrix 55 — and Companion asks for 60. On the strip,
 Console 10, Timeline 20, Layer 30, Groups 40.
 
 **`busy()`** holds every repaint off while it returns true — for a panel with a text field that

@@ -25,6 +25,12 @@ rather than as a bolt-on:
   It also takes raw AWJ, raw Web RCS store writes and OSC addresses, says what a
   line will do before Enter, and pops out into a window of its own. On a Midra
   4K or Alta 4K it routes audio as well: `Set Audio Patch Input 3 To Screen 1`.
+- **Audio Matrix** — a LivePremier's audio channel matrix as a crosspoint grid:
+  inputs and Dante down the side, outputs, Dante and multiviewers across. It
+  opens as blocks (click one to lay a source across a destination 1→1 … 8→8,
+  or clear it); a header opens into its eight channels for single crosspoints
+  and mutes. Nothing lights until the switcher echoes it, there is a Lock for a
+  live show, and it pops out. Simulator-proven only.
 - **Timeline** — a theatre-style cue stack. A numbered list that advances on
   one GO, with per-cue fade, delay and follow times, driving the switcher's
   preset recalls and TAKE. A cue can also carry a **timecode** and fire when

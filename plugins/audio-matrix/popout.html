@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Matrix — LivePremier Plus</title>
+<!--
+  Deliberately bare — see plugins/console/popout.html; the reasoning is identical.
+  The panel adds its own stylesheet to this document when it first renders.
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #08141B; color: #fff; }
+  body { font-family: OpenSans, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<script type="module">
+  import { bootPopout, buildSolo } from '/__lpp/src/ui/popout.js';
+  import { createAudioMatrixPanel } from './panel.js';
+  bootPopout({
+    doc: document,
+    opener: window.opener,
+    build: ({ doc, bridge }) => buildSolo(doc, bridge, createAudioMatrixPanel)
+  });
+</script>
+</body>
+</html>

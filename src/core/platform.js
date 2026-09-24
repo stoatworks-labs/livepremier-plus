@@ -221,6 +221,19 @@ export const CAPABILITIES = [
     absent: 'This switcher reports no audio routing this app knows how to address.'
   },
   {
+    id: 'audioMatrix',
+    label: 'Audio matrix',
+    /* The crosspoint grid draws LivePremier's channel matrix — every
+       destination channel naming its source in `txList`. A Midra 4K or Alta 4K
+       has no matrix to draw: it routes eight-channel sources to points, which
+       the Console's `Set Audio …` covers. So no mng probe, by design. */
+    probes: {
+      nlc: [ROOT, 'audio', 'control', 'deviceList', 'items', '*', 'txList', 'items']
+    },
+    needs: 'its audio channel matrix',
+    absent: 'This switcher routes audio to points rather than through a channel matrix — use the Console’s Set Audio Patch.'
+  },
+  {
     id: 'inputGroups',
     label: 'Mosaic inputs',
     /* An input group (2X1, 2X2) under `preconfig/inputs`, and per-plug EDID

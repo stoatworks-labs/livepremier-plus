@@ -172,6 +172,14 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'audio-matrix',
+    name: 'Audio Matrix',
+    where: 'Sidebar, under PLUS',
+    description: 'The frame’s audio channel matrix as a crosspoint grid: inputs and Dante onto outputs, Dante and multiviewers.',
+    requires: { capabilities: ['audioMatrix'] },
+    client: 'client.js'
+  },
+  {
     id: 'hyperdeck',
     name: 'HyperDecks',
     where: 'Sidebar, under PLUS',
