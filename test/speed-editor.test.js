@@ -1,106 +1,35 @@
 /*
- * The Speed Editor plugin: the server's link to the panel, the server's
- * routes, and the page that runs the mapping — each against fakes.
- *
- * The fake panel runs the real handshake: it issues a challenge, checks the
- * answer with the vendored `authResponse`, and says nothing until it has been
- * answered, as the hardware does. It also refuses a feature read at any
- * length but the report's own, which is what the real panel does on macOS
- * and why WebHID could never read the challenge (see `link.js`). What these
- * cannot prove is how node-hid behaves on each platform; that is the
- * hardware check, first passed on 2026-09-24 over USB on macOS.
+ * The Speed Editor plugin: its server half (which page drives the panel, and
+ * when it is wanted) over the app's `devices` service, and the page that runs
+ * the mapping. The panel is the fake in `helpers/fake-speed-editor.js`, run
+ * through the real supervisor, host core and driver in this process; the
+ * device host itself has its own tests in `devices.test.js`.
  */
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { DeviceStore } from '../src/core/device-store.js';
-import { authResponse, VENDOR_ID, PRODUCT_ID } from '../src/vendor/surface/hid/speed-editor.js';
-import { PanelLink } from '../plugins/speed-editor/link.js';
+import speedEditorModule from '../devices/modules/speed-editor/module.js';
+import { createDeviceHost, absentDevices } from '../server/device-host.js';
 import { createSpeedEditorServer } from '../plugins/speed-editor/server.js';
 import { HttpError } from '../server/plugin-host.js';
+import { FakePanel, fakeHid, inProcessFork } from './helpers/fake-speed-editor.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));
 const settle = (ms = 30) => new Promise((r) => setTimeout(r, ms));
-
-/* ------------------------------------------------------------ fakes */
-
-/** node-hid's HIDAsync, as the Speed Editor answers it. */
-class FakePanel extends EventEmitter {
-  constructor({ refuse = false } = {}) {
-    super();
-    this.challenge = 0x0123456789abcdefn;
-    this.step = null;
-    this.authed = false;
-    this.refuse = refuse;
-    this.reads = [];
-    this.written = [];
-    this.closed = false;
-  }
-  async sendFeatureReport(data) {
-    assert.equal(data[0], 6);
-    this.step = data[1];
-    if (this.step === 3) {
-      let v = 0n;
-      for (let i = 7; i >= 0; i--) v = (v << 8n) | BigInt(data[2 + i]);
-      this.authed = !this.refuse && v === authResponse(this.challenge);
-    }
-    return data.length;
-  }
-  async getFeatureReport(id, length) {
-    this.reads.push([id, length]);
-    /* The real panel on macOS: IOHIDDeviceGetReport 0xE0005000 at any other length. */
-    if (id !== 6 || length !== 10) throw new Error('IOHIDDeviceGetReport failed: (0xE0005000)');
-    const out = Buffer.alloc(10);
-    out[0] = 6;
-    if (this.step === 0) {
-      for (let i = 0; i < 8; i++) out[2 + i] = Number((this.challenge >> BigInt(8 * i)) & 0xffn);
-    } else if (this.step === 1) {
-      out[1] = 2;
-    } else if (this.step === 3) {
-      out[1] = this.authed ? 4 : 0;
-      out[2] = 0x58; out[3] = 0x02;                   // 600 s
-    }
-    return out;
-  }
-  async write(data) { this.written.push([...data]); return data.length; }
-  async close() { this.closed = true; }
-  /** The panel says something — only once it has been answered. */
-  press(...codes) {
-    if (!this.authed) return;
-    const data = Buffer.alloc(13);
-    data[0] = 4;
-    codes.forEach((c, i) => { data[1 + 2 * i] = c; });
-    this.emit('data', data);
-  }
+async function until(check, ms = 3000) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) { if (check()) return true; await settle(10); }
+  return check();
 }
 
-function fakeHid(panels) {
-  const hid = {
-    present: [...panels],
-    opened: [],
-    async devicesAsync() {
-      return hid.present.map((p, i) => ({ vendorId: VENDOR_ID, productId: PRODUCT_ID, path: `panel-${i}`, product: 'DaVinci Resolve Speed Editor', panel: p }));
-    },
-    HIDAsync: {
-      async open(path, opts) {
-        assert.equal(opts?.nonExclusive, true, 'opened shared, not seized');
-        const p = hid.present[Number(path.split('-')[1])];
-        hid.opened.push(p);
-        return p;
-      },
-    },
-  };
-  return hid;
-}
-
-/** Enough of a plugin's server ctx to run the half. */
-function fakeCtx() {
+/** Enough of a plugin's server ctx to run the half, with `devices` as its service. */
+function fakeCtx(devices) {
   const routes = new Map();
   const sent = [];
   const disposers = [];
@@ -108,6 +37,7 @@ function fakeCtx() {
     routes, sent, disposers,
     HttpError,
     log: () => {},
+    use: (name) => (name === 'devices' ? devices : null),
     route: (method, path, fn) => routes.set(`${method} ${path}`, fn),
     stream: () => ({ send: (event, data) => sent.push([event, data]) }),
     onDispose: (fn) => disposers.push(fn),
@@ -123,81 +53,22 @@ function fakeCtx() {
   };
 }
 
-/* ------------------------------------------------------------ the link */
-
-test('the link finds the panel, answers its challenge at the report\'s own length, and passes its reports on', async () => {
-  const panel = new FakePanel();
-  const link = new PanelLink({ hid: fakeHid([panel]), scanMs: 10, retryMs: 10 });
-  const reports = [];
-  link.on('report', (b) => reports.push([...b]));
-  link.start();
-  void link.want(true);
-  await settle();
-  assert.equal(link.state.connected, true);
-  assert.equal(link.state.authed, true);
-  assert.equal(link.state.lease, 600);
-  assert.ok(panel.reads.every(([id, len]) => id === 6 && len === 10), `read ${JSON.stringify(panel.reads)}`);
-
-  panel.press(0x0f);
-  assert.deepEqual(reports.at(-1).slice(0, 3), [4, 0x0f, 0]);
-  assert.equal(await link.write(Uint8Array.of(2, 1, 0, 0, 0)), true);
-  assert.deepEqual(panel.written, [[2, 1, 0, 0, 0]]);
-  await link.stop();
-  assert.ok(panel.closed);
-});
-
-test('a panel that goes away is looked for again, and answered again when it comes back', async () => {
-  const first = new FakePanel();
-  const hid = fakeHid([first]);
-  const link = new PanelLink({ hid, scanMs: 10, retryMs: 10 });
-  link.start();
-  void link.want(true);
-  await settle();
-  assert.equal(link.state.handshakes, 1);
-
-  hid.present = [];
-  first.emit('error', new Error('could not read from HID device'));
-  await settle();
-  assert.equal(link.state.connected, false);
-  assert.equal(await link.write(Uint8Array.of(2, 0, 0, 0, 0)), false, 'nothing to write to');
-
-  const second = new FakePanel();
-  hid.present = [second];
-  await settle(60);
-  assert.equal(link.state.connected, true);
-  assert.equal(link.state.authed, true);
-  assert.equal(link.state.handshakes, 2);
-  await link.stop();
-});
-
-test('a refused answer is reported and retried, and nothing is written meanwhile', async () => {
-  const panel = new FakePanel({ refuse: true });
-  const link = new PanelLink({ hid: fakeHid([panel]), scanMs: 10, retryMs: 10 });
-  link.start();
-  void link.want(true);
-  await settle(50);
-  assert.equal(link.state.authed, false);
-  assert.match(link.state.error, /would not authenticate/);
-  const attempts = panel.reads.length;
-  await settle(40);
-  assert.ok(panel.reads.length > attempts, 'tried again');
-  assert.equal(await link.write(Uint8Array.of(2, 0, 0, 0, 0)), false);
-  await link.stop();
-});
-
 /* ------------------------------------------------------------ the server */
 
-test('only the page holding the lease writes to the panel, and another can take it over', async () => {
+test('only the page holding the lease writes to the panel, another can take it over, and it is held only while driven', async (t) => {
   const panel = new FakePanel();
-  const ctx = fakeCtx();
-  const { link } = createSpeedEditorServer(ctx, { hid: fakeHid([panel]), reason: null });
-  await settle();
-  assert.equal(link.state.present, true, 'found');
-  assert.equal(link.state.connected, false, 'but not held while nobody drives it');
+  const host = createDeviceHost({ entry: 'host.js', fork: inProcessFork({ hid: fakeHid([panel]), modules: [speedEditorModule] }) });
+  t.after(() => host.stop());
+  host.start();
+  const ctx = fakeCtx(host.api);
+  createSpeedEditorServer(ctx);
+  const state = async () => (await ctx.call('GET', '/')).body;
+  assert.ok(await until(() => host.api.module('speed-editor').state?.present));
+  assert.equal((await state()).available, true);
+  assert.equal((await state()).connected, false, 'found, but not held while nobody drives it');
 
   assert.deepEqual((await ctx.call('POST', '/driver', { id: 'a' })).body, { driver: 'a' });
-  await settle();
-  assert.equal(link.state.authed, true, 'opened and answered once a page drives it');
+  assert.ok(await until(() => host.api.module('speed-editor').state?.authed), 'opened and answered once a page drives it');
   assert.deepEqual((await ctx.call('POST', '/driver', { id: 'b' })).body, { driver: 'a' }, 'held');
   assert.equal((await ctx.call('POST', '/output', { id: 'b', reports: [[2, 1, 0, 0, 0]] })).status, 409);
   assert.equal((await ctx.call('POST', '/output', { id: 'a', reports: [[2, 1, 0, 0, 0]] })).body.written, 1);
@@ -206,23 +77,22 @@ test('only the page holding the lease writes to the panel, and another can take 
   assert.deepEqual((await ctx.call('POST', '/driver', { id: 'b', take: true })).body, { driver: 'b' });
   assert.equal((await ctx.call('POST', '/output', { id: 'a', reports: [[2, 0, 0, 0, 0]] })).status, 409);
   panel.press(0x0f);
+  assert.ok(await until(() => ctx.sent.some(([e]) => e === 'report')));
   const report = ctx.sent.find(([e]) => e === 'report');
   assert.deepEqual([...Buffer.from(report[1], 'base64')].slice(0, 2), [4, 0x0f]);
 
   assert.deepEqual((await ctx.call('POST', '/driver', { id: 'b', release: true })).body, { driver: null });
-  await settle();
-  assert.equal(link.state.connected, false, 'let go when the last driver does');
-  assert.ok(panel.closed);
+  assert.ok(await until(() => panel.closed), 'let go when the last driver does');
   assert.deepEqual(panel.written, [[2, 1, 0, 0, 0]]);
-  await link.stop();
+  for (const fn of ctx.disposers) await fn();
 });
 
-test('without node-hid the half still answers, and says why there is no panel', async () => {
-  const ctx = fakeCtx();
-  createSpeedEditorServer(ctx, { hid: null, reason: 'no USB in this build' });
+test('with no device host the half still answers, and says why there is no panel', async () => {
+  const ctx = fakeCtx(absentDevices('The device host is not installed (npm run setup:devices).'));
+  createSpeedEditorServer(ctx);
   const state = (await ctx.call('GET', '/')).body;
   assert.equal(state.available, false);
-  assert.equal(state.reason, 'no USB in this build');
+  assert.match(state.reason, /setup:devices/);
   assert.equal((await ctx.call('POST', '/output', { id: 'a', reports: [] })).status, 503);
 });
 

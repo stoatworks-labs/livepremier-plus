@@ -2,9 +2,9 @@ FROM node:26-alpine
 
 WORKDIR /app
 
-# No dependencies installed: package.json is copied for metadata and the bin
-# entry only. The one optional dependency, node-hid, is the Speed Editor's USB
-# access, and a container has no USB — the panel says it is not available here.
+# No dependencies: package.json is copied for metadata and the bin entry only.
+# The device host (devices/, USB panels) is left out on purpose — a container
+# has no USB — and the Speed Editor page says so.
 COPY package.json ./
 COPY server/ ./server/
 COPY src/ ./src/

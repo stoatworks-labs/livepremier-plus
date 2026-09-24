@@ -234,6 +234,14 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'devices',
+    name: 'Device host',
+    where: 'Settings',
+    description: 'The state of the device host — the process that holds USB panels such as the Speed Editor — and a way to restart it. Off hides the card; the host still runs.',
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'speed-editor',
     name: 'Speed Editor',
     where: 'Sidebar, under Virtual RC400T',

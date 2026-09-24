@@ -1,0 +1,13 @@
+{
+  "name": "livepremier-plus-devices",
+  "private": true,
+  "type": "module",
+  "description": "The device host: USB and HID devices for LivePremier Plus, in a process of its own. Started by the app; see README.md.",
+  "main": "host.js",
+  "dependencies": {
+    "node-hid": "3.4.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

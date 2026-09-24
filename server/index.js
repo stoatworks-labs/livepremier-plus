@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 import { createProxy } from './proxy.js';
 import { StackStore } from './storage.js';
+import { createDeviceHost, findDeviceHost } from './device-host.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -48,6 +49,8 @@ if (args.help || args.h) {
   --data <dir>             where cue stacks are kept  (default ~/.livepremier-plus)
   --appliance              this host is the app's own: Remote access may join
                            and leave Tailscale and ZeroTier networks for it
+  --no-devices             do not start the device host (USB panels), even
+                           when devices/ is installed
 
 Then open http://<host>:<port>/ in any browser.`);
   process.exit(0);
@@ -100,6 +103,22 @@ const appVersion = await readFile(join(ROOT, 'package.json'), 'utf8')
   .then((t) => JSON.parse(t).version || '')
   .catch(() => '');
 
+/*
+ * The device host: USB and HID panels, in a process of its own
+ * (devices/README.md). Started whenever it is installed — the desktop app
+ * carries it, `npm run setup:devices` installs it in a checkout — and not with
+ * --no-devices or LPP_DEVICES=0. Plugins reach it as the `devices` service.
+ */
+const devicesOff = Boolean(args['no-devices']) || /^(0|false|no|off)$/i.test(process.env.LPP_DEVICES || '');
+const found = findDeviceHost(ROOT);
+const deviceHost = createDeviceHost({
+  ...found,
+  installed: found.installed && !devicesOff,
+  reason: devicesOff ? 'The device host is switched off (--no-devices).' : found.reason,
+  log: (msg) => console.log(`[lpp] ${msg}`)
+});
+deviceHost.start();
+
 const server = await createProxy({
   device,
   root: ROOT,
@@ -109,7 +128,8 @@ const server = await createProxy({
   loopbackPort: redirectLocal ? port : null,
   bind: host,
   port,
-  appliance
+  appliance,
+  devices: deviceHost.api
 });
 
 server.on('error', (err) => {
@@ -153,7 +173,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
        of them may be taking down a `tailscale serve` — but never later than
        three seconds: a Stop button that hangs is worse than a stale entry. */
     const closed = new Promise((resolve) => server.close(resolve));
-    Promise.allSettled([closed, plugins]).then(() => process.exit(0));
+    Promise.allSettled([closed, plugins, deviceHost.stop()]).then(() => process.exit(0));
     setTimeout(() => process.exit(0), 3000).unref();
   });
 }

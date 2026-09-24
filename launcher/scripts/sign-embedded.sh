@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Sign the embedded Node binary, and node-hid's prebuilt addon (the Speed
-# Editor's USB access), before Tauri bundles the .app, so every nested Mach-O in
+# Sign the embedded Node binary, and node-hid's prebuilt addon (the device
+# host's USB access, devices/), before Tauri bundles the .app, so every nested Mach-O in
 # the bundle is Developer-ID-signed with the hardened runtime and the whole app
 # passes notarization. The addon is signed by the same identity as node, which
 # is what library validation under the hardened runtime asks of it. No-op when no signing identity is configured

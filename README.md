@@ -833,22 +833,26 @@ reports are [awj-surface](https://github.com/stoatworks-labs/awj-surface)'s
 `core/hid/`, vendored under `src/vendor/surface/hid/`, and mapping, soft
 pickup and feedback are the same engine the MIDI panel runs, in the page.
 
-**The server holds the panel, not the page.** The first build used WebHID, and
-on a real panel Chrome on macOS could not read the handshake's challenge: it
-reads every feature report at the length of the largest (33 bytes), and the
-panel refuses a 10-byte report read that way. So the plugin's server half
-(`plugins/speed-editor/link.js`) opens it through
-[node-hid](https://github.com/node-hid/node-hid) — this app's one dependency,
-and an optional one — answers the challenge, renews it at half its lease,
-finds the panel again whenever it is plugged back in, and streams its reports
-to the page. The panel is only opened while a page has the Speed Editor
-started, and let go when none has; one page drives it at a time, and **Take
-over** moves it to another. Any browser works, from any address.
+**The device host holds the panel, not the page.** The first build used
+WebHID, and on a real panel Chrome on macOS could not read the handshake's
+challenge: it reads every feature report at the length of the largest (33
+bytes), and the panel refuses a 10-byte report read that way. So USB panels
+are held by the **device host** ([devices/](devices/README.md)), a program of
+its own that the app starts, restarts if it stops, and stops with it. Its
+Speed Editor module opens the panel through
+[node-hid](https://github.com/node-hid/node-hid), answers the challenge, renews
+it at half its lease, finds the panel again whenever it is plugged back in,
+and streams its reports to the page. The panel is only opened while a page
+has the Speed Editor started, and let go when none has; one page drives it at
+a time, and **Take over** moves it to another. Any browser works, from any
+address. The host's state is on the settings page (**Device host**).
 
-Without node-hid — a checkout nobody ran `npm install` in, or the Docker image,
-which has no USB — the panel says it is not available in that build and the
-rest of the app is unaffected. **Quit DaVinci Resolve** first: both would hear
-every key and fight over the lamps.
+The desktop app carries the device host. In a checkout, `npm run
+setup:devices` installs it once, and the app starts it on every run after
+(`--no-devices` to not). node-hid is the host's dependency, not the app's. The
+Docker image has no USB and no host. Without it the Speed Editor page says why
+and the rest of the app is unaffected. **Quit DaVinci Resolve** first: both
+would hear every key and fight over the lamps.
 
 > ⚠️ **Preview.** The handshake and the input reports are proven on a real
 > panel over USB on macOS (2026-09-24); the lamps, Bluetooth, the battery

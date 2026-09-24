@@ -2,12 +2,12 @@
 # Assemble the embedded LivePremier Plus app for the desktop bundle.
 #
 # This is nearly the simplest prepare.sh in the fleet, and deliberately so:
-# LivePremier Plus has no build step, and one dependency, which is optional —
-# node-hid, the Speed Editor's USB access (plugins/speed-editor/link.js says why
-# a page cannot do it). Staging the app is a copy of three directories and an
-# `npm ci` of that one package, trimmed to the prebuilt addon for the target.
-# node-hid ships N-API prebuilds for every platform, so nothing is compiled
-# here; if this script ever grows a build, something has gone wrong.
+# LivePremier Plus has no dependencies and no build step. Its device host —
+# devices/, the separate program that holds USB panels such as the Speed
+# Editor (devices/README.md) — has one, node-hid. Staging the app is a copy of
+# four directories and an `npm ci` in devices/, trimmed to the prebuilt addon
+# for the target. node-hid ships N-API prebuilds for every platform, so nothing
+# is compiled here; if this script ever grows a build, something has gone wrong.
 #
 # Produces src-tauri/node[.exe] and src-tauri/livepremier-plus-app/ (both
 # git-ignored; they ship inside the bundle). Run before `npm run tauri build`.
@@ -49,27 +49,31 @@ mkdir -p "$APP"
 # server/ holds the proxy and its setup page; src/ holds the hook and the panel
 # modules, which the proxy serves to the browser and reads the hook from;
 # plugins/ holds the built-in plugins, each feature that has moved into one.
-# The repo layout is preserved because server/index.js resolves all three
-# relative to itself. A plugin that is missing is left out rather than fatal,
-# so forgetting a line here ships a build with features quietly absent —
-# test/packaging.test.js checks this list.
+# devices/ is the device host, which server/index.js starts when it finds it
+# installed. The repo layout is preserved because server/index.js resolves all
+# of them relative to itself. A plugin that is missing is left out rather than
+# fatal, and so is the device host, so forgetting a line here ships a build
+# with features quietly absent — test/packaging.test.js checks this list.
 cp -R "$REPO/server" "$APP/server"
 cp -R "$REPO/src" "$APP/src"
 cp -R "$REPO/plugins" "$APP/plugins"
+mkdir -p "$APP/devices"
+# Everything in devices/ but a checkout's own node_modules, which may be for
+# another platform; it is installed afresh below.
+( cd "$REPO/devices" && tar -cf - --exclude ./node_modules . ) | ( cd "$APP/devices" && tar -xf - )
 cp "$REPO/package.json" "$APP/package.json"
-cp "$REPO/package-lock.json" "$APP/package-lock.json"
 
-echo "==> staging node-hid (the Speed Editor's USB access)"
+echo "==> installing the device host (node-hid, for USB panels)"
 # --ignore-scripts: its install script only checks for a prebuild and falls back
 # to node-gyp; the prebuilds are in the package, and a fallback compile on a
 # release runner would build for the wrong target when cross-staging.
-( cd "$APP" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund )
+( cd "$APP/devices" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund )
 case "$PLATFORM" in
   darwin-universal) __keep="darwin-arm64 darwin-x64" ;;
   win-*)            __keep="win32-${PLATFORM#win-}" ;;
   *)                __keep="$PLATFORM" ;;
 esac
-for __d in "$APP/node_modules/node-hid/prebuilds"/*; do
+for __d in "$APP/devices/node_modules/node-hid/prebuilds"/*; do
   __name="$(basename "$__d")"; __ok=""
   for __k in $__keep; do
     case "$__name" in HID-"$__k"|HID_hidraw-"$__k") __ok=1 ;; esac
@@ -77,8 +81,8 @@ for __d in "$APP/node_modules/node-hid/prebuilds"/*; do
   [ -n "$__ok" ] || rm -rf "$__d"
 done
 # Headers and C sources, needed only to compile what is already prebuilt.
-rm -rf "$APP/node_modules/node-addon-api" "$APP/node_modules/node-hid/src" "$APP/node_modules/node-hid/hidapi"
-__left="$(ls "$APP/node_modules/node-hid/prebuilds" | tr '\n' ' ')"
+rm -rf "$APP/devices/node_modules/node-addon-api" "$APP/devices/node_modules/node-hid/src" "$APP/devices/node_modules/node-hid/hidapi"
+__left="$(ls "$APP/devices/node_modules/node-hid/prebuilds" | tr '\n' ' ')"
 [ -n "$__left" ] || { echo "no node-hid prebuild for $PLATFORM" >&2; exit 1; }
 echo "    node-hid prebuilds: $__left"
 

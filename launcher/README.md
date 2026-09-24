@@ -33,9 +33,9 @@ npm run tauri build
 ```
 
 `prepare.sh` is nearly the simplest in the fleet — LivePremier Plus has no
-build step and one optional dependency, node-hid (the Speed Editor's USB
-access), so staging it is a copy of `server/`, `src/` and `plugins/` and an
-`npm ci` of that package, trimmed to the target's prebuilt addon. The embedded runtime and app tree (`src-tauri/livepremier-plus-app/`,
+dependencies and no build step, so staging it is a copy of `server/`, `src/`,
+`plugins/` and `devices/`, plus an `npm ci` in `devices/` (the device host's
+node-hid, for USB panels) trimmed to the target's prebuilt addon. The embedded runtime and app tree (`src-tauri/livepremier-plus-app/`,
 `src-tauri/node`) are produced by `prepare.sh` and git-ignored; they ship inside
 the bundle, not in the repo.
 

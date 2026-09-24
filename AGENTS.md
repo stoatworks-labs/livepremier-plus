@@ -777,10 +777,9 @@ break quietly if "simplified".
   pages from pressing twice. A recall to several screens in one breath is one
   press (250 ms per bank:slot).
 - **`server/ws-client.js` exists because there can be no dependency.** This repo
-  has one, optional, native, and only for USB — node-hid, for the Speed Editor
-  (see `plugins/speed-editor/link.js`); nothing may import it but that plugin,
-  and it must be loaded with a dynamic `import()` that is allowed to fail. CI
-  installs nothing and runs Node 20, where there is no global WebSocket. It is the
+  has none, and CI runs Node 20, where there is no global WebSocket. (The device
+  host in `devices/` has one, node-hid, in its own `package.json` — see the
+  device host section — and nothing outside `devices/` may import it.) It is the
   smallest thing RFC 6455 allows; its tests drive it from a server written in
   the test file so fragmentation, interleaved pings and both extended-length
   forms can each be produced on purpose.
@@ -810,6 +809,37 @@ at length — read it before "fixing" the open socket.
 both AWJ and a `livepremier-plus` Companion module, and the second does not
 exist anywhere yet; the panel reports it as not installed, in a sentence. That is
 the expected answer until someone writes the module.
+
+## The device host (`devices/`, `server/device-host.js`)
+
+USB and HID panels — the Speed Editor first — are held by a **program of its
+own**, `devices/host.js`, which the server starts with `fork` and supervises
+(restarts with a backoff, stops on shutdown). `devices/README.md` is the design;
+the load-bearing parts:
+
+- **A page cannot hold the Speed Editor.** Chrome on macOS reads every feature
+  report at the largest declared length (33 bytes) and the panel refuses its
+  10-byte challenge read that way — found on the real panel 2026-09-24.
+  hidapi reads at the length it is told. Do not move a panel back to WebHID
+  without re-proving that on hardware.
+- **The dependency lives in `devices/package.json`, never the app's.** The
+  app's `package.json` has none, and `test/packaging.test.js` says so. Without
+  `devices/node_modules` (a checkout, CI, Docker) the `devices` service answers
+  like a host that is not installed, and each device page says why.
+- **The channel is Node IPC, not a port.** Nothing else on the machine can
+  reach the host, and when the channel closes the host lets its devices go and
+  exits — no orphan holds a panel after a crash of the app.
+- **A panel is opened only while a page drives it.** An open HID handle keeps
+  a Node process alive (an always-open panel hung `snapshot-relay.test.js`, whose
+  proxy starts every plugin), and DaVinci Resolve may want the panel while nobody
+  here is using it. The Speed Editor plugin's `/driver` lease decides.
+- **The host knows panels, not the switcher.** A device's controls become
+  switcher writes in the page, on the same Engine as MIDI Mapping, because the
+  store mirror is there. So this is not the second source of truth
+  `server/awj.js` argues against. Keep it that way.
+- **A module is a folder, `devices/modules/<id>/module.js`**, and gets a page
+  as a plugin, `plugins/<id>/`, reaching it through `ctx.use('devices')`. The
+  Device host plugin is only the settings card; switching it off stops nothing.
 
 ## There are two platforms, and the panels now speak both
 

@@ -777,8 +777,13 @@ Under **Virtual RC400T**, beside MIDI Mapping. A DaVinci Resolve Speed Editor as
 
 Only one page drives the panel at a time. Another page with it started says *Another page is
 driving it*, with **Take over** to move it there. Press **Stop**, or close the page, and the app lets
-the panel go within a few seconds. The desktop app includes the panel's USB access; the Docker image
-does not, and says so.
+the panel go within a few seconds.
+
+The panel is held by the app's **device host**, a helper program that the app starts and restarts if
+it ever stops. Its state, and whether it has found the panel, is on **Preconfig ▸ LivePremier Plus**,
+in the **Device host** card, with a **Restart** button. The desktop app carries it. Run from a
+checkout, install it once with `npm run setup:devices`. The Docker image has no USB and no device
+host, and the Speed Editor page says so.
 
 The keys act on the selected screen, preset and layer:
 
@@ -1063,7 +1068,7 @@ a `.awc` you export from Web RCS afterwards will not contain it.
 | **No panels in Web RCS** | You opened the switcher's address directly. Go through the proxy. |
 | **MIDI does nothing** | Same cause — Web MIDI needs a secure context, which loopback is and a LAN address is not. |
 | **A fader does not move anything** | Soft pickup. Sweep it through the current value. |
-| **The Speed Editor does nothing** | DaVinci Resolve is still running, or the panel is plugged into a different machine from the one the app runs on, or another page is driving it (**Take over**), or this is the Docker image, which has no USB. |
+| **The Speed Editor does nothing** | DaVinci Resolve is still running, or the panel is plugged into a different machine from the one the app runs on, or another page is driving it (**Take over**), or the device host is not running (see the **Device host** card in Preconfig ▸ LivePremier Plus), or this is the Docker image, which has no USB. |
 | **A console command means the wrong thing** | The grammar is mynah's; the fix is there. |
 | **Arithmetic does not work in a field** | It is not one the vendor marks numeric — opacity and zoom are deliberately excluded. |
 | **The VPU panel says there is nothing to draw** | A simulator has no VPU. That is correct, not a failure. |

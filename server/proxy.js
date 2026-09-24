@@ -40,6 +40,7 @@ import {
 } from '../src/core/settings.js';
 import { API_VERSION, isEnabled as pluginOn, routeOwner } from '../src/core/plugins.js';
 import { createPluginHost } from './plugin-host.js';
+import { absentDevices } from './device-host.js';
 import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
 import { loopbackRedirect } from './local-client.js';
@@ -138,6 +139,10 @@ export async function createProxy({
      can open a door on another interface at the same port, and only takes
      charge of this host's networking when it was told the host is its own. */
   bind = null, port = null, appliance = false,
+  /* The device host's service (`server/device-host.js`), which index.js
+     starts. Without one — the tests, an embedding — plugins get a stand-in
+     that answers like a host that is not installed. */
+  devices = null,
   /* Where user plugins are looked for: `plugins/` beside everything else this
      app keeps — `~/.livepremier-plus/plugins`, or `/config/plugins` in Docker.
      Null for none, which is what a caller with no data directory gets. */
@@ -264,6 +269,9 @@ export async function createProxy({
     port,
     listen
   }));
+
+  /* USB and HID devices, held by the device host — see devices/README.md. */
+  host.provide('devices', devices || absentDevices());
 
   /* The hosted plugins, started after the app's own services so that anything
      a plugin asks of the app is already there to answer. A user plugin's

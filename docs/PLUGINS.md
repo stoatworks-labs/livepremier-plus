@@ -285,6 +285,15 @@ Also `bind` and `port` — where the app listens — `appliance`, true when it w
 the app's own port, resolving `{ address, port, close() }`. It is the one way to a listener, and the
 app closes any door still open when it stops; close yours in `onDispose` when your plugin does.
 Remote access opens one per ZeroTier or tailnet address.
+**`devices`** — the device host (`devices/README.md`), the process that holds USB and HID panels.
+`status()` is `{ installed, running, available, reason, restarts, modules }`, and `onStatus(fn)`
+hears it change. `module(id)` is a handle on one device module that outlives the host restarting:
+`state` (the driver's own, `present` and `connected` at least), `available`, `want(bool)` to have
+the host open the device or let it go, `write(reports)` for output reports, each a list of bytes
+with the report id first (resolving how many went), and `on('state' | 'report', fn)`, which
+answers its own unsubscribe. Open a device only while your page is using it. The Speed Editor is
+the example: its `/driver` lease says when. With no host installed it answers all of this with
+`available: false` and a `reason` to show.
 **`companion`**, from Companion — `press(locations)`, each `{ pageNumber, row, column }`, pressed
 over the link Companion's plugin already holds and answering `{ ok, results, error }`, and
 `connected`. The Pixelhue panel sends a console's cue transport keys through it when told to.

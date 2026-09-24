@@ -32,19 +32,25 @@ test('the desktop bundle stages every tree the app runs from', async () => {
 });
 
 /*
- * node-hid is optional to the app — a checkout without it runs, the Speed
- * Editor says it has no USB — so nothing else fails when the desktop bundle
- * leaves it out. This is the check that it does not.
+ * The device host is optional to the app — without it the app runs and each
+ * device page says why it has no panel — so nothing else fails when the
+ * desktop bundle leaves it out. This is the check that it does not, and that
+ * its dependency stays its own.
  */
-test('the desktop bundle stages node-hid from the lockfile, and signs its addon', async () => {
-  const pkg = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
-  const lock = JSON.parse(await readFile(join(ROOT, 'package-lock.json'), 'utf8'));
-  assert.equal(lock.packages['node_modules/node-hid']?.version, pkg.optionalDependencies['node-hid'], 'the lockfile pins what package.json asks for');
-  assert.deepEqual(Object.keys(pkg.dependencies ?? {}), [], 'node-hid stays optional; nothing else is a dependency');
+test('the desktop bundle stages the device host, installs it from its lockfile, and signs its addon', async () => {
+  const app = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8'));
+  assert.deepEqual([...Object.keys(app.dependencies ?? {}), ...Object.keys(app.optionalDependencies ?? {})], [],
+    'the app itself has no dependencies; the device host has its own');
+  const pkg = JSON.parse(await readFile(join(ROOT, 'devices/package.json'), 'utf8'));
+  const lock = JSON.parse(await readFile(join(ROOT, 'devices/package-lock.json'), 'utf8'));
+  assert.equal(lock.packages['node_modules/node-hid']?.version, pkg.dependencies['node-hid'], 'the lockfile pins what devices/package.json asks for');
 
   const prepare = await readFile(join(ROOT, 'launcher/scripts/prepare.sh'), 'utf8');
-  assert.ok(prepare.includes('cp "$REPO/package-lock.json" "$APP/package-lock.json"'), 'prepare.sh copies the lockfile');
-  assert.match(prepare, /npm ci --omit=dev --ignore-scripts/, 'prepare.sh installs node-hid from it');
+  assert.match(prepare, /--exclude \.\/node_modules \. \) \| \( cd "\$APP\/devices"/, 'prepare.sh stages devices/, without a checkout\'s node_modules');
+  assert.match(prepare, /cd "\$APP\/devices" && npm ci --omit=dev --ignore-scripts/, 'prepare.sh installs the host from its lockfile');
+
+  const dockerfile = await readFile(join(ROOT, 'Dockerfile'), 'utf8');
+  assert.doesNotMatch(dockerfile, /^COPY devices/m, 'a container has no USB, so no device host');
 
   const sign = await readFile(join(ROOT, 'launcher/scripts/sign-embedded.sh'), 'utf8');
   assert.match(sign, /-name '\*\.node'/, 'sign-embedded.sh signs the addon');
