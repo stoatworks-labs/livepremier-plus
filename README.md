@@ -93,7 +93,7 @@ rather than as a bolt-on:
 - **Speed Editor** *(preview)* — a DaVinci Resolve Speed Editor as a switcher
   panel, plugged into the machine this app runs on: CAM 1–9 put a source on the
   selected layer, CUT and DIS cut and take, and the wheel moves opacity,
-  position, size or the T-bar. First run on a real panel 2026-09-24.
+  position, size or the T-bar. Proven on a real panel over USB, 2026-09-25.
 - **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini drives the
   switcher from a model of it rather than from a key map, and **Pixelhue
   Mapping** draws the console so every key, fader and encoder can be given a
@@ -854,11 +854,12 @@ Docker image has no USB and no host. Without it the Speed Editor page says why
 and the rest of the app is unaffected. **Quit DaVinci Resolve** first: both
 would hear every key and fight over the lamps.
 
-> ⚠️ **Preview.** The handshake and the input reports are proven on a real
-> panel over USB on macOS (2026-09-24); the lamps, Bluetooth, the battery
-> report and Windows/Linux are not yet. The tests run a fake panel that plays
-> the real handshake and, like the hardware, refuses a read at the wrong
-> length.
+> ⚠️ **Preview.** Proven on a real panel over USB on macOS against the
+> simulator (2026-09-25), through the device host in a staged desktop bundle:
+> the handshake, CUT (repeatedly), CAM 1–3 into preview, the wheel on opacity,
+> the battery level, and a replug. Not yet: whether the key lamps light,
+> Bluetooth, and Windows or Linux. The tests run a fake panel that plays the
+> real handshake and, like the hardware, refuses a read at the wrong length.
 
 ## Thumbnail relay — preview
 

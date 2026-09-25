@@ -120,7 +120,10 @@ export function createSpeedEditorPanel({ session, url, onRefresh = () => {} }) {
       stream.addEventListener('report', (ev) => {
         if (!driving()) return;
         let bytes;
-        try { bytes = fromBase64(ev.data); } catch { return; }
+        /* The host's streams JSON-encode every frame, so a report arrives as a
+           quoted string. Decoding the quotes as base64 throws — which dropped
+           every key the first time a real panel was pressed. */
+        try { bytes = fromBase64(JSON.parse(ev.data)); } catch { return; }
         onReport(bytes);
       });
       state.stream = stream;

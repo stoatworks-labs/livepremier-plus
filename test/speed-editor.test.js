@@ -138,7 +138,8 @@ const keys = (...codes) => {
   const b = Buffer.alloc(13);
   b[0] = 4;
   codes.forEach((c, i) => { b[1 + 2 * i] = c; });
-  return b.toString('base64');
+  /* Exactly as `ctx.stream` frames it: JSON, so a quoted string. */
+  return JSON.stringify(b.toString('base64'));
 };
 
 test('a started page drives the panel from the server\'s reports: its lamps are set, and CUT writes xCut', async (t) => {
@@ -158,6 +159,16 @@ test('a started page drives the panel from the server\'s reports: its lamps are 
   const cut = sent.find((w) => w.path.at(-1) === 'xCut');
   assert.ok(cut, `no xCut among ${JSON.stringify(sent.map((w) => w.path.join('/')))}`);
   assert.equal(cut.path.join('/'), 'device/screenAuxGroupList/items/S1/control/pp/xCut');
+
+  /* The switcher leaves xCut at true after a cut. The second CUT must still
+     go out: it was dropped as redundant the first time a real panel was
+     pressed at the simulator. */
+  session.store.set(cut.path, true);
+  sent.length = 0;
+  FakeEventSource.last.emit('report', keys(0x0f));
+  FakeEventSource.last.emit('report', keys());
+  await settle();
+  assert.ok(sent.some((w) => w.path.at(-1) === 'xCut' && w.value === true), 'the second CUT was dropped');
   se.stop();
   assert.ok(FakeEventSource.last.closed, 'the stream is let go');
 });

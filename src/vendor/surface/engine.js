@@ -210,7 +210,17 @@ export class Engine extends EventTarget {
       value = fromButton(spec, event.down, current, opts);
     }
 
-    if (value === undefined || value === current) return;
+    if (value === undefined) return;
+    /*
+     * A write that changes nothing is dropped — but not a press of a trigger
+     * or a momentary button. `xCut`, `xTake` and the rest are fire-on-true
+     * commands, and the device leaves them at `true` after they fire, so the
+     * mirror already holds the value a second CUT would write. Dropping it as
+     * redundant made every CUT after the first do nothing, silently (found on
+     * a real Speed Editor against the LivePremier simulator, 2026-09-25).
+     */
+    const command = event.kind === 'button' && (opts.action === 'trigger' || opts.action === 'momentary');
+    if (value === current && !command) return;
     this.write(path, value, event.control);
   }
 

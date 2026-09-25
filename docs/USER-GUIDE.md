@@ -794,9 +794,9 @@ write it made. The panel only talks after a handshake with the app, which is ren
 lapses; if a renewal fails the panel goes quiet and the page says so, then tries again. Unplug it
 and plug it back in and it is found and answered again by itself.
 
-> ⚠️ **Preview.** Proven on a real panel over USB on macOS: the handshake and the keys. The lamps,
-> Bluetooth, the battery level and Windows or Linux have not been tried yet. Treat the first show
-> with one as a rehearsal.
+> ⚠️ **Preview.** Proven on a real panel over USB on macOS against the simulator: CUT, the CAM keys,
+> the wheel, the battery level and unplugging it and back. The key lamps, Bluetooth and Windows or
+> Linux have not been tried yet. Treat the first show with one as a rehearsal.
 
 ---
 

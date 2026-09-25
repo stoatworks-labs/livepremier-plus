@@ -25,7 +25,15 @@
  * it — DaVinci Resolve can have it then.
  */
 
-const DRIVER_LEASE_MS = 10_000;
+/*
+ * Long enough to outlast a page in the background. The page renews every
+ * 4 s, but Chrome runs a hidden tab's timers at most once a minute after five
+ * minutes hidden, and a 10 s lease lapsed there: another page claimed the
+ * panel while the operator's tab was behind another window (found
+ * 2026-09-25). A page that closes says so (`pagehide` releases it), and Take
+ * over is there for one that could not.
+ */
+const DRIVER_LEASE_MS = 120_000;
 const MODULE = 'speed-editor';
 
 const IDLE = { present: false, connected: false, authed: false, lease: null, product: null, battery: null, error: null, handshakes: 0 };
