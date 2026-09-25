@@ -90,6 +90,10 @@ because the switcher allows five AWJ clients at once.
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only — none has met
 > real hardware yet.
 >
+> **0.16.0 adds Audio Matrix, Remote access and Multiviewer thumbnails, and the Speed Editor works
+> on a real panel** — through the app's new device host, over USB. Audio Matrix and Multiviewer
+> thumbnails are proven on the simulator only.
+>
 > Built with AI assistance, directed and reviewed by a human author.
 
 ---

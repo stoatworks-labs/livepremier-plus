@@ -146,7 +146,7 @@ or from the command line with Node 20. It works on a **LivePremier** and — for
 the Timeline, Console, Memories, Layer and Pitch Compensation — on a **Midra 4K
 or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 
-> **Status: field testing — v0.15.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.16.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -261,6 +261,26 @@ or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.16.0 (2026-09-25).** The **Speed Editor** now works on a real panel: it
+> moved off WebHID, which cannot read the panel's handshake on macOS, into the
+> **device host** ([devices/](devices/README.md)), a program of its own that the
+> app starts and restarts and that holds USB panels, one module per device. CUT,
+> the CAM keys, the wheel, the battery level and a replug are proven over USB on
+> macOS; the key lamps and Bluetooth are not yet tried. The desktop app carries
+> the host; a checkout installs it with `npm run setup:devices`. The same test
+> found CUT and TAKE firing only once on a switcher that leaves `xCut` true —
+> fixed in the shared engine, so MIDI Mapping's triggers too. **Audio Matrix**
+> *(LivePremier)* draws the frame's audio channel matrix as a crosspoint grid:
+> sources by blocks or channels, per-channel mutes, signal-present dots, and it
+> pops out. **Remote access** serves the app over Tailscale (HTTPS through
+> `tailscale serve`, or the tailnet address) or ZeroTier. **Multiviewer
+> thumbnails** *(preview, off by default)* cut a captured or streamed
+> multiviewer into its sources and put live pictures in every thumbnail. The
+> HyperDecks' `end` and `preview` OSC addresses are now published, and a
+> trigger's release sends nothing. Audio Matrix, Remote access and Multiviewer
+> thumbnails are proven on the simulator (Remote access against real Tailscale
+> and ZeroTier), not yet against real hardware.
 >
 > **0.15.0 (2026-09-23).** Six new plugins, each proven on the simulator only.
 > **Layer Lock** keeps a layer through a take, or takes one layer alone — the
