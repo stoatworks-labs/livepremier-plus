@@ -82,6 +82,12 @@ for __d in "$APP/devices/node_modules/node-hid/prebuilds"/*; do
 done
 # Headers and C sources, needed only to compile what is already prebuilt.
 rm -rf "$APP/devices/node_modules/node-addon-api" "$APP/devices/node_modules/node-hid/src" "$APP/devices/node_modules/node-hid/hidapi"
+# npm's .bin links point into the sources just removed (hid-showdevices ->
+# node-hid/src/show-devices.js), and Tauri refuses a resource that is a dangling
+# link: v0.16.0's first build failed on exactly that. Nothing here runs them.
+rm -rf "$APP/devices/node_modules/.bin"
+__dangling="$(find "$APP" -type l ! -exec test -e {} \; -print)"
+[ -z "$__dangling" ] || { echo "dangling links in the staged app (Tauri will refuse them):" >&2; echo "$__dangling" >&2; exit 1; }
 __left="$(ls "$APP/devices/node_modules/node-hid/prebuilds" | tr '\n' ' ')"
 [ -n "$__left" ] || { echo "no node-hid prebuild for $PLATFORM" >&2; exit 1; }
 echo "    node-hid prebuilds: $__left"
