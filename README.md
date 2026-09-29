@@ -1,4 +1,5 @@
-> **AI-assisted project.** This codebase was created with [Claude Code](https://claude.com/claude-code).
+> **AI-assisted project.** This codebase was created with [Claude](https://claude.com/claude-code)
+> (Anthropic), directed and reviewed by a human author.
 > The panels render inside a real Web RCS session and the device store mirrors live, both verified
 > through this proxy against **LivePremier Simulator 6.2.73**. **In field testing:** every path this
 > app emits has been checked against a physical **Aquilon C** and, since 0.6.0, a physical
