@@ -5,8 +5,9 @@
  * ⚠️ The deck on the other end is `tools/hyperdeck-sim.mjs` — Blackmagic's
  * published protocol, answered by this repo. These tests prove the link and
  * the emulation agree with the document and with each other. They do not
- * prove a real HyperDeck or a real Mitti agrees; nobody has run one against
- * this yet.
+ * prove a real HyperDeck agrees; nobody has run one against this yet. The
+ * --mitti mode copies what a real Mitti 2.8.18 did on 2026-09-29 (through
+ * automitti's copy of this link): CR-ended commands refused, and its spacing.
  *
  * The on-air tests use the simulator's own store fixtures (the same ones
  * `core.test.js` reads), so "on program" is decided by the same buffer
@@ -134,6 +135,33 @@ test('Mitti is refused record before it reaches the wire', async (t) => {
   const r = await link.send('record');
   assert.equal(r.ok, false);
   assert.match(r.error, /does not record/);
+});
+
+test('Mitti: commands go out LF-ended, and its spacing is read', async (t) => {
+  const sim = await startHyperDeckSim({ port: 0, mitti: true, clips: [{ name: 'A.mov', seconds: 5 }, { name: 'B.mov', seconds: 7 }] });
+  const link = new DeckLink({ id: 'm', name: 'Mitti', host: '127.0.0.1', port: sim.port, profile: 'mitti' });
+  t.after(async () => { link.close(); await sim.close(); });
+  link.connect();
+  assert.ok(await until(() => link.clips.length === 2 && link.transport.status), 'clip list and transport arrive');
+  assert.equal(link.device.protocol, '1.11');
+  assert.equal(link.transport.loop, false);
+  assert.deepEqual(await link.send('play'), { ok: true });
+});
+
+test('the Mitti emulation refuses a CR-ended command, as Mitti does', async (t) => {
+  const net = await import('node:net');
+  const sim = await startHyperDeckSim({ port: 0, mitti: true });
+  t.after(() => sim.close());
+  const sock = net.connect(sim.port, '127.0.0.1');
+  t.after(() => sock.destroy());
+  let got = '';
+  sock.setEncoding('utf8');
+  sock.on('data', (d) => { got += d; });
+  await until(() => got.includes('500 connection info'));
+  sock.write('transport info\r\n');
+  assert.ok(await until(() => /103 unsupported/.test(got)), got);
+  sock.write('device info\r\n');
+  assert.ok(await until(() => /204 device info/.test(got)), got);
 });
 
 test('remote control off is switched on once, and the command retried', async (t) => {

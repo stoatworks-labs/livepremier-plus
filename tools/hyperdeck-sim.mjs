@@ -4,7 +4,8 @@
  * TCP, with a clip list that plays in real time.
  *
  *   node tools/hyperdeck-sim.mjs                     a HyperDeck on 9993
- *   node tools/hyperdeck-sim.mjs --port 9994 --mitti  Mitti's emulation: no record
+ *   node tools/hyperdeck-sim.mjs --port 9994 --mitti  Mitti's emulation: no record, and
+ *                                                    CR-ended commands refused
  *   … --host 0.0.0.0                                  reachable from other machines
  *
  * What the HyperDecks plugin's tests run against, and what to point the panel
@@ -15,6 +16,11 @@
  * Behaviour worth knowing: a clip played with `single clip: true` stops on its
  * last frame, the way a deck (and Mitti at a cue's end) does; without it,
  * playback runs on into the next clip and stops at the end of the last.
+ *
+ * In --mitti mode it copies what a real Mitti 2.8.18 did on 2026-09-29: any
+ * command ending in \r gets `103 unsupported` (only `device info` gets
+ * through), `device info` says `protocol version:1.11` with no space, and
+ * transport info says `loop : false` with a space before the colon.
  */
 
 import net from 'node:net';
@@ -72,7 +78,7 @@ export async function startHyperDeckSim(options = {}) {
     `display timecode: ${tc(state.at)}`,
     `timecode: ${tc(state.at)}`,
     `video format: ${FORMAT}`,
-    `loop: ${state.loop}`,
+    mitti ? `loop : ${state.loop}` : `loop: ${state.loop}`, // Mitti puts a space before the colon
     '', ''].join('\r\n');
 
   const set = (patch) => {
@@ -110,8 +116,12 @@ export async function startHyperDeckSim(options = {}) {
       buffer += text;
       let i;
       while ((i = buffer.indexOf('\n')) >= 0) {
-        const line = buffer.slice(0, i).replace(/\r$/, '').trim();
+        const raw = buffer.slice(0, i);
         buffer = buffer.slice(i + 1);
+        /* As Mitti 2.8.18 does: a command ending in \r is not recognised
+           (device info excepted). */
+        if (mitti && raw.endsWith('\r') && !/^device info/i.test(raw)) { socket.write('103 unsupported\r\n'); continue; }
+        const line = raw.trim();
         if (line) socket.write(answer(line, client));
       }
     });
@@ -130,7 +140,7 @@ export async function startHyperDeckSim(options = {}) {
     const guarded = () => (state.remote ? null : '111 remote control disabled\r\n');
     switch (cmd) {
       case 'ping': return '200 ok\r\n';
-      case 'device info': return `204 device info:\r\nprotocol version: 1.11\r\nmodel: ${mitti ? 'Mitti' : 'HyperDeck Studio HD Plus'}\r\nslot count: 2\r\nsoftware version: 8.0\r\n\r\n`;
+      case 'device info': return `204 device info:\r\nprotocol version:${mitti ? '' : ' '}1.11\r\nmodel: ${mitti ? 'Mitti' : 'HyperDeck Studio HD Plus'}\r\nslot count: 2\r\nsoftware version: 8.0\r\n\r\n`;
       case 'transport info': return transportBlock(208);
       case 'slot info': return '202 slot info:\r\nslot id: 1\r\nstatus: mounted\r\nvolume name: SSD1\r\nrecording time: 7200\r\nvideo format: 1080p25\r\n\r\n';
       case 'clips count': return `214 clips count:\r\nclip count: ${state.clips.length}\r\n\r\n`;

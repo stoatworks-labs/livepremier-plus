@@ -237,7 +237,10 @@ export class DeckLink extends EventEmitter {
     }, REPLY_TIMEOUT_MS);
     next.timer.unref?.();
     this.inFlight = next;
-    this.socket.write(`${next.line}\r\n`);
+    /* LF, not CRLF: Mitti's emulation (2.8.18) answers `103 unsupported` to a
+       command that ends in \r — only `device info` survives it. A real
+       HyperDeck takes either. */
+    this.socket.write(`${next.line}\n`);
   }
 
   failAll(why) {

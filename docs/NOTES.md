@@ -9,6 +9,27 @@ Cross-cutting notes that are not specific to this repo live in
 
 *LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, injecting a VPU map and a theatre cue stack into a real LivePremier Web RCS session in the vendor's own CSS; PRIVATE + pushed; verified through the proxy against the simulator; no panel ever driven live on hardware in a browser*
 
+## HyperDecks: Mitti refuses CR-ended commands (2026-09-29)
+
+The link (`plugins/hyperdeck/link.js`, `pump()`) wrote every command as `line\r\n`.
+Testing automitti against a **real Mitti 2.8.18** showed Mitti's HyperDeck emulation
+answers `103 unsupported` to any command ending in `\r` — only `device info` gets
+through. So against Mitti the plugin connected, showed a model, and never got a clip
+list or transport state. With plain `\n`, `transport info`, `clips get` (durations
+included) and `clips count` all answer properly. A real HyperDeck takes LF too, so the
+link now ends commands with `\n` only.
+
+Two more Mitti spellings, both already read correctly because `ReplyParser` trims keys
+and values: `device info` says `protocol version:1.11` (no space), and transport info
+says `loop : false` (a space before the colon).
+
+`tools/hyperdeck-sim.mjs --mitti` now does all three, and `test/hyperdeck.test.js` has
+a Mitti link test that fails if the link goes back to CRLF (checked). automitti's
+`tools/mitti-sim.mjs` carries the same change (automitti c856dd7).
+
+Still true: no real HyperDeck has been driven by this plugin; Mitti only through
+automitti's copy of the link.
+
 ## The portable configuration file (2026-09-22)
 
 `server/config-file.js` writes everything this app holds for one device into a single
