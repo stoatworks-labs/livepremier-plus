@@ -379,12 +379,22 @@ export function createMemoriesPanel({
    * loses the capitalisation they chose to tell two apart.
    */
   function labelCell(slot) {
-    return h('button', {
+    const cell = h('button', {
       class: ['lpp-name', slot.label ? '' : 'aw-text-tertiary'],
       type: 'button',
       title: 'Rename this memory',
-      onClick: () => { view.editing = { slot: slot.slot, text: slot.label }; onRefresh(); }
+      /* Swapped in place rather than by a repaint: `busy()` turns true the
+         moment editing starts, and the page holds every repaint off while it
+         is — including the one that would have drawn the field. */
+      onClick: () => {
+        view.editing = { slot: slot.slot, text: slot.label };
+        const input = labelInput(slot);
+        cell.replaceWith(input);
+        input.focus();
+        input.select();
+      }
     }, slot.label || (slot.isValid ? '(unnamed)' : '(empty)'));
+    return cell;
   }
 
   function labelInput(slot) {

@@ -181,3 +181,32 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
     });
   });
 }
+
+/*
+ * Renaming a memory opens its field without a repaint.
+ *
+ * Found 2026-09-30: clicking a name set `editing` and asked for a repaint, but
+ * the page holds every repaint off while any panel says it is busy — and the
+ * Memories panel is busy from the moment editing starts. The field never
+ * appeared, and the page stopped repainting until it was reloaded. So the
+ * refresh here is the page's own gate: it repaints nothing while busy.
+ */
+test('clicking a memory’s name opens the field with repaints held off', async () => {
+  await withDom(async () => {
+    const store = new DeviceStore();
+    store.hydrate(fixture('aquilon-6.2.73-memories.json'));
+    const { createMemoriesPanel } = await import('../plugins/memories/panel.js');
+    let panel;
+    let root;
+    const onRefresh = () => { if (!panel.busy()) root = panel.render(); };
+    panel = createMemoriesPanel({ session: sessionOver(store), onRefresh, popoutEnabled: false });
+    root = panel.render();
+    const name = root.querySelector('button.lpp-name');
+    assert.ok(name, 'there is a memory to rename');
+    name.click();
+    assert.equal(panel.busy(), true);
+    const field = root.querySelector('input.wru-input[data-lpp-focus]');
+    assert.ok(field, 'the name became a field without waiting for a repaint');
+    assert.equal(root.querySelector('button.lpp-name') === name, false);
+  });
+});
