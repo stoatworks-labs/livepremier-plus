@@ -693,6 +693,8 @@ point — and that port can be switched off in the Web RCS security settings.
 > not hold. It refuses those addresses with that reason rather than guessing.
 > The Console *can* resolve them, because the page has the device store.
 
+![The OSC input card listening on 127.0.0.1:8000, three messages received and three writes sent, spelled for LivePremier](docs/screenshots/osc-input.png)
+
 ## Matrix routing
 
 Patch the switcher's own SDI and HDMI connectors to ports on a **Blackmagic
@@ -756,9 +758,14 @@ the last frame. The rules run in one open page at a time, and act only on what
 changes after they start, so opening a page never plays a deck already on air.
 
 > ⚠️ **Written from Blackmagic's published protocol and proved against an
-> emulation of it — not yet against a real HyperDeck or Mitti.**
+> emulation of it — not yet against a real HyperDeck.**
 > `node tools/hyperdeck-sim.mjs` is that emulation; **[docs/HYPERDECK.md](docs/HYPERDECK.md)**
 > has the protocol notes and a short procedure for proving it on your own deck.
+>
+> **Mitti needs the release after 0.16.0.** A real Mitti 2.8.18 answers
+> `103 unsupported` to any command ending in a carriage return, which is how
+> 0.16.0 ends them. `main` ends them with a bare line feed, which a HyperDeck
+> also takes, and the simulator's `--mitti` mode now refuses CR the same way.
 
 ## Pitch Compensation
 
@@ -793,6 +800,8 @@ the screen at once, and it is the only control in the panel that touches the
 device — so it should be hard to hit by accident. When the device already holds
 the computed ratios the button says so and does nothing.
 
+![Pitch compensation on S1: output 1 at 2.6 mm as the reference, output 3 at 3.9 mm taking 1.500 H and V, and a 4800 × 1620 canvas](docs/screenshots/pitch.png)
+
 ## MIDI Mapping
 
 Under Virtual RC400T. Pick an input, an output for feedback, and a controller
@@ -809,6 +818,8 @@ Soft pickup is the behaviour worth knowing: a non-motorised fader will not move
 a live value until it has swept through that value, so picking up a fader
 mid-show cannot jump a layer's opacity. The panel shows the hold-off rather
 than looking broken.
+
+![MIDI Mapping running on a surface with the X-Touch profile: fader moves arriving as pitch-bend, a jog wheel as a relative CC, and buttons as notes — three writes sent](docs/screenshots/midi.png)
 
 ### Why this needs no offscreen document
 
@@ -1227,6 +1238,32 @@ back afterwards.
 > simulator only. The front panel, a T-bar, an OSC take or another operator's
 > browser go straight to the switcher; the panel says so at the top every time.
 
+## Gallery
+
+The panels above that have no section of their own, and the windows that pop
+out. All of them are the real app on the LivePremier Simulator 6.2.73, taken with
+`npm run demo`; click one for the full size. The [user guide](docs/USER-GUIDE.md)
+explains each.
+
+<table>
+<tr>
+<td width="50%"><a href="docs/screenshots/memories.png"><img src="docs/screenshots/memories.png" alt="PLUS ▸ Memories: the screen bank on S1, eight named memories with Recall, Save and Erase"></a><br><sub><b>Memories</b> — every bank in one list, renamed in place, with the buffer that holds each.</sub></td>
+<td width="50%"><a href="docs/screenshots/companion.png"><img src="docs/screenshots/companion.png" alt="PLUS ▸ Companion linked to Companion 5.0.5, its connections and a page of buttons"></a><br><sub><b>Companion</b> — linked to Companion 5.0.5: the connections it offers to add, and a page of buttons drawn as Companion renders them.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/audio-matrix.png"><img src="docs/screenshots/audio-matrix.png" alt="PLUS ▸ Audio Matrix with Input 1 opened into its channels"></a><br><sub><b>Audio Matrix</b> — blocks of eight, Input 1 opened into single channels.</sub></td>
+<td><a href="docs/screenshots/timeline-popout.png"><img src="docs/screenshots/timeline-popout.png" alt="The Timeline popped out, cue 1 selected with a Companion trigger and a HyperDeck command"></a><br><sub><b>Timeline, popped out</b> — a cue with its Companion trigger and HyperDeck commands.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/edid-formats.png"><img src="docs/screenshots/edid-formats.png" alt="Setup ▸ EDID ▸ From Formats with custom format M1"></a><br><sub><b>EDID ▸ From Formats</b> — an EDID built for custom format M1, one click from the bank.</sub></td>
+<td><a href="docs/screenshots/edid-editor.png"><img src="docs/screenshots/edid-editor.png" alt="The EDID builder window in Simple mode"></a><br><sub><b>Create EDID…</b> — the Otter editor in its own window, saving straight into a slot.</sub></td>
+</tr>
+<tr>
+<td><a href="docs/screenshots/edid-mosaic.png"><img src="docs/screenshots/edid-mosaic.png" alt="The EDID builder in Mosaic mode, two tiles for a 6144x2160 canvas"></a><br><sub><b>Mosaic</b> — one tiled EDID per plug, saved and applied to a 2 × 1 input group.</sub></td>
+<td><a href="docs/screenshots/preconfig-layer-names.png"><img src="docs/screenshots/preconfig-layer-names.png" alt="The vendor's Preconfig ▸ Screens page showing layer names Presenter and Lower third"></a><br><sub><b>Layer names in the vendor's own pages</b> — here Preconfig ▸ Screens.</sub></td>
+</tr>
+</table>
+
 ## How it works
 
 ![The browser loads the vendor's Web RCS through LivePremier Plus, which relays its socket to the switcher unchanged and adds the panels; the app also speaks AWJ briefly, drives routers, decks, Companion and Pixelhue consoles, and listens for OSC](docs/diagrams/architecture.svg)
@@ -1448,7 +1485,7 @@ Everything a panel withholds is withheld with its reason, on the Settings page.
 npm test
 ```
 
-About 720 tests, no browser. The socket tests bind real ports on loopback.
+About 830 tests, no browser. The socket tests bind real ports on loopback.
 
 Twenty-three cover OSC and AWJ. The framing ones run against a stand-in device
 on a real TCP socket rather than a mock, deliberately: everything worth catching

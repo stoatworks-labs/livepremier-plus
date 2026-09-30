@@ -21,11 +21,15 @@ as a bolt-on.
   layers, which the switcher has nowhere to keep.
 - **Layer Groups** — several layers, on one screen or on many, driven as one; a ganged group
   follows a source change made to any member, wherever it came from.
+- **Layer Lock** — a take that leaves chosen layers where they are, or takes one layer (or one
+  group) alone — neither of which the switcher can do by itself.
 - **Send to** — a `…` on every source card that routes it to a screen and layer, or to a whole
   group, in preview or program, without a drag.
 - **Matrix Routing** — patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
   Videohub, a Lightware or a Turtle AV router, and route through it from the panel, a cue, the
   Console or OSC.
+- **Audio Matrix** — the frame's audio channel matrix as a crosspoint grid: inputs and Dante
+  onto outputs, Dante and multiviewers, by blocks of eight or by single channels.
 - **HyperDecks** — Blackmagic HyperDecks, and Mitti through its HyperDeck control, played, cued
   and recorded from the panel, a cue or OSC; linked to the input they feed, with rules that play a
   deck when it goes on air, load its next clip when it comes off, and take when its clip ends.
@@ -45,6 +49,10 @@ as a bolt-on.
   moves opacity, position and size. Any browser, with DaVinci Resolve quit.
 - **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini driving the switcher, with
   **Pixelhue Mapping** to give any key, fader or encoder a different job.
+- **Thumbnail relay** and **Multiviewer thumbnails** *(preview)* — lighter source thumbnails, or
+  live ones cut from a multiviewer. Both off until you switch them on.
+- **Remote access** — the app served over Tailscale (with a real HTTPS certificate) or ZeroTier,
+  without binding it to the venue LAN.
 - **Your setup in one file** — cue stack, groups, layer names, router patch and settings, saved and
   restored together.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a layer width and get
@@ -141,6 +149,28 @@ remembered switcher; set `LPP_DEVICE` to skip the setup page.
 > route to a switcher's entire control surface** — and, once a Companion is linked, to that
 > Companion's admin UI too. `--host 0.0.0.0` hands that to everyone on the
 > network. Do it deliberately, not by habit.
+
+### From another machine: Tailscale or ZeroTier
+
+**Preconfig ▸ LivePremier Plus → Remote access** serves the app to a Tailscale tailnet or a ZeroTier
+network while it stays bound to loopback on the venue LAN. Both are off until you switch them on.
+
+- **Tailscale, HTTPS** — `https://<machine>.<tailnet>.ts.net/`, through `tailscale serve`, with a
+  real certificate. Because it is HTTPS, MIDI and LTC input work from the remote browser too. Switch
+  HTTPS certificates on for the tailnet once (admin console ▸ DNS); the first load after that waits
+  about 15 seconds while the certificate is issued.
+- **Tailscale, plain http** — `http://100.x.y.z:<port>/`, a listener on this host's tailnet
+  addresses only. No MIDI or audio input from there.
+- **ZeroTier** — `http://<zerotier address>:<port>/` on every network this host is authorised on.
+  `zerotier-cli` has to be able to read the service's auth token.
+
+Switching Tailscale off, or stopping the app, removes the `tailscale serve` entry it made. Joining and
+leaving networks from the card is offered only when the app was started with `--appliance` — on a
+laptop, its networks belong to its owner.
+
+> ⚠️ **Neither network is a login, and this app has none.** Everyone who can reach the host can
+> drive the switcher; who can reach it belongs in the tailnet's ACLs or the ZeroTier controller's
+> rules. The README has the full table, and what to do in Docker.
 
 ### Open it through the proxy, not at the switcher
 
@@ -287,6 +317,11 @@ A few things behave the way a desk does rather than the way a switcher does:
   log says what left this app and the device status is shown separately.
 
 The editor pops out into a window of its own — useful on a second monitor while the stack runs.
+Select a cue there and everything it carries is editable below the list: number, timecode, name,
+fade, pre-wait, follow, notes, the Companion buttons it presses, the HyperDeck commands it sends,
+and its actions.
+
+![The Timeline popped out, cue 1 selected: its fade, pre-wait, follow and notes, a Companion trigger of 1/0/1, "Mitti clip 2; Mitti play" in the HyperDeck field, and its two actions](screenshots/timeline-popout.png)
 
 ### Firing cues from timecode
 
@@ -316,6 +351,10 @@ preset buffer is holding each memory right now — and whether it is still unmod
   switcher will apply before you press it.
 - **It pops out** onto a second monitor, which the vendor's own Memories tab cannot do.
 
+![PLUS ▸ Memories: the screen bank on S1, eight named memories with Recall, Save and Erase, and a B beside Walk-out because buffer B still holds it unmodified](screenshots/memories.png)
+
+Click a name to rename it; **Enter** saves, **Esc** backs out.
+
 ---
 
 ## Layer
@@ -341,6 +380,8 @@ monitor a panel that stays where you pointed it turns out to be the better behav
 Type a name into **Name** and it appears everywhere a layer is listed — this panel, the groups, the
 `…` menu, and **the vendor's own layer lists**. The switcher has no field for a layer name, so this
 app keeps it, per switcher; anything that talks to the switcher directly will not see it.
+
+![The vendor's own Preconfig ▸ Screens page, with "Presenter" and "Lower third" written beside Layer 1 and Layer 2](screenshots/preconfig-layer-names.png)
 
 ---
 
@@ -528,6 +569,39 @@ describes that frame's own sockets.
 
 ---
 
+## Audio Matrix
+
+**PLUS ▸ Audio Matrix** (LivePremier only). The frame's audio channel matrix as a crosspoint grid:
+sources down the side — inputs and Dante — and destinations across the top — outputs, Dante and
+multiviewers.
+
+The whole matrix is 576 source channels by 272 destinations, far more than anyone can read, so it
+opens as **blocks of eight**. A block says how many of that destination's channels come from that
+source, and is solid when it is exactly 1→1 … 8→8. **Click a block** to lay the source across the
+destination channel for channel, or to clear it when that is what is there. Click a row or column
+header to **open it into its eight channels**; where an open row meets an open column, each cell is
+a single crosspoint.
+
+![PLUS ▸ Audio Matrix: Input 1 opened into its eight channels, patched block for block to Outputs 1 and 2; Inputs 2, 3 and 4 patched to Outputs 3 to 6 and 10](screenshots/audio-matrix.png)
+
+- **What is lit is what the switcher reports**, not what was clicked. A click marks the cell as
+  pending; the switcher's echo lights it, and a write it never echoes is named in the note line.
+- **M** mutes a destination channel, or a source — a source mute silences it everywhere. A dot beside
+  a name means signal is present.
+- **Fitted only** hides the inputs and outputs this frame has no card for — anything patched is
+  always shown; **Collapse all** closes every open row and column.
+- **Lock** stops clicks from patching, for a matrix that is live on a show: groups still open and
+  close.
+- **It pops out** — a matrix is wide and the sidebar is not.
+
+The Console's `Set Audio Patch Input 3 Channel 1 Thru 8 To Output 1` is the same write as a click.
+On a Midra 4K or Alta 4K there is no channel matrix and the entry is not offered; audio there is
+routed from the Console.
+
+> Proven on the simulator only.
+
+---
+
 ## HyperDecks
 
 **PLUS ▸ HyperDecks.** Blackmagic HyperDecks — and anything that answers their protocol, Mitti
@@ -558,8 +632,13 @@ In a cue, the **HyperDeck** field takes `VT 1 clip 3; VT 1 play; recorders recor
 `/hyperdeck/<deck>/play` and the rest — docs/OSC.md.
 
 > ⚠️ **Written from Blackmagic's published protocol and proven against an emulation of it — not
-> yet against a real HyperDeck or Mitti.** `docs/HYPERDECK.md` has a short procedure for proving
-> it on your own deck before a show.
+> yet against a real HyperDeck.** `docs/HYPERDECK.md` has a short procedure for proving it on your
+> own deck before a show.
+>
+> **Mitti needs the release after 0.16.0.** A real Mitti 2.8.18 answers `103 unsupported` to any
+> command ending in a carriage return, which is how 0.16.0 ends them; the link now ends them with a
+> bare line feed, which a HyperDeck also takes. Until that release, Mitti accepts the connection and
+> refuses everything after it.
 
 ---
 
@@ -568,6 +647,8 @@ In a cue, the **HyperDeck** field takes `VT 1 clip 3; VT 1 play; recorders recor
 **PLUS ▸ Companion.** A [Bitfocus Companion](https://bitfocus.io/companion) (5.0 or newer) linked to
 this app: its buttons drawn and pressable here, a cue or a memory recall that presses them, and its
 own editor served on the same address as Web RCS — no second port to allow through a firewall.
+
+![PLUS ▸ Companion, linked to Companion 5.0.5: the AWJ and LivePremier Plus connections offered for the show, and page 1 of the buttons drawn as Companion renders them](screenshots/companion.png)
 
 ### Connecting
 
@@ -672,6 +753,8 @@ in Setup ▸ Formats (M1–M16) with an EDID already built for it:
   the next empty slot. It never overwrites a slot and never deletes one — a format you change leaves
   its old EDID where it was, because an input may be using it.
 
+![Setup ▸ EDID ▸ From Formats: custom format M1, "LEDwall", 3000x1000p50 as a detailed timing, not in the bank yet, with Save to ED1 and Edit…](screenshots/edid-formats.png)
+
 A format counts as *in the bank* when some slot's EDID has the format as its preferred mode — so an
 EDID you opened from here, renamed and saved still counts, and the switch will not add a second copy
 beside it.
@@ -689,9 +772,16 @@ Simple (a resolution and a rate), Advanced (every field), Mosaic (one tiled EDID
 bonds its outputs into one display), the signal cost, and which Analog Way, Barco and PixelHue inputs
 will take it.
 
+![The EDID builder window in Simple mode: 3840x2160 at 60 Hz, ED1 ready to save, the signal cost and the interfaces that will carry it, and the hardware support table](screenshots/edid-editor.png)
+
 **Save to the switcher**, at the top right, writes it: pick the slot — it starts on the first empty
 one, or on the slot you opened — and it says what it would replace before you press. A mosaic saves
-its tiles into that many slots in a row, as their exact bytes. The save finishes when the switcher
+its tiles into that many slots in a row, as their exact bytes — and **Apply to inputs** groups the
+inputs 2 × 1 and loads each plug with the tile for its place.
+
+![The builder in Mosaic mode: a 6144x2160 canvas split into two 3072x2160 tiles, saved as ED1 and ED2, with Apply to inputs for IN_1 + IN_2 and what a Mac will make of it](screenshots/edid-mosaic.png)
+
+ The save finishes when the switcher
 reports the new EDID, not when it accepts the request.
 
 The window works through the Web RCS tab it came from, like every popped-out panel here; close that
@@ -717,6 +807,8 @@ pixels really are not square.
 - **Applying takes two presses.** It is a preconfig change that moves every output on the screen at
   once, so it should be hard to hit by accident. If the switcher already holds the computed ratios,
   the button says so and does nothing.
+
+![Pitch compensation on S1: output 1 at 2.6 mm as the reference, output 3 at 3.9 mm taking 1.500 H and V, and a 4800 × 1620 canvas](screenshots/pitch.png)
 
 ---
 
@@ -751,6 +843,8 @@ from the same tables that resolve the messages, so it cannot list an address tha
 It binds to this machine only unless you choose otherwise, and the other option says in as many
 words that the network will be able to fire takes.
 
+![The OSC input card listening on 127.0.0.1:8000, three messages received and three writes sent, spelled for LivePremier](screenshots/osc-input.png)
+
 ---
 
 ## MIDI Mapping
@@ -765,6 +859,8 @@ with its stock profiles — X-Touch/Mackie, APC40, MIDIcon 2 and Pro, plus a gen
 until it has swept *through* that value, so picking up a fader mid-show cannot jump a layer's
 opacity. **The panel shows the hold-off rather than looking broken** — if a fader appears dead,
 that is what you are seeing.
+
+![MIDI Mapping running on a surface with the X-Touch profile: fader moves arriving as pitch-bend, a jog wheel as a relative CC, and buttons as notes — three writes sent](screenshots/midi.png)
 
 ---
 
