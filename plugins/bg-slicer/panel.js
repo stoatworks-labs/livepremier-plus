@@ -1,5 +1,5 @@
 /*
- * Background Slicer — the panel. PLUS ▸ Backgrounds, and a window of its own.
+ * Background Slicer — the panel. PLUS ▸ Background Slicer, and a window of its own.
  *
  * Top to bottom it is the job in the order it is done:
  *
@@ -119,7 +119,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
     const store = session.store;
     const toolbar = h('div', { class: 'aw-flex-row-center-v-space-between aw-flex-wrap lpp-controls aw-gap-col-large' },
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-large aw-flex-wrap' },
-        h('div', { class: 'aw-font-subtitle-1', text: 'Backgrounds' }),
+        h('div', { class: 'aw-font-subtitle-1', text: 'Background Slicer' }),
         h('span', { class: 'aw-font-caption lpp-bgs-preview', text: 'Preview — never yet run against a real frame' })),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-flex-wrap' },
         chip('Stills', job.source === 'stills', () => { job.source = 'stills'; changed({ stale: true }); }, 'Cut the picture into one still per output and build a background set'),
@@ -455,7 +455,9 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
     const e = job.edid[k];
     return [
       h('td', {}, sel),
-      h('td', { class: e && e.kind ? '' : 'aw-text-tertiary', text: e ? (e.kind ? e.label : e.why) : '—' })
+      h('td', { class: e && e.kind ? '' : 'aw-text-tertiary', title: 'The switcher builds this EDID from its own template. Blanking is not compared — the output’s total is beside it for checking.' },
+        e ? (e.kind ? e.label : e.why) : '—',
+        o.total && o.total.h ? h('div', { class: 'aw-text-tertiary', text: `output total ${o.total.h} × ${o.total.v}` }) : null)
     ];
   }
 

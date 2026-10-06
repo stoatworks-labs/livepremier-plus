@@ -1,7 +1,7 @@
 /*
  * Background Slicer — the plugin's page half.
  *
- * PLUS ▸ Backgrounds: one picture cut into a background per output across
+ * PLUS ▸ Background Slicer: one picture cut into a background per output across
  * one or more screens, put into the image library and a background set — or,
  * in the live-input mode, each output's background fed from an input and the
  * map a media server needs to feed it, as files Resolume, disguise, Pixera,
@@ -34,7 +34,9 @@ export default function activate(ctx) {
   const view = createBgSlicerPanel({ session: ctx.session, job, onRefresh: ctx.refresh });
   ctx.ui.sidebar({
     id: 'bg-slicer',
-    label: 'Backgrounds',
+    /* Not "Backgrounds": Web RCS has a Preconfig ▸ Backgrounds page of its
+       own, and two entries with one name is one too many. */
+    label: 'Background Slicer',
     icon: ['background-18', 'layer-background-18', 'stills-18'],
     order: 57,
     render: () => view.render(),

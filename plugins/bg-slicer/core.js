@@ -704,6 +704,7 @@ export function buildPlan(store, job, opts = {}) {
         raster: o.raster,
         format: o.format,
         rate: o.rate,
+        total: o.total,
         plugs: o.plugs,
         group: o.group,
         members: o.members,
