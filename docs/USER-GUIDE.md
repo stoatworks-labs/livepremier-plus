@@ -521,9 +521,19 @@ buttons, so with this switched on the app holds its own recalls back itself:
 > ⚠️ **With Web RCS's remote selection switched on**, padlocks are shared between everyone
 > connected, so run this in one browser only.
 
+> **On a Midra 4K or Alta 4K** the padlock is the same one on each screen's card, but Web RCS shows
+> it differently: a shut PRW greys out that buffer's memory Load, its source pickers and memory
+> drops, rather than refusing with a warning. A fresh Midra page also starts with every padlock
+> open, PGM included.
+
 > Proven on the LivePremier simulator against Web RCS 6.2.73's own lock: a memory clicked into
 > PRW while a screen was mid-take was refused for that screen and loaded on the other, and loaded on
-> both once the take had landed. Not yet run on a real frame, nor on a Midra 4K or Alta 4K.
+> both once the take had landed. Proven on the Midra 4K simulator (3.2.29) with real takes: without
+> this feature a memory recalled 0.6 s after TAKE went to program when the take landed; with it, the
+> PRW padlock shut for the whole take (from this page or sent straight to the switcher) and opened on
+> landing, a recall from the Memories panel waited and went into the new preview the moment the take
+> landed, and with the T-bar parked half way the recall gave up and was not sent. Not yet run on a
+> real frame or a real Midra 4K / Alta 4K.
 
 ---
 

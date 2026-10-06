@@ -45,6 +45,32 @@
  * is only needed to tell one buffer's block from the other's; when it is not
  * found the whole card is searched instead and the two padlocks are taken in
  * the order they are drawn, which is PGM then PRW.
+ *
+ * ## The Midra 4K / Alta 4K page draws its cards differently
+ *
+ * Read off a running Web RCS (Midra 4K Simulator 3.2.29, Pulse 4K,
+ * 2026-10-06). Same sprites, same `aria-pressed`, but no `.aw-preset-view`
+ * and no `h2`:
+ *
+ *   one column per screen
+ *     button > span "S1"                the screen's chip, at the top
+ *     [class*="live-content-header__c___"]          one per buffer
+ *       [class*="live-content-header__c__lock___"] > button > use   the padlock
+ *       button "PGM" | "PRW"            the buffer's own label button
+ *
+ * So there each padlock is found first, its role read off the label button
+ * in its own header, and its screen off the nearest ancestor holding exactly
+ * one destination chip — the column. An ancestor holding two (the Screens bar
+ * at the top names S1 and S2) is the whole page: the padlock is skipped
+ * rather than given to either. The master pair is the same two labelled
+ * buttons as on LivePremier. One difference worth knowing: a fresh Midra page
+ * draws every padlock open, PGM included.
+ *
+ * What the Midra lock then refuses is the vendor UI's own: a memory dragged
+ * onto that buffer, a source dropped on it, its layers moved, its Load
+ * control in the properties panel (all `isPresetLocked` / `isLocked` in the
+ * 3.2.29 bundle). It is per component there, where LivePremier has one
+ * middleware, but the operator's guard rail is the same.
  */
 
 /** Sprite ids for the two states. Shut is `locked-12`; open is `unlocked-12`. */
@@ -90,12 +116,10 @@ export function readMasterLocks(root = document) {
  * Every screen card's locks: `{ S1: {PGM: true, PRW: false}, … }`.
  *
  * A card whose destination cannot be named is skipped rather than guessed at.
- * ⚠️ The `h2` naming it reads `S1` on LivePremier, which is this app's own
- * spelling for a destination and so needs no translation. That has not been
- * checked on a Midra 4K, where screens are numbered `1`..`4` in the store;
- * if that page names its cards some other way they simply do not match here
- * and the master pair answers instead, which is the safe direction to be
- * wrong in.
+ * Both pages name a card `S1` / `A2` — the `h2` on LivePremier, the column's
+ * chip on Midra 4K — which is this app's own spelling for a destination and
+ * so needs no translation, although a Midra numbers its screens `1`..`4` in
+ * the store.
  */
 export function readCardLocks(root = document) {
   const out = {};
@@ -154,7 +178,51 @@ function cardPadlocks(root) {
     }
     if (Object.keys(pads).length) out.push([id, pads]);
   }
-  return out;
+  /* The Midra 4K page has no `.aw-preset-view`; its cards are read padlock
+     first. A destination the first pass named is left as it named it. */
+  const named = new Set(out.map(([id]) => id));
+  const columns = new Map();
+  for (const lock of root.querySelectorAll(MNG_LOCK)) {
+    const pad = findPadlock(lock);
+    const header = pad && ancestorWithClass(lock, MNG_HEADER);
+    const role = header && blockRole(header);
+    const id = role && columnDestination(header);
+    if (!id || named.has(id)) continue;
+    const pads = columns.get(id) || {};
+    pads[role] = pad;
+    columns.set(id, pads);
+  }
+  return [...out, ...columns];
+}
+
+/** Midra 4K: one buffer's header, and the box its padlock sits in. */
+const MNG_HEADER = 'live-content-header__c___';
+const MNG_LOCK = '[class*="live-content-header__c__lock___"]';
+
+function ancestorWithClass(el, fragment) {
+  for (let up = el; up; up = up.parentElement) {
+    if (String(up.className || '').includes(fragment)) return up;
+  }
+  return null;
+}
+
+/**
+ * The destination a Midra buffer header belongs to: the nearest ancestor that
+ * holds exactly one button whose whole label is a destination (the column's
+ * chip). Two or more means the walk has reached the page, and no answer is
+ * safer than the wrong screen.
+ */
+function columnDestination(header) {
+  for (let up = header.parentElement; up; up = up.parentElement) {
+    const ids = new Set();
+    for (const btn of up.querySelectorAll('button')) {
+      const label = (btn.textContent || '').trim().toUpperCase();
+      if (/^[SA]\d+$/.test(label)) ids.add(label);
+    }
+    if (ids.size === 1) return [...ids][0];
+    if (ids.size > 1) return null;
+  }
+  return null;
 }
 
 /** PGM or PRW, from the words inside one buffer's block. */

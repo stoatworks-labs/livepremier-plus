@@ -120,6 +120,44 @@ function card(doc, El, id, { pgm, prw, hashed = true }) {
   return view;
 }
 
+/**
+ * One Midra 4K screen column, as the 3.2.29 Web RCS draws it (2026-10-06):
+ * the screen's chip at the top, then a header per buffer holding a padlock
+ * box and the buffer's label button. No `.aw-preset-view`, no `h2`.
+ */
+function mngColumn(parent, El, id, { pgm, prw }) {
+  const col = new El('div');
+  col.className = 'aw-flex-item aw-flex-col aw-full-height';
+  const chip = new El('button');
+  chip.className = 'ui medium active toggle button center-v';
+  const span = new El('span');
+  span.textContent = id;
+  chip.append(span);
+  col.append(chip);
+  for (const [role, shut] of [['PGM', pgm], ['PRW', prw]]) {
+    const header = new El('div');
+    header.className = 'aw-flex-col live-content-header__c___STUB2';
+    const box = new El('div');
+    box.className = 'live-content-header__c__lock___STUB3';
+    box.append(padlock(El, shut));
+    header.append(box, labelled(El, role), labelled(El, 'M 2*'));
+    col.append(header);
+  }
+  parent.append(col);
+  return col;
+}
+
+/** The Midra page: the Screens bar names every screen, then the columns. */
+function mngPage(doc, El, columns) {
+  const bar = new El('div');
+  for (const id of Object.keys(columns)) bar.append(labelled(El, id));
+  doc.append(bar);
+  const row = new El('div');
+  for (const [id, locks] of Object.entries(columns)) mngColumn(row, El, id, locks);
+  doc.append(row);
+  return row;
+}
+
 /* ---------------------------------------------------------------- tests */
 
 test('the master pair is read off its two buttons', () => {
@@ -216,6 +254,50 @@ test('cardPadlock finds the PRW padlock in drawn order when there is no hashed b
   const pad = cardPadlock('A2', 'PRW', doc);
   assert.equal(pad.shut, false);
   assert.equal(pad.button, view.children[2].children[1]);
+});
+
+test('a Midra 4K page: each column reports its own two buffers', () => {
+  const { doc, El } = stubDom();
+  mngPage(doc, El, { S1: { pgm: false, prw: true }, S2: { pgm: false, prw: false } });
+  assert.deepEqual(readCardLocks(doc), {
+    S1: { PGM: false, PRW: true },
+    S2: { PGM: false, PRW: false }
+  });
+});
+
+test('a Midra 4K page: cardPadlock hands back that column\'s PRW button', () => {
+  const { doc, El } = stubDom();
+  const row = mngPage(doc, El, { S1: { pgm: false, prw: false }, S2: { pgm: true, prw: false } });
+  const pad = cardPadlock('S2', 'PRW', doc);
+  assert.equal(pad.shut, false);
+  /* The S2 column's second header, inside its padlock box. */
+  assert.equal(pad.button, row.children[1].children[2].children[0].children[0]);
+  assert.equal(cardPadlock('S2', 'PGM', doc).shut, true);
+});
+
+test('a Midra padlock no single column owns is skipped, not given to a screen', () => {
+  const { doc, El } = stubDom();
+  mngPage(doc, El, { S1: { pgm: false, prw: false }, S2: { pgm: false, prw: false } });
+  /* A header sitting beside the Screens bar rather than inside a column: the
+     first ancestor with a chip in it names S1 and S2. */
+  const stray = new El('div');
+  stray.className = 'live-content-header__c___STUB2';
+  const box = new El('div');
+  box.className = 'live-content-header__c__lock___STUB3';
+  box.append(padlock(El, true));
+  stray.append(box, labelled(El, 'PRW'));
+  doc.append(stray);
+  assert.deepEqual(readCardLocks(doc), {
+    S1: { PGM: false, PRW: false },
+    S2: { PGM: false, PRW: false }
+  });
+});
+
+test('a Midra 4K page: the column wins over the master pair, as on LivePremier', () => {
+  const { doc, El } = stubDom();
+  master(doc, El, { pgm: false, prw: false });
+  mngPage(doc, El, { S1: { pgm: false, prw: true } });
+  assert.deepEqual(lockedFor(['S1', 'S2'], 'PREVIEW', doc), { locked: ['S1'], reason: 'card' });
 });
 
 test('cardPadlock never falls back to the master pair', () => {

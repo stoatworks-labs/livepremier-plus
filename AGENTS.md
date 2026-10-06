@@ -833,6 +833,23 @@ Load-bearing:
   synchronous one; the existing cue tests run that path.
 - Companion, OSC and the front panel are still not reached.
 
+**Midra 4K / Alta 4K (Midra 4K Simulator 3.2.29, 2026-10-06).** The failure
+is real there: TAKE (5 s) then a recall to PREVIEW 0.6 s later loaded the UP
+buffer while `EFFECT_FROM_DOWN` ran, and the memory was on program when the
+take landed. Unlike the LivePremier sim, the Midra sim pushes the in-flight
+state (`EFFECT_FROM_*` ~20 ms after `xTake`), so the guard's status path is
+exercised there. The padlocks exist with the same sprites and `aria-pressed`,
+but the page has no `.aw-preset-view`/`h2`: `cardPadlocks()` reads them
+padlock first (`live-content-header__c__lock___` → its header's PGM/PRW label →
+the nearest ancestor with exactly one `S<n>`/`A<n>` chip). Before that fix the
+plugin logged "card not on screen" on every Midra take and shut nothing. The
+Midra lock is per component (`isPresetLocked` disables that buffer's memory
+drop target, source pickers, layer moves and properties-panel Load), not one
+middleware, and a fresh Midra page draws every padlock open, PGM included.
+A recall also overwrites `takeTime` with the memory's `transitionDuration`
+mid-take without changing the running take — so a hold's deadline must be
+read before any recall, as `whenSettled` does.
+
 Proven on the LivePremier simulator (2026-10-06) with the page socket's
 `send` replaced by a catcher: the plugin's click shut S1's PRW; a vendor
 Memories ▸ Screen ▸ Load into PRW on S1+S2 sent only S2's recall; after the
