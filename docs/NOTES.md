@@ -31,8 +31,29 @@ posV, sizeH, sizeV, opacity by meaning; `anchor: null` on mng) and `memoryFile`,
 `layerSpec()` in `core/properties.js`. The LivePremier paths are byte-for-byte what they were — a
 before/after capture of the programmer tree, the writes and the rendered page against the 6.2.73
 simulator slices diffed identical — and `test/edit.test.js` drives the page against the Pulse 4K
-fixture. **Not driven in a browser on a Midra**: the Midra simulator's web child was up on 3010 but
-its engine was not, so every request answered 404.
+fixture.
+
+**Then driven in the Browser pane on the Midra 4K 3.2.29 simulator as a Pulse 4K**, the same day.
+Read-only against the shared one on 3010, with the page socket's `send` and the raw socket both
+wrapped: From PRW, IN3 / COLOR / None by mouse, a right-edge drag (Size H 1920 → 1578, Pos H
+480 → 309, left edge held at −480), a move, a bottom-edge resize (Size V 1080 → 890, top held),
+Empty (both layers 1920×1080 at 960/540), and a Memory rail offering only Via preview — **zero
+frames sent**, and the sim's screens, banks, transitions and preconfig identical afterwards. The
+save was run on a private copy (3030, thrown away after): From PGM, L1 to IN9, Via preview into
+slot 5 — 108 writes into UP, the save naming PREVIEW on screen 1, the label, 108 writes putting UP
+back; nothing to DOWN, nothing spelled `S1`/`inputNum`/`layerList`. Read off the device: DOWN
+identical, every UP layer property identical, slot 5 valid and labelled, and recalling it gave
+exactly the programmed look. One bookkeeping change: UP's `memoryId` went 0 → 5 with `isModified`
+true — the same "the bank's opinion is not restored" caveat `save-look.js` gives for LivePremier.
+
+⚠️ **The shared Midra sim on 3010 answered 404 to everything** — not a dead engine (it and AWJ on
+10610 were fine) but its session directory living in a Claude scratchpad under `/private/tmp`.
+macOS's daily `/tmp` cleaner deletes files untouched for three days, so `AW_APPS/webapp-bundle`'s
+server and client went, and so did `AW_INTERNAL/SaveVarFileBank`, the engine's saved state. Fixed
+in place, with no restart and the in-memory state kept, by symlinking the missing entries to the
+app's own read-only copy under `MIDRA_3_2_29/ressources/AW_APPS/webapp-bundle` — the cleaner deletes
+regular files only. A restart of that engine would still come up without its saved state; the Alta
+sim on 3021 lives in the same directory tree and was 404 for the same reason (left alone).
 
 ## Dante: our own routing control, and Dante Controller's preset files (2026-10-06)
 

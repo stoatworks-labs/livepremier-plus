@@ -1235,6 +1235,10 @@ process starts and exits with only a couple of Qt warnings to show for it.
 `DEVICE_TYPE` in the same file picks the model: `1` QVU, `2` PULSE, `3` EIKOS,
 `4` QMX, `5` ZEN100, `6` ZEN200, in both the Midra and the Alta simulator. Run
 a **copy** of the session directory per model; the engine writes into it.
+⚠️ **Never keep a long-running copy under `/tmp`** (a Claude scratchpad is
+there): macOS deletes files untouched for three days, the web bundle goes, and
+the simulator answers 404 to every request while its engine and AWJ carry on as
+if nothing happened. `docs/NOTES.md` (2026-10-06) has the in-place repair.
 
 ## MIDI: the constraint that used to decide the architecture, and does not now
 
