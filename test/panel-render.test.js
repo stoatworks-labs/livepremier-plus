@@ -287,3 +287,57 @@ test('Memories: a recall into a preview mid-take waits for the hold, then goes',
     assert.match(root.textContent, /not recalled — S1 still mid-take/);
   });
 });
+
+/*
+ * The Dante panel with a network in it — the generic pass above draws it
+ * waiting for its server half, which says nothing about the grid. This one
+ * hands it the devices the simulator network reads as, over a store with the
+ * switcher's own Dante card in it, and opens a receiver and a transmitter.
+ */
+test('the Dante panel draws its grid, marks the switcher’s card and opens into channels', async () => {
+  await withDom(async () => {
+    const store = new DeviceStore();
+    store.hydrate(merged('sim-6.2.73-identity.json', 'sim-6.2.73-dante.json', 'sim-6.2.73-audio.json'));
+    const { createDantePanel } = await import('../plugins/dante/panel.js');
+    const status = (code, rx) => ({ code, name: code === 9 ? 'DYNAMIC' : 'NONE', state: code === 9 ? 'connected' : 'none', label: code === 9 ? 'Subscribed (unicast)' : 'Not subscribed' });
+    const device = (name, tx, rx, extra = {}) => ({
+      id: name, name, address: '127.0.0.1', port: 4440, source: 'mdns', status: 'ok', writable: true, form: 'modern', protocol: '2.8.9', inventory: 'modern',
+      sampleRate: 48000, latencyNs: 1000000, txCount: tx.length, rxCount: rx.length,
+      tx: tx.map((label, i) => ({ number: i + 1, label })),
+      rx: rx.map(([label, sub], i) => ({ number: i + 1, label, sub, status: status(sub ? 9 : 0) })),
+      ...extra
+    });
+    const data = {
+      devices: [
+        device('AQL-Simulator', ['01', '02'], [['01', { channel: 'Mix L', device: 'FOH-Desk' }], ['02', null]]),
+        device('FOH-Desk', ['Mix L', 'Mix R'], [['Ch 1', null]])
+      ],
+      discovery: { running: true, multicast: true, asking: ['192.0.2.1'], lastBrowse: Date.now(), error: null },
+      interfaces: [], snapshots: [{ name: 'Show A', savedAt: '2026-10-06T10:00:00Z', devices: ['AQL-Simulator'], routes: 1 }]
+    };
+    let applied = null;
+    const model = {
+      state: { data, error: null, note: null, result: null, version: 1 },
+      want() {}, onChange() {}, isPending: () => false, note() {}, exportUrl: () => '/__lpp/dante/preset',
+      apply: async (routes) => { applied = routes; return { ok: true, results: [], summary: '' }; }
+    };
+    const panel = createDantePanel({ session: sessionOver(store), model, popoutEnabled: false });
+    const root = renders('dante', panel);
+    assert.match(root.textContent, /this switcher/, 'the switcher’s card is marked');
+    assert.match(root.textContent, /AQL-Simulator.*matched by name/s);
+    /* Open the switcher's receiver and the desk's transmitters. */
+    root.querySelectorAll('th.lpp-dn-rh--group').find((th) => /AQL-Simulator/.test(th.textContent)).click();
+    root.querySelectorAll('th.lpp-dn-gh').find((th) => /FOH-Desk/.test(th.textContent)).click();
+    panel.render();
+    const channelRow = root.querySelectorAll('th.lpp-dn-rh--ch')[0];
+    assert.match(channelRow.getAttribute('title'), /Audio Matrix: Dante 1 feeds Output 1 ch 1/);
+    const lit = root.querySelectorAll('td.lpp-dn-x--connected');
+    assert.equal(lit.length, 1, 'one subscription, one lit cell');
+    lit[0].click();
+    assert.equal(applied, null, 'the grid opens locked');
+    root.querySelectorAll('button.lpp-chip').find((b) => b.textContent === 'Locked').click();
+    panel.render();
+    root.querySelectorAll('td.lpp-dn-x--connected')[0].click();
+    assert.deepEqual(applied, [{ rx: { device: 'AQL-Simulator', channel: 1 }, tx: null }], 'unlocked, a lit cell clears');
+  });
+});
