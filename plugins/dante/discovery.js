@@ -166,7 +166,20 @@ export class Discovery extends EventEmitter {
       entry.seenAt = Date.now();
       entry.via = rinfo.address;
       if (s.type === canonical(SERVICE.ARC)) {
-        const address = s.addresses[0] || entry.address || rinfo.address;
+        /*
+         * A redundant Dante device answers on its primary and its secondary
+         * network, each answer naming the address it arrived from. Keep the
+         * address already in use while it is still being confirmed, or the
+         * device's link would be torn down and rebuilt on every question.
+         */
+        const offered = s.addresses.length ? s.addresses : [rinfo.address];
+        const now = Date.now();
+        let address = entry.address;
+        if (!address || offered.includes(address)) entry.addressSeenAt = now;
+        if (!address || (!offered.includes(address) && now - (entry.addressSeenAt || 0) > this.browseMs * 2)) {
+          address = offered[0];
+          entry.addressSeenAt = now;
+        }
         if (address !== entry.address || (s.port && s.port !== entry.port) || JSON.stringify(s.txt) !== JSON.stringify(entry.arc && entry.arc.txt)) changed = true;
         entry.address = address;
         if (s.port) entry.port = s.port;
@@ -201,9 +214,15 @@ export class Discovery extends EventEmitter {
     if (changed) this.emit('change', this.list());
   }
 
-  /** What has been found: `[{ name, address, port, txt, cmc, deviceId, mac, seenAt }]`, only devices with a control service. */
+  /**
+   * What has been found: `[{ name, address, port, txt, cmc, deviceId, mac, seenAt }]`, only
+   * devices with a control service. With the network not being asked, only the devices
+   * configured by address count — a responder that answers for more than itself (the
+   * simulator does; a host running several Dante processes could) does not add the rest.
+   */
   list() {
-    return [...this.found.values()].filter((e) => e.arc && e.port && e.address).map((e) => ({
+    const configured = (e) => this.multicast || this.manual.some((m) => m.address === e.address && (!m.port || m.port === e.port));
+    return [...this.found.values()].filter((e) => e.arc && e.port && e.address && configured(e)).map((e) => ({
       name: e.name,
       address: e.address,
       port: e.port,

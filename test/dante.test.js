@@ -645,12 +645,10 @@ test('end to end: snapshots, presets, OSC, the setup file, a device by address',
   /* Discovery off, one device by address: it is read with no advertisement to go on. */
   const wall = sim.device('Wall-Plate');
   await host.set({ discovery: false, manualDevices: [`127.0.0.1:${wall.port}`] });
-  assert.ok(await until(async () => {
-    const list = await devicesOf(host);
-    return list.length === 1 && list[0].name === 'Wall-Plate' && list[0].status === 'ok';
-  }));
-  const manual = await named(host, 'Wall-Plate');
-  assert.equal(manual.source, 'manual');
+  assert.ok(await until(async () => (await named(host, 'Wall-Plate'))?.status === 'ok'));
+  await wait(400);
+  /* The simulator answers the question for all five; only the one configured counts. */
+  assert.deepEqual((await devicesOf(host)).map((d) => [d.name, d.source]), [['Wall-Plate', 'manual']]);
 });
 
 test('a device that stops answering is marked, and comes back', async (t) => {
@@ -683,4 +681,24 @@ test('a supervisor with nothing read has nothing to write', () => {
   assert.equal(writeForm({ status: 'reading', name: 'X' }).form, null);
   assert.equal(writeForm({ status: 'ok', name: 'X', inventory: 'modern', protocol: { protocolId: 0x2809, modern: true } }).form, 'modern');
   assert.equal(writeForm({ status: 'ok', name: 'X', inventory: 'classic', protocol: null }).form, 'classic', 'a device by address that read cleanly the classic way');
+});
+
+test('a redundant device answering on both networks keeps one address', () => {
+  const d = new Discovery({ browseMs: 30000 });
+  const answer = (address) => buildResponse({
+    questions: [{ name: P.SERVICE.ARC, type: TYPE.PTR }],
+    answers: [{ name: P.SERVICE.ARC, type: TYPE.PTR, data: `Desk.${P.SERVICE.ARC}` }],
+    additionals: [
+      { name: `Desk.${P.SERVICE.ARC}`, type: TYPE.SRV, data: { port: 4440, target: 'Desk.local' } },
+      { name: `Desk.${P.SERVICE.ARC}`, type: TYPE.TXT, data: { arcp_vers: '2.8.9' } },
+      { name: 'Desk.local', type: TYPE.A, data: address }
+    ]
+  });
+  let changes = 0;
+  d.on('change', () => { changes += 1; });
+  d.onMessage(Buffer.from(answer('192.168.1.10')), { address: '192.168.1.10', port: 5353 });
+  d.onMessage(Buffer.from(answer('192.168.2.10')), { address: '192.168.2.10', port: 5353 });
+  d.onMessage(Buffer.from(answer('192.168.1.10')), { address: '192.168.1.10', port: 5353 });
+  assert.deepEqual(d.list().map((x) => x.address), ['192.168.1.10']);
+  assert.equal(changes, 1, 'the secondary network’s answer is not a change of address');
 });
