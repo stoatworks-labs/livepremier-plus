@@ -419,6 +419,59 @@ take or cut at a clip's end). `docs/HYPERDECK.md` is the design and the proving 
   time is the page's, off the streamed countdown; both paths fire once per `run`.
 - `tools/hyperdeck-sim.mjs` is the only deck anything here has spoken to.
 
+### Dante (`plugins/dante/`) — **preview**, never met a real Dante device
+
+The Dante network's routing beside the switcher it feeds. Dante Controller has no remote-control
+interface, so this is our own Dante routing control — netaudio's reverse-engineered control
+protocol, ported — plus interoperability through Dante Controller's **preset files**, written and
+read. `docs/DANTE.md` is the design, the protocol table with a source for every row, and the
+first-device test. Off by default (`OFF_UNTIL_TESTED`), preview on the settings row, and the grid
+opens **locked**, because it reaches every device on the audio network and not only the switcher.
+
+**It holds a UDP socket per Dante device, and `server/awj.js` forbids exactly that — for the
+switcher.** That prohibition is about the store mirror. A Dante subscription is held by the
+receiving device and nowhere else: not in the store, not in the page, so there is no mirror to
+contradict; it changes without us (Dante Controller, a console's Dante page); and ARC is datagrams
+with a transaction id, with no client budget like the frame's five AWJ clients. So it is read on a
+timer, the Matrix Routing argument. `plugins/dante/link.js` says so at its head.
+
+Five things are load-bearing:
+
+- **No driver writes its own state.** Every write — grid, cue, OSC, snapshot, preset — is a
+  `plan()` (only what differs), sent, then the receivers **read back**, and `confirm()` reports what
+  each device says now: `confirmed` / `unconfirmed` / `refused` / `missing`. `confirmed` is the
+  subscription; whether audio flows is its *status*, reported beside it. A device that answers a
+  write with success and changes nothing is `unconfirmed`, and the simulator has one to prove it.
+- ⚠️ **Never bind UDP 5353.** The OS responder owns it and Dante Controller and DVS depend on it.
+  Discovery asks from an ephemeral port (RFC 6762 §6.7 legacy unicast), so answers come back to
+  us alone. Do not "simplify" to SO_REUSEPORT on 5353: it splits the multicast stream between two
+  readers and breaks the software this sits next to.
+- **The codec is a port, and its evidence is labelled.** Each table in `protocol.js` names the
+  netaudio file and function it came from. `test/fixtures/dante/netaudio-vectors.json` keeps
+  netaudio's account of every byte vector: Dante Controller's own requests (2.8.9 and 2.7.41
+  subscription pages, 2.8.12 status queries, 2.8.15 page continuation) are independent evidence;
+  netaudio's golden command bytes are its own encoder's output and prove agreement only. A
+  correction belongs upstream first.
+- **Three write forms, chosen by the advertised revision** (`writeForm` in `supervisor.js`):
+  `modern` (2.8.9+, the `0x3410` page Dante Controller sends), `page-2729` (2.7.41, the `0x3010`
+  page under `0x2729` it sends — with `.` for the receiver's own channels), and `classic`
+  (netaudio's `0x27FF` add/remove, for 2.8.1 and for a device added by address that read cleanly
+  the classic way). A revision netaudio has no observation of is read and never written.
+- ⚠️ **`tools/dante-sim.mjs` is built from the same tables, so it is not evidence.** Every
+  end-to-end test, and the browser check, ran against it.
+
+⚠️ **Rules for an agent working on it:** send no control packet to a real Dante device. Set the
+plugin's `discoveryTarget` to the simulator (`127.0.0.1:<port>`) before switching it on — with a
+target set, discovery asks only there and never the network — and add no real address to
+`manualDevices`. Passive mDNS browsing is harmless; reading a device over ARC is not passive.
+
+⚠️ **The switcher's card is read from the store on inference.** `device/system/deviceList/items/
+<n>/dante/status/pp/id` is taken to be its Dante name (32 characters in the model, and
+`AQL-Simulator` on the simulator), and `DANTE_<b>_CHANNEL_<c>` to be Dante channel (b − 1) × 8 + c.
+Neither has been put next to a real card. A frame slot with no card reads `UNKNOWN`,
+`NOT_INITIALIZED` and no id, and is skipped. `switcher.js` reads the Audio Matrix's paths itself —
+a plugin never imports another's folder.
+
 ### A Pixelhue console (`plugins/pixelhue/`) — **preview**
 
 A U-series event controller driving the switcher. The whole subsystem turns on

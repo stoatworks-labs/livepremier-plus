@@ -77,6 +77,13 @@ rather than as a bolt-on:
   the input it feeds and it can follow the show the way Mitti follows an ATEM:
   play when put on air, load the next clip when taken off, and take when its
   clip ends — a set number of seconds early, so the mix lands on the last frame.
+- **Dante** *(preview, off by default)* — the Dante audio network's routing as a
+  crosspoint grid beside the switcher it feeds: devices found over mDNS, every
+  receive channel's subscription and its status, a click to subscribe or clear,
+  snapshots recalled from a cue or OSC, and **Dante Controller presets** written
+  for it to load and read back as a difference before anything is applied. The
+  switcher's own Dante card is marked, with its Audio Matrix patching beside its
+  channels. Never yet run against a real Dante device.
 - **EDID builder** — the Otter EDID editor on the switcher's own EDID page.
   **From Formats**, a tab beside Default EDIDS and EDID Bank, builds one EDID
   per custom format in Setup ▸ Formats — every porch kept, the CTA VIC carried
@@ -788,6 +795,48 @@ changes after they start, so opening a page never plays a deck already on air.
 > `103 unsupported` to any command ending in a carriage return, which is how
 > 0.16.0 ends them. `main` ends them with a bare line feed, which a HyperDeck
 > also takes, and the simulator's `--mitti` mode now refuses CR the same way.
+
+## Dante — preview
+
+PLUS ▸ Dante. The Dante network's routing, read off the devices themselves:
+receivers down the side, transmitters across the top, as device blocks that open
+into channels. A cell is one subscription, coloured by what the receiver reports
+— connected, establishing, unresolved, failed — and a click subscribes or clears
+it; a block lays one device across another channel for channel. The grid
+**opens locked**, because it reaches every device on the audio network, not only
+the switcher. Off by default; turn it on in Preconfig ▸ LivePremier Plus.
+
+Dante Controller has no remote-control interface, so this is two things rather
+than one pretend one:
+
+- **Its own Dante routing control**, speaking the control protocol the
+  open-source [netaudio](https://github.com/chris-ritsen/network-audio-controller)
+  project reverse-engineered: discovery, channels, subscriptions and their
+  status, and adding and removing subscriptions. Every write is planned against
+  what the devices last said, sent, and **read back** — what the panel reports
+  is what the devices say afterwards, never what was asked.
+- **Dante Controller's own preset files.** Export a preset of what this app
+  reads, and load it in Dante Controller with File ▸ Load Preset; or import a
+  preset Dante Controller saved and see exactly which subscriptions applying it
+  would change — clearing the channels it leaves empty, as Dante Controller does
+  — before anything is sent.
+
+Routing **snapshots** save and recall the whole network's subscriptions, from
+the panel, a cue (`snapshot Show A`) or OSC (`/lp/dante/snapshot/Show-A/recall`).
+The switcher's own Dante card is found by the name its store reports and marked
+in the grid, with what its Audio Matrix does with each Dante channel beside it.
+
+Discovery asks the network from a port of the app's own and never touches UDP
+5353, so the system's mDNS responder — and Dante Controller and Dante Virtual
+Soundcard, which depend on it — are left alone. Devices can also be listed by
+address.
+
+> ⚠️ **Preview: never yet run against a real Dante device.** The protocol codec
+> is held, byte for byte, to packets Dante Controller itself sent, and the rest
+> was proved against `node tools/dante-sim.mjs` — a simulated network built from
+> the same tables, which is not evidence about a real one.
+> **[docs/DANTE.md](docs/DANTE.md)** has the design, a source for every protocol
+> table, and the first-device test to run before a show.
 
 ## Pitch Compensation
 
@@ -1503,6 +1552,14 @@ Everything a panel withholds is withheld with its reason, on the Settings page.
   leaving and renaming are refused unless the app was started with
   `--appliance`. Auth keys and network ids are checked before the CLI sees
   them, and passed as arguments, never through a shell.
+- **The Dante panel is off by default, opens locked, and never binds UDP 5353.**
+  It reaches every device on the audio network, so a page opens with clicks
+  that only open and close devices; a change is made only once it is unlocked,
+  or by a cue, an OSC address, a snapshot recall or a preset apply the operator
+  confirmed. Every write sends only what differs, is read back, and is reported
+  as what the devices say afterwards. Discovery asks from a port of its own, so
+  the system's mDNS responder, Dante Controller and Dante Virtual Soundcard are
+  never disturbed.
 - **Re-pointing drops the old relay.** Moving to a backup frame hangs up the
   sockets aimed at the previous one, so a page cannot go on driving a device
   the operator believes they have left. Cue stacks and layer groups are both

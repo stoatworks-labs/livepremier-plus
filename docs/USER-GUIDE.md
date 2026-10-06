@@ -703,6 +703,81 @@ In a cue, the **HyperDeck** field takes `VT 1 clip 3; VT 1 play; recorders recor
 
 ---
 
+## Dante (preview)
+
+**PLUS ▸ Dante.** The Dante audio network's routing — who is listening to what — read off the
+devices themselves, beside the switcher it feeds. Off by default: switch it on in **Preconfig ▸
+LivePremier Plus → Plugins**, then reload.
+
+> ⚠️ **Preview: it has never been run against a real Dante device.** Its protocol code is held to
+> packets Dante Controller itself sent, and everything else was proven against a simulated network.
+> `docs/DANTE.md` has a short test to run with Dante Virtual Soundcard or the switcher's own card
+> before you trust it with a show. Keep Dante Controller open beside it the first time.
+
+### Finding the devices
+
+Devices are found on their own: the app asks the network every 30 seconds, from a port of its own,
+so Dante Controller and Dante Virtual Soundcard on the same machine are not disturbed. Under
+**Settings ▸ Dante** you can choose which network interface to ask on, list devices **by
+address** for a network where multicast does not reach this machine, and set how often each device
+is read again (every 5 seconds by default — this is how a change made in Dante Controller shows
+here).
+
+### The grid
+
+Receiving devices down the side, transmitting devices across the top. A block says how many of the
+receiver's channels take from that transmitter, and is solid when it is channel for channel (1→1,
+2→2 …). Click a device's name to **open it into its channels**; where an open receiver meets an open
+transmitter, each cell is one subscription, coloured by what the receiver reports: blue for
+connected, orange while it is being set up, red for unresolved or failed. Hover a cell or a channel
+for the device's own words.
+
+1. **Unlock** the grid (it opens **Locked**: clicks only open and close devices).
+2. Click a cell to subscribe that receive channel to that transmit channel, or to clear it when it
+   is already lit. Click a block to lay the transmitter across the receiver channel for channel, or
+   to clear exactly that.
+3. The cell waits (dashed) until the device has been read back. The note line and **Last change**
+   say what each device reports: *confirmed*, or why not.
+
+**Filter** narrows the grid by name; **Routed only** hides the empty channels. **Devices**, under
+the grid, lists each device's model, address, protocol revision, sample rate, latency and channel
+counts, and says why one cannot be changed if it cannot.
+
+**This switcher.** The switcher's own Dante card is found by the name in its store and marked
+**this switcher**. Its receive channels show the outputs the **Audio Matrix** sends them to (`→
+Output 7 ch 1`), and its transmit channels the input they carry. If it is not found — its Dante name
+was changed, say — choose it under **Settings ▸ Dante ▸ This switcher's Dante card**.
+
+### Dante Controller presets
+
+- **Export preset** saves a Dante Controller preset of every device read. In Dante Controller,
+  **File ▸ Load Preset** opens it like one of its own.
+- **Import preset…** reads a preset saved by Dante Controller and shows, device by device, which
+  subscriptions applying it would change — **including the ones it would clear**: as Dante
+  Controller does, a receive channel the preset leaves empty, or does not list, is cleared. Each
+  role in the preset is matched to a device by its id or name; pick another, or *not applied*, to
+  change that. **Apply** sends exactly what was shown; if the network has changed since, it says so
+  and shows the difference again.
+
+Only subscriptions are applied from a preset — never names, sample rates, latency or network
+settings. Dante Controller is the tool for those.
+
+### Snapshots
+
+Type a name and **Save current routing** to keep every receiving device's subscriptions. **Recall**
+says how many subscriptions it would change, then changes only those, and lists anything it could
+not do. Snapshots are saved in the setup file with everything else.
+
+### From a cue, the Console and OSC
+
+In a cue, the **Dante** field takes `snapshot Show A`, or `1@Amp-1 <- Mix L@Desk` to subscribe
+receive channel 1 of Amp-1 to Mix L on Desk, or `Front L@Amp-1 <- none` to clear one; `;` between
+several. Over OSC or at the Console: `/lp/dante/snapshot/Show-A/recall`,
+`/lp/dante/route/Amp-1/2 "Mix R@Desk"`, `/lp/dante/clear/Amp-1/2` — the full list is in
+`docs/OSC.md`.
+
+---
+
 ## Companion
 
 **PLUS ▸ Companion.** A [Bitfocus Companion](https://bitfocus.io/companion) (5.0 or newer) linked to

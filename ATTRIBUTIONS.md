@@ -26,6 +26,14 @@ Copyright: 2024 Julian Waller
 
 The Speed Editor's key and LED tables in src/vendor/surface/hid/speed-editor.js follow node-blackmagic-controller, the library Bitfocus Companion drives the panel with.
 
+### netaudio (network-audio-controller) — Christopher Ritsen
+
+<https://github.com/chris-ritsen/network-audio-controller>  
+Licence: Unlicense (public domain dedication)  
+Copyright: none claimed — dedicated to the public domain by its authors
+
+Audinate publishes nothing about Dante's control protocol. The Dante plugin's codec, plugins/dante/protocol.js, is a port of netaudio's reverse engineering, read at commit a3323a3 (2026-10-02): the ARC request and response layouts, the classic and modern channel inventories, the subscription writes, the subscription-status table and the protocol-revision rule, each table naming the netaudio file and function it came from. test/fixtures/dante/netaudio-vectors.json carries netaudio's captured packets — Dante Controller's own requests among them — with netaudio's account of where each came from. The Unlicense asks for nothing; this is the credit it deserves.
+
 ### VPU mixer model — Stoatworks aquilon-vpu-map
 
 <https://github.com/stoatworks-labs/aquilon-vpu-map>  
@@ -121,6 +129,18 @@ No code was taken from these — but they were how we knew we had it right, and 
 ### Analog Way AWJ Protocol Programmer's Guide — Analog Way
 
 LivePremier Plus works with Analog Way LivePremier (Aquilon) processors. It is not affiliated with or endorsed by Analog Way, and redistributes no part of their software, firmware or documentation. It puts its panels inside Analog Way's own Web RCS as a proxy: every byte of the vendor interface — markup, scripts, stylesheets, fonts and icons — is fetched from the switcher you point it at, at the moment you ask for it, and passed through. Nothing of Analog Way's is contained in this repository, in the container image, or in the desktop app, which is why there is no hosted demo. The panels use the vendor stylesheet's own utility classes, served by your device, in your browser. The protocol is documented openly in the guide, and every device path this project relies on was verified by reading it back off a running device.
+
+### A Dante Controller preset — Joscha Wagner (DanteArchitect)
+
+<https://github.com/Nebensound/DanteArchitect>  
+Licence: MIT  
+Copyright: 2025 Joscha Wagner
+
+test/fixtures/dante/dante-controller-preset.xml is Examples/PresetTemplate.xml from DanteArchitect, unchanged: a preset Dante Controller saved, which the Dante plugin's preset reader is tested against. Used under the MIT licence; the copyright notice above is its notice.
+
+### Dante Controller and its user guide — Audinate
+
+LivePremier Plus is not affiliated with or endorsed by Audinate. The Dante plugin writes and reads Dante Controller preset files and follows that format's parameter rules as Dante Controller 4.18.1.1's own user guide states them (which channels a preset clears, how roles are matched to devices). No Audinate software, firmware or documentation is redistributed here, and nothing in it drives Dante Controller itself. Dante is a trademark of Audinate Pty Ltd.
 
 ## Inspirations
 

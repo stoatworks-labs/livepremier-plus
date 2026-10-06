@@ -9,6 +9,35 @@ Cross-cutting notes that are not specific to this repo live in
 
 *LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, injecting a VPU map and a theatre cue stack into a real LivePremier Web RCS session in the vendor's own CSS; PRIVATE + pushed; verified through the proxy against the simulator; no panel ever driven live on hardware in a browser*
 
+## Dante: our own routing control, and Dante Controller's preset files (2026-10-06)
+
+Built `plugins/dante/` — preview, off by default — as two halves, because Dante Controller has no
+remote-control interface: a port of netaudio's reverse-engineered ARC protocol (discovery, channels,
+subscriptions, writes read back) and Dante Controller's preset XML, written and read as a
+difference. `docs/DANTE.md` is the design.
+
+What was learned on the way, all from reading rather than from a device:
+
+- **netaudio's protocol now lives in a Rust core** (`packages/netaudio-core/src/`), not the Python
+  of 2021–2024, and it distinguishes three subscription writes by the ARC revision the device
+  advertises (`arcp_vers` *is* the protocol id: 2.7.41 is `0x2729`). Its fixtures label their own
+  evidence carefully; the Dante Controller captures (2.8.9 and 2.7.41 subscription pages, 2.8.12
+  status queries, 2.8.15 continuation) are the independent ones, and our codec matches every one.
+- **Dante Controller clears what a preset does not list.** Its user guide: applying Rx
+  subscriptions removes "any existing subscriptions on the target system that do not exist in the
+  preset". The import difference follows that rule and marks those rows.
+- **The simulator store describes the Dante card** at `device/system/deviceList/items/<n>/dante`:
+  `status/pp/id` (`AQL-Simulator`), `type` `BK2_64X64`, MACs, and per channel `source/status/pp/
+  {label, connectedTo}` and `transmitter/status/pp/label`. Frames 2–4 read `UNKNOWN` /
+  `NOT_INITIALIZED`. That `id` is the Dante name, and the channel numbering, are inferences.
+- **The in-app Browser pane opens a pop-out in the same tab**, so the opener is gone and the pop-out
+  says "No Web RCS session". The Dante pop-out is unverified for that reason only.
+
+Proven against `tools/dante-sim.mjs` and in the Browser pane against LivePremier Simulator 6.2.73
+(grid, switcher card matched by name with its Audio Matrix beside it, a click confirmed by
+read-back, preset export → edit → import difference → apply, a snapshot saved). **No packet has
+gone to a real Dante device.** The first real test (DVS, then the switcher's card) is in DANTE.md.
+
 ## HyperDecks: Mitti refuses CR-ended commands (2026-09-29)
 
 The link (`plugins/hyperdeck/link.js`, `pump()`) wrote every command as `line\r\n`.
