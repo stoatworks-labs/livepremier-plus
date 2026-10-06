@@ -329,8 +329,13 @@ test('a still that has to change capacity gets a format of the output’s own si
   const o = { format: 'UHDTV_2160P', raster: { width: 3840, height: 2160 } };
   const validity = readStills(store)[0].formats;
   assert.ok(validity.includes('UHDTV_2160P'));
-  assert.equal(chooseStillFormat(validity, o), 'UHDTV_2160P');
-  assert.equal(chooseStillFormat(validity, { format: 'COMPUTER_CUSTOM_3', raster: { width: 3840, height: 1080 } }), 'COMPUTER_3840_1080');
+  assert.equal(chooseStillFormat(validity, { ...o, capability: '4K' }), 'UHDTV_2160P', 'the output’s own format');
+  assert.equal(chooseStillFormat(validity, { format: 'COMPUTER_CUSTOM_3', raster: { width: 3840, height: 1080 }, capability: '4K' }), 'COMPUTER_3840_1080');
+  /* A 4K-capacity output running 1080p (an Aquilon C's outputs 1-4 report
+     exactly that): 1080p would give DUAL, so 4K's own format is asked for
+     instead, and the switcher's check says whether it gave 4K. */
+  assert.equal(chooseStillFormat(validity, { format: 'HDTV_1080P', raster: { width: 1920, height: 1080 }, capability: '4K' }), 'UHDTV_2160P');
+  assert.equal(chooseStillFormat(validity, { format: 'HDTV_1080P', raster: { width: 1920, height: 1080 }, capability: '3' }), null, 'an odd capacity is not guessed');
   assert.equal(chooseStillFormat([], o), null);
   assert.deepEqual(formatSize('COMPUTER_5120_2880_RB'), { width: 5120, height: 2880 });
   assert.equal(formatSize('COMPUTER_SWXGAPB'), null, 'a name whose size is not certain matches nothing');
@@ -562,6 +567,7 @@ test('apply: uploads, stills, the set and its label in order, each confirmed by 
   assert.equal(store.get(['device', 'preconfig', 'backgrounds', 'stillList', 'items', '1', 'control', 'pp', 'useOnOutput']), 'NONE');
   assert.equal(store.get(['device', 'stillList', 'items', '1', 'control', 'pp', 'mode']), 'NONE');
   assert.equal(store.get(['device', 'stillList', 'items', '1', 'control', 'pp', 'rescale']), 'SCALE_TO_CAPABILITY', 'the rescale it had');
+  assert.equal(store.get(['device', 'stillList', 'items', '2', 'control', 'pp', 'source']), 1, 'the source it had');
   assert.equal(readSets(store, 'S1')[0].label, '');
   assert.deepEqual(readLibrary(store).slots.filter((s) => s.free).map((s) => s.slot), [1, 2, 3, 4, 200]);
 });

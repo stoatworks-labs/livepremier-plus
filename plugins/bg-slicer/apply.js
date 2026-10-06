@@ -109,7 +109,7 @@ export async function uploadImage({ session, fetchImpl = fetch, blob, name, slot
  * switcher's check says error, or when the check would take a still that
  * holds something out of service. Returns the formats it replaced, for undo.
  */
-export async function applyCapacities({ session, changes, log }) {
+export async function applyCapacities({ session, changes, log, reserved = new Set() }) {
   const { store } = session;
   if (!changes.length) return [];
   const status = () => pp(store.get(preStillsNew('status')));
@@ -129,7 +129,8 @@ export async function applyCapacities({ session, changes, log }) {
   const stills = readStills(store);
   const staged = store.get(preStillsNew('stillList', 'items')) || {};
   const lost = stills.filter((s) => s.enabled && pp(staged[s.key] && staged[s.key].status).global === 'DISABLE');
-  const busy = lost.filter((s) => !s.free);
+  /* In use, or about to be: a still this same plan gives another output. */
+  const busy = lost.filter((s) => !s.free || reserved.has(s.key));
   if (busy.length) {
     discard();
     throw new Error(`raising the capacity would take ${busy.map((s) => `still ${s.key}`).join(', ')} out of service, and ${busy.length === 1 ? 'it holds' : 'they hold'} something — refused`);
@@ -171,7 +172,8 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
       if (changes.length) {
         step(`Still capacities: ${changes.map((c) => `still ${c.still} ${c.from} → ${c.to}`).join(', ')}`, 'running');
         try {
-          journal.capacities = await applyCapacities({ session, changes, log: (t) => step(t, 'note') });
+          const reserved = new Set(plan.screens.flatMap((x) => x.outputs.map((o) => o.still)).filter(Boolean));
+          journal.capacities = await applyCapacities({ session, changes, reserved, log: (t) => step(t, 'note') });
         } catch (err) {
           if (err.before) journal.capacities = err.before;
           throw err;

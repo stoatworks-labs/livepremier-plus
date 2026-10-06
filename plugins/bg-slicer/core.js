@@ -615,21 +615,51 @@ export function formatSize(name) {
 }
 
 /**
- * The format to give a still's capacity helper so it can hold an output's
- * background: the output's own format when the helper offers it (the
- * capacity then matches the output's by construction), else the first
- * offered format of exactly the raster's size. Null when none is offered.
+ * The capacity a format probably gives a still, by its size — DUAL up to
+ * 1920 × 1200, 4K up to 4096 × 2160, 5K up to 5120 × 2880, else 8K. A guess
+ * used only to choose what to ask for: the switcher's own `xCheck` says what
+ * the capacity really is, and a change that comes back different is refused
+ * (`apply.js`). The odd capacities (3, 5, 6, 7) are never guessed at.
  */
-export function chooseStillFormat(validity, output) {
+export function likelyCapability(size) {
+  const area = size.width * size.height;
+  if (area <= 1920 * 1200) return 'DUAL';
+  if (area <= 4096 * 2160) return '4K';
+  if (area <= 5120 * 2880) return '5K';
+  return '8K';
+}
+
+/** The format that is each capacity beyond doubt. */
+const CANONICAL_FORMAT = { DUAL: 'HDTV_1080P', '4K': 'UHDTV_2160P', '5K': 'COMPUTER_5120_2880_RB' };
+
+/**
+ * The format to give a still's capacity helper so it can hold an output's
+ * background: it must be at least the raster's size and give the output's
+ * capacity — the manual's "content and output capacities must match"
+ * (p.101). The output's own format first, when that fits; then one of
+ * exactly the raster's size; then the capacity's own format; else the
+ * smallest offered format that fits. Null when none is offered.
+ */
+export function chooseStillFormat(validity, output, need = output.capability) {
   const list = Array.isArray(validity) ? validity : [];
-  if (output.format && list.includes(output.format)) {
-    const sz = formatSize(output.format);
-    if (!sz || (sz.width === output.raster.width && sz.height === output.raster.height)) return output.format;
-  }
-  return list.find((f) => {
+  const fits = (f) => {
     const sz = formatSize(f);
-    return sz && sz.width === output.raster.width && sz.height === output.raster.height;
-  }) || null;
+    return sz && sz.width >= output.raster.width && sz.height >= output.raster.height
+      && (!need || likelyCapability(sz) === need);
+  };
+  if (output.format && list.includes(output.format) && fits(output.format)) return output.format;
+  const exact = list.find((f) => fits(f) && formatSize(f).width === output.raster.width && formatSize(f).height === output.raster.height);
+  if (exact) return exact;
+  /* A capacity bigger than the raster needs (a 4K-capacity output running
+     1080p): ask for the format that is that capacity beyond doubt. */
+  const canonical = CANONICAL_FORMAT[need];
+  if (canonical && list.includes(canonical) && fits(canonical)) return canonical;
+  const ok = list.filter(fits).sort((a, b) => {
+    const A = formatSize(a);
+    const B = formatSize(b);
+    return A.width * A.height - B.width * B.height;
+  });
+  return ok[0] || null;
 }
 
 /* -------------------------------------------------------------- the plan */
@@ -817,15 +847,21 @@ export function stillWrites(still, slot, label) {
   ];
 }
 
-/** Put a still back as it was: the same props, the reverse way round. */
+/**
+ * Put a still back as it was. Leaving IMAGE, `mode` goes first, so the still
+ * never shows the slot it is being pointed back at; returning to IMAGE, the
+ * source goes first for the same reason.
+ */
 export function stillRestoreWrites(still, before) {
   const b = before || {};
-  return [
-    { path: stillPath(still, 'label'), value: String(b.label || '') },
-    { path: stillPath(still, 'rescale'), value: b.rescale || 'SCALE_TO_CAPABILITY' },
-    ...(b.mode === 'IMAGE' ? [{ path: stillPath(still, 'source'), value: b.source }] : []),
-    { path: stillPath(still, 'mode'), value: b.mode || 'NONE' }
-  ];
+  const mode = { path: stillPath(still, 'mode'), value: b.mode || 'NONE' };
+  const writes = [];
+  if (mode.value !== 'IMAGE') writes.push(mode);
+  if (Number.isInteger(b.source)) writes.push({ path: stillPath(still, 'source'), value: b.source });
+  if (mode.value === 'IMAGE') writes.push(mode);
+  writes.push({ path: stillPath(still, 'rescale'), value: b.rescale || 'SCALE_TO_CAPABILITY' });
+  writes.push({ path: stillPath(still, 'label'), value: String(b.label || '') });
+  return writes;
 }
 
 const bgClaimPath = (source, out) => {
