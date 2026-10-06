@@ -29,7 +29,7 @@ import {
   readScreens, screenTopology, outputBlits, renderRGBA, isExact, presetPlacement, spanLayout, placementFor,
   buildPlan, readSets, readStills, readLibrary, contentWrites, stillWrites, setContentPath, edidChoice,
   edidWrites, plugTemplates, templateRate, chooseStillFormat, formatSize, localToRaster, rasterToLocal,
-  liveCandidates, suggestInputs, nativeLayer, imageName, libraryDeleteWrites, setLabelWrite, LABEL_MAX
+  liveCandidates, suggestInputs, sendingFormatOf, nativeLayer, imageName, libraryDeleteWrites, setLabelWrite, LABEL_MAX
 } from '../plugins/bg-slicer/core.js';
 import {
   regionRows, toCsv, toJson, toResolume, outputQuad, templateShapes, templateSvg, packFiles, TARGETS,
@@ -52,7 +52,7 @@ function merge(a, b) {
 function simStore() {
   const s = new DeviceStore();
   s.hydrate(['sim-6.2.73-identity.json', 'sim-6.2.73-screens.json', 'sim-6.2.73-destinations.json',
-    'sim-6.2.73-outputs.json', 'sim-6.2.73-backgrounds.json'].map(fixture).reduce(merge, {}));
+    'sim-6.2.73-outputs.json', 'sim-6.2.73-backgrounds.json', 'sim-6.2.73-inputs-signal.json'].map(fixture).reduce(merge, {}));
   return s;
 }
 
@@ -395,6 +395,17 @@ test('live inputs: fitted inputs are offered, and an output’s EDID is the swit
   const w = edidWrites('IN_3', { kind: 'template', key: '1920_1080_60HZ' });
   assert.deepEqual(w.map((x) => x.value), [false, true]);
   assert.deepEqual(w[0].path.slice(-6), ['fromTemplate', 'bankList', 'items', '1920_1080_60HZ', 'pp', 'xApply']);
+});
+
+test('an input already receiving the output’s format is suggested first', () => {
+  const store = simStore();
+  const out = screenTopology(store, 'S1').outputs[0];
+  const cands = liveCandidates(store);
+  assert.deepEqual(cands[0].signal && [cands[0].signal.width, cands[0].signal.height, cands[0].signal.rate], [1920, 1080, 60]);
+  assert.equal(sendingFormatOf(cands[0], out), true);
+  /* IN_1 loses its signal: IN_2, which is still sending 1080p60, goes first. */
+  store.set(['device', 'inputList', 'items', 'IN_1', 'plugList', 'items', '1', 'status', 'signal', 'pp', 'isValid'], false);
+  assert.equal(suggestInputs(liveCandidates(store), out)[0].key, 'IN_2');
 });
 
 test('a live plan maps each output to an input, one input per output', () => {

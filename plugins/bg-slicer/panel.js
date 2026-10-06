@@ -36,7 +36,7 @@ import { h, button, fill } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
 import {
   buildPlan, readScreens, screenTopology, readSets, firstFreeSet, presetPlacement, spanLayout, placementFor,
-  NOTES, liveCandidates, suggestInputs, edidChoice, plugTemplates, imageName, readLibrary, LABEL_MAX
+  NOTES, liveCandidates, suggestInputs, sendingFormatOf, edidChoice, plugTemplates, imageName, readLibrary, LABEL_MAX
 } from './core.js';
 import { reconcile } from './job.js';
 import { applyPlan, revert } from './apply.js';
@@ -378,7 +378,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       for (const o of (t && t.outputs) || []) {
         const k = `${sid}/${o.key}`;
         if (job.live[k] === undefined) {
-          const pick = suggestInputs(cands, o.key, taken, o.device)[0];
+          const pick = suggestInputs(cands, o, taken, o.device)[0];
           job.live[k] = pick ? pick.key : null;
           if (pick) taken.add(pick.key);
         }
@@ -450,7 +450,9 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
     }, h('option', { value: '', text: '— choose —' }),
     cands.map((c) => h('option', {
       value: c.key, selected: c.key === current ? 'selected' : null,
-      text: `${c.key.replace('_', ' ')}${c.label ? ` ${c.label}` : ''}${c.plug ? ` · ${c.plug}` : ''}${c.usedOnOutput && c.usedOnOutput !== o.key ? ` · on Out ${c.usedOnOutput}` : ''}`
+      text: `${c.key.replace('_', ' ')}${c.label ? ` ${c.label}` : ''}${c.plug ? ` · ${c.plug}` : ''}`
+        + `${c.signal && c.signal.valid ? ` · ${c.signal.width}×${c.signal.height} ${c.signal.rate} Hz${sendingFormatOf(c, o) ? ' ✓' : ''}` : ' · no signal'}`
+        + `${c.usedOnOutput && c.usedOnOutput !== o.key ? ` · on Out ${c.usedOnOutput}` : ''}`
     })));
     const e = job.edid[k];
     return [

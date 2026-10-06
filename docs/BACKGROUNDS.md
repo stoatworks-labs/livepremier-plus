@@ -22,8 +22,10 @@ needs to feed them, as files it can import.
    (each screen's place in the strip is editable — a gap, a step down).
 3. **Placement.** Each screen's canvas, drawn as the Screens / Aux. page draws one, with its outputs
    on it — `Out 1 · 1920×1080 · HDMI`, the group and slice when there is one, `⟲90°` when rotated —
-   and the picture over them. Drag it, type X / Y / W / H in canvas pixels (sums work, as in every
-   numeric field), or **Fit**, **Fill**, **Stretch**, **1:1**, **Centre**. An output drawn dashed
+   and the picture over them. Drag it, type X / Y / W / H in canvas pixels, or **Fit**, **Fill**,
+   **Stretch**, **1:1**, **Centre**. The fields are the same kind as Web RCS's own numeric fields, so
+   sums work, and with the Variables plugin on so do `$S1.width/2` and your own `@gap`
+   ([VARIABLES.md](VARIABLES.md)). An output drawn dashed
    in orange rests on an assumption (below).
 4. **Plan — nothing is written yet.** Per screen, the background set it goes into (the first free
    one; any of the eight can be chosen, and one holding content says so). Per output: the raster, the
@@ -125,7 +127,8 @@ the plan says **resampled**.
 ## The live-input mode
 
 Each output's background is an input instead of a still: the plan names one per output (free and
-fitted ones are suggested; one input per output), and the write sets each set's content to
+fitted ones are suggested — on the output's own frame, not on air, and one already receiving the
+output's raster and rate first, read through the dialect's `inputFormats`; one input per output), and the write sets each set's content to
 `LIVE_n` with the same claim bookkeeping — the input's `useOnOutput` becomes that output. The
 switcher's rule is that a live background must match the output's format ("same format
 (resolution, rate and blanking)", p.101), so:

@@ -1164,8 +1164,8 @@ shows, at exactly that output's resolution. This does the cutting, and fills the
    picture placed on each separately) or **Span selected screens** (the screens side by side, in
    order, under one picture; type where each sits in the strip if they are not edge to edge).
 3. **Placement** — the screen's canvas with its outputs drawn on it, and the picture over them. Drag
-   the picture, or type **X / Y / W / H** in canvas pixels, or press **Fit**, **Fill**, **Stretch**,
-   **1:1** or **Centre**. An output outlined in orange dashes is one whose cut rests on something not
+   the picture, or type **X / Y / W / H** in canvas pixels — sums work, and so do variables such as
+   `$S1.width/2` or `@gap` — or press **Fit**, **Fill**, **Stretch**, **1:1** or **Centre**. An output outlined in orange dashes is one whose cut rests on something not
    yet seen on a real frame — rotated, grouped, sliced or pitched; hover it to see which.
 4. **Plan** — nothing has been written yet. For each screen, the **background set** it goes into
    (the first empty one; pick another if you like — one with content says so). For each output: its
@@ -1194,7 +1194,8 @@ Good to know:
 **Live inputs — a media server as the background**
 
 Switch to **Live inputs**. The steps are the same, without Generate: each output gets an **input**
-instead of a still (free ones are suggested; one input per output), and the set takes that input.
+instead of a still (free ones are suggested, an input already receiving the output's format first,
+marked ✓; one input per output), and the set takes that input.
 **Load each input plug with the switcher's EDID** (on by default) makes each input ask its source for
 exactly the output's resolution and rate — a live background must match its output's format. No
 picture is needed: type the **content** size your media server works in.

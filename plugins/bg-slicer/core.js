@@ -948,6 +948,11 @@ export function imageName(screenId, output, stem = 'bg') {
 export function liveCandidates(store) {
   const inputs = store.get([ROOT, 'inputList', 'items']) || {};
   const bgInputs = store.get([...BG, 'inputList', 'items']) || {};
+  /* What each input is receiving now, from the dialect's own reader (the
+     Variables plugin's `$IN3.rate`): a source already sending the output's
+     format is the one to suggest. Rate in Hz. */
+  const dialect = dialectFor(store);
+  const signals = new Map(((dialect && dialect.inputFormats) ? dialect.inputFormats(store) : []).map((f) => [f.key, f]));
   const out = [];
   for (const key of Object.keys(inputs).filter((k) => /^IN_\d+$/.test(k)).sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)))) {
     const node = inputs[key];
@@ -967,23 +972,35 @@ export function liveCandidates(store) {
       usedOnOutput: st.usedOnOutput && st.usedOnOutput !== 'NONE' ? String(st.usedOnOutput) : null,
       compatibility: Array.isArray(st.outputsCompatibility) ? st.outputsCompatibility.map(String) : [],
       onAir: status.isOnProgram === true || status.isOnPreview === true,
-      state: status.global || null
+      state: status.global || null,
+      signal: signals.get(key) || null
     });
   }
   return out;
 }
 
+/** Whether an input is receiving exactly an output's raster and rate right now. */
+export const sendingFormatOf = (c, output) => !!(c.signal && c.signal.valid && output
+  && c.signal.width === output.raster.width && c.signal.height === output.raster.height
+  && output.rate && c.signal.rate != null && Math.abs(c.signal.rate * 1000 - output.rate) < 1);
+
 /**
  * The inputs to suggest for an output, best first: not already another
  * output's background, compatible where the switcher says, on the output's
- * own frame (the Web RCS offers nothing else), and not on air in a layer.
+ * own frame (the Web RCS offers nothing else); then not on air in a layer,
+ * already this output's, and already receiving its format, in that order.
+ * `output` is a topology output, or just its key.
  */
-export function suggestInputs(candidates, outputKey, taken = new Set(), device = null) {
+export function suggestInputs(candidates, output, taken = new Set(), device = null) {
+  const key = String(typeof output === 'object' && output ? output.key : output);
+  const o = typeof output === 'object' ? output : null;
   return candidates
-    .filter((c) => !taken.has(c.key) && (!c.usedOnOutput || c.usedOnOutput === String(outputKey)))
-    .filter((c) => !c.compatibility.length || c.compatibility.includes(String(outputKey)))
+    .filter((c) => !taken.has(c.key) && (!c.usedOnOutput || c.usedOnOutput === key))
+    .filter((c) => !c.compatibility.length || c.compatibility.includes(key))
     .filter((c) => device == null || c.device == null || String(c.device) === String(device))
-    .sort((a, b) => (a.onAir - b.onAir) || ((b.usedOnOutput === String(outputKey)) - (a.usedOnOutput === String(outputKey))));
+    .sort((a, b) => (a.onAir - b.onAir)
+      || ((b.usedOnOutput === key) - (a.usedOnOutput === key))
+      || (sendingFormatOf(b, o) - sendingFormatOf(a, o)));
 }
 
 /** Millihertz to the template spelling: 59940 → 59HZ94, 60000 → 60HZ. */
