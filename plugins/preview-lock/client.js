@@ -29,7 +29,7 @@
  * when remote selection is in use.
  */
 
-import { createPreviewGuard, normalise } from './core.js';
+import { createPreviewGuard, normalise, previewTargetsOf } from './core.js';
 import { cardPadlock } from '../../src/ui/preset-lock.js';
 import { listDestinations } from '../../src/core/screens.js';
 
@@ -143,10 +143,34 @@ export default function activate(ctx) {
     if (held.size || owed.size) sweep();
   });
 
+  /** Note a held recall in the card's history, and pass the outcome on. */
+  function noted(wait, ids) {
+    if (!wait) return null;
+    const what = ids.includes('*') ? 'a master memory' : `a recall into ${ids.join(', ')} preview`;
+    note(ids.join(', '), `${what} held until the take lands`);
+    return wait.then((r) => {
+      note(ids.join(', '), r.ok
+        ? `${what} sent after ${(r.waitedMs / 1000).toFixed(1)} s`
+        : `${what} NOT sent — ${r.message}`);
+      return r;
+    });
+  }
+
   ctx.provide('preview-lock', Object.freeze({
     /** Destinations mid-take right now, whether or not a padlock could be pressed. */
     guarded: () => guard.guarded().map((g) => g.id),
-    isGuarded: (id) => guard.isGuarded(id)
+    isGuarded: (id) => guard.isGuarded(id),
+    /**
+     * Hold a recall into these destinations' preview until their takes land:
+     * null means send now; a promise resolves `{ok, message?}`, and `ok:
+     * false` means do not send. `['*']` is a master memory.
+     */
+    holdFor: (ids) => noted(guard.whenSettled(ids), ids),
+    /** The same, worked out from the writes a caller is about to send. */
+    holdWrites(cmds) {
+      const ids = previewTargetsOf(cmds);
+      return ids ? noted(guard.whenSettled(ids), ids) : null;
+    }
   }));
 
   /* What happened, for `window.__WRU.shared('preview-lock')` on a day with hardware. */
@@ -207,8 +231,11 @@ export default function activate(ctx) {
         + 'its PRW padlock on the Screens / Aux. card is shut, and opened again when the take lands. Web RCS then refuses a '
         + 'memory recalled into that preview mid-take, with its own warning, instead of loading it into the picture fading up. '
         + 'A padlock you shut yourself is never opened by this, and one you open mid-take is left open.'),
-      say('warn', 'The padlock only stops Web RCS’s own buttons. A recall sent another way — a cue, this app’s Memories panel, '
-        + 'Companion, OSC, the front panel — is not held back by it. Only cards drawn on the page can be locked.'));
+      say('info', 'This app’s own recalls wait instead of being refused: a Timeline cue, a Recall in the Memories panel or a '
+        + 'line at the Console that loads a preview mid-take is sent the moment the take lands, and cues fire in the order GO '
+        + 'was pressed. If the take has not landed by its take time plus 3 s (a T-bar parked half way), the recall is not sent, '
+        + 'and says so.'),
+      say('warn', 'Companion, OSC, the front panel and other browsers are not held back. Only cards drawn on the page can be locked.'));
   }
 
   ctx.ui.settingsSection({ id: 'preview-lock', order: 12, render });

@@ -53,7 +53,9 @@ const ARM_MS = 4000;
  *          doc?: Document}} opts
  */
 export function createMemoriesPanel({
-  session, onRefresh = () => {}, popoutEnabled = true, doc = document
+  session, onRefresh = () => {}, popoutEnabled = true, doc = document,
+  /* `(cmds) => null | Promise<{ok, message?}>` — Preview lock's, when it is on. */
+  hold = null
 } = {}) {
   const view = {
     kind: 'screen',
@@ -144,10 +146,21 @@ export function createMemoriesPanel({
     note(ok ? 'ok' : 'err', ok ? description : `${description} — not sent, the socket is not open`);
   }
 
+  /*
+   * A recall into a preview that is mid-take loads the buffer fading up to
+   * program. With Preview lock on, `hold` says so and the recall waits for
+   * the take to land; if it gives up, the recall is not sent at all.
+   */
   const recall = (slot) => {
     const t = target();
-    fire(t && recallCmd(bank().kind, slot, t, dialect()),
-      `recalled ${bank().kind} memory ${slot} to ${view.mode.toLowerCase()}${t && t.id ? ' on ' + t.id : ''}`);
+    const cmd = t && recallCmd(bank().kind, slot, t, dialect());
+    const description = `recalled ${bank().kind} memory ${slot} to ${view.mode.toLowerCase()}${t && t.id ? ' on ' + t.id : ''}`;
+    const wait = cmd && hold ? hold([cmd]) : null;
+    if (!wait) { fire(cmd, description); return; }
+    note('warn', `${bank().kind} memory ${slot}: waiting for the take to land before it goes to preview`);
+    wait.then((r) => (r && r.ok
+      ? fire(cmd, `${description}, after the take`)
+      : note('err', `${bank().kind} memory ${slot} not recalled — ${(r && r.message) || 'the take did not land'}`)));
   };
 
   const save = (slot) => {

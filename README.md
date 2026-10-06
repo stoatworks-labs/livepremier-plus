@@ -61,8 +61,10 @@ rather than as a bolt-on:
   vendor's own PRW padlock on a screen's card for as long as that screen is
   transitioning, so Web RCS refuses the recall with its own warning, and opens
   it again when the take lands. It never opens a padlock you shut yourself.
-  The padlock stops Web RCS's buttons only: cues, Companion, OSC and the front
-  panel are not held back by it.
+  This app's own recalls — Timeline cues, the Memories panel, the Console —
+  wait instead: a recall into a preview that is mid-take goes the moment the
+  take lands, and cues fire in the order GO was pressed. Companion, OSC and
+  the front panel are not held back.
 - **Send to** — a `…` on every source card that routes it without a drag:
   preview or program, then a screen and layer or a whole group. It respects the
   vendor's own PGM padlock, asking before it steps past one.

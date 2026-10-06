@@ -55,7 +55,10 @@ export default async function activate(ctx) {
   const stack = new CueStack({
     send: (cmd) => session.send(cmd),
     commands: () => commandsFor(dialectFor(session.store)),
-    actions: (kind) => cueActions().find((a) => a.kind === kind) || null
+    actions: (kind) => cueActions().find((a) => a.kind === kind) || null,
+    /* With Preview lock on, a cue recalling into a preview that is mid-take
+       waits for the take to land; with it off, null, and cues fire as ever. */
+    hold: (ids) => { const lock = ctx.use('preview-lock'); return lock ? lock.holdFor(ids) : null; }
   });
   const storage = documentAt(ctx.url('/'), ctx.log);
   const saved = await storage.load();

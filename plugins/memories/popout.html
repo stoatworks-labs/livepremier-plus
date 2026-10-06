@@ -25,10 +25,15 @@
 <script type="module">
   import { bootPopout, buildSolo } from '/__lpp/src/ui/popout.js';
   import { createMemoriesPanel } from './panel.js';
+  /* Preview lock lives in the Web RCS tab; a recall from here asks it the same way. */
+  const hold = (bridge) => (cmds) => {
+    const lock = bridge.services && bridge.services.use ? bridge.services.use('preview-lock') : null;
+    return lock ? lock.holdWrites(cmds) : null;
+  };
   bootPopout({
     doc: document,
     opener: window.opener,
-    build: ({ doc, bridge }) => buildSolo(doc, bridge, createMemoriesPanel)
+    build: ({ doc, bridge }) => buildSolo(doc, bridge, (opts) => createMemoriesPanel({ ...opts, hold: hold(bridge) }))
   });
 </script>
 </body>

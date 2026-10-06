@@ -156,7 +156,7 @@ export const BUILTINS = [
     id: 'preview-lock',
     name: 'Preview lock during takes',
     where: 'The PRW padlock on each screen card',
-    description: 'Shuts a screen’s PRW padlock while it transitions, so a memory recalled straight after TAKE is refused instead of riding the take onto program.',
+    description: 'Shuts a screen’s PRW padlock while it transitions, so a memory recalled straight after TAKE is refused instead of riding the take onto program — and makes this app’s own cues and recalls wait for the take to land.',
     requires: { capabilities: ['screens'] },
     /* It presses a padlock in the vendor's own UI on every take, which an
        operator should choose rather than find. */

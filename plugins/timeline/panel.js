@@ -40,7 +40,7 @@ const POPOUT = new URL('./popout.html', import.meta.url).href;
  *        this panel's own `actions()`, the toolbar
  */
 export function createTimelinePanel({ session, stack, storage, timecode = null, chase = null, onRefresh, cueActions = () => [] }) {
-  const view = { editing: null, adding: false, armedUntil: null, lastFired: null };
+  const view = { editing: null, adding: false, armedUntil: null, lastFired: null, warning: null };
   /* The timecode source and the chase, or functions answering them: the
      Timeline plugin passes functions, because they belong to the Timecode
      plugin, which may be off — then there is no clock and no Chase button. */
@@ -54,6 +54,19 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
   });
   stack.addEventListener('stopped', () => { view.armedUntil = null; onRefresh(); });
   stack.addEventListener('end', () => { view.armedUntil = null; onRefresh(); });
+  /* A cue that was not fired, or a kind nobody handles: said until the next GO. */
+  stack.addEventListener('warning', (ev) => { view.warning = ev.detail.message; onRefresh(); });
+
+  /** `cue 5 → S1` for each cue waiting on a take, with Preview lock on. */
+  function waitingText() {
+    const waiting = stack.waiting || [];
+    if (!waiting.length) return null;
+    return waiting.map((w) => {
+      const cue = stack.cues.find((c) => c.id === w.cueId);
+      const name = cue ? (cue.number || cue.label || 'cue') : 'cue';
+      return `${name} → ${w.ids.includes('*') ? 'every screen mid-take' : w.ids.join(', ')}`;
+    }).join(' · ');
+  }
 
   /** Screens and auxiliaries the device says are actually in use. */
   function targets() {
@@ -96,6 +109,7 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
     const standby = stack.standby;
     const chase = chaseNow();
     const armed = view.armedUntil && view.armedUntil > Date.now();
+    const waiting = waitingText();
     return [
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-large' },
         h('div', { class: 'aw-font-subtitle-1', text: 'Timeline' }),
@@ -110,6 +124,10 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
           ? h('span', { class: 'wru-tag', text: `standby ${standby.number || '#' + (stack.pointer + 1)} ${standby.label}`.trim() })
           : h('span', { class: 'wru-tag', text: 'end of stack' }),
         armed ? h('span', { class: 'wru-tag wru-warn', text: 'armed' }) : null,
+        waiting ? h('span', {
+          class: 'wru-tag wru-warn', text: `waiting for take: ${waiting}`,
+          title: 'Preview lock: this cue recalls into a preview that is mid-take, so it fires when the take lands. Stop cancels it.'
+        }) : null,
         timecodeTag()),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
         button('Pop out', {
@@ -123,14 +141,15 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
           title: 'Fire cues that carry a timecode when the clock reaches them'
         }) : null,
         button('Back', { onClick: () => { stack.back(); onRefresh(); }, iconId: 'arrows-left-10' }),
-        button('Stop', { onClick: () => { stack.stop(); onRefresh(); }, variant: 'danger', disabled: !stack.running }),
-        button(armed ? 'Go now' : 'Go', { onClick: () => { stack.go(); onRefresh(); }, variant: 'go', disabled: !standby }))
+        button('Stop', { onClick: () => { stack.stop(); onRefresh(); }, variant: 'danger', disabled: !stack.running && !waiting }),
+        button(armed ? 'Go now' : 'Go', { onClick: () => { view.warning = null; stack.go(); onRefresh(); }, variant: 'go', disabled: !standby }))
     ];
   }
 
   function body() {
     if (!session.store.ready) return h('div', { class: 'wru-empty', text: 'Waiting for the device store…' });
     return h('div', {},
+      view.warning ? h('div', { class: 'wru-tag wru-warn', style: { margin: '0.5rem 0' }, text: view.warning }) : null,
       statusStrip(),
       cueTable(),
       actions(),

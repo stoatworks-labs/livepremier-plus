@@ -105,3 +105,46 @@ test('before the store has arrived, a Set is refused for the right reason', () =
   assert.match(row.detail, /take state/);
   assert.equal(sent.length, 0);
 });
+
+/*
+ * Preview lock: a recall into a preview that is mid-take waits for the take
+ * to land, and is not sent at all if it never does. The hold is the plugin's
+ * service in the page; here a promise the test resolves by hand.
+ */
+function heldConsoleOver(store) {
+  const sent = [];
+  const asked = [];
+  let settle;
+  const session = { store, state: 'live', send: (msg) => { sent.push(msg); return true; } };
+  const hold = (cmds) => {
+    asked.push(cmds);
+    return new Promise((resolve) => { settle = resolve; });
+  };
+  const panel = createConsolePanel({ session, onRefresh: () => {}, popoutEnabled: false, hold });
+  const type = (line) => { panel.state.line = line; panel.execute(); return panel.state.log[0]; };
+  return { sent, asked, type, panel, settle: (r) => settle(r) };
+}
+
+const flush = () => new Promise((r) => setImmediate(r));
+
+test('with Preview lock holding, a recall into preview waits for the take, then goes', async () => {
+  const { sent, asked, type, settle } = heldConsoleOver(hydrated('midra-3.2.29-pulse4k.json'));
+  const row = type('Recall Screen 1 Memory 5');
+  assert.equal(sent.length, 0, 'nothing sent while the take is in flight');
+  assert.match(row.detail, /waiting for the take to land/);
+  assert.ok(asked[0].some((c) => c.path.includes('PREVIEW')), 'the hold was asked about the preview recall');
+  settle({ ok: true });
+  await flush();
+  assert.equal(sent.length, 1);
+  assert.match(path(sent[0]), /presetList\/items\/PREVIEW\/pp\/xRequest$/);
+});
+
+test('with Preview lock holding, a recall whose take never lands is not sent', async () => {
+  const { sent, type, settle, panel } = heldConsoleOver(hydrated('midra-3.2.29-pulse4k.json'));
+  type('Recall Screen 1 Memory 5');
+  settle({ ok: false, message: 'S1 still mid-take after 4.0 s' });
+  await flush();
+  assert.equal(sent.length, 0);
+  assert.equal(panel.state.log[0].kind, 'error');
+  assert.match(panel.state.log[0].detail, /not sent — S1 still mid-take/);
+});

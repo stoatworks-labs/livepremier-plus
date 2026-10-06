@@ -38,7 +38,12 @@ function buildConsole(doc, bridge) {
   const { session } = bridge;
 
   /* No Pop out button in here — this is where it pops out to. */
-  const consolePanel = createConsolePanel({ session, onRefresh: () => paintConsole(), popoutEnabled: false });
+  /* Preview lock lives in the Web RCS tab; a line typed here asks it the same way. */
+  const hold = (cmds) => {
+    const lock = bridge.services && bridge.services.use ? bridge.services.use('preview-lock') : null;
+    return lock ? lock.holdWrites(cmds) : null;
+  };
+  const consolePanel = createConsolePanel({ session, onRefresh: () => paintConsole(), popoutEnabled: false, hold });
   const wall = createPreviewWall({ session, onRefresh: () => paintWall(), doc });
   const syntax = createSyntaxPanel();
   const macros = createMacroPanel();

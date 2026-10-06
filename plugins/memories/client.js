@@ -15,7 +15,11 @@
 import { createMemoriesPanel } from './panel.js';
 
 export default function activate(ctx) {
-  const memories = createMemoriesPanel({ session: ctx.session, onRefresh: ctx.refresh });
+  const memories = createMemoriesPanel({
+    session: ctx.session,
+    onRefresh: ctx.refresh,
+    hold: (cmds) => { const lock = ctx.use('preview-lock'); return lock ? lock.holdWrites(cmds) : null; }
+  });
   ctx.ui.sidebar({
     id: 'memories',
     label: 'Memories',

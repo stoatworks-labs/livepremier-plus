@@ -15,7 +15,11 @@
 import { createConsolePanel } from './panel.js';
 
 export default function activate(ctx) {
-  const consolePanel = createConsolePanel({ session: ctx.session, onRefresh: ctx.refresh });
+  const consolePanel = createConsolePanel({
+    session: ctx.session,
+    onRefresh: ctx.refresh,
+    hold: (cmds) => { const lock = ctx.use('preview-lock'); return lock ? lock.holdWrites(cmds) : null; }
+  });
   ctx.ui.tab({
     id: 'console',
     label: 'Console',

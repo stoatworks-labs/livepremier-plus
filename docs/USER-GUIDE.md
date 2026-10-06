@@ -492,10 +492,24 @@ It is careful with your own padlocks: one you had shut before the take stays shu
 mid-take is left open. The card lists the screens it looks after (untick one to leave it alone),
 what is mid-take now, and the last few things it did.
 
-> ⚠️ **The padlock stops Web RCS's own buttons, not the switcher.** A recall sent another way — a
-> cue in the Timeline, this app's Memories panel, Companion, OSC, the front panel — is not held
-> back by it. And only screens whose card is drawn on the Screens / Aux. page can be locked; a
-> screen whose card is not on the page when its take lands is unlocked the next time it is.
+**This app's own recalls wait rather than being refused.** The padlock only stops Web RCS's own
+buttons, so with this switched on the app holds its own recalls back itself:
+
+- **Timeline cues.** GO on a cue that recalls into a preview that is mid-take, and the cue waits
+  for the take to land and then fires whole — recall, fade and take in the usual order. The
+  Timeline shows *waiting for take: 12 → S1* meanwhile, and **Stop** cancels it. Cues fire in the
+  order GO was pressed: GO twice quickly and the second waits for the first cue's take to land
+  before it recalls, rather than loading over the look the first was about to take.
+- **Recall in the Memories panel**, and a **Recall line at the Console** — the same: *waiting for
+  the take to land*, then sent.
+- A recall into **program** is never held: that is you saying *on air, now*.
+- If the take has not landed by its take time plus three seconds — a T-bar parked half way, say —
+  the recall is **not sent**, and the cue, panel or Console line says so. Sending it late, into the
+  picture fading up, is the one thing this exists to stop.
+
+> ⚠️ **Not held back:** Companion, OSC, the front panel and other browsers go straight to the
+> switcher. And only screens whose card is drawn on the Screens / Aux. page can have their padlock
+> shut; a screen whose card is not on the page when its take lands is unlocked the next time it is.
 
 > ⚠️ **With Web RCS's remote selection switched on**, padlocks are shared between everyone
 > connected, so run this in one browser only.

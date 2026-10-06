@@ -639,16 +639,32 @@ Load-bearing:
   operator's. Opened mid-take: overridden, left alone. Card gone when the take
   lands: owed, opened when it is next drawn — otherwise a page change leaves
   PRW locked with nobody knowing why.
-- ⚠️ **It stops the vendor's buttons, not the switcher.** Our own recall paths
-  (cue engine, Memories panel, Console) go over the socket and are not subject
-  to it; `send-to` is the only one that consults `lockedFor()`. The
-  `preview-lock` service (`guarded()`, `isGuarded(id)`) is there for a panel
-  that chooses to hold back.
+- ⚠️ **The padlock stops the vendor's buttons, not the switcher**, so our own
+  recall paths hold themselves back through the `preview-lock` service:
+  `holdFor(ids)` / `holdWrites(cmds)` answer null (send now — exactly the old
+  behaviour) or a promise that the takes landed. The cue engine
+  (`CueStack({ hold })`), the Memories panel and the Console (`hold` option,
+  popouts reaching it through `bridge.services`) all ask. **A hold that gives
+  up (take time + `HOLD_GRACE_MS`) means do not send** — never "send anyway",
+  which is the failure itself. A recall into PROGRAM is never held.
+- ⚠️ **The cue engine holds the whole cue and keeps GO order.** Holding only
+  the recall would let the cue's own TAKE go first and take the previous
+  preview to air. And a cue fired while an earlier one is waiting, or is
+  inside its `SETTLE_MS` with its TAKE not yet sent, queues behind it and asks
+  the hold only after that TAKE — asked earlier it sees a destination at
+  rest and overwrites the look about to be taken. This relies on an outbound
+  frame reaching the guard synchronously inside `send()` (hook → transport →
+  session `frame`). Without a hold the engine is byte-for-byte the old
+  synchronous one; the existing cue tests run that path.
+- Companion, OSC and the front panel are still not reached.
 
 Proven on the LivePremier simulator (2026-10-06) with the page socket's
 `send` replaced by a catcher: the plugin's click shut S1's PRW; a vendor
 Memories ▸ Screen ▸ Load into PRW on S1+S2 sent only S2's recall; after the
-take landed it sent both. Not run on a frame, a Midra or an Alta.
+take landed it sent both. Two cues fired back to back through the live
+Timeline plugin with `session.send` caught: recall, TAKE, nothing through a
+simulated take, then the second recall and TAKE once it landed. Not run on a
+frame, a Midra or an Alta.
 
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 

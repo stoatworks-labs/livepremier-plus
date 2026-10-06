@@ -26,6 +26,14 @@
  *    the screen's `takeUpTime` with whatever the preset was saved with. So the
  *    write has to come AFTER the recall has landed, not before it — recall,
  *    settle, fade, trigger. Measured on an Aquilon C, 2026-08-21.
+ *
+ * And one thing the device does that a quick operator walks into: **a recall
+ * into PREVIEW made while a take is running loads the buffer that is fading
+ * up**, because PREVIEW is resolved against the transition state. GO, then GO
+ * again before the first take has landed, and the second cue's look rides the
+ * first cue's take onto program. With a `hold` (the Preview lock plugin's
+ * service) the engine waits instead — see `fire`. Without one nothing here
+ * changes: no hold, no queue, the same synchronous fire as always.
  */
 
 import { commandsFor } from './commands.js';
@@ -57,6 +65,22 @@ export const ACTION_KINDS = {
   TAKE: 'take',
   CUT: 'cut'
 };
+
+/**
+ * The destinations a cue loads into PREVIEW — what a hold is asked about.
+ * A master memory names none and covers the screens it was saved with, so
+ * it is `*`. A recall into PROGRAM is not held: it is not the case that
+ * rides a take, and it is the operator saying "on air, now".
+ */
+export function previewTargets(cue) {
+  const ids = new Set();
+  for (const a of (cue && cue.actions) || []) {
+    if ((a.mode || 'PREVIEW') !== 'PREVIEW') continue;
+    if (a.kind === ACTION_KINDS.SCREEN_PRESET) for (const t of a.targets || []) ids.add(t);
+    else if (a.kind === ACTION_KINDS.MASTER_PRESET) ids.add('*');
+  }
+  return [...ids];
+}
 
 /*
  * Every other kind is a plugin's — a `cueAction` contribution, see
@@ -108,8 +132,14 @@ export class CueStack extends EventTarget {
    *   who handles a kind the engine does not do itself — the `cueAction`
    *   contributions. Asked at fire time, because plugins load after the stack
    *   is built.
+   * @param {(ids: string[]) => (Promise<{ok:boolean, message?:string}>|null)} [opts.hold]
+   *   asked before a cue recalls into PREVIEW: null to fire now, or a promise
+   *   that the destinations' takes have landed (`['*']` for a master memory).
+   *   `ok: false` means the take did not land in time and the cue must not
+   *   fire. Asked at fire time, like `actions`, because the plugin that
+   *   answers it may load after the stack, or be off.
    */
-  constructor({ send, clock, commands, actions } = {}) {
+  constructor({ send, clock, commands, actions, hold } = {}) {
     super();
     this.send = send || (() => false);
     /*
@@ -131,6 +161,18 @@ export class CueStack extends EventTarget {
     this.running = false;  // a follow chain is in flight
     this._timer = null;
     this._log = [];
+    this._hold = typeof hold === 'function' ? hold : null;
+    /* Only used with a hold. The last cue still to finish (waiting, or
+       inside its settle before the take), so the next one queues behind
+       it; and a count bumped by stop() that cancels whatever is queued. */
+    this._pending = null;
+    this._epoch = 0;
+    this._waiting = new Map(); // cue id -> destinations it is waiting on
+  }
+
+  /** Cues waiting for a take to land before they fire: `[{cueId, ids}]`. */
+  get waiting() {
+    return [...this._waiting].map(([cueId, ids]) => ({ cueId, ids }));
   }
 
   /* ----------------------------- editing ----------------------------- */
@@ -230,10 +272,20 @@ export class CueStack extends EventTarget {
     for (const t of targets) this._send(cmd.stepBack(t));
   }
 
-  /** Cancel any pending delay or follow. Fired cues are not undone. */
+  /**
+   * Cancel any pending delay or follow, and any cue still waiting for a take
+   * to land — it has not touched the switcher yet. Fired cues are not undone.
+   */
   stop() {
     this._cancelTimer();
+    const hadWaiting = this._waiting.size > 0;
+    this._epoch++;
+    if (hadWaiting) {
+      for (const cueId of this._waiting.keys()) this._emit('cancelled', { cueId });
+      this._waiting.clear();
+    }
     if (this.running) { this.running = false; this._emit('stopped', {}); this._changed(); }
+    else if (hadWaiting) this._changed();
   }
 
   _cancelTimer() {
@@ -283,9 +335,89 @@ export class CueStack extends EventTarget {
    * The settle is a floor, not a guarantee — see SETTLE_MS. It is the same
    * gap that was already being waited before the trigger; this moves the fade
    * write to the far side of it rather than lengthening anything.
+   *
+   * ## With a hold: in order, and never into a take
+   *
+   * - **A cue that recalls into PREVIEW on a destination mid-take waits** for
+   *   that take to land, then fires whole — recalls, actions, fade and take
+   *   together, in the usual order. Holding only the recall would let the
+   *   cue's own TAKE go first and take the previous preview to air.
+   * - **Cues fire in the order GO was pressed.** One fired while an earlier
+   *   cue is waiting, or is inside its settle with its TAKE not yet sent,
+   *   queues behind it, and asks the hold only once that cue's TAKE has gone
+   *   — which is what puts its destination mid-take. Asked any earlier, it
+   *   would see a destination at rest, recall at once, and overwrite the
+   *   look the earlier cue was about to take.
+   * - **A hold that gives up means the cue does not fire**, with a warning
+   *   that says so. Firing late into the arriving buffer is the failure this
+   *   prevents, so there is no "fire anyway".
+   * - `stop()` cancels whatever is still waiting.
+   *
+   * A cue that waits returns `{waiting: true}` now and emits `waiting`, then
+   * `fired` when it goes, exactly as an immediate one does.
    */
   fire(cue) {
     if (!cue || !cue.enabled) return { sent: 0, skipped: true };
+    if (!this._hold) return this._fireNow(cue).record;
+
+    const ids = previewTargets(cue);
+    if (!this._pending) {
+      const wait = ids.length ? this._hold(ids) : null;
+      if (!wait) {
+        const { record, done } = this._fireNow(cue);
+        if (done) this._track(done);
+        return record;
+      }
+      return this._queue(cue, ids, null, wait);
+    }
+    return this._queue(cue, ids, this._pending, null);
+  }
+
+  /** Fire `cue` once `ahead` has finished and its own hold has let it go. */
+  _queue(cue, ids, ahead, wait) {
+    const epoch = this._epoch;
+    const run = (async () => {
+      if (ahead) await ahead;
+      if (epoch !== this._epoch) return;
+      const hold = wait || (ids.length ? this._hold(ids) : null);
+      if (hold) {
+        this._waiting.set(cue.id, ids);
+        this._emit('waiting', { cue, ids });
+        this._changed();
+        let result;
+        try { result = await hold; } catch (err) { result = { ok: false, message: err && err.message ? err.message : String(err) }; }
+        if (epoch !== this._epoch) return;
+        this._waiting.delete(cue.id);
+        this._changed();
+        if (!result || !result.ok) {
+          this._emit('warning', {
+            cue,
+            message: `Cue ${cue.number || cue.label || cue.id} was not fired: ${(result && result.message) || 'the take did not land'}. `
+              + 'Step back and GO it again.'
+          });
+          return;
+        }
+      }
+      const { done } = this._fireNow(cue);
+      if (done) await done;
+    })();
+    this._track(run);
+    return { cueId: cue.id, sent: 0, waiting: true };
+  }
+
+  /** Remember the last cue still to finish, so the next one queues behind it. */
+  _track(promise) {
+    const tracked = promise.then(() => {}, () => {});
+    this._pending = tracked;
+    tracked.then(() => { if (this._pending === tracked) this._pending = null; });
+  }
+
+  /**
+   * The cue's writes, now: recall → settle → fade → trigger. Returns the
+   * record, and `done` — a promise that the trigger has run — when the
+   * trigger waits behind the settle; null when it has already run.
+   */
+  _fireNow(cue) {
     /* Asked once per cue, so every write in it is spelled for one switcher
        even if the operator re-points mid-fire. */
     const cmd = this._commands();
@@ -400,16 +532,18 @@ export class CueStack extends EventTarget {
        and with no recall there is nothing that can overwrite the fade, so it
        can go out immediately. */
     if (record.settled) {
+      let finished;
+      const done = new Promise((resolve) => { finished = resolve; });
       this.clock.setTimeout(() => {
         writeFade();
         trigger();
+        finished();
       }, SETTLE_MS);
-    } else {
-      writeFade();
-      trigger();
+      return { record, done };
     }
-
-    return record;
+    writeFade();
+    trigger();
+    return { record, done: null };
   }
 
   get log() { return this._log.slice(); }

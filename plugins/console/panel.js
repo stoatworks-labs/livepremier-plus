@@ -80,7 +80,11 @@ const LOG_MAX = 200;
  * @param {boolean} [opts.popoutEnabled] show the Pop out button. False inside
  *   the popout itself, which has nowhere further to go.
  */
-export function createConsolePanel({ session, onRefresh = () => {}, popoutEnabled = true } = {}) {
+export function createConsolePanel({
+  session, onRefresh = () => {}, popoutEnabled = true,
+  /* `(cmds) => null | Promise<{ok, message?}>` — Preview lock's, when it is on. */
+  hold = null
+} = {}) {
   /* Kept outside render() so a repaint driven by device traffic does not wipe
      what the operator is halfway through typing. */
   const state = {
@@ -299,6 +303,39 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
       return finish();
     }
 
+    /*
+     * A recall into a preview that is mid-take would load the buffer fading
+     * up to program. With Preview lock on, `hold` says so, and the whole line
+     * waits for the take to land — or is not sent at all if it never does.
+     * Its row is written now and amended, like an AWJ-socket send's.
+     */
+    const wait = hold ? hold(ops.map((op) => ({ path: op.path.toWs(), value: op.value }))) : null;
+    if (wait) {
+      const entry = { at: Date.now(), kind: 'warn', text, detail: 'waiting for the take to land before recalling into preview…', label };
+      state.log.unshift(entry);
+      if (state.log.length > LOG_MAX) state.log.length = LOG_MAX;
+      wait.then((r) => {
+        if (r && r.ok) {
+          state.log.splice(state.log.indexOf(entry), 1);
+          dispatch(text, result, label, ' (after the take)');
+        } else {
+          entry.kind = 'error';
+          entry.detail = `not sent — ${(r && r.message) || 'the take did not land'}`;
+        }
+        onRefresh();
+      });
+      return finish();
+    }
+
+    dispatch(text, result, label, '');
+    finish();
+  }
+
+  /** Send a compiled line by the route it needs. */
+  function dispatch(text, result, label, after) {
+    const ops = result.ops || [];
+    const reads = result.reads || [];
+
     /* A read can only be answered on a real socket, and an AWJ message goes
        out on one when the operator asked for that. Everything else rides the
        vendor's connection — see the note at the top of this file. */
@@ -308,7 +345,7 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
 
     if (wantsSocket) {
       void viaAwjSocket(text, result, label);
-      return finish();
+      return;
     }
 
     /* `toWs()` is mynah's own store-path form, and it is the same shape
@@ -320,16 +357,15 @@ export function createConsolePanel({ session, onRefresh = () => {}, popoutEnable
         if (session.send({ path: op.path.toWs(), value: op.value })) sent++;
       } catch (err) {
         note('error', text, 'send failed: ' + err.message, label);
-        return finish();
+        return;
       }
     }
 
     /* Reported as sent, never as confirmed: this protocol answers nothing, and
        a tick on a command that changed nothing is worse than no feedback. */
     note(sent === ops.length ? 'ok' : 'warn', text,
-      `${result.summary || 'sent'} — ${sent}/${ops.length} write${ops.length === 1 ? '' : 's'} sent`,
+      `${result.summary || 'sent'} — ${sent}/${ops.length} write${ops.length === 1 ? '' : 's'} sent${after}`,
       label);
-    finish();
   }
 
   /**

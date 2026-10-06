@@ -210,3 +210,39 @@ test('clicking a memory’s name opens the field with repaints held off', async 
     assert.equal(root.querySelector('button.lpp-name') === name, false);
   });
 });
+
+/*
+ * Preview lock: Recall in the Memories panel waits while the hold says a take
+ * is in flight, sends when it lands, and sends nothing if it never does.
+ */
+test('Memories: a recall into a preview mid-take waits for the hold, then goes', async () => {
+  await withDom(async () => {
+    const store = new DeviceStore();
+    store.hydrate(fixture('aquilon-6.2.73-memories.json'));
+    const sent = [];
+    const session = sessionOver(store);
+    session.send = (cmd) => { sent.push(cmd); return true; };
+    const settles = [];
+    const hold = () => new Promise((resolve) => settles.push(resolve));
+    const { createMemoriesPanel } = await import('../plugins/memories/panel.js');
+    let root;
+    const panel = createMemoriesPanel({ session, onRefresh: () => { root = panel.render(); }, popoutEnabled: false, hold });
+    root = panel.render();
+    const recall = () => [...root.querySelectorAll('button')].find((b) => (b.textContent || '').trim() === 'Recall');
+    assert.ok(recall(), 'there is a memory to recall');
+
+    recall().click();
+    assert.equal(sent.length, 0, 'held while the take is in flight');
+    assert.match(root.textContent, /waiting for the take to land/);
+    settles[0]({ ok: true });
+    await new Promise((r) => setImmediate(r));
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].path.at(-1), 'xRequest');
+
+    recall().click();
+    settles[1]({ ok: false, message: 'S1 still mid-take after 4.0 s' });
+    await new Promise((r) => setImmediate(r));
+    assert.equal(sent.length, 1, 'a hold that gave up sends nothing');
+    assert.match(root.textContent, /not recalled — S1 still mid-take/);
+  });
+});

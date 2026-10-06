@@ -195,3 +195,192 @@ test('settings keep only real destinations, once each, in order', () => {
   assert.deepEqual(normalise({ skip: ['s2', 'A1', 'S10', 'S2', 'bogus', 7] }), { skip: ['S2', 'S10', 'A1'] });
   assert.deepEqual(normalise({}), { skip: [] });
 });
+
+/* ------------------------------------------------- our own recalls wait */
+
+import { previewRecallTargets, previewTargetsOf, HOLD_GRACE_MS } from '../plugins/preview-lock/core.js';
+import { CueStack, ACTION_KINDS, SETTLE_MS, previewTargets } from '../src/core/cuestack.js';
+import { commandsFor } from '../src/core/commands.js';
+
+const tick = () => new Promise((r) => setImmediate(r));
+
+test('a recall into PREVIEW is recognised on every bank and both platforms', () => {
+  const nlc = dialectFor(rig().store);
+  const mng = dialectFor(rig('midra-3.2.29-pulse4k.json').store);
+  const of = (cmd) => previewRecallTargets(cmd.path, cmd.value);
+  assert.deepEqual(of(nlc.recall('screen', 4, { mode: 'PREVIEW', id: 'S1' })), ['S1']);
+  assert.deepEqual(of(nlc.recall('screen', 4, { mode: 'PREVIEW', id: 'A2' })), ['A2']);
+  assert.deepEqual(of(nlc.recall('layer', 3, { mode: 'PREVIEW', id: 'S2', layer: '1' })), ['S2']);
+  assert.deepEqual(of(nlc.recall('master', 9, { mode: 'PREVIEW' })), ['*'], 'a master memory covers its own screens');
+  assert.deepEqual(of(mng.recall('screen', 4, { mode: 'PREVIEW', id: 'S1' })), ['S1']);
+  assert.deepEqual(of(mng.recall('screen', 4, { mode: 'PREVIEW', id: 'A1' })), ['A1']);
+  /* What is not a recall into preview. */
+  assert.equal(of(nlc.recall('screen', 4, { mode: 'PROGRAM', id: 'S1' })), null);
+  assert.equal(of(nlc.save('screen', 4, { mode: 'PREVIEW', id: 'S1' })), null);
+  assert.equal(previewRecallTargets(nlc.recall('screen', 4, { mode: 'PREVIEW', id: 'S1' }).path, false), null);
+  assert.deepEqual(previewTargetsOf([
+    nlc.recall('screen', 4, { mode: 'PREVIEW', id: 'S1' }),
+    nlc.recall('screen', 4, { mode: 'PREVIEW', id: 'S2' }),
+    { path: NLC_TAKE('S1'), value: true }
+  ]), ['S1', 'S2']);
+  assert.equal(previewTargetsOf([{ path: NLC_TAKE('S1'), value: true }]), null);
+});
+
+test('whenSettled is null for a destination at rest, so nothing waits for nothing', () => {
+  const { guard } = rig();
+  assert.equal(guard.whenSettled(['S1']), null);
+  assert.equal(guard.whenSettled(['*']), null);
+});
+
+test('whenSettled resolves when the take lands', async () => {
+  const { guard, frame } = rig();
+  frame(NLC_TAKE('S1'), true, 'out');
+  frame(NLC_STATUS('S1'), 'EFFECT_FROM_DOWN');
+  let result = null;
+  guard.whenSettled(['S1', 'S2']).then((r) => { result = r; });
+  await tick();
+  assert.equal(result, null, 'S1 is still in flight');
+  frame(NLC_STATUS('S1'), 'AT_UP');
+  await tick();
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.ids, ['S1', 'S2']);
+});
+
+test('whenSettled gives up after the take time and the grace, and says which is stuck', async () => {
+  const { guard, frame, clock, store } = rig();
+  const takeMs = Math.max(
+    store.get(['device', 'screenAuxGroupList', 'items', 'S1', 'control', 'pp', 'takeUpTime']),
+    store.get(['device', 'screenAuxGroupList', 'items', 'S1', 'control', 'pp', 'takeDownTime'])) * 100;
+  frame(NLC_STATUS('S1'), 'EFFECT_FROM_DOWN');
+  let result = null;
+  guard.whenSettled(['*']).then((r) => { result = r; });
+  clock.advance(takeMs + HOLD_GRACE_MS - 1);
+  await tick();
+  assert.equal(result, null);
+  clock.advance(1);
+  await tick();
+  assert.equal(result.ok, false);
+  assert.match(result.message, /S1 still mid-take/);
+});
+
+/** A cue stack whose sends reach the guard the way the page's do. */
+function stackRig() {
+  const r = rig();
+  const sent = [];
+  const warnings = [];
+  const stack = new CueStack({
+    clock: r.clock,
+    commands: () => commandsFor(dialectFor(r.store)),
+    /* hook.send records the frame as outbound, the transport parses it and
+       the session dispatches it — synchronously, inside the send. */
+    send: (cmd) => { sent.push(cmd); r.frame(cmd.path, cmd.value, 'out'); return true; },
+    hold: (ids) => r.guard.whenSettled(ids)
+  });
+  stack.addEventListener('warning', (ev) => warnings.push(ev.detail.message));
+  const what = () => sent.map((c) => (c.path.includes('load') ? `recall ${c.path[6]}` : c.path[c.path.length - 1]));
+  return { ...r, stack, sent, warnings, what };
+}
+
+const recallAndTake = (number, slot, mode = 'PREVIEW') => ({
+  number,
+  actions: [
+    { kind: ACTION_KINDS.SCREEN_PRESET, slot, targets: ['S1'], mode },
+    { kind: ACTION_KINDS.TAKE, targets: ['S1'] }
+  ]
+});
+
+test('GO, GO: the second cue waits for the first take to land, then fires whole', async () => {
+  const { stack, frame, clock, what } = stackRig();
+  stack.add(recallAndTake('1', 4));
+  stack.add(recallAndTake('2', 5));
+
+  stack.go();
+  stack.go();
+  assert.deepEqual(what(), ['recall 4'], 'cue 2 is queued behind cue 1’s settle, not fired over it');
+
+  clock.advance(SETTLE_MS);
+  await tick();
+  assert.deepEqual(what(), ['recall 4', 'xTake'], 'cue 1 took; cue 2 now waits on that take');
+  assert.deepEqual(stack.waiting.map((w) => w.ids), [['S1']]);
+
+  frame(NLC_STATUS('S1'), 'EFFECT_FROM_DOWN');
+  clock.advance(500);
+  await tick();
+  assert.deepEqual(what(), ['recall 4', 'xTake'], 'nothing goes into the preview fading up');
+
+  frame(NLC_STATUS('S1'), 'AT_UP');
+  await tick();
+  assert.deepEqual(what(), ['recall 4', 'xTake', 'recall 5'], 'landed: cue 2’s recall goes into the new preview');
+  clock.advance(SETTLE_MS);
+  await tick();
+  assert.deepEqual(what(), ['recall 4', 'xTake', 'recall 5', 'xTake'], 'and its take after its own settle');
+  assert.deepEqual(stack.waiting, []);
+});
+
+test('a cue that recalls into PROGRAM is not held — that is “on air, now”', async () => {
+  const { stack, frame, what } = stackRig();
+  frame(NLC_STATUS('S1'), 'EFFECT_FROM_DOWN');
+  stack.add({ number: '1', actions: [{ kind: ACTION_KINDS.SCREEN_PRESET, slot: 7, targets: ['S1'], mode: 'PROGRAM' }] });
+  stack.go();
+  assert.deepEqual(what(), ['recall 7']);
+  assert.deepEqual(previewTargets(stack.cues[0]), []);
+});
+
+test('a hold that gives up means the cue is not fired, and says so', async () => {
+  const { stack, frame, clock, what, warnings } = stackRig();
+  frame(NLC_STATUS('S1'), 'EFFECT_FROM_DOWN');   /* a T-bar parked half way */
+  stack.add(recallAndTake('12', 4));
+  const r = stack.go();
+  await tick();
+  assert.deepEqual(what(), []);
+  clock.advance(60 * 1000);
+  await tick();
+  assert.deepEqual(what(), [], 'never fired into the arriving buffer');
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /Cue 12 was not fired: S1 still mid-take/);
+  assert.equal(r, undefined, 'go() returns nothing; the stack reports through events');
+});
+
+test('Stop cancels a cue still waiting for a take', async () => {
+  const { stack, frame, what } = stackRig();
+  frame(NLC_STATUS('S1'), 'EFFECT_FROM_DOWN');
+  stack.add(recallAndTake('1', 4));
+  const cancelled = [];
+  stack.addEventListener('cancelled', (ev) => cancelled.push(ev.detail.cueId));
+  stack.go();
+  await tick();
+  assert.equal(stack.waiting.length, 1);
+  stack.stop();
+  assert.deepEqual(stack.waiting, []);
+  assert.deepEqual(cancelled, [stack.cues[0].id]);
+  frame(NLC_STATUS('S1'), 'AT_UP');
+  await tick();
+  assert.deepEqual(what(), [], 'the take landing later fires nothing');
+});
+
+test('a master memory waits for every screen mid-take', async () => {
+  const { stack, frame, what } = stackRig();
+  frame(NLC_STATUS('A1'), 'EFFECT_FROM_DOWN');
+  stack.add({ number: '1', actions: [{ kind: ACTION_KINDS.MASTER_PRESET, slot: 3, mode: 'PREVIEW' }] });
+  stack.go();
+  await tick();
+  assert.deepEqual(what(), []);
+  frame(NLC_STATUS('A1'), 'AT_UP');
+  await tick();
+  assert.deepEqual(what(), ['recall 3']);
+});
+
+test('with nothing mid-take a cue fires exactly as it always has', () => {
+  const { stack, what } = stackRig();
+  stack.add(recallAndTake('1', 4));
+  stack.go();
+  assert.deepEqual(what(), ['recall 4'], 'synchronously, in the same call');
+});
+
+test('a take sent to a destination that never reports is still let go after the grace', () => {
+  const { events, frame, clock } = rig();
+  /* S2 is not in this store at all: no T-bar position will ever arrive. */
+  frame(NLC_TAKE('S2'), true, 'out');
+  clock.advance(START_GRACE_MS);
+  assert.deepEqual(events, [['lock', 'S2', 'take'], ['unlock', 'S2', 'never started']]);
+});
