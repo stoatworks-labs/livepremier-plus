@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backgrounds — LivePremier Plus</title>
+<!--
+  Deliberately bare — see plugins/console/popout.html; the reasoning is identical.
+  The panel adds its own stylesheet to this document when it first renders.
+
+  The job (picture, placement, what was generated and written) is the Web RCS
+  tab's, handed over through `ctx.share`, so this window and the sidebar panel
+  are two views of one job.
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #08141B; color: #fff; }
+  body { font-family: OpenSans, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<script type="module">
+  import { bootPopout, buildSolo } from '/__lpp/src/ui/popout.js';
+  import { createBgSlicerPanel } from './panel.js';
+  let panelView = null;
+  bootPopout({
+    doc: document,
+    opener: window.opener,
+    plugin: 'bg-slicer',
+    build: ({ doc, bridge, own }) => {
+      const built = buildSolo(doc, bridge, (opts) => (panelView = createBgSlicerPanel({ ...opts, job: own.job })));
+      return { stop() { if (built && built.stop) built.stop(); if (panelView) panelView.stop(); } };
+    }
+  });
+</script>
+</body>
+</html>

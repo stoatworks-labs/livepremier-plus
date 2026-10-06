@@ -345,3 +345,38 @@ test('the Dante panel draws its grid, marks the switcher’s card and opens into
     assert.deepEqual(applied, [{ rx: { device: 'AQL-Simulator', channel: 1 }, tx: null }], 'unlocked, a lit cell clears');
   });
 });
+
+/*
+ * The Background Slicer drawn with a job under way — a screen chosen, a
+ * content size, each mode — not just its empty first state, which is all the
+ * loop above reaches because the panel shows nothing more until a screen is
+ * picked.
+ */
+test('the Background Slicer renders a job in each mode against the simulator’s store', async () => {
+  await withDom(async () => {
+    /* The simulator's store slices, as STORES.simulator has them, with the
+       background sets, stills and library this panel reads. */
+    const store = new DeviceStore();
+    store.hydrate(merged('sim-6.2.73-identity.json', 'sim-6.2.73-screens.json', 'sim-6.2.73-destinations.json',
+      'sim-6.2.73-connectors.json', 'sim-6.2.73-outputs.json', 'sim-6.2.73-resources.json', 'sim-6.2.73-backgrounds.json'));
+    const { createBgSlicerPanel } = await import('../plugins/bg-slicer/panel.js');
+    const { createJob } = await import('../plugins/bg-slicer/job.js');
+    for (const source of ['stills', 'live']) {
+      const job = createJob();
+      job.source = source;
+      job.content = { width: 6400, height: 1440 };
+      job.screens = ['S1'];
+      const view = createBgSlicerPanel({ session: sessionOver(store), job, onRefresh() {}, popoutEnabled: false });
+      const root = renders(`bg-slicer (${source})`, view);
+      const text = root.textContent;
+      assert.match(text, /Placement/, `${source}: the placement view is drawn`);
+      assert.match(text, /Plan — nothing is written yet/);
+      assert.match(text, /Out 1/);
+      assert.match(text, source === 'live' ? /IN 1/ : /slot 1/);
+      assert.ok(root.querySelectorAll('.lpp-bgs-out').length >= 3, 'every output is drawn on the canvas');
+      assert.ok(root.querySelectorAll('input[step]').length >= 4, 'the placement fields take arithmetic');
+      job.mode = 'span';
+      renders(`bg-slicer (${source}, span)`, view);
+    }
+  });
+});

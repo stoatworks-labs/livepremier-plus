@@ -83,7 +83,16 @@ export function screenOutputs(store, screenId) {
       liveRawH: typeof cmd.pitchRatioH === 'number' ? cmd.pitchRatioH : null,
       liveRawV: typeof cmd.pitchRatioV === 'number' ? cmd.pitchRatioV : null,
       region: status.usedInRegion || null,
-      group: status.group || null
+      group: status.group || null,
+      /* The rest of what the canvas says about the output, for the
+         Background Slicer (`plugins/bg-slicer/core.js`), which needs the same
+         membership and footprint plus these. `state` is the device's
+         OUTPUT_STATUS — USED, GROUPED (a member of another output's group),
+         CLONED, DUPLICATED; `rotation` is OUTPUT_ROTATION, counter-clockwise. */
+      state: status.isEnabled || null,
+      capability: status.capability || null,
+      rotation: status.rotation || 'NONE',
+      outputRef: status.outputRef || null
     });
   }
   /* Numeric, not lexicographic: output 10 belongs after output 9. */

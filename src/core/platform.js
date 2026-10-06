@@ -246,6 +246,19 @@ export const CAPABILITIES = [
     absent: 'This switcher has no input groups, so it cannot take a Mac\'s plugs back in as one picture.'
   },
   {
+    id: 'backgroundSets',
+    label: 'Background sets',
+    /* Eight sets per screen under `preconfig/backgrounds`, each holding a
+       content per output — read off a LivePremier Simulator 6.2.73. A Midra 4K
+       or Alta 4K has a background per screen preset, not sets, so no mng
+       probe. The Background Slicer writes them. */
+    probes: {
+      nlc: [ROOT, 'preconfig', 'backgrounds', 'screenList', 'items', '*', 'backgroundSetList', 'items']
+    },
+    needs: 'background sets in its preconfig',
+    absent: 'This switcher has no background sets — they are a LivePremier facility.'
+  },
+  {
     id: 'edidBank',
     label: 'EDID bank',
     /* A hundred custom EDID slots under `system/edid/bankList`, read off a

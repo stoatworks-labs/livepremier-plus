@@ -304,6 +304,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'bg-slicer',
+    name: 'Background Slicer',
+    where: 'Sidebar, under PLUS (preview)',
+    description: 'One picture cut into pixel-exact backgrounds across screens and their outputs, put into the image library and a background set — or each output fed live from an input, with the output map for Resolume, disguise, Pixera and the rest. Never yet run against a real frame.',
+    requires: { capabilities: ['backgroundSets'] },
+    /* Off until it has been: it uploads into the image library and writes
+       stills, still capacities and background sets. */
+    enabledByDefault: false,
+    client: 'client.js'
+  },
+  {
     id: 'setup-file',
     name: 'Setup file',
     where: '/__lpp/config',
