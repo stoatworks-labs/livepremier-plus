@@ -57,11 +57,31 @@ claimed by no output. Re-checked just before writing — minutes may have passed
 | Still capacity, if needed | `preconfig/stills/new`: `xCopyFromCurrent` pulse, each still's `control/helper/pp/format`, `xCheck` pulse; the switcher's verdict in `new/…/status/pp/{capability, global}`; then `xApply` pulse; `current` is the truth | bundle; simulator for the plain case |
 | Set content | per output, as `axSetBackgroundSetOutputSource` does it: the replaced input or still's claim (`preconfig/backgrounds/inputList|stillList/<n>/control/pp/useOnOutput`) handed to the next output still using it or NONE, the new one's claim = the output key, then `…/backgroundSetList/items/<set>/outputList/items/<out>/control/pp/content`. **Immediate** — there is no apply step anywhere under `preconfig/backgrounds`. | bundle + simulator |
 | Set label | `…/backgroundSetList/items/<set>/pp/label` (on `pp` itself, not a `control` node), 16 characters | bundle + simulator |
-| Load into preview | the preview buffer's (`presetBanks()`) `presetList/items/<letter>/layerList/items/NATIVE/source/pp/inputNum` = `NATIVE_<set>` | bundle; refused on the simulator (below) |
+| Load into preview | the preview buffer's (`presetBanks()`) `presetList/items/<letter>/layerList/items/NATIVE/source/pp/inputNum` = `NATIVE_<set>` | bundle; the write echoes on the simulator, but its NATIVE layers are `OFF`, so the apply skips it there (below) |
 | Input EDID (live) | `inputList/items/<IN_n>/plugList/items/1/edid/cmd/fromTemplate/bankList/items/<1920_1080_60HZ>/pp/xApply` false, then true — or `fromCustom/…/<n>` for a custom output format | bundle |
 
 Every `x…` trigger is pulsed false then true, as Web RCS pulses them. A library image is deleted by
 pulsing `stillList/library/bankList/items/<slot>/control/pp/xDelete`.
+
+⚠️ **Each step waits for the switcher's own echo, not the mirror.** The page transport applies this
+page's outbound writes to the store (`transports/page-socket.js`, so the panels follow the vendor UI
+in the same tab), so a value written from the page reads back at once whether the switcher took it
+or not. So every write above waits for the inbound frame with its path and its value (`wire.js`,
+`inbound`) — on the simulator each came back exact in value and type (`source` a number, labels
+with accents and a trailing space as sent) in 0.3–20 ms, and a refused one (a `mode` not in the
+enum) never, while the mirror showed it. Two kinds of wait stay on the store, each for a reason:
+
+- **A write of the value the switcher already holds is never echoed.** Such a path — judged from the
+  mirror before sending, walking the write list in order, so a pulse from `true` still counts — is
+  sent and not waited for (`wire.changedPaths`). The usual one is a still's `source`: every still
+  on the simulator holds 1, and the first free library slot is 1.
+- **What the switcher reports back** — a library slot's `isValid` after an upload or a delete, the
+  capacity check's verdict in `new/status` and `new/…/status`, `current` after `xApply` — are values
+  the page never writes, so the mirror only has them from the switcher.
+
+After `xApply` the switcher reports `current` a moment before it clears `new/status/pp/hasChanged`;
+the capacity step waits for both, or an Undo pressed straight away would refuse it as "changes
+staged".
 
 **Capacity is a shared budget, so the plan refuses rather than takes.** A still is chosen at the
 output's own capacity when one is free; only when none is does a capacity change. The switcher's
@@ -122,7 +142,7 @@ the plan says **resampled**.
 | | |
 |---|---|
 | **Proven** — manual and bundle | 1:1 in the raster; one background per output group, at its leader; NATIVE_n is set n; set writes immediate; the claim bookkeeping; stills `mode` then `source`; `rescale` NO_RESCALE is "No rescale" (the other is "Downscale to capacity"); library sizes in KiB (950 MB = 972800); the upload route |
-| **Proven** — simulator | every write above in the stills mode, end to end, and its undo (the run below) |
+| **Proven** — simulator | every write above in the stills mode, end to end, and its undo (the run below); each one's inbound echo, exact in value and type, and silence for a refused write and for a write of the value already held |
 | **Assumed** — shown on the output | more than one slice (only one full slice has been seen on a device); a pitch other than 1.000; **rotation — whether the switcher turns a background as well as its layers is not established: if it does, a rotated output's image comes out turned twice**; an output group's raster as its leader reports it |
 | **Not handled** | DPH104 (DP box) slicing beyond what the slices report; clones and duplicates (skipped: they show their reference's picture); auxiliaries (a background set is a screen's) |
 
@@ -198,6 +218,29 @@ simulator's: a deleted library slot keeps its last image's name and size in `sta
 to false. The preview load was refused for both screens, correctly: their NATIVE layers are `OFF`.
 A simulator's outputs are a static picture, so none of it could be *seen*.
 
+**Re-proved on the switcher's own echo, later the same day** — the run above had waited on the
+store, which the page's own outbound writes fill (see [What it writes](#what-it-writes-and-in-what-order)).
+Same simulator, no other client connected (`lsof` on 3000 and 10606), over the device socket from
+Node with the worktree's own write builders:
+
+- **Each write on its own**, timed to its first inbound frame: still `mode` / `rescale` / `label`,
+  set content and both kinds of claim, set label, the NATIVE source (on S1's preview, NATIVE `OFF`),
+  `xDelete`, and both edges of every `xCopyFromCurrent` / `xCheck` / `xApply` pulse came back with
+  exactly the value and type sent, in 0.3–20 ms (each pulse edge arrives twice). Silent: a `mode`
+  not in the enum, and **every write of a value the path already held** — `source` = 1 to a still
+  holding 1, an empty label to an empty label, `NONE` to an unclaimed claim.
+- **The apply itself**: the real `Session` over a transport that folds outbound writes into the
+  mirror as `page-socket.js` does, then `applyPlan` → `revert` for stills over S1 and S2 (three
+  uploads, three stills, two sets named — 20 writes, 19 echoed, the twentieth still 1's unchanged
+  `source`; 0.2 s; `isContentValid` true), the same for live inputs (IN_1, IN_2), and
+  `applyCapacities` still 45 → 4K and back (46 out of service and back). Then the refused `mode`:
+  the inbound wait answered false after 6 s, the store wait answered true, and the switcher's own
+  store still said `NONE`.
+
+A fresh snapshot then matched the first on every path touched (200 of them). The first apply run
+found the `hasChanged` lag — its second `applyCapacities`, started at once, refused — and was put
+back by hand before the fix.
+
 ## Midra 4K and Alta 4K
 
 The same panel, and a different model underneath. A LivePremier cuts a background **per output**,
@@ -249,8 +292,9 @@ or not. On the simulator an accepted write came back inbound in about a millisec
 one (a `mode` that is not in the enum) came back not at all while the mirror showed it. So every
 Midra write waits for the inbound frame with its path and value (`wire.js`, `inbound`), and the
 status checks — the library slot, the frame's size, the preview's content size — are values only
-the switcher writes. (LivePremier's apply still waits on the store, as it was proved; it has the
-same exposure and has not been re-proved.)
+the switcher writes. The LivePremier apply now does the same, proved on its own simulator (above).
+The Midra write lists already leave out a write of the value a path holds (`withBefore` in
+`mng.js`) — which the LivePremier simulator never echoes; not tried on the Midra.
 
 ### What "pixel-exact" means here
 

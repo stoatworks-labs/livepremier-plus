@@ -562,7 +562,26 @@ Load-bearing, each read off the 6.2.73 bundle and proved on the simulator:
   `new/…/status`, applied with `xApply` only when nothing that holds something
   goes `DISABLE`; otherwise `xCopyFromCurrent` discards it. Never started over
   someone else's staged change (`new/status/pp/hasChanged`). Seen on the
-  simulator: still 45 at 4K took still 46 (`DISABLE`), and back again.
+  simulator: still 45 at 4K took still 46 (`DISABLE`), and back again. After
+  `xApply` the switcher reports `current` a moment before it clears
+  `hasChanged`, so `applyCapacities` waits for both — a capacity Undo started
+  straight after an apply was refused as "changes staged" before it did.
+- ⚠️ **The page mirror is not the switcher's echo.** `page-socket.js` applies
+  this page's outbound writes to the store, so a refused write reads back as
+  landed within a millisecond. Every apply and Undo write waits for the
+  inbound frame with its path and value (`wire.js`, `inbound`) — on both
+  platforms. LivePremier Simulator 6.2.73: every write the apply sends echoed
+  exact in value and type in 0.3–20 ms (pulses: both edges, each twice); a
+  refused enum never. The only store waits left are statuses the page never
+  writes (library `isValid`, `preconfig/stills/new/status`, `current`).
+- ⚠️ **A write of the value the switcher already holds is never echoed** — so
+  waiting for it fails a write that landed. `wire.changedPaths` skips the wait
+  for any path the write list does not change (walked from the mirror, so a
+  pulse from `true` still counts). It bites on LivePremier constantly: every
+  simulator still holds `source` 1, and the first free library slot is 1. The
+  Midra lists drop such writes up front (`withBefore`). Not covered: a path
+  whose mirror holds a write this page sent and the switcher refused — an
+  Undo of it waits 6 s for an echo that never comes and reports it.
 - **The upload is HTTP, single-flight.** `POST /api/device/images/upload`
   (`FILES`, `librarySlot` 1-based) answers 503 while another runs; `FINISH` in
   the body is the only success, and the library's `isValid` echo is the proof.
@@ -600,11 +619,8 @@ matches) and proved on that simulator:
   points at the predicted slot; the write re-checks before each upload. The
   shared simulator's S1 BKG1 points at empty slot 1, so it refuses there, by
   design.
-- ⚠️ **The page mirror is not the switcher's echo.** `page-socket.js` applies
-  this page's outbound writes to the store, so a refused write reads back as
-  landed. The Midra apply waits for the inbound frame (`wire.js`, `inbound`); the
-  simulator echoes an accepted write in ~1 ms and a refused one never.
-  LivePremier's apply still waits on the store: same exposure, not re-proved.
+- The page mirror is not the echo here either (above): the Midra simulator
+  echoes an accepted write in ~1 ms and a refused one never.
 - No still capacity, no claims, no set label, no rotation, slices or groups on
   this platform — the panel shows none of them there.
 

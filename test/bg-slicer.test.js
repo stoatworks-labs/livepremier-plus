@@ -37,6 +37,7 @@ import {
 } from '../plugins/bg-slicer/exports.js';
 import { zipStore, unzipStore, crc32 } from '../plugins/bg-slicer/zip.js';
 import { applyPlan, revert } from '../plugins/bg-slicer/apply.js';
+import { sendAndEcho, changedPaths } from '../plugins/bg-slicer/wire.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (name) => JSON.parse(readFileSync(join(here, 'fixtures', name), 'utf8'));
@@ -514,38 +515,66 @@ test('image names say screen, output and raster, and are file-safe', () => {
 /* ----------------------------------------------- the apply path, end to end */
 
 /**
- * A stand-in switcher: every write is echoed into the store a tick later, the
- * upload route marks the slot it was given valid, and the staged still
- * preconfig behaves as the simulator's does.
+ * A stand-in switcher, as the LivePremier Simulator 6.2.73 behaves: a write
+ * that changes a value is echoed back inbound a tick later (a `frame` with
+ * `dir: 'in'`, and into the store); a write of the value it already holds, or
+ * one `refuse` turns down, is not echoed at all. The upload route marks the
+ * slot it was given valid, a library delete clears it, and the staged still
+ * preconfig answers a check as the simulator's does.
+ *
+ * `page: true` is the page as it really behaves on top of that: the mirror
+ * takes this page's own outbound write at once (`transports/page-socket.js`),
+ * so a wait on the store would pass a write the switcher refused.
  */
-function standIn(store) {
+function standIn(store, { page = false, refuse = () => false } = {}) {
+  const session = new EventTarget();
+  session.store = store;
   const log = [];
-  const session = {
-    store,
-    send({ path, value }) {
-      log.push([path.join('/'), value]);
-      setTimeout(() => {
-        store.set(path, value);
-        const p = path.join('/');
-        if (/library\/bankList\/items\/\d+\/control\/pp\/xDelete$/.test(p) && value === true) {
-          store.set([...path.slice(0, -3), 'status', 'pp', 'isValid'], false);
-        }
-        if (p.endsWith('preconfig/stills/new/control/pp/xCheck') && value === true) {
-          store.set(['device', 'preconfig', 'stills', 'new', 'status', 'pp', 'hasChanged'], true);
-        }
-      }, 1);
-      return true;
+  const echoed = [];
+  /* What the switcher holds, apart from the mirror (which, in a page, also holds what was refused). */
+  const truth = new Map();
+  const report = (path, value) => {
+    const k = path.join('/');
+    const changed = !Object.is(truth.has(k) ? truth.get(k) : store.get(path), value);
+    truth.set(k, value);
+    store.set(path, value);
+    if (!changed) return;
+    echoed.push([k, value]);
+    session.dispatchEvent(new CustomEvent('frame', { detail: { path, value, dir: 'in' } }));
+  };
+  session.send = ({ path, value }) => {
+    const p = path.join('/');
+    log.push([p, value]);
+    if (!truth.has(p)) truth.set(p, store.get(path));
+    const before = truth.get(p);
+    const refused = refuse(path, value);
+    if (!refused) truth.set(p, value);
+    if (page) {
+      store.set(path, value);
+      session.dispatchEvent(new CustomEvent('frame', { detail: { path, value, dir: 'out' } }));
     }
+    setTimeout(() => {
+      if (refused) return;
+      truth.set(p, before);
+      report(path, value);
+      if (/library\/bankList\/items\/\d+\/control\/pp\/xDelete$/.test(p) && value === true) {
+        report([...path.slice(0, -3), 'status', 'pp', 'isValid'], false);
+      }
+      if (p.endsWith('preconfig/stills/new/control/pp/xCheck') && value === true) {
+        report(['device', 'preconfig', 'stills', 'new', 'status', 'pp', 'hasChanged'], true);
+      }
+    }, 1);
+    return true;
   };
   const uploads = [];
   const fetchImpl = async (url, init) => {
     const slot = Number(init.body.get('librarySlot'));
     const file = init.body.get('FILES');
     uploads.push([url, slot, file.name]);
-    setTimeout(() => store.set(['device', 'stillList', 'library', 'bankList', 'items', String(slot), 'status', 'pp', 'isValid'], true), 2);
+    setTimeout(() => report(['device', 'stillList', 'library', 'bankList', 'items', String(slot), 'status', 'pp', 'isValid'], true), 2);
     return { ok: true, status: 200, json: async () => ({ [file.name]: 'FINISH' }), text: async () => '' };
   };
-  return { session, log, uploads, fetchImpl };
+  return { session, log, echoed, uploads, fetchImpl };
 }
 
 test('apply: uploads, stills, the set and its label in order, each confirmed by its echo — and revert takes it all back', async () => {
@@ -645,6 +674,50 @@ test('live apply: the EDID templates are loaded, then the set takes the inputs a
   assert.deepEqual([log[0][1], log[1][1]], [false, true]);
   assert.equal(store.get(setContentPath('S1', 1, '2')), 'LIVE_2');
   assert.equal(store.get(['device', 'preconfig', 'backgrounds', 'inputList', 'items', 'IN_2', 'control', 'pp', 'useOnOutput']), '2');
+});
+
+test('a write of the value already held changes nothing and is not waited for; a pulse from true changes its path', () => {
+  const store = simStore();
+  const src = ['device', 'stillList', 'items', '1', 'control', 'pp', 'source'];
+  assert.equal(store.get(src), 1);
+  assert.deepEqual([...changedPaths(store, stillWrites('1', 1, 'x')).keys()].map((k) => k.split('/').at(-1)), ['mode', 'rescale', 'label'],
+    'the switcher never echoes `source` = 1 to a still that holds 1');
+  assert.deepEqual([...changedPaths(store, stillWrites('1', 2, 'x')).keys()].map((k) => k.split('/').at(-1)), ['mode', 'source', 'rescale', 'label']);
+  const trigger = ['device', 'preconfig', 'stills', 'new', 'control', 'pp', 'xCheck'];
+  store.set(trigger, true);
+  assert.deepEqual([...changedPaths(store, [{ path: trigger, value: false }, { path: trigger, value: true }]).values()], [true]);
+  assert.equal(changedPaths(store, [{ path: src, value: 1 }]).size, 0);
+});
+
+const stillsJob = () => ({ screens: ['S1'], mode: 'each', place: { S1: { x: 0, y: 0, w: 6400, h: 1440 } }, image: { width: 6400, height: 1440 } });
+const imagesFor = (plan) => new Map(plan.screens[0].outputs.map((o) => [`S1/${o.key}`, { blob: new Blob([new Uint8Array([1])], { type: 'image/png' }), name: `bg_${o.key}.png` }]));
+
+test('a write the switcher refuses is a failure, though the page mirror shows it: only its inbound echo counts', async () => {
+  const store = simStore();
+  const plan = buildPlan(store, stillsJob());
+  const accepted = standIn(store, { page: true });
+  const ok = await applyPlan({ session: accepted.session, plan, images: imagesFor(plan), fetchImpl: accepted.fetchImpl, options: { label: 'Act 1' } });
+  assert.equal(ok.ok, true, ok.error);
+  const source1 = 'device/stillList/items/1/control/pp/source';
+  assert.ok(accepted.log.some(([p, v]) => p === source1 && v === 1), 'still 1 was sent library slot 1');
+  assert.ok(!accepted.echoed.some(([p]) => p === source1), 'and, already holding 1, never echoed it — the run did not wait for it');
+  const undone = await revert({ session: accepted.session, journal: ok.journal });
+  assert.equal(undone.ok, true, undone.problems.join('; '));
+  assert.equal(store.get(setContentPath('S1', 1, '1')), 'NONE');
+
+  const store2 = simStore();
+  const plan2 = buildPlan(store2, stillsJob());
+  const refused = standIn(store2, { page: true, refuse: (path) => path.at(-1) === 'content' });
+  const t0 = Date.now();
+  const bad = await applyPlan({ session: refused.session, plan: plan2, images: imagesFor(plan2), fetchImpl: refused.fetchImpl, options: { label: 'Act 1' } });
+  assert.equal(bad.ok, false);
+  assert.match(bad.error, /S1 set 1 did not take STILL_1 on Out 1 — the switcher did not echo it/);
+  assert.equal(store2.get(setContentPath('S1', 1, '1')), 'STILL_1', 'the mirror shows it all the same');
+  assert.ok(Date.now() - t0 >= 5000, 'it waited for the echo rather than reading the mirror');
+  assert.equal(bad.journal.stills.length, 3, 'the stills before it were each heard');
+  assert.equal(bad.journal.sets.length, 1, 'journalled, so Undo puts back what may have landed');
+  assert.equal(await sendAndEcho(refused.session, [{ path: setContentPath('S1', 1, '2'), value: 'STILL_2' }]), true,
+    'without `inbound`, the same refused write reads back as landed — what the LivePremier apply used to wait on');
 });
 
 /*

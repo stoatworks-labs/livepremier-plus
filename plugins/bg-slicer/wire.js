@@ -14,8 +14,22 @@
  * a refused one (`mode` = an enum value that does not exist) is echoed not at
  * all, and the mirror shows the refused value anyway. So `inbound: true`
  * waits for the switcher's own frame — `dir: 'in'`, path and value — off the
- * session's `frame` events. The Midra apply asks for it; LivePremier's still
- * waits on the store, as it was proved, until it is proved the other way.
+ * session's `frame` events. Both applies ask for it: the LivePremier
+ * Simulator 6.2.73 echoed every write the LivePremier apply and Undo send —
+ * stills, set contents and claims, set labels, the NATIVE source, the
+ * capacity triggers — inbound with the exact value and type in 0.3–20 ms, and
+ * a refused enum value not at all (2026-10-06).
+ *
+ * ⚠️ **A write of the value the switcher already holds is never echoed** —
+ * seen on that LivePremier simulator, for every path above. So a path whose
+ * writes change nothing, walked in order from what the mirror holds before
+ * sending, is not waited for: its evidence is the store, as it always was.
+ * The commonest case is a still's `source`: every still on that simulator
+ * holds 1, and the first free library slot is 1. A path whose mirror holds a
+ * write this page sent and the switcher refused misleads both ways: the same
+ * value sent again reads as unchanged and passes, and the value the switcher
+ * really holds is waited for and never echoed — an Undo after a refusal
+ * reports that path after the timeout.
  */
 
 export const ECHO_MS = 6000;
@@ -45,7 +59,8 @@ export function send(session, writes) {
 /**
  * Send writes and wait for the last value of each path to come back. `opts`
  * is a timeout in ms, or `{ ms, inbound }`: with `inbound`, and a session
- * that reports frames, only the switcher's own echo counts.
+ * that reports frames, only the switcher's own echo counts, and only for
+ * the paths the writes change.
  */
 export async function sendAndEcho(session, writes, opts = ECHO_MS) {
   const { ms = ECHO_MS, inbound = false } = typeof opts === 'number' ? { ms: opts } : opts;
@@ -57,17 +72,36 @@ export async function sendAndEcho(session, writes, opts = ECHO_MS) {
 }
 
 /**
- * Send writes and resolve true once the switcher has echoed each path with
- * the last value sent to it — an inbound frame on the session, never this
- * page's own outbound one. False on timeout: a write the switcher refused.
+ * Which paths `writes` change, each with the last value sent to it, walking
+ * the list in order from what the store holds now — a pulse from `true`
+ * (false, then true) changes its path; a write of the value already there
+ * does not.
+ */
+export function changedPaths(store, writes) {
+  const held = new Map();
+  const want = new Map();
+  for (const w of writes) {
+    const k = w.path.join('/');
+    const prev = held.has(k) ? held.get(k) : store.get(w.path);
+    if (!Object.is(prev, w.value) || want.has(k)) want.set(k, w.value);
+    held.set(k, w.value);
+  }
+  return want;
+}
+
+/**
+ * Send writes and resolve true once the switcher has echoed each path they
+ * change with the last value sent to it — an inbound frame on the session,
+ * never this page's own outbound one. False on timeout: a write the switcher
+ * refused. A path they do not change is sent and not waited for (see above).
  */
 function sendAndHear(session, writes, ms) {
-  const want = new Map();
-  for (const w of writes) want.set(w.path.join('/'), w.value);
+  const want = changedPaths(session.store, writes);
   return new Promise((resolve) => {
     const heard = new Set();
     let timer = null;
-    const finish = (v) => { session.removeEventListener('frame', on); clearTimeout(timer); resolve(v); };
+    let done = false;
+    const finish = (v) => { if (done) return; done = true; session.removeEventListener('frame', on); clearTimeout(timer); resolve(v); };
     function on(ev) {
       const f = ev && ev.detail;
       if (!f || f.dir !== 'in' || !Array.isArray(f.path)) return;
@@ -79,6 +113,7 @@ function sendAndHear(session, writes, ms) {
     /* Listening before sending: the echo can be back within a millisecond. */
     session.addEventListener('frame', on);
     if (!send(session, writes)) { finish(false); return; }
-    timer = setTimeout(() => finish(false), ms);
+    if (want.size === 0) { finish(true); return; }
+    if (!done) timer = setTimeout(() => finish(false), ms);
   });
 }

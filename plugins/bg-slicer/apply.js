@@ -26,6 +26,20 @@
  * optimistically). A step that fails stops the run, and the journal says what
  * was written up to there — `revert(journal)` takes exactly that back off.
  *
+ * "The echo" is the switcher's own inbound frame with the path and the value
+ * (`wire.sendAndEcho` with `inbound`), never the store: the page mirror takes
+ * this page's outbound writes as state, so a refused write would read back
+ * as landed (`wire.js`). Proved on the LivePremier Simulator 6.2.73
+ * (2026-10-06): every write below — and its Undo — came back inbound with
+ * the exact value and type, a refused enum value never did. Two waits are
+ * still on the store, and each says why where it is:
+ *   - a write of the value the switcher already holds, which it never echoes
+ *     (`wire.changedPaths`) — a still's `source` usually, slot 1 on stills
+ *     that all hold 1;
+ *   - the status the switcher reports after an upload, a library delete, a
+ *     capacity check and its apply — values the page never writes, so the
+ *     mirror only ever has them from the switcher.
+ *
  * Page-side, but no DOM: the session and `fetch` are handed in, so the tests
  * drive it against a stand-in switcher.
  *
@@ -46,6 +60,8 @@ export { until };
 
 export const UPLOAD_URL = '/api/device/images/upload';
 const PRECONFIG_MS = 20000;
+/** Only the switcher's own echo counts (see the head of this file). */
+const HEARD = { inbound: true };
 
 const pp = (n) => (n && n.pp) || {};
 
@@ -73,6 +89,7 @@ export async function uploadImage({ session, fetchImpl = fetch, blob, name, slot
   try { answer = await res.json(); } catch { answer = null; }
   const status = answer && typeof answer === 'object' ? String(Object.values(answer)[0] || '') : '';
   if (status !== 'FINISH') throw new Error(`the switcher did not import ${name}: ${status || 'no answer'}`);
+  /* The store, because the slot's `isValid` is only ever the switcher's word. */
   const landed = await until(session.store, () => {
     const s = readLibrary(session.store).slots.find((x) => x.slot === Number(slot));
     return s && !s.free;
@@ -94,12 +111,19 @@ export async function applyCapacities({ session, changes, log, reserved = new Se
     throw new Error('Preconfig ▸ Images has changes staged and not applied — apply or reset them there first');
   }
   const before = changes.map((c) => ({ still: c.still, format: c.before, capability: c.from }));
-  send(session, pulse(preStillsTrigger('xCopyFromCurrent')));
-  await sleep(400);
-  for (const c of changes) send(session, [{ path: stillFormatPath(c.still), value: c.format }]);
-  send(session, pulse(preStillsTrigger('xCheck')));
-  await until(store, () => status().hasChanged === true || status().error === true, ECHO_MS);
   const discard = () => send(session, pulse(preStillsTrigger('xCopyFromCurrent')));
+  /* The triggers and the formats wait for their inbound echo — the simulator
+     echoed both edges of every pulse. The echo says the reset arrived, not
+     that the copy is done, so the settle after it stays. */
+  if (!(await sendAndEcho(session, pulse(preStillsTrigger('xCopyFromCurrent')), HEARD))) {
+    throw new Error('the switcher did not take the reset of Preconfig ▸ Images — nothing was staged');
+  }
+  await sleep(400);
+  const formats = changes.map((c) => ({ path: stillFormatPath(c.still), value: c.format }));
+  if (!(await sendAndEcho(session, formats, HEARD))) { discard(); throw new Error('the switcher did not stage the still formats'); }
+  if (!(await sendAndEcho(session, pulse(preStillsTrigger('xCheck')), HEARD))) { discard(); throw new Error('the switcher did not take the capacity check'); }
+  /* The verdict is read off the store: `new/status` is only the switcher's. */
+  await until(store, () => status().hasChanged === true || status().error === true, ECHO_MS);
   if (status().error === true) { discard(); throw new Error('the switcher’s check refused the still capacities'); }
 
   /* What the change would do, in the switcher's own words. */
@@ -117,6 +141,8 @@ export async function applyCapacities({ session, changes, log, reserved = new Se
     if (cap !== c.to) { discard(); throw new Error(`still ${c.still} would become ${cap || 'nothing'}, not ${c.to} — refused`); }
   }
   if (lost.length) log(`the switcher takes ${lost.map((s) => s.key).join(', ')} out of service for the larger capacity (all empty)`);
+  /* Applied when `current` says so — a status only the switcher writes, and
+     a stronger word than the trigger's echo. */
   send(session, pulse(preStillsTrigger('xApply')));
   const ok = await until(store, () => changes.every((c) => pp(store.get(preStillsCurrent('stillList', 'items', String(c.still), 'status'))).capability === c.to), PRECONFIG_MS);
   if (!ok) {
@@ -125,6 +151,10 @@ export async function applyCapacities({ session, changes, log, reserved = new Se
     err.before = before;
     throw err;
   }
+  /* The switcher reports `current` a moment before it clears the staged
+     side's `hasChanged` (simulator, 2026-10-06): returned any sooner, an
+     Undo pressed at once would refuse it as "changes staged". */
+  await until(store, () => status().hasChanged !== true, ECHO_MS);
   return before;
 }
 
@@ -172,8 +202,10 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
              may still have landed, and putting back what was there is
              harmless if it did not. */
           journal.stills.push({ still: o.still, before: o.stillBefore });
-          if (!(await sendAndEcho(session, stillWrites(o.still, o.librarySlot, label)))) {
-            throw new Error(`still ${o.still} did not take library slot ${o.librarySlot}`);
+          /* `source` is often the slot already (every still on the simulator
+             holds 1): unechoed, so not waited for — `wire.changedPaths`. */
+          if (!(await sendAndEcho(session, stillWrites(o.still, o.librarySlot, label), HEARD))) {
+            throw new Error(`still ${o.still} did not take library slot ${o.librarySlot} — the switcher did not echo it`);
           }
           step(`Still ${o.still} shows slot ${o.librarySlot}, no rescale`);
         }
@@ -196,13 +228,13 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
         if (!o.content) continue;
         const writes = contentWrites(store, s.id, s.setIndex, o.key, o.content);
         journal.sets.push({ screen: s.id, set: s.setIndex, out: o.key, before: before.contents[o.key] || 'NONE' });
-        if (!(await sendAndEcho(session, writes))) throw new Error(`${s.id} set ${s.setIndex} did not take ${o.content} on ${o.name}`);
+        if (!(await sendAndEcho(session, writes, HEARD))) throw new Error(`${s.id} set ${s.setIndex} did not take ${o.content} on ${o.name} — the switcher did not echo it`);
         step(`${s.id} background set ${s.setIndex}: ${o.name} ← ${o.content}`);
       }
       if (options.label) {
         const w = setLabelWrite(s.id, s.setIndex, options.label);
         journal.labels.push({ screen: s.id, set: s.setIndex, before: before.label });
-        await sendAndEcho(session, [w]);
+        if (!(await sendAndEcho(session, [w], HEARD))) throw new Error(`${s.id} set ${s.setIndex} did not take the name “${w.value}” — the switcher did not echo it`);
         step(`${s.id} background set ${s.setIndex} named “${w.value}”`);
       }
     }
@@ -217,7 +249,7 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
         const path = nativeSourcePath(s.id, banks.preview);
         const before = store.get(path) || 'NONE';
         journal.natives.push({ screen: s.id, letter: banks.preview, before });
-        if (!(await sendAndEcho(session, [{ path, value: `NATIVE_${s.setIndex}` }]))) throw new Error(`${s.id} preview did not load set ${s.setIndex}`);
+        if (!(await sendAndEcho(session, [{ path, value: `NATIVE_${s.setIndex}` }], HEARD))) throw new Error(`${s.id} preview did not load set ${s.setIndex} — the switcher did not echo it`);
         step(`${s.id} preview (${banks.preview}) shows background set ${s.setIndex}`);
       }
     }
@@ -265,23 +297,24 @@ export async function revert({ session, journal, onStep = () => {} }) {
   const problems = [];
   const step = (text, state = 'done') => onStep(text, state);
   for (const n of [...journal.natives].reverse()) {
-    if (!(await sendAndEcho(session, [{ path: nativeSourcePath(n.screen, n.letter), value: n.before }]))) problems.push(`${n.screen} ${n.letter} NATIVE`);
+    if (!(await sendAndEcho(session, [{ path: nativeSourcePath(n.screen, n.letter), value: n.before }], HEARD))) problems.push(`${n.screen} ${n.letter} NATIVE`);
     else step(`${n.screen} preset ${n.letter} NATIVE back to ${n.before}`);
   }
   for (const l of [...journal.labels].reverse()) {
-    if (!(await sendAndEcho(session, [setLabelWrite(l.screen, l.set, l.before)]))) problems.push(`${l.screen} set ${l.set} label`);
+    if (!(await sendAndEcho(session, [setLabelWrite(l.screen, l.set, l.before)], HEARD))) problems.push(`${l.screen} set ${l.set} label`);
     else step(`${l.screen} set ${l.set} label back to “${l.before}”`);
   }
   for (const c of [...journal.sets].reverse()) {
-    if (!(await sendAndEcho(session, contentWrites(store, c.screen, c.set, c.out, c.before)))) problems.push(`${c.screen} set ${c.set} out ${c.out}`);
+    if (!(await sendAndEcho(session, contentWrites(store, c.screen, c.set, c.out, c.before), HEARD))) problems.push(`${c.screen} set ${c.set} out ${c.out}`);
     else step(`${c.screen} set ${c.set} Out ${c.out} back to ${c.before}`);
   }
   for (const s of [...journal.stills].reverse()) {
-    if (!(await sendAndEcho(session, stillRestoreWrites(s.still, s.before)))) problems.push(`still ${s.still}`);
+    if (!(await sendAndEcho(session, stillRestoreWrites(s.still, s.before), HEARD))) problems.push(`still ${s.still}`);
     else step(`still ${s.still} back to ${(s.before && s.before.mode) || 'NONE'}`);
   }
   for (const slot of [...journal.uploads].reverse()) {
     send(session, libraryDeleteWrites(slot));
+    /* Emptied when the slot's `isValid` says so — the switcher's word only. */
     const gone = await until(store, () => {
       const s = readLibrary(store).slots.find((x) => x.slot === Number(slot));
       return s && s.free;

@@ -132,7 +132,8 @@ model and the run. In the order it would bite:
 - **The page mirror is not an echo.** `page-socket.js` applies this page's outbound DEVICE frames
   to the store; a refused write (an enum value that does not exist) shows in the mirror and is never
   echoed inbound. The Midra apply waits on `dir: 'in'` frames (`wire.js`, `inbound`). LivePremier's
-  apply still waits on the store — the same exposure, not re-proved.
+  apply still waits on the store — the same exposure, not re-proved. *(Re-proved and switched the
+  same day — the next section.)*
 - **A frame's `status/pp/{width,height}` is the size it is shown at**, by mode — the proof of 1:1.
 - **The import command moves its file** (`stillLibrary/import/cmd/pp/path` — the source is gone).
 - **A simulator session in a scratchpad gets reaped.** The shared Midra simulator's session dir had
@@ -140,6 +141,23 @@ model and the run. In the order it would bite:
   `ERROR_NO_FREE_SPACE`. A private copy of the session on other ports (AGENTS.md has the recipe)
   was where the upload was proved.
 
+
+
+## Background Slicer: LivePremier on the switcher's own echo (2026-10-06)
+
+The LivePremier apply now waits on `dir: 'in'` frames too. Probed on the LivePremier Simulator 6.2.73
+from Node over the device socket, with nothing else connected; docs/BACKGROUNDS.md has the run.
+
+- **A write of the value a path already holds is never echoed**, on every path the apply writes. A
+  naive inbound wait therefore fails the commonest apply there is: every still on the simulator holds
+  `source` 1 and the first free library slot is 1. `wire.changedPaths` leaves such paths unwaited.
+  (The Midra lists never hit it: `withBefore` drops them before sending.)
+- **Each pulse edge is echoed twice** (false, true, false, true for one pulse) — harmless to a wait
+  that matches path and value, confusing in a frame log.
+- **`current` lands before `hasChanged` clears** after `xApply`, so a second `applyCapacities`
+  started at once refused "changes staged". It cost me a run that stopped with still 45 at 4K and
+  46 out of service on the shared simulator; my `finally` exited before printing the error, and
+  I put it back by hand. Print the error before anything in `finally` that can exit.
 
 ## HyperDecks: Mitti refuses CR-ended commands (2026-09-29)
 
