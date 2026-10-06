@@ -488,6 +488,23 @@ recorders and leaves the players alone.
 
 ---
 
+## Dante — preview
+
+The Dante plugin's addresses — [DANTE.md](DANTE.md). It is off by default and has never been run
+against a real Dante device. `{device}` is a Dante device name as the network knows it;
+`{channel}` is a receive channel's number, or its label with spaces written as `-`; a snapshot's
+name takes `-` for a space the same way. Every write is planned against what the devices last
+reported — only what differs is sent — and the receivers are read back before the answer is logged,
+so a route that did not take is logged as a failure, naming what the device reports instead.
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/lp/dante/snapshot/{name}/recall` | none | Recall a saved routing snapshot: only what differs is sent, and the devices are read back. A release (0) sends nothing. |
+| `/lp/dante/route/{device}/{channel}` | string — `channel@device` | Subscribe a receive channel (by number, or by label with spaces as `-`) to a transmit channel. An empty string or `none` clears it. |
+| `/lp/dante/clear/{device}/{channel}` | none | Clear a receive channel’s subscription. A release (0) sends nothing. |
+
+---
+
 ## Addresses a plugin adds
 
 A plugin may answer a subtree of addresses of its own — the

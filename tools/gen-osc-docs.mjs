@@ -31,6 +31,7 @@ import { oscDictionary, OSC_ROOT, VERIFIED_FIRMWARE, MIDRA } from '../src/vendor
 import { PARAMS, PROVENANCE, paramsFor } from '../src/core/osc-dictionary.js';
 import { MATRIX_OSC } from '../src/core/patch.js';
 import { HYPERDECK_OSC } from '../plugins/hyperdeck/core.js';
+import { DANTE_OSC } from '../plugins/dante/core.js';
 
 /**
  * The built-in plugins' own subtrees, from the entries each keeps beside its
@@ -40,6 +41,7 @@ import { HYPERDECK_OSC } from '../plugins/hyperdeck/core.js';
 export const PLUGIN_OSC = [
   { plugin: 'matrix-routing', prefix: '/lp/matrix/', entries: MATRIX_OSC },
   { plugin: 'hyperdeck', prefix: '/hyperdeck/', entries: HYPERDECK_OSC.map(({ command, ...e }) => e) },
+  { plugin: 'dante', prefix: '/lp/dante/', entries: DANTE_OSC },
 ];
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -116,6 +118,9 @@ export function generate() {
   lines.push(HYPERDECKS.trim());
   lines.push('');
   table(lines, PLUGIN_OSC.find((p) => p.plugin === 'hyperdeck').entries);
+  lines.push(DANTE.trim());
+  lines.push('');
+  table(lines, PLUGIN_OSC.find((p) => p.plugin === 'dante').entries);
   lines.push(PLUGINS.trim());
   lines.push(FOOTER.trim());
   lines.push('');
@@ -315,6 +320,19 @@ The HyperDecks plugin's addresses — [HYPERDECK.md](HYPERDECK.md). \`{deck}\` i
 (lower case, spaces as \`-\`), its id, its 1-based position in the list, or \`all\`, \`players\` or
 \`recorders\`. A group is sent only what each member can do: \`/hyperdeck/all/record\` starts the
 recorders and leaves the players alone.
+`;
+
+const DANTE = `
+---
+
+## Dante — preview
+
+The Dante plugin's addresses — [DANTE.md](DANTE.md). It is off by default and has never been run
+against a real Dante device. \`{device}\` is a Dante device name as the network knows it;
+\`{channel}\` is a receive channel's number, or its label with spaces written as \`-\`; a snapshot's
+name takes \`-\` for a space the same way. Every write is planned against what the devices last
+reported — only what differs is sent — and the receivers are read back before the answer is logged,
+so a route that did not take is logged as a failure, naming what the device reports instead.
 `;
 
 const PLUGINS = `
