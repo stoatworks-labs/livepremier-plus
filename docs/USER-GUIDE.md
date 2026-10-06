@@ -735,7 +735,7 @@ for the device's own words.
 1. **Unlock** the grid (it opens **Locked**: clicks only open and close devices).
 2. Click a cell to subscribe that receive channel to that transmit channel, or to clear it when it
    is already lit. Click a block to lay the transmitter across the receiver channel for channel, or
-   to clear exactly that.
+   to clear exactly that; past eight subscriptions it asks first.
 3. The cell waits (dashed) until the device has been read back. The note line and **Last change**
    say what each device reports: *confirmed*, or why not.
 

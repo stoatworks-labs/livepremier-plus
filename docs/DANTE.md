@@ -89,7 +89,8 @@ or failed, with the device's own reason on hover.
   recalls and preset applies are deliberate already and are not held by the lock.
 - **A click on a cell** subscribes that receive channel to that transmit channel, or clears it when
   it is already so. **A click on a block** lays the transmitter across the receiver channel for
-  channel, or clears exactly that when it is already so.
+  channel, or clears exactly that when it is already so — asking first when that is more than eight
+  subscriptions.
 - **Nothing lights until the device says so.** A clicked cell waits (dashed) until the receiver has
   been read back. The result of the last change is listed under the grid, channel by channel.
 - **Filter** narrows devices and channels by name; **Routed only** hides empty receive channels and

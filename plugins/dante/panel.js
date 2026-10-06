@@ -49,6 +49,8 @@ import { switcherCards, matchSwitcher, audioPatches } from './switcher.js';
 
 const POPOUT = new URL('./popout.html', import.meta.url).href;
 const STYLE_ID = 'lpp-dante-style';
+/** A block click changing more subscriptions than this asks first. */
+const BLOCK_ASK = 8;
 
 const CSS = `
 .lpp-dn-wrap { overflow: auto; max-height: 62vh; border: 0.083333rem solid #283239; border-radius: 0.25rem; }
@@ -417,6 +419,11 @@ export function createDantePanel({ session, model, settings = () => ({}), onRefr
       td.addEventListener('click', () => {
         const routes = blockRoutes(rxDev, txDev);
         if (!routes.length) return;
+        /* A block can be sixty-four subscriptions on somebody else's device: past a
+           handful, it asks first. */
+        if (!view.locked && routes.length > BLOCK_ASK && !confirmAsk(straight
+          ? `Clear ${routes.length} of ${rxDev.name}’s subscriptions from ${txDev.name}?`
+          : `Subscribe ${routes.length} of ${rxDev.name}’s receive channels to ${txDev.name}, channel for channel?`)) return;
         send(routes, straight ? `Clear ${rxDev.name} from ${txDev.name}` : `${txDev.name} → ${rxDev.name}, channel for channel`);
       });
     } else if (rxCh && col.ch) {
