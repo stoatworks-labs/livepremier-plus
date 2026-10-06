@@ -44,11 +44,14 @@ function merged(...names) {
 
 const STORES = {
   empty: () => new DeviceStore(),
+  /* `sim-6.2.73-memory.json` was in this list until the Variables panel
+     needed a real catalogue: it is a memory-export capture, not a store
+     slice, and its top-level `device: "NLC_CMAX"` replaced the whole merged
+     tree with a string — so every panel here drew an empty store twice. */
   simulator: () => {
     const s = new DeviceStore();
     s.hydrate(merged('sim-6.2.73-identity.json', 'sim-6.2.73-screens.json', 'sim-6.2.73-destinations.json',
-      'sim-6.2.73-connectors.json', 'sim-6.2.73-outputs.json', 'sim-6.2.73-resources.json',
-      'sim-6.2.73-memory.json'));
+      'sim-6.2.73-connectors.json', 'sim-6.2.73-outputs.json', 'sim-6.2.73-resources.json'));
     return s;
   }
 };
@@ -181,6 +184,44 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
     });
   });
 }
+
+/*
+ * The Variables panel with something in it: the user's own — one that
+ * evaluates, one over a system variable, two in a cycle — over the
+ * simulator's catalogue, and a search. The page-half pass above draws it
+ * with nothing loaded; this is the panel an operator actually looks at.
+ */
+test('the Variables panel draws definitions, a cycle and the catalogue', async () => {
+  await withDom(async () => {
+    const store = STORES.simulator();
+    const { createVariables } = await import('../plugins/variables/service.js');
+    const { createVariablesPanel } = await import('../plugins/variables/panel.js');
+    const variables = createVariables({
+      store: () => store,
+      load: async () => ({ variables: [
+        { id: 'g', name: 'gap', value: '40' },
+        { id: 'h', name: 'half', value: '$S1.width / 2' },
+        { id: 'a', name: 'a', value: '@b' },
+        { id: 'b', name: 'b', value: '@a' }
+      ] }),
+      save: async () => {}
+    });
+    await variables.start();
+    const panel = createVariablesPanel({ variables, session: sessionOver(store), onRefresh() {} });
+    const root = renders('variables panel', panel);
+    const text = root.textContent;
+    const listed = (el) => el.querySelectorAll('button.lpp-var-copy').map((b) => b.textContent);
+    assert.match(text, /Cycle: @a → @b → @a/);
+    assert.match(text, /960/, '@half is half of S1');
+    assert.ok(listed(root).includes('$S1.PGM.L1.x'), 'the catalogue lists an allocated layer');
+    assert.ok(listed(root).includes('$S1.width'));
+    assert.equal(root.querySelectorAll('input[data-lpp-key="var-value-h"]').length, 1, 'each definition is a keyed field');
+    panel.view.filter = 'IN3';
+    const narrowed = listed(renders('variables panel, searched', panel));
+    assert.ok(narrowed.includes('$IN3.width'));
+    assert.equal(narrowed.includes('$S1.width'), false);
+  });
+});
 
 /*
  * Renaming a memory opens its field without a repaint.

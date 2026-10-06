@@ -305,7 +305,17 @@ export const BUILTINS = [
     id: 'arithmetic',
     name: 'Field arithmetic',
     where: 'Every numeric field in Web RCS',
-    description: 'Type 1080-80 in a layer width and get 1000.',
+    description: 'Type 1080-80 in a layer width and get 1000 — or $S1.width/2, with Variables on.',
+    client: 'client.js'
+  },
+  {
+    id: 'variables',
+    name: 'Variables',
+    where: 'Sidebar, under PLUS; the Console and every numeric field',
+    description: '$ names for what the switcher reports — $S1.width, $IN3.rate, $S1.PGM.L2.x — and @ names of your own, usable wherever a number goes. Reads only; it never writes to the switcher.',
+    /* On by default: it reads the mirror and changes no write's timing — a
+       field or a Console line still goes out when the operator commits it. */
+    server: 'server.js',
     client: 'client.js'
   },
   {
