@@ -38,7 +38,7 @@ export default function activate(ctx) {
        own, and two entries with one name is one too many. */
     label: 'Background Slicer',
     icon: ['background-18', 'layer-background-18', 'stills-18'],
-    order: 57,
+    order: 59,
     render: () => view.render(),
     /* Holds repaints off while the picture is being dragged. */
     busy: () => view.busy()
