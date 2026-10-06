@@ -281,6 +281,10 @@ Take Screen 1
 The line **parses as you type and shows what it will do** — `Recall 3 → Screen 1 Preview` — before
 anything reaches the device. Tab completes; ↑ recalls history.
 
+**Variables** go wherever a number does — `Set Screen 1 Layer 2 Size ($S1.width / 2) $S1.height` —
+and the feedback names what each one reads before Enter. Sums go in brackets. See
+[Variables](#variables).
+
 ![The Console tab with a line typed and not yet run: "Recall 1 → Screen 1 Preview" under it](screenshots/screens-console.png)
 
 **This panel owns no grammar.** Every token, rule and device path comes from
@@ -1097,6 +1101,48 @@ mutating a vendor element's type on every focus, in a UI driving a live show. No
 There is **no `eval`** anywhere in this path; anything the parser does not fully understand is
 refused rather than guessed at.
 
+With **Variables** on (next section), a field takes them too: `$S1.width/2`, `@gap*3`. One that
+cannot be read right now is not applied — the field flashes amber and its tooltip says why.
+
+---
+
+## Variables
+
+**PLUS ▸ Variables.** Names for numbers, usable wherever a number goes: in the Console, in the
+vendor's numeric fields, in an OSC argument. Two kinds:
+
+- **`$` — the switcher's.** `$S1.width`, `$S1.PGM.L2.x`, `$IN3.rate`, `$OUT1.cw`, `$device.model`
+  and a few hundred more, read live. They are generated from what the switcher has — the screens
+  in service, each one's allocated layers, the fitted inputs and outputs — so a bigger rig lists
+  more. Search the table; click a name to copy it.
+- **`@` — yours.** Press **Add**, name it, give it a definition: `@gap` = `40`,
+  `@half` = `$S1.width / 2`. The Value column shows what it comes to now, and says why when it
+  comes to nothing. Kept for this switcher, and in the setup file.
+
+```
+Set Screen 1 Layer 2 Size ($S1.width / 2) $S1.height       at the Console
+Set Screen 1 Layer 2 Position (@gap * 3) 540
+$S1.width/2                                                 in a width field
+```
+
+**Arithmetic goes in brackets at the Console.** `Take Screen 4 - 1` is still screens 4 without 1;
+`Take Screen (4 - 1)` is screen 3. In a field there is no list, so `$S1.width/2` needs none.
+
+Four things it refuses rather than guesses, each with a sentence saying so:
+
+- **a layer by role while its screen is mid-take** — `$S1.PGM.L2.x` names whichever buffer is
+  program, and during a transition that is changing hands;
+- **a layer that is not allocated** — the preset holds geometry for every slot, but only allocated
+  layers are real;
+- **anything the switcher has not reported** — a canvas, a memory — rather than a default;
+- **a cycle** — `@a` naming `@b` naming `@a`, spelled out above your table.
+
+**Over OSC, only `@` variables that do not depend on a `$` one** work, because the OSC listener
+holds no copy of the switcher's state — the same reason it refuses `preview` and `program`.
+
+The plugin **only reads**; it never writes to the switcher, and a field or a Console line still
+goes out when you commit it. The full namespace is in [VARIABLES.md](VARIABLES.md).
+
 ---
 
 ## The demo environment
@@ -1176,7 +1222,7 @@ was written against, and three separate groups:
 
 - **installation** — app settings (console language, OSC port and bind) and your external
   routers. Not tied to a switcher.
-- **show** — the cue stack, layer groups, layer names, layer locks and Companion memory triggers. Tied to the switcher they were
+- **show** — the cue stack, layer groups, layer names, layer locks, your variables and Companion memory triggers. Tied to the switcher they were
   built on, because they name screens and layer slots like `S1/2`.
 - **rig** — the patch between the frame and the routers.
 

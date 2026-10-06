@@ -142,7 +142,7 @@ anything that needs the screen list to set itself up waits for the event — Sen
 its menu has nothing to offer without one.
 
 **`order`** places an entry among the app's own, which are numbered in tens: in PLUS, Edit 10, VPU Map
-20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix Routing 50, Audio Matrix 55 — and Companion asks for 60. On the strip,
+20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix Routing 50, Audio Matrix 55, Variables 57 — and Companion asks for 60. On the strip,
 Console 10, Timeline 20, Layer 30, Groups 40.
 
 **`busy()`** holds every repaint off while it returns true — for a panel with a text field that
@@ -297,6 +297,9 @@ the example: its `/driver` lease says when. With no host installed it answers al
 **`companion`**, from Companion — `press(locations)`, each `{ pageNumber, row, column }`, pressed
 over the link Companion's plugin already holds and answering `{ ok, results, error }`, and
 `connected`. The Pixelhue panel sends a console's cue transport keys through it when told to.
+**`variables`**, from Variables — `resolver()`, async: the `@` variables of the switcher the app
+points at, as a resolver in mynah's `vars` shape, with every `$` name refused because this process
+has no store. OSC input hands it to the listener. See [VARIABLES.md](VARIABLES.md).
 
 **What the app asks for on the server:** **`snapshots`** — `serve(req, res, url)`, answering a
 `GET /api/device/snapshots/…` in the proxy's place and resolving `true`, or `false` to have the
@@ -311,7 +314,10 @@ found; **`groups`**, from Layer Groups — `list()`, `recent()`, `remember(targe
 which takes those layers alone and answers `{ ok, message }`;
 **`timecode`**, from Timecode — `{ source, chase }`, the clock and the chase the Timeline draws;
 **`matrix`**, from Matrix Routing — `describeSurfaces()`, what its Router tabs found on the vendor's
-pages; and
+pages; **`variables`**, from Variables — `list()`, `resolve('$S1.width')`, `resolver()` (the
+`(name, kind)` function mynah's `vars` and `core/expr.js` take; fresh per call), `evaluate(text)` and
+`onChange(fn)` — the Console and Field arithmetic ask for it per use, [VARIABLES.md](VARIABLES.md);
+and
 **`stack`**, the cue stack, owned by the Timeline —
 `go()`, `back()`, `stop()`, `gotoId(id)`, `fire(id)`, `standby`, `cues()` (copies), and
 `addEventListener`/`removeEventListener` for its events (`fired`, `took`, `armed`, `changed`,

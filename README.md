@@ -120,11 +120,17 @@ rather than as a bolt-on:
   up to 25 frames a second. The store gives each tile's position, so nothing is
   calibrated by hand. On a Midra 4K or Alta 4K the switcher's own H.264 streamer
   can be the feed. It has never yet met a real multiviewer.
-- **Your setup in one file** — the cue stack, layer groups, layer names, router
-  patch and settings, written as one plain JSON file and read back the same way,
-  so a rig restores with its `.awc` rather than half of it.
+- **Your setup in one file** — the cue stack, layer groups, layer names, your
+  variables, router patch and settings, written as one plain JSON file and read
+  back the same way, so a rig restores with its `.awc` rather than half of it.
 - **Arithmetic in the vendor's own numeric fields** — type `1080-80` into a
   layer width and get 1000, the way you can in every other tool on the desk.
+- **Variables** — `$S1.width`, `$IN3.rate`, `$S1.PGM.L2.x` for what the
+  switcher reports, generated from the rig it is, and `@gap`, `@half` of your
+  own, wherever a number goes: `Set Screen 1 Layer 2 Size ($S1.width / 2)
+  $S1.height` at the Console, `$S1.width/2` in a width field, `"@gap * 3"` in an
+  OSC argument. A role mid-take is refused, never guessed. Reads only; see
+  [docs/VARIABLES.md](docs/VARIABLES.md).
 - **Mosaic inputs** — the EDID builder's Mosaic mode, carried through to the
   frame: group inputs 2X1 or 2X2 and load each plug with its tile EDID, so a
   Mac joins several outputs into one frame-synced display.
@@ -607,6 +613,12 @@ Take Screen 1
 The line parses as you type and shows what it will do — `Recall 3 → Screen 1
 Preview` — before anything reaches the device. Tab completes, ↑ recalls
 history.
+
+**Variables** stand wherever a number goes — `Set Screen 1 Layer 2 Size
+($S1.width / 2) $S1.height`, `Recall Screen 1 Thru @screens Memory @opener` —
+and the feedback names what each reads before Enter. Arithmetic goes in
+brackets, because outside them `+` and `-` are still the range operators. See
+[docs/VARIABLES.md](docs/VARIABLES.md).
 
 ![The Console tab with a line typed and not yet run: the Mynah badge and "Recall 1 → Screen 1 Preview" under it](docs/screenshots/screens-console.png)
 
@@ -1099,6 +1111,13 @@ There is **no `eval`** anywhere in this path. `src/core/expr.js` is a
 hand-written recursive-descent parser over a closed token set; anything it does
 not fully understand is refused rather than guessed at, and the field is left
 exactly as typed for the vendor to reject as it would today.
+
+**Variables work here too**, while the Variables plugin is on: `$S1.width/2`,
+`@gap*3`, `$OUT1.cw - 40`. One that cannot be read right now — a program layer
+mid-take, a canvas the switcher has not reported — is not applied, and the
+field flashes amber with the reason in its tooltip. Off, a field with a
+variable in it is left as typed, exactly as before. The names are in
+[docs/VARIABLES.md](docs/VARIABLES.md).
 
 ## What it looks like
 

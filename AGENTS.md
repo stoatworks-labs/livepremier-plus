@@ -234,6 +234,65 @@ rather than guesses — division by zero is rejected specifically because
 `Infinity` would survive the clamp and land as the field's max, which is a
 plausible-looking wrong answer.
 
+## Variables (`plugins/variables/`, `core/expr.js`, mynah's `variables.ts`)
+
+`$name` is a **system** variable, read off the store mirror; `@name` is a
+**user** one, defined in the panel and kept per switcher. One resolver shape,
+`resolve(name, kind) → {ok, value} | {ok: false, error} | undefined`, serves
+mynah (`vars` in the run context), `core/expr.js` (`evaluate(text,
+{ resolve })`) and the OSC listener, so the Console, the fields and a packet
+agree to the digit. `docs/VARIABLES.md` is the namespace.
+
+The things that break quietly if "simplified":
+
+- ⚠️ **A role variable mid-take is an error, not the old letter.**
+  `$S1.PGM.L2.x` goes through `presetBanks()` and refuses while `settled` is
+  false — the Layer panel's rule, for the Layer panel's reason.
+- ⚠️ **The catalogue is walked, not listed, and only allocated layers are in
+  it.** `dialect.fittedLayers` gates the layers (the preset carries geometry
+  for every slot); `listDestinations` gates the destinations; an unreported
+  canvas is not given the 1920×1080 a card falls back to. Do not add a table of
+  store leaves — the catalogue grows with the rig because it is generated.
+- **The page's index of names is cached for 250 ms**; the values never are —
+  every `read()` goes to the store. Hold a `resolver()` for one evaluation.
+- **Cycles are found before evaluating** (Tarjan, `findCycles`), so the
+  recursion in `createUserEvaluator` always ends. A definition that does not
+  evaluate is *kept* and reported, like a spreadsheet cell; a rename rewrites
+  `@old` in the other definitions.
+- **Mynah resolves variables in its parser**, not its compiler: a range cannot
+  be expanded or range-checked before its ends have values, and only a parse
+  error carries a span. Arithmetic lives in brackets because outside them
+  `+`/`-` are the range operators — `Screen 4 - 1` must keep meaning what it
+  meant. `test/expr.test.js` checks `core/expr.js` and mynah's
+  `evaluateExpression` agree case for case; they are two implementations of
+  one grammar on purpose (this repo's field arithmetic predates the vendored
+  one) and that test is what keeps them one grammar.
+- ⚠️ **The OSC listener has no store, so `$` is refused there**, and so is an
+  `@` that reaches one (`storelessResolver`). Same asymmetry as
+  `preview`/`program`, and `docs/OSC.md` says so in prose generated from
+  `tools/gen-osc-docs.mjs`.
+- **Every caller asks for the service per use** (`ctx.use('variables')`), and
+  falls back to exactly its old behaviour when it is null: a field with `$` in
+  it is left as typed, a Console line is refused naming the plugin. Field
+  arithmetic only flashes a refusal while a resolver exists, so switching the
+  plugin off restores the old silence.
+- **Reads only** — it is on by default for that reason. If it ever grows a
+  write (a variable that sets something), it becomes a preview behind
+  `OFF_UNTIL_TESTED` like every other plugin that acts by itself.
+
+Proven on the 6.2.73 simulator through the demo (2026-10-06): the panel, the
+catalogue (446 names), adding, renaming, a cycle reported and broken, an armed
+delete, persistence across a reload and into the setup file's `show`, the
+Console's preview tags and a `Set` with variables compiling to the right four
+writes (sent into a catcher, not the switcher), and a field of ours carrying
+the real capture-phase listener turning `$S1.width/2 - @gap` into `920` and
+refusing `$S1.widht` with the amber flash. **Not** driven: a vendor numeric
+field (no layer was selectable without committing a write to the shared
+simulator), the popped-out Console's Variables shelf (the Browser pane opens a
+popout in place of its opener, so it has no session), a real Midra (the
+catalogue is tested against a cut of the Midra 4K simulator's store), and any
+hardware.
+
 ## Where our surfaces live, and why
 
 ### Four command languages, one command line
@@ -267,7 +326,8 @@ resolve them — the page has the store mirror, through `presetBanks()` in
 `core/screens.js`. The OSC listener cannot, and refuses those addresses with
 that reason rather than guessing. A layer move landing in whichever buffer
 happened to be live is the exact failure being defended against. That asymmetry
-is intended and is documented in `docs/OSC.md`.
+is intended and is documented in `docs/OSC.md`. **`$` variables follow the
+same line**: answered at the Console, refused over UDP.
 
 ### External matrix routing (`plugins/matrix-routing/routers/`, `core/patch.js`)
 
