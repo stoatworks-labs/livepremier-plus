@@ -307,7 +307,7 @@ export const BUILTINS = [
     id: 'bg-slicer',
     name: 'Background Slicer',
     where: 'Sidebar, under PLUS (preview)',
-    description: 'One picture cut into pixel-exact backgrounds across screens and their outputs, put into the image library and a background set — or each output fed live from an input, with the output map for Resolume, disguise, Pixera and the rest. Never yet run against a real frame.',
+    description: 'One picture cut into pixel-exact backgrounds across screens and their outputs, put into the image library and a background set — per output on a LivePremier, per screen on a Midra 4K or Alta 4K — or each output fed live from an input, with the output map for Resolume, disguise, Pixera and the rest. Never yet run against a real frame.',
     requires: { capabilities: ['backgroundSets'] },
     /* Off until it has been: it uploads into the image library and writes
        stills, still capacities and background sets. */

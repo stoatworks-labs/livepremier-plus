@@ -39,10 +39,17 @@ const r4 = (r) => ({ x: round(r.x), y: round(r.y), w: round(r.w), h: round(r.h) 
  * the cable an operator follows; in the stills mode after the output.
  */
 export function mediaOutputName(screen, output) {
-  const where = `${screen.id} Out ${output.key}`;
-  if (output.input) return `IN ${String(output.input).replace(/^IN_/, '')} → ${where}`;
+  const where = `${screen.id} ${outWord(output.key)}`;
+  if (output.input) return `IN ${String(output.input).replace(/^(?:IN|INPUT)_/, '')} → ${where}`;
   return where;
 }
+
+/**
+ * How an output is named in a file: `Out 3`, or `canvas` for the one image a
+ * Midra or Alta screen takes (`mng.js`, `CANVAS_KEY`). `tight` drops the
+ * space, for identifiers.
+ */
+const outWord = (key, tight = false) => (key === 'canvas' ? 'canvas' : `Out${tight ? '' : ' '}${key}`);
 
 /**
  * One row per blit: which content rectangle lands where on which
@@ -162,7 +169,7 @@ export function templateShapes(plan, content, which = 'content') {
       rects: rows.map((r) => ({
         ...r.content,
         color: colourOf(r.mediaOutput),
-        label: `${r.screen} Out ${r.output}${r.slice > 1 || rows.some((x) => x.output === r.output && x.screen === r.screen && x !== r) ? ` · slice ${r.slice}` : ''}`,
+        label: `${r.screen} ${outWord(r.output)}${r.slice > 1 || rows.some((x) => x.output === r.output && x.screen === r.screen && x !== r) ? ` · slice ${r.slice}` : ''}`,
         sub: `${Math.round(r.content.w)} × ${Math.round(r.content.h)} → ${r.mediaOutput}${r.rotation ? ` · turned ${r.rotation}°` : ''}`
       }))
     };
@@ -236,7 +243,7 @@ export function resolumeProject(plan, content, name = 'LivePremier backgrounds')
     return {
       id: `s${i + 1}`,
       connectorId: c.id,
-      name: `${r.screen} Out ${r.output}${r.slice > 1 ? ` s${r.slice}` : ''}${r.part > 1 ? ` p${r.part}` : ''}`,
+      name: `${r.screen} ${outWord(r.output)}${r.slice > 1 ? ` s${r.slice}` : ''}${r.part > 1 ? ` p${r.part}` : ''}`,
       enabled: true,
       output: outputQuad(r.blit),
       lattice: null,
@@ -299,7 +306,7 @@ export function toPixeraFeeds(plan) {
   for (const r of regionRows(plan)) {
     const c = r.content;
     const q = outputQuad(r.blit);
-    const name = `${r.screen}_Out${r.output}${r.part > 1 ? `_${r.part}` : ''}`;
+    const name = `${r.screen}_${outWord(r.output, true)}${r.part > 1 ? `_${r.part}` : ''}`;
     lines.push([
       name,
       c.x, c.y, q[0].x, q[0].y,
@@ -339,7 +346,7 @@ export function toMilluminSvgs(plan) {
   return mediaOutputs(plan).map((m) => {
     const polys = rows.filter((r) => r.mediaOutput === m.name).map((r, i) => {
       const q = outputQuad(r.blit).map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ');
-      return `  <polygon id="${xml(`${r.screen}_Out${r.output}_${i + 1}`)}" fill="${PALETTE[i % PALETTE.length]}" points="${q}"/>`;
+      return `  <polygon id="${xml(`${r.screen}_${outWord(r.output, true)}_${i + 1}`)}" fill="${PALETTE[i % PALETTE.length]}" points="${q}"/>`;
     });
     return {
       name: `millumin-${fileSafe(m.name)}.svg`,
@@ -358,7 +365,7 @@ export function toTouchDesignerTable(plan, content) {
   const lines = ['name\toutput\tsrc_x\tsrc_y\tsrc_w\tsrc_h\tdst_x\tdst_y\tdst_w\tdst_h\tout_w\tout_h\trotation\tsrc_y_td\tdst_y_td'];
   for (const r of regionRows(plan)) {
     lines.push([
-      `${r.screen}_Out${r.output}_${r.part}`, r.mediaOutput,
+      `${r.screen}_${outWord(r.output, true)}_${r.part}`, r.mediaOutput,
       r.content.x, r.content.y, r.content.w, r.content.h,
       r.raster.x, r.raster.y, r.raster.w, r.raster.h,
       r.width, r.height, r.rotation,

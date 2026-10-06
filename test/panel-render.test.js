@@ -380,3 +380,42 @@ test('the Background Slicer renders a job in each mode against the simulator’s
     }
   });
 });
+
+/*
+ * The same panel on a Midra 4K: the model is `mng.js`, the plan is one canvas
+ * image per screen through a Background Image (and how each output crops it),
+ * or a Custom set — drawn against the Midra 4K simulator's store, where the
+ * plan has to refuse because S1's Background Image 1 points at the slot an
+ * upload would take.
+ */
+test('the Background Slicer renders a Midra job in each mode', async () => {
+  await withDom(async () => {
+    const store = new DeviceStore();
+    store.hydrate(fixture('midra-3.2.29-backgrounds.json'));
+    const { createBgSlicerPanel } = await import('../plugins/bg-slicer/panel.js');
+    const { createJob } = await import('../plugins/bg-slicer/job.js');
+    for (const source of ['stills', 'live']) {
+      const job = createJob();
+      job.source = source;
+      job.content = { width: 2944, height: 1080 };
+      job.screens = ['S2'];
+      const view = createBgSlicerPanel({ session: sessionOver(store), job, onRefresh() {}, popoutEnabled: false });
+      const root = renders(`bg-slicer midra (${source})`, view);
+      const text = root.textContent;
+      assert.match(text, /Plan — nothing is written yet/);
+      assert.match(text, /canvas 1024 × 640/);
+      if (source === 'stills') {
+        assert.match(text, /the switcher’s choice: its first empty slot/);
+        assert.match(text, /How the switcher crops it/);
+        assert.match(text, /S1 BKG1 already points at it/, 'the slot-1 refusal is shown');
+        assert.ok(root.querySelectorAll('select').length >= 2, 'a set and a Background Image to choose');
+      } else {
+        assert.match(text, /as Custom — an input per output/);
+        assert.match(text, /INPUT 1/);
+      }
+      job.screens = ['S1', 'S2'];
+      job.mode = 'span';
+      renders(`bg-slicer midra (${source}, span)`, view);
+    }
+  });
+});

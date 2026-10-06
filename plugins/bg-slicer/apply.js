@@ -28,6 +28,9 @@
  *
  * Page-side, but no DOM: the session and `fetch` are handed in, so the tests
  * drive it against a stand-in switcher.
+ *
+ * A Midra 4K or Alta 4K plan (`plan.platform === 'mng'`) goes to
+ * `apply-mng.js` instead, and so does its journal on the way back.
  */
 
 import {
@@ -36,41 +39,15 @@ import {
   readLibrary, readStills, readSets, nativeLayer
 } from './core.js';
 import { presetBanks } from '../../src/core/screens.js';
+import { until, send, sendAndEcho, sleep, ECHO_MS, IMPORT_MS } from './wire.js';
+import { applyMngPlan, revertMng } from './apply-mng.js';
+
+export { until };
 
 export const UPLOAD_URL = '/api/device/images/upload';
-const ECHO_MS = 6000;
-const IMPORT_MS = 60000;
 const PRECONFIG_MS = 20000;
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pp = (n) => (n && n.pp) || {};
-
-/** Resolve once `test()` holds, re-checking on every write to the store; false on timeout. */
-export function until(store, test, ms = ECHO_MS) {
-  try { if (test()) return Promise.resolve(true); } catch { /* not yet */ }
-  return new Promise((resolve) => {
-    let done = false;
-    const check = () => { try { return test(); } catch { return false; } };
-    const finish = (v) => { if (done) return; done = true; unsub(); clearTimeout(timer); resolve(v); };
-    const unsub = store.subscribe(['device'], () => { if (check()) finish(true); }, { immediate: false });
-    const timer = setTimeout(() => finish(check()), ms);
-  });
-}
-
-/** Send writes in order; true when every one was handed to the socket. */
-function send(session, writes) {
-  let ok = true;
-  for (const w of writes) ok = session.send({ path: w.path, value: w.value }) !== false && ok;
-  return ok;
-}
-
-/** Send writes and wait for the last value of each path to come back. */
-async function sendAndEcho(session, writes, ms = ECHO_MS) {
-  if (!send(session, writes)) return false;
-  const last = new Map();
-  for (const w of writes) last.set(w.path.join('/'), w);
-  return until(session.store, () => [...last.values()].every((w) => session.store.get(w.path) === w.value), ms);
-}
 
 /**
  * Upload one PNG into one library slot and wait until the store has it.
@@ -160,6 +137,7 @@ export async function applyCapacities({ session, changes, log, reserved = new Se
  * Resolves `{ ok, journal, error? }`; `onStep(text, state)` hears progress.
  */
 export async function applyPlan({ session, plan, images = new Map(), options = {}, fetchImpl = fetch, onStep = () => {} }) {
+  if (plan && plan.platform === 'mng') return applyMngPlan({ session, plan, images, options, fetchImpl, onStep });
   const { store } = session;
   const journal = { uploads: [], stills: [], sets: [], labels: [], capacities: [], natives: [], edids: [] };
   const step = (text, state = 'done') => onStep(text, state);
@@ -282,6 +260,7 @@ function preflight(store, plan, options) {
  * an input's plug goes back to its default EDID from the vendor's EDID page.
  */
 export async function revert({ session, journal, onStep = () => {} }) {
+  if (journal && journal.platform === 'mng') return revertMng({ session, journal, onStep });
   const { store } = session;
   const problems = [];
   const step = (text, state = 'done') => onStep(text, state);

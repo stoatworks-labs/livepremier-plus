@@ -26,18 +26,25 @@
  * nothing and the popped-out window shows the same job. A drag holds repaints
  * (`busy()`) and moves its one element directly until the pointer lets go.
  *
+ * One panel, two platforms: `model.js` hands it LivePremier's model
+ * (`core.js` — a still per output) or Midra 4K / Alta 4K's (`mng.js` — one
+ * picture per screen through a Background Image, cropped by the switcher),
+ * and the plan says which (`plan.platform`). Only the plan table and the
+ * words of the write step differ; the picture, the placement, the cut, the
+ * render and the exports are the same code on both.
+ *
  * ⚠️ Preview: never run against a real frame. The switcher's side of it was
- * proved on a LivePremier Simulator 6.2.73; whether a background lands the
- * way `core.js` says on rotated, grouped, sliced or pitched outputs is not —
- * the panel says so on the outputs it applies to.
+ * proved on a LivePremier Simulator 6.2.73 and a Midra 4K simulator 3.2.29;
+ * whether a background lands the way `core.js` / `mng.js` say on rotated,
+ * grouped, sliced or pitched outputs is not — the panel says so on the
+ * outputs it applies to.
  */
 
 import { h, button, fill } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
-import {
-  buildPlan, readScreens, screenTopology, readSets, firstFreeSet, presetPlacement, spanLayout, placementFor,
-  NOTES, liveCandidates, suggestInputs, sendingFormatOf, edidChoice, plugTemplates, imageName, readLibrary, LABEL_MAX
-} from './core.js';
+import { firstFreeSet, presetPlacement, spanLayout, placementFor, suggestInputs, sendingFormatOf, LABEL_MAX } from './core.js';
+import { modelFor } from './model.js';
+import { readFrames, TYPE_WORDS } from './mng.js';
 import { reconcile } from './job.js';
 import { applyPlan, revert } from './apply.js';
 import { decodePicture, renderOutput, renderTemplate, download } from './render.js';
@@ -95,6 +102,9 @@ const kb = (bytes) => `${Math.max(1, Math.round(bytes / 1024)).toLocaleString()}
 export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popoutEnabled = true, doc = document } = {}) {
   let dragging = false;
   let over = false;
+  /* The platform's model (`model.js`), asked again on every render: the app
+     can be pointed at a different switcher mid-session. */
+  let m = modelFor(null);
   const unlisten = job ? job.listen(() => onRefresh()) : () => {};
 
   function styles() {
@@ -122,23 +132,24 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
         h('div', { class: 'aw-font-subtitle-1', text: 'Background Slicer' }),
         h('span', { class: 'aw-font-caption lpp-bgs-preview', text: 'Preview — never yet run against a real frame' })),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-flex-wrap' },
-        chip('Stills', job.source === 'stills', () => { job.source = 'stills'; changed({ stale: true }); }, 'Cut the picture into one still per output and build a background set'),
+        chip('Stills', job.source === 'stills', () => { job.source = 'stills'; changed({ stale: true }); }, 'Cut the picture into background images — one per output on a LivePremier, one per screen on a Midra or Alta — and build a background set'),
         chip('Live inputs', job.source === 'live', () => { job.source = 'live'; changed({ stale: true }); }, 'Feed each output’s background from an input, and export the map a media server needs'),
         popoutEnabled ? button('Pop out', { iconId: 'set-layer-to-fullscreen-18', title: 'Open the Background Slicer in its own window', onClick: popOut }) : null));
 
     if (!job) return panel({ toolbar, body: h('div', { class: 'wru-empty', text: 'The Background Slicer is not running in the Web RCS tab.' }) });
     if (!store || !store.ready) return panel({ toolbar, body: h('div', { class: 'wru-empty', text: 'Waiting for the device store…' }) });
+    m = modelFor(store);
     const screens = reconcile(job, store);
     if (!screens.length) {
-      return panel({ toolbar, body: h('div', { class: 'wru-empty', text: 'No screen is in service on this switcher — or it is not a LivePremier, which is the only platform with background sets.' }) });
+      return panel({ toolbar, body: h('div', { class: 'wru-empty', text: 'No screen with a canvas is in service on this switcher — or it is not one with background sets (a LivePremier, Midra 4K or Alta 4K).' }) });
     }
 
     const size = job.size();
     const chosen = screens.filter((s) => job.screens.includes(s.id));
-    const topo = new Map(chosen.map((s) => [s.id, screenTopology(store, s.id)]));
+    const topo = new Map(chosen.map((s) => [s.id, m.screenTopology(store, s.id)]));
     if (job.source === 'live') prepareLive(store, topo);
     const planJob = { ...job, image: size };
-    const plan = buildPlan(store, planJob, { allowProgram: job.options.allowProgram });
+    const plan = m.buildPlan(store, planJob, { allowProgram: job.options.allowProgram });
     const key = planKey(plan);
     if (job.generated && job.generated.key !== key) job.stale();
 
@@ -146,7 +157,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       pictureSection(),
       screensSection(screens),
       chosen.length && size ? placementSection(chosen, topo, size) : null,
-      chosen.length ? planSection(store, plan) : null,
+      chosen.length ? (plan.platform === 'mng' ? planSectionMng(store, plan) : planSection(store, plan)) : null,
       chosen.length && job.source === 'stills' ? generateSection(plan, key) : null,
       chosen.length ? writeSection(store, plan, key) : null,
       chosen.length && size ? exportSection(plan, size) : null,
@@ -303,7 +314,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       for (const o of (s.topo && s.topo.outputs) || []) {
         for (const r of o.regions) {
           const rect = { x: s.x + r.canvas.x, y: s.y + r.canvas.y, w: r.canvas.w, h: r.canvas.h };
-          const assumed = o.rotation || o.groupShape.cols * o.groupShape.rows > 1 || o.ratio.h !== 1 || o.ratio.v !== 1 || o.regions.length > 1;
+          const assumed = m.assumptionsFor(o).length > 0;
           const words = [o.name, `${o.raster.width}×${o.raster.height}`, o.plugs.join('/') || '', o.group !== '1X1' ? o.group : '',
             o.regions.length > 1 ? `slice ${r.slice}` : '', o.rotation ? `⟲${o.rotation}°` : '', o.label].filter(Boolean);
           inner.append(h('div', { class: ['lpp-bgs-out', assumed ? 'lpp-bgs-out--assumed' : ''], style: at(rect), title: words.join(' · ') },
@@ -372,7 +383,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
 
   /** Fill in the inputs and EDIDs the live mode suggests, where the operator has not chosen. */
   function prepareLive(store, topo) {
-    const cands = liveCandidates(store);
+    const cands = m.liveCandidates(store);
     const taken = new Set(Object.values(job.live).filter(Boolean));
     for (const [sid, t] of topo) {
       for (const o of (t && t.outputs) || []) {
@@ -383,7 +394,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
           if (pick) taken.add(pick.key);
         }
         const input = job.live[k];
-        job.edid[k] = input ? edidChoice(o, plugTemplates(store, input)) : null;
+        job.edid[k] = input ? m.edidChoice(o, m.plugTemplates(store, input)) : null;
       }
     }
     return cands;
@@ -393,10 +404,10 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
 
   function planSection(store, plan) {
     const live = plan.source === 'live';
-    const cands = live ? liveCandidates(store) : [];
-    const lib = readLibrary(store);
+    const cands = live ? m.liveCandidates(store) : [];
+    const lib = m.readLibrary(store);
     const blocks = plan.screens.map((s) => {
-      const sets = readSets(store, s.id);
+      const sets = m.readSets(store, s.id);
       const setPick = h('select', {
         class: 'wru-select',
         onChange: (ev) => { job.sets[s.id] = Number(ev.target.value); changed(); }
@@ -416,10 +427,10 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
         h('div', { class: 'lpp-bgs-row' },
           h('span', { class: 'aw-font-body-1-bold', text: `${s.id}${s.label ? ` — ${s.label}` : ''}` }),
           s.assign ? [h('span', { class: 'aw-text-tertiary', text: 'into' }), setPick] : h('span', { class: 'aw-text-tertiary', text: 'images and stills only — no background set' }),
-          !s.assign || s.native.fitted ? null : h('span', { class: 'aw-font-caption aw-text-tertiary', text: 'NATIVE layer not allocated — the set can be built, not shown, until it is (Preconfig ▸ Resources)' })),
+          !s.assign || s.display.ok ? null : h('span', { class: 'aw-font-caption aw-text-tertiary', text: s.display.why })),
         h('table', { class: 'wru-table' }, h('thead', {}, head), h('tbody', {}, rows)));
     });
-    const freeSets = plan.screens.filter((s) => !s.set && firstFreeSet(readSets(store, s.id)) == null);
+    const freeSets = plan.screens.filter((s) => !s.set && firstFreeSet(m.readSets(store, s.id)) == null);
     return h('div', { class: 'aw-flex-col aw-gap-row-medium lpp-bgs-section' },
       h('div', { class: 'aw-font-subtitle-2', text: '4 · Plan — nothing is written yet' }),
       plan.source === 'stills'
@@ -427,6 +438,80 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
         : h('div', { class: 'aw-font-caption aw-text-tertiary', text: 'Each output’s background is the input chosen for it; the media server behind that input has to play exactly the cut below — the exports at the bottom are that map.' }),
       blocks,
       freeSets.length ? h('div', { class: 'wru-warn', text: `${freeSets.map((s) => s.id).join(', ')}: every background set holds something — choose one to overwrite.` }) : null,
+      plan.problems.length ? h('ul', { class: 'wru-warnings lpp-bgs-problems' }, plan.problems.map((p) => h('li', { text: p }))) : null,
+      plan.warnings.length ? h('ul', { class: 'wru-warnings' }, plan.warnings.map((p) => h('li', { class: 'wru-warn', text: p }))) : null);
+  }
+
+  /**
+   * The plan on a Midra 4K or Alta 4K: one image per screen — the canvas —
+   * through a Background Image into an Auto Crop set, and the rectangles the
+   * switcher crops for each output; or a Custom set with an input per output.
+   */
+  function planSectionMng(store, plan) {
+    const live = plan.source === 'live';
+    const cands = live ? m.liveCandidates(store) : [];
+    const blocks = plan.screens.map((s) => {
+      const sets = m.readSets(store, s.id);
+      const setPick = h('select', {
+        class: 'wru-select', 'data-lpp-key': `bgs-set-${s.id}`,
+        onChange: (ev) => { job.sets[s.id] = Number(ev.target.value); changed(); }
+      }, sets.map((x) => h('option', { value: String(x.index), selected: x.index === s.setIndex ? 'selected' : null },
+        `Set ${x.index}${x.onProgram ? ' · ON PROGRAM' : x.onPreview ? ' · on preview' : ''}${x.empty ? ' · empty' : x.mode === 'SINGLE_AUTOCROP' ? ` · Auto Crop ${x.single}` : ` · Custom, ${Object.keys(x.contents).length} input${Object.keys(x.contents).length === 1 ? '' : 's'}`}`)));
+      const headRow = h('div', { class: 'lpp-bgs-row' },
+        h('span', { class: 'aw-font-body-1-bold', text: `${s.id}${s.label ? ` — ${s.label}` : ''}` }),
+        h('span', { class: 'aw-text-tertiary', text: `canvas ${s.canvas.width} × ${s.canvas.height}` }),
+        s.assign ? [h('span', { class: 'aw-text-tertiary', text: 'into' }), setPick, h('span', { class: 'aw-text-tertiary', text: live ? 'as Custom — an input per output' : 'as Auto Crop' })]
+          : h('span', { class: 'aw-text-tertiary', text: 'library and Background Image only — no background set' }),
+        h('span', { class: 'aw-font-caption aw-text-tertiary', text: `background layer: ${TYPE_WORDS[s.backgroundType] || s.backgroundType}` }),
+        !s.assign || s.display.ok ? null : h('span', { class: 'aw-font-caption wru-warn', text: s.display.why }));
+      if (live) {
+        const head = h('tr', {}, ['Output', 'Raster', 'Connector', 'Input', 'EDID', 'Content', 'Replaces', 'Cut'].map((t) => h('th', { text: t })));
+        const rows = s.outputs.map((o) => h('tr', {},
+          h('td', {}, h('div', { class: 'aw-font-body-1-bold', text: o.name }), o.label ? h('div', { class: 'aw-text-tertiary', text: o.label }) : null),
+          h('td', {}, `${o.raster.width} × ${o.raster.height}`, h('div', { class: 'aw-text-tertiary', text: [o.format, o.rate ? `${o.rate / 1000} Hz` : ''].filter(Boolean).join(' · ') })),
+          h('td', { text: o.plugs.join('/') || '—' }),
+          ...liveCells(s, o, cands),
+          h('td', {}, o.content || '—', h('div', { class: 'aw-text-tertiary', text: 'top left' })),
+          h('td', { class: o.previous !== 'NONE' && o.previous !== o.content ? 'wru-warn' : 'aw-text-tertiary', text: o.previous === 'NONE' ? 'nothing' : o.previous }),
+          h('td', {}, cutTags(o))));
+        return h('div', { class: 'aw-flex-col aw-gap-row-small' }, headRow, h('table', { class: 'wru-table' }, h('thead', {}, head), h('tbody', {}, rows)));
+      }
+      const o = s.outputs[0];
+      const frames = readFrames(store, s.id, sets);
+      const framePick = h('select', {
+        class: 'wru-select', 'data-lpp-key': `bgs-frame-${s.id}`,
+        onChange: (ev) => { job.frames[s.id] = Number(ev.target.value); changed(); }
+      }, frames.map((f) => h('option', { value: String(f.index), selected: f.index === o.frame ? 'selected' : null },
+        `BKG${f.index}${f.label ? ` “${f.label}”` : ''}${f.free ? ' · free' : ''}${f.librarySlot !== 'NONE' ? ` · slot ${f.librarySlot}` : ''}${f.inSets.length ? ` · in set ${f.inSets.join(', ')}` : ''}${f.onAir ? ' · ON PROGRAM' : ''}`)));
+      const head = h('tr', {}, ['Image', 'Library slot', 'Background Image', 'Set content', 'Replaces', 'Cut'].map((t) => h('th', { text: t })));
+      const row = h('tr', {},
+        h('td', {}, `${o.raster.width} × ${o.raster.height}`, h('div', { class: 'aw-text-tertiary', text: 'the screen canvas' })),
+        h('td', {}, o.librarySlot != null ? `slot ${o.librarySlot}` : '—', h('div', { class: 'aw-text-tertiary', text: 'the switcher’s choice: its first empty slot' })),
+        h('td', {}, framePick, h('div', { class: 'aw-text-tertiary', text: 'shown 1:1' })),
+        h('td', {}, s.assign ? (o.content || '—') : '—', s.assign ? h('div', { class: 'aw-text-tertiary', text: 'Auto Crop' }) : null),
+        h('td', { class: o.previous !== 'NONE' && o.previous !== o.content ? 'wru-warn' : 'aw-text-tertiary', text: o.previous === 'NONE' ? 'nothing' : o.previous }),
+        h('td', {}, cutTags(o)));
+      const cropHead = h('tr', {}, ['Output', 'Shows the canvas at', 'On its raster', 'Pitch', ''].map((t) => h('th', { text: t })));
+      const cropRows = s.crops.map((c) => h('tr', {},
+        h('td', {}, h('div', { class: 'aw-font-body-1-bold', text: c.name }), c.label ? h('div', { class: 'aw-text-tertiary', text: c.label }) : null),
+        h('td', { text: `${c.canvas.x}, ${c.canvas.y} · ${c.canvas.w} × ${c.canvas.h}` }),
+        h('td', { text: `${c.aoi.x}, ${c.aoi.y} · ${c.aoi.w} × ${c.aoi.h} of ${c.raster.width} × ${c.raster.height}` }),
+        h('td', { text: c.ratio.h === c.ratio.v ? c.ratio.h.toFixed(3) : `${c.ratio.h.toFixed(3)} × ${c.ratio.v.toFixed(3)}` }),
+        h('td', {}, c.exact ? tag('1:1', 'good', 'At a pitch of 1.000 the output shows its rectangle of the canvas pixel for pixel')
+          : tag('scaled by the switcher', 'warn', m.NOTES.pitch.text),
+        c.assumptions.filter((a) => a !== 'pitch').map((a) => tag(a, 'warn', m.NOTES[a] ? m.NOTES[a].text : a)))));
+      return h('div', { class: 'aw-flex-col aw-gap-row-small' },
+        headRow,
+        h('table', { class: 'wru-table' }, h('thead', {}, head), h('tbody', {}, row)),
+        s.crops.length ? h('div', { class: 'aw-font-caption aw-text-tertiary', text: 'How the switcher crops it — its own rectangles, read off each output:' }) : null,
+        s.crops.length ? h('table', { class: 'wru-table' }, h('thead', {}, cropHead), h('tbody', {}, cropRows)) : null);
+    });
+    return h('div', { class: 'aw-flex-col aw-gap-row-medium lpp-bgs-section' },
+      h('div', { class: 'aw-font-subtitle-2', text: '4 · Plan — nothing is written yet' }),
+      h('div', { class: 'aw-font-caption aw-text-tertiary', text: live
+        ? 'A Custom set: each output shows its own input, aligned top left. The media server behind each input plays exactly the cut below — the exports at the bottom are that map.'
+        : `A Midra or Alta takes one picture per screen: the canvas, through a Background Image shown 1:1, which an Auto Crop set lets the switcher cut for each output. The library slot is the switcher’s choice, its first empty one — ${plan.library.free} empty.` }),
+      blocks,
       plan.problems.length ? h('ul', { class: 'wru-warnings lpp-bgs-problems' }, plan.problems.map((p) => h('li', { text: p }))) : null,
       plan.warnings.length ? h('ul', { class: 'wru-warnings' }, plan.warnings.map((p) => h('li', { class: 'wru-warn', text: p }))) : null);
   }
@@ -468,7 +553,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
     if (!o.covered) tags.push(tag('plain', '', 'The picture does not reach this output'));
     else if (o.exact) tags.push(tag('pixel copy', 'good', 'Whole pixels, nothing scaled: the image is a copy of the picture’s pixels'));
     else tags.push(tag('resampled', 'warn', 'Scaled (Fit, a stretch, a pitch ratio or a fractional placement): the image is resampled, not copied'));
-    for (const a of o.assumptions) tags.push(tag(a, 'warn', NOTES[a] ? NOTES[a].text : a));
+    for (const a of o.assumptions) tags.push(tag(a, 'warn', m.NOTES[a] ? m.NOTES[a].text : a));
     return tags;
   }
 
@@ -509,7 +594,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       for (const s of plan.screens) {
         for (const o of s.outputs) {
           const blob = await renderOutput({ source: job.picture.bitmap, blits: o.blits, width: o.raster.width, height: o.raster.height, fill: job.options.fill });
-          images.set(`${s.id}/${o.key}`, { blob, url: URL.createObjectURL(blob), name: imageName(s.id, o, job.picture.name), width: o.raster.width, height: o.raster.height });
+          images.set(`${s.id}/${o.key}`, { blob, url: URL.createObjectURL(blob), name: m.imageName(s.id, o, job.picture.name), width: o.raster.width, height: o.raster.height });
         }
       }
       job.generated = { key, images };
@@ -534,35 +619,60 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
 
   function writeSection(store, plan, key) {
     const live = plan.source === 'live';
+    const midra = plan.platform === 'mng';
     const ready = plan.ok && (live || (job.generated && job.generated.key === key));
-    const onProgram = plan.screens.some((s) => s.set && s.set.onProgram);
-    const noNative = plan.screens.filter((s) => !s.native.fitted).map((s) => s.id);
-    const total = job.generated ? [...job.generated.images.values()].reduce((n, i) => n + i.blob.size, 0) : 0;
-    const room = (plan.library.maxKB - plan.library.sizeKB) * 1024;
-    const tooBig = !live && total > room;
+    const onProgram = plan.screens.some((s) => (s.set && s.set.onProgram) || (s.frame && s.frame.onAir));
+    const noDisplay = plan.screens.filter((s) => !s.display.ok).map((s) => s.id);
+    const images = job.generated ? [...job.generated.images.values()] : [];
+    const total = images.reduce((n, i) => n + i.blob.size, 0);
+    /* A LivePremier library has a size budget; a Midra's states only a limit
+       per file (`stillLibrary/import/status/pp/maxFileSize`). */
+    const room = midra ? plan.library.maxBytes : (plan.library.maxKB - plan.library.sizeKB) * 1024;
+    const tooBig = !live && (midra ? images.some((i) => i.blob.size > room) : total > room);
+    const words = midra
+      ? {
+        label: 'Name for the Background Images',
+        assign: 'Off: the images go into the library and a Background Image of each screen, and no set is touched',
+        preview: noDisplay.length ? `${noDisplay.join(', ')}: no background layer in the applied preconfig — those screens will be skipped` : 'Writes the preview buffer’s background layer (which set it shows); never program, never a take',
+        edids: ['Ask each input plug for the EDID of its output’s format', 'The switcher builds the EDID itself (Inputs ▸ EDID ▸ preferred format), so a media server offers exactly that mode'],
+        tooBig: `An image is larger than the ${kb(room)} a file the library takes.`
+      }
+      : {
+        label: 'Name for the sets and stills',
+        assign: 'Off: the images go into the library and the stills, and no set is touched',
+        preview: noDisplay.length ? `${noDisplay.join(', ')}: NATIVE layer not allocated — those screens will be skipped` : 'Writes the preview buffer’s NATIVE layer source; never program, never a take',
+        edids: ['Load each input plug with the switcher’s EDID for its output’s format', 'The switcher builds the EDID itself (Inputs ▸ EDID ▸ load from template), so a media server offers exactly that mode'],
+        tooBig: `The images come to ${kb(total)} and the library has ${kb(room)} free.`
+      };
     const options = h('div', { class: 'aw-flex-col aw-gap-row-small' },
       h('label', { class: 'lpp-bgs-fields' },
-        h('span', { class: 'aw-text-tertiary', text: 'Name for the sets and stills' }),
+        h('span', { class: 'aw-text-tertiary', text: words.label }),
         h('input', {
           type: 'text', class: 'wru-input', maxlength: String(LABEL_MAX), value: job.options.label, 'data-lpp-key': 'bgs-label',
           placeholder: 'e.g. Act 1 BG', onChange: (ev) => { job.options.label = String(ev.target.value).slice(0, LABEL_MAX); changed(); }
         })),
-      live ? null : checkbox('Put them into a background set', job.options.assignSet !== false, (v) => { job.options.assignSet = v; changed(); },
-        'Off: the images go into the library and the stills, and no set is touched'),
-      !live && job.options.assignSet === false ? null : checkbox('Load each set into its screen’s preview afterwards', job.options.loadPreview, (v) => { job.options.loadPreview = v; changed(); },
-        noNative.length ? `${noNative.join(', ')}: NATIVE layer not allocated — those screens will be skipped` : 'Writes the preview buffer’s NATIVE layer source; never program, never a take'),
-      live ? checkbox('Load each input plug with the switcher’s EDID for its output’s format', job.options.edids, (v) => { job.options.edids = v; changed(); },
-        'The switcher builds the EDID itself (Inputs ▸ EDID ▸ load from template), so a media server offers exactly that mode') : null,
-      onProgram ? checkbox('A chosen set is ON PROGRAM — write it anyway, live', job.options.allowProgram, (v) => { job.options.allowProgram = v; changed(); }, 'The new background goes to air the moment it is written') : null);
+      live ? null : checkbox('Put them into a background set', job.options.assignSet !== false, (v) => { job.options.assignSet = v; changed(); }, words.assign),
+      !live && job.options.assignSet === false ? null : checkbox('Load each set into its screen’s preview afterwards', job.options.loadPreview, (v) => { job.options.loadPreview = v; changed(); }, words.preview),
+      live ? checkbox(words.edids[0], job.options.edids, (v) => { job.options.edids = v; changed(); }, words.edids[1]) : null,
+      onProgram ? checkbox('A chosen set or image is ON PROGRAM — write it anyway, live', job.options.allowProgram, (v) => { job.options.allowProgram = v; changed(); }, 'The new background goes to air the moment it is written') : null);
 
-    const confirmText = live
-      ? `Write ${plan.screens.map((s) => `${s.id} set ${s.setIndex}`).join(', ')} with ${plan.screens.reduce((n, s) => n + s.outputs.length, 0)} live inputs?`
-      : `Upload ${job.generated ? job.generated.images.size : 0} images (${kb(total)}) into free library slots, set ${plan.screens.reduce((n, s) => n + s.outputs.length, 0)} free stills${plan.capacityChanges.length ? `, change ${plan.capacityChanges.length} still capacit${plan.capacityChanges.length === 1 ? 'y' : 'ies'} (a preconfig apply)` : ''}${plan.screens.some((s) => s.assign) ? `, and write ${plan.screens.filter((s) => s.assign).map((s) => `${s.id} set ${s.setIndex}`).join(', ')}` : ''}?`;
+    const sets = plan.screens.filter((s) => s.assign).map((s) => `${s.id} set ${s.setIndex}`).join(', ');
+    let confirmText;
+    if (live) {
+      const n = plan.screens.reduce((k, s) => k + s.outputs.length, 0);
+      confirmText = `Write ${sets}${midra ? ' as Custom' : ''} with ${n} live input${n === 1 ? '' : 's'}?`;
+    } else if (midra) {
+      const n = images.length;
+      confirmText = `Upload ${n} image${n === 1 ? '' : 's'} (${kb(total)}) — the switcher puts ${n === 1 ? 'it' : 'each'} in its first empty library slot (${plan.library.slots.join(', ')}) — `
+        + `show ${plan.screens.map((s) => `${s.id} BKG${s.outputs[0].frame}`).join(', ')} at 1:1${sets ? `, and write ${sets} as Auto Crop` : ''}?`;
+    } else {
+      confirmText = `Upload ${images.length} images (${kb(total)}) into free library slots, set ${plan.screens.reduce((n, s) => n + s.outputs.length, 0)} free stills${plan.capacityChanges.length ? `, change ${plan.capacityChanges.length} still capacit${plan.capacityChanges.length === 1 ? 'y' : 'ies'} (a preconfig apply)` : ''}${sets ? `, and write ${sets}` : ''}?`;
+    }
 
     return h('div', { class: 'aw-flex-col aw-gap-row-small lpp-bgs-section' },
       h('div', { class: 'aw-font-subtitle-2', text: live ? '5 · Write' : '6 · Write' }),
       options,
-      tooBig ? h('div', { class: 'wru-warn', text: `The images come to ${kb(total)} and the library has ${kb(room)} free.` }) : null,
+      tooBig ? h('div', { class: 'wru-warn', text: words.tooBig }) : null,
       job.confirming
         ? h('div', { class: 'lpp-bgs-row' },
           h('span', { class: 'aw-font-body-1-bold', text: confirmText }),
@@ -664,7 +774,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
   function notesSection() {
     return h('details', { class: 'lpp-bgs-section' },
       h('summary', { class: 'aw-text-tertiary', text: 'What is proven, and what is not' }),
-      h('ul', { class: 'wru-warnings' }, Object.entries(NOTES).map(([k, n]) => h('li', {},
+      h('ul', { class: 'wru-warnings' }, Object.entries(m.NOTES).map(([k, n]) => h('li', {},
         tag(n.proven ? 'proven' : 'assumed', n.proven ? 'good' : 'warn'), h('span', { text: n.text }), h('span', { class: 'aw-text-tertiary', text: ` (${k})` })))),
       h('div', { class: 'aw-font-caption aw-text-tertiary', text: 'A simulator’s outputs are a static picture, so a background written there cannot be seen — check the first one on a real output.' }));
   }

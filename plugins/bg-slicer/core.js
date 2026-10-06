@@ -70,6 +70,9 @@ import { dialectFor, NLC } from '../../src/core/dialect.js';
 const pp = (node) => (node && typeof node === 'object' && node.pp) || {};
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
+/** Which model this is — `model.js` and the plan carry it. Midra 4K / Alta 4K is `mng.js`. */
+export const PLATFORM = 'nlc';
+
 /** Eight background sets per screen (manual p.100; the store has 1..8). */
 export const SET_COUNT = 8;
 /** Four slices per output — `OUTPUT_SLICE` is 1..4. */
@@ -94,7 +97,11 @@ export const NOTES = {
 
 /* ------------------------------------------------------------------ topology */
 
-/** Screens in service, LivePremier only — Midra and Alta have no background sets. */
+/**
+ * Screens in service, LivePremier only. A Midra or Alta has background sets
+ * too, but of a different shape — one picture per screen, cropped by the
+ * switcher — and `mng.js` reads them.
+ */
 export function readScreens(store) {
   if (!store || !store.ready || dialectFor(store) !== NLC) return [];
   return listDestinations(store)
@@ -782,7 +789,12 @@ export function buildPlan(store, job, opts = {}) {
     });
     if (!topo.outputs.length) problems.push(`${id} has no outputs to give a background.`);
     for (const s of topo.skipped) warnings.push(`${id} Out ${s.key}: skipped — ${s.why}.`);
-    screens.push({ id, label: topo.label, canvas: topo.canvas, assign, set, setIndex, place, outputs, native: nativeLayer(store, id) });
+    const native = nativeLayer(store, id);
+    screens.push({
+      id, label: topo.label, canvas: topo.canvas, assign, set, setIndex, place, outputs, native,
+      /* Whether the screen can show a set, in words — `mng.js` says the same of its preconfig. */
+      display: { ok: native.fitted, why: native.fitted ? null : 'NATIVE layer not allocated — the set can be built, not shown, until it is (Preconfig ▸ Resources)' }
+    });
   }
 
   const inputsUsed = new Map();
@@ -795,6 +807,7 @@ export function buildPlan(store, job, opts = {}) {
   const changes = screens.flatMap((s) => s.outputs.filter((o) => o.capacityChange).map((o) => ({ still: o.still, ...o.capacityChange })));
   return {
     ok: problems.length === 0,
+    platform: PLATFORM,
     source,
     problems,
     warnings,

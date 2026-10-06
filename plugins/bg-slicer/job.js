@@ -12,7 +12,8 @@
  * No DOM: plain data and a change bell.
  */
 
-import { presetPlacement, spanLayout, readScreens } from './core.js';
+import { presetPlacement, spanLayout } from './core.js';
+import { modelFor } from './model.js';
 
 export function createJob() {
   const listeners = new Set();
@@ -29,6 +30,8 @@ export function createJob() {
     place: {},
     span: { offsets: {}, rect: null },
     sets: {},
+    /** Midra / Alta: the Background Image per screen, when the operator chose one. */
+    frames: {},
     live: {},
     edid: {},
     options: { label: '', assignSet: true, loadPreview: false, allowProgram: false, edids: true, fill: '#000000' },
@@ -67,7 +70,7 @@ export function createJob() {
  * longer in service, and give a newly chosen screen a placement.
  */
 export function reconcile(job, store) {
-  const screens = readScreens(store);
+  const screens = modelFor(store).readScreens(store);
   const ids = new Set(screens.map((s) => s.id));
   job.screens = job.screens.filter((id) => ids.has(id));
   const size = job.size();

@@ -248,15 +248,20 @@ export const CAPABILITIES = [
   {
     id: 'backgroundSets',
     label: 'Background sets',
-    /* Eight sets per screen under `preconfig/backgrounds`, each holding a
-       content per output — read off a LivePremier Simulator 6.2.73. A Midra 4K
-       or Alta 4K has a background per screen preset, not sets, so no mng
-       probe. The Background Slicer writes them. */
+    /* Eight sets per screen on both families, spelt differently. LivePremier
+       keeps them in the preconfig (`preconfig/backgrounds`), each holding a
+       content per output — read off a LivePremier Simulator 6.2.73. A Midra
+       4K or Alta 4K keeps them on the screen itself
+       (`screenList/items/<n>/backgroundSetList`), each either one content
+       for the whole canvas (Auto Crop) or an input per output (Custom), and a
+       preset's background layer picks one — read off the Midra 4K simulator
+       3.2.29 and Alta 4K 1.3.7's bundle. The Background Slicer writes both. */
     probes: {
-      nlc: [ROOT, 'preconfig', 'backgrounds', 'screenList', 'items', '*', 'backgroundSetList', 'items']
+      nlc: [ROOT, 'preconfig', 'backgrounds', 'screenList', 'items', '*', 'backgroundSetList', 'items'],
+      mng: [ROOT, 'screenList', 'items', '*', 'backgroundSetList', 'items']
     },
-    needs: 'background sets in its preconfig',
-    absent: 'This switcher has no background sets — they are a LivePremier facility.'
+    needs: 'background sets',
+    absent: 'This switcher has no background sets this app knows how to write.'
   },
   {
     id: 'edidBank',
