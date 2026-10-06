@@ -190,10 +190,13 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
           step(`${img.name} is in library slot ${o.librarySlot}`);
 
           const label = (options.label || `${s.id} ${o.name}`).slice(0, 16);
+          /* Journalled before the echo: a write asked for and not confirmed
+             may still have landed, and putting back what was there is
+             harmless if it did not. */
+          journal.stills.push({ still: o.still, before: o.stillBefore });
           if (!(await sendAndEcho(session, stillWrites(o.still, o.librarySlot, label)))) {
             throw new Error(`still ${o.still} did not take library slot ${o.librarySlot}`);
           }
-          journal.stills.push({ still: o.still, before: o.stillBefore });
           step(`Still ${o.still} shows slot ${o.librarySlot}, no rescale`);
         }
       }
@@ -214,14 +217,14 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
       for (const o of s.outputs) {
         if (!o.content) continue;
         const writes = contentWrites(store, s.id, s.setIndex, o.key, o.content);
-        if (!(await sendAndEcho(session, writes))) throw new Error(`${s.id} set ${s.setIndex} did not take ${o.content} on ${o.name}`);
         journal.sets.push({ screen: s.id, set: s.setIndex, out: o.key, before: before.contents[o.key] || 'NONE' });
+        if (!(await sendAndEcho(session, writes))) throw new Error(`${s.id} set ${s.setIndex} did not take ${o.content} on ${o.name}`);
         step(`${s.id} background set ${s.setIndex}: ${o.name} ← ${o.content}`);
       }
       if (options.label) {
         const w = setLabelWrite(s.id, s.setIndex, options.label);
-        await sendAndEcho(session, [w]);
         journal.labels.push({ screen: s.id, set: s.setIndex, before: before.label });
+        await sendAndEcho(session, [w]);
         step(`${s.id} background set ${s.setIndex} named “${w.value}”`);
       }
     }
@@ -235,8 +238,8 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
         if (!banks.reported || !banks.settled) { step(`${s.id}: not loaded — a take is under way`, 'note'); continue; }
         const path = nativeSourcePath(s.id, banks.preview);
         const before = store.get(path) || 'NONE';
-        if (!(await sendAndEcho(session, [{ path, value: `NATIVE_${s.setIndex}` }]))) throw new Error(`${s.id} preview did not load set ${s.setIndex}`);
         journal.natives.push({ screen: s.id, letter: banks.preview, before });
+        if (!(await sendAndEcho(session, [{ path, value: `NATIVE_${s.setIndex}` }]))) throw new Error(`${s.id} preview did not load set ${s.setIndex}`);
         step(`${s.id} preview (${banks.preview}) shows background set ${s.setIndex}`);
       }
     }
