@@ -99,26 +99,60 @@ export function readMasterLocks(root = document) {
  */
 export function readCardLocks(root = document) {
   const out = {};
+  for (const [id, pads] of cardPadlocks(root)) {
+    for (const [role, pad] of Object.entries(pads)) (out[id] || (out[id] = {}))[role] = pad.shut;
+  }
+  return out;
+}
+
+/**
+ * The padlock button itself on one screen card, for a caller that means to
+ * press it: `plugins/preview-lock` shuts PRW for the length of a take. A
+ * click on it is the vendor's own toggle, through the vendor's own handler,
+ * so its Redux lock and its warnings follow exactly as if the operator had
+ * pressed it.
+ *
+ * Only ever the card's. The master pair shuts every screen on the page, and
+ * a take on one screen is no reason to lock the others. `null` when the
+ * card is not drawn or its padlock cannot be told from the other one.
+ *
+ * @param {string} id     `S1`, `A2`
+ * @param {'PGM'|'PRW'} role
+ * @returns {{button: Element, shut: boolean} | null}
+ */
+export function cardPadlock(id, role, root = document) {
+  for (const [cardId, pads] of cardPadlocks(root)) {
+    if (cardId === id) return pads[role] || null;
+  }
+  return null;
+}
+
+/** Every named card's padlocks: `[[id, {PGM: {button, shut}, PRW: {…}}]]`. */
+function cardPadlocks(root) {
+  const out = [];
   for (const card of root.querySelectorAll('.aw-preset-view')) {
     const heading = card.querySelector('h2');
     const id = heading && (heading.textContent || '').trim().toUpperCase();
     if (!id || !/^[SA]\d+$/.test(id)) continue;
 
+    const pads = {};
     const blocks = [...card.querySelectorAll(PRESET_BLOCK)];
     if (blocks.length) {
       for (const block of blocks) {
         const role = blockRole(block);
-        const shut = findPadlock(block);
-        if (role && shut != null) (out[id] || (out[id] = {}))[role] = shut;
+        const pad = findPadlock(block);
+        if (role && pad) pads[role] = pad;
       }
-      continue;
+    } else {
+      /* No hashed block to split the card by. Take the padlocks in the order
+         they are drawn — program above preview, which is how every Web RCS
+         build has laid a screen card out — rather than abandoning the card. */
+      const found = [...card.querySelectorAll('button')]
+        .map((button) => ({ button, shut: padlockState(button) }))
+        .filter((p) => p.shut != null);
+      if (found.length === 2) { pads.PGM = found[0]; pads.PRW = found[1]; }
     }
-
-    /* No hashed block to split the card by. Take the padlocks in the order
-       they are drawn — program above preview, which is how every Web RCS
-       build has laid a screen card out — rather than abandoning the card. */
-    const locks = [...card.querySelectorAll('button')].map(padlockState).filter((s) => s != null);
-    if (locks.length === 2) out[id] = { PGM: locks[0], PRW: locks[1] };
+    if (Object.keys(pads).length) out.push([id, pads]);
   }
   return out;
 }
@@ -136,9 +170,9 @@ function blockRole(block) {
 }
 
 function findPadlock(block) {
-  for (const btn of block.querySelectorAll('button')) {
-    const shut = padlockState(btn);
-    if (shut != null) return shut;
+  for (const button of block.querySelectorAll('button')) {
+    const shut = padlockState(button);
+    if (shut != null) return { button, shut };
   }
   return null;
 }

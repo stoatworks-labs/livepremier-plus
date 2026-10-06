@@ -25,7 +25,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { readCardLocks, readMasterLocks, lockedFor, ROLE_LABEL } from '../src/ui/preset-lock.js';
+import { readCardLocks, readMasterLocks, lockedFor, ROLE_LABEL, cardPadlock } from '../src/ui/preset-lock.js';
 
 /* ------------------------------------------------------------- stub DOM */
 
@@ -194,6 +194,35 @@ test('a literal buffer letter is not a role, so there is no lock to respect', ()
 
 test('the roles are spelled the way the vendor spells them', () => {
   assert.deepEqual(ROLE_LABEL, { PROGRAM: 'PGM', PREVIEW: 'PRW' });
+});
+
+/* The padlock as a thing to press — the preview lock shuts PRW for a take. */
+
+test('cardPadlock hands back the PRW button of the named card, and its state', () => {
+  const { doc, El } = stubDom();
+  card(doc, El, 'S1', { pgm: true, prw: false });
+  const s2 = card(doc, El, 'S2', { pgm: false, prw: true });
+  const pad = cardPadlock('S2', 'PRW', doc);
+  assert.equal(pad.shut, true);
+  /* The second block's padlock — not the label button beside it. */
+  const blocks = s2.querySelectorAll('[class*="screen-overview-container__c__preset___"]');
+  assert.equal(pad.button, blocks[1].children[1]);
+  assert.equal(cardPadlock('S1', 'PRW', doc).shut, false);
+});
+
+test('cardPadlock finds the PRW padlock in drawn order when there is no hashed block', () => {
+  const { doc, El } = stubDom();
+  const view = card(doc, El, 'A2', { pgm: true, prw: false, hashed: false });
+  const pad = cardPadlock('A2', 'PRW', doc);
+  assert.equal(pad.shut, false);
+  assert.equal(pad.button, view.children[2].children[1]);
+});
+
+test('cardPadlock never falls back to the master pair', () => {
+  const { doc, El } = stubDom();
+  /* The master shuts every screen on the page; a take on one is no reason to. */
+  master(doc, El, { pgm: true, prw: false });
+  assert.equal(cardPadlock('S1', 'PRW', doc), null);
 });
 
 /*
