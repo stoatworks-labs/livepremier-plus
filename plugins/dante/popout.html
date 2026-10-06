@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dante — LivePremier Plus</title>
+<!--
+  Deliberately bare — see plugins/console/popout.html; the reasoning is identical.
+  The devices come from the tab this was opened from (`ctx.share`), over that
+  tab's one stream; the switcher's card from that tab's session.
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #08141B; color: #fff; }
+  body { font-family: OpenSans, Helvetica, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<script type="module">
+  import { bootPopout, buildSolo } from '/__lpp/src/ui/popout.js';
+  import { createDantePanel } from './panel.js';
+  bootPopout({
+    doc: document,
+    opener: window.opener,
+    plugin: 'dante',
+    build: ({ doc, bridge, own }) => buildSolo(doc, bridge, (o) => createDantePanel({ ...o, model: own, settings: own.settings }))
+  });
+</script>
+</body>
+</html>

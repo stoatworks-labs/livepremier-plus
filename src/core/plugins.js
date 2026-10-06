@@ -192,6 +192,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'dante',
+    name: 'Dante',
+    where: 'Sidebar, under PLUS (preview), and a card in Settings',
+    description: 'The Dante network’s routing as a crosspoint grid: find devices, read and change subscriptions, snapshots, and Dante Controller presets in and out. Never yet run against a real Dante device.',
+    /* Off until it has been: it changes subscriptions on devices that belong
+       to the whole audio network, not only to this switcher. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'hyperdeck',
     name: 'HyperDecks',
     where: 'Sidebar, under PLUS',
