@@ -1225,6 +1225,27 @@ output shows. **Media server** downloads that map:
 templates — the whole content and each output, every region outlined and labelled with its size —
 to load into any server as a guide.
 
+**On a Midra 4K or Alta 4K**
+
+The same steps, with the platform's own model:
+
+- A screen takes **one** picture: its **canvas**, cut at the canvas's own pixels. Generate makes one
+  PNG per screen, not per output.
+- It goes into the image library — the **switcher picks the slot**, always its first empty one — and
+  into one of the screen's four **Background Images** (BKG1–BKG4; the first free one, or pick
+  another), shown **1:1**. The write waits for the switcher to report the image at exactly the
+  canvas size.
+- The set is **Auto Crop** with that Background Image: the switcher crops the picture for each
+  output. Under the plan, *How the switcher crops it* shows each output's rectangle of the canvas
+  and whether it is **1:1** or **scaled by the switcher** (a pitch other than 1.000).
+- If a Background or Foreground Image anywhere already points at the slot an upload would take, the
+  plan stops with a red line saying which: the picture would appear there too. Clear that image in
+  **Images**, then plan again.
+- The screen's **background layer** in Preconfig decides what it may show: *stills* or *live inputs
+  or stills* for a picture, *live inputs* or *live inputs or stills* for the live mode.
+- **Live inputs** fills a **Custom** set: each output its own input, aligned top left. The EDID
+  option is offered only where the input plug lists preferred formats.
+
 > ⚠️ **Proven on the simulator only.** A simulator's outputs are a still picture, so a background
 > written there cannot be seen. Check the first one on a real output — especially a rotated one: if
 > the picture comes out turned twice, say so.

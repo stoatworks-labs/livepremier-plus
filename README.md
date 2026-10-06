@@ -137,7 +137,10 @@ rather than as a bolt-on:
   each output's background from an input instead, loads each input with the
   switcher's own EDID for that output, and exports the map the media server
   needs: a Resolume Arena Advanced Output preset, disguise, Pixera, Hippotizer,
-  Millumin and TouchDesigner files, and a pixel-map pack for the rest.
+  Millumin and TouchDesigner files, and a pixel-map pack for the rest. On a
+  Midra 4K or Alta 4K it cuts one picture per screen instead — the canvas,
+  through a Background Image shown 1:1, which an Auto Crop set has the switcher
+  crop for each output — or fills a Custom set with an input per output.
   Simulator-proven only.
 - **Your setup in one file** — the cue stack, layer groups, layer names, your
   variables, router patch and settings, written as one plain JSON file and read
@@ -1089,6 +1092,17 @@ proven, and which of those formats each server really imports.
 > written there cannot be seen. The cut is tested on every pixel; what the
 > switcher does with a rotated, grouped, sliced or pitched output is not seen
 > yet, and the panel marks each output that rests on that.
+
+**On a Midra 4K or Alta 4K** the platform has its own model, and the panel follows
+it: a screen takes **one** picture, its canvas, through one of its four
+Background Images shown 1:1, and an **Auto Crop** background set lets the
+switcher crop it for each output — the plan shows the switcher's own rectangle
+for every output and whether it is 1:1. The library slot is the switcher's
+choice (its first empty one), so the plan refuses when any Background or
+Foreground Image already points at that slot — the upload would appear there
+too. The live mode fills a **Custom** set with an input per output. Proved on the
+Midra 4K simulator 3.2.29, write and Undo, each write confirmed by the
+switcher's own echo; see [docs/BACKGROUNDS.md](docs/BACKGROUNDS.md#midra-4k-and-alta-4k).
 
 ## Pixelhue panel — preview
 

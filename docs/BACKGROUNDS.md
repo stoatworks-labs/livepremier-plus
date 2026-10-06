@@ -8,10 +8,11 @@ needs to feed them, as files it can import.
 **PLUS ▸ Background Slicer** (it pops out). The plugin is `plugins/bg-slicer/`.
 
 > ⚠️ **Preview, off by default: never run against a real frame.** Every write it makes was proved
-> on a LivePremier Simulator 6.2.73, and the geometry is tested pixel by pixel — but a simulator's
-> outputs are a static picture, so a background written there cannot be seen, and nothing about a
-> rotated, grouped, sliced or pitched output has been seen on hardware. The panel marks every
-> output whose cut rests on an assumption. The procedure at the end proves it on a frame.
+> on a LivePremier Simulator 6.2.73 — and, for a Midra 4K or Alta 4K, on the Midra 4K simulator
+> 3.2.29 ([below](#midra-4k-and-alta-4k)) — and the geometry is tested pixel by pixel; but a
+> simulator's outputs are a static picture, so a background written there cannot be seen, and
+> nothing about a rotated, grouped, sliced or pitched output has been seen on hardware. The panel
+> marks every output whose cut rests on an assumption. The procedures at the end prove it on a frame.
 
 ## Doing it
 
@@ -197,6 +198,118 @@ simulator's: a deleted library slot keeps its last image's name and size in `sta
 to false. The preview load was refused for both screens, correctly: their NATIVE layers are `OFF`.
 A simulator's outputs are a static picture, so none of it could be *seen*.
 
+## Midra 4K and Alta 4K
+
+The same panel, and a different model underneath. A LivePremier cuts a background **per output**,
+1:1 in that output's raster, into a still sized to it. A Midra or Alta has no stills and no
+per-output images: it takes **one picture per screen** — the screen's canvas — through one of the
+screen's four **Background Images**, and an **Auto Crop** background set lets the switcher cut it
+for each output. `plugins/bg-slicer/mng.js` is the model and the plan, `apply-mng.js` the writes,
+and `model.js` hands the panel whichever the store's dialect says. Everything was read off the
+Midra 4K simulator 3.2.29's Web RCS bundle — the client its own Images and Background Sets pages
+run, and the server behind its upload route — and its store; Alta 4K 1.3.7's bundle has the same
+enums, attributes and upload handler, and its simulator the same store shape.
+
+| | |
+|---|---|
+| **Background Image** | `screenList/items/<n>/backFrameList/items/1..4/control/pp/{librarySlot, mode, sizeH, sizeV, label}` — BKG1..BKG4. `librarySlot` is `"NONE"` or `"1"`..`"50"`; `mode` is `CENTERED`, `FULLSCREEN`, `CROPPED`, `1_1` ("1:1"), `CUSTOM` (`sizeH/V` apply only to `CUSTOM`). The switcher reports the size it shows the image at in `status/pp/{isValid, width, height}`. |
+| **Background set** | `screenList/items/<n>/backgroundSetList/items/1..8/control/pp/{mode, singleContent}`. `SINGLE_AUTOCROP` ("Auto Crop"): `singleContent` is one input or one Background Image (`PRESET_FRAME_<k>`) for the whole screen. `MULTI_CUSTOM` ("Custom"): each output its own input, `…/outputList/items/<o>/control/pp/{multiContent, multiAlign}` — inputs only, the attribute stops at `INPUT_16`; `multiAlign` is one of nine positions, `TOP_LEFT` first. No label, no claims, no apply step. |
+| **Loading a set** | `screenList/items/<n>/presetList/items/<UP\|DOWN>/background/source/pp/set` = `"NONE"` or `"1"`..`"8"`; the layer's `status/pp/{state, contentWidth, contentHeight}` beside it. |
+| **Whether a screen can** | `preconfig/status/stateList/items/CURRENT/screenList/items/<n>/pp/backgroundLayerType`: `DISABLE`, `ONLY_FRAME`, `ONLY_LIVE`, `LIVE_OR_FRAME`. The vendor offers a Background Image only on the frame-capable two and an input — and so Custom at all — only on the live-capable two; the plan refuses the same. |
+| **The image library** | `stillLibrary/bankList/items/1..50/status/pp/{isValid, isUsed, fileName, width, height, fileSize}`; per-file limits in `stillLibrary/import/status/pp` (18000 × 18000, 35 389 440 pixels, 25 MiB). No size budget is published. |
+| **Geometry** | the canvas, `screenList/items/<n>/canvas/status/size/pp/{sizeH, sizeV}`; each output's place on it, `outputList/items/<o>/canvas/status/pp/{left, top, pitchedWidth, pitchedHeight}`, and the area of its raster that shows it, `{formatLeft, formatTop, aoiWidth, aoiHeight}` of `{maxWidth, maxHeight}`; pitch in `canvas/pitch/pp`. No rotation, slices or groups. |
+
+### What it writes, and in what order
+
+Per screen, each step waiting for the switcher before the next:
+
+| Step | How | Proven |
+|---|---|---|
+| Image into the library | `POST /api/device/images/upload`, multipart, the file as `FILES` **and nothing else** — this platform's server imports every file with `AUTO_SLOT_WITH_DOWNSCALE` ("First Empty Library Slot with Downscale") and takes no slot. The answer is `{ <file>: STILL_IMPORT_STATUS }`: only `FINISH` is success; `FINISH_WITH_DOWNSCALE` (the switcher resampled it) is a failure here. The slot is read back, not assumed: the one empty before that now holds a file of this name — and it must be the slot predicted, at the canvas's size. | bundle (client and server) + simulator |
+| A Background Image shows it 1:1 | `…/backFrameList/items/<k>/control/pp/librarySlot` = `"<slot>"` (the vendor's library picker sends just this), then `mode` = `1_1`, then `label`; then the frame's own `status/pp/{isValid, width, height}` must read the canvas size — the switcher's word that nothing is scaled | bundle + simulator |
+| The set (stills) | `…/backgroundSetList/items/<set>/control/pp/mode` = `SINGLE_AUTOCROP` if it is not already, then `singleContent` = `PRESET_FRAME_<k>` — the vendor offers the drop only in Auto Crop, and its own reset puts content back before mode, which is Undo's order | bundle + simulator |
+| The set (live) | `mode` = `MULTI_CUSTOM`, then per output `multiContent` = `INPUT_<n>` and `multiAlign` = `TOP_LEFT` | bundle + simulator |
+| Load into preview | the preview buffer's (`MNG.buffers()`) `…/presetList/items/<UP\|DOWN>/background/source/pp/set` = `"<set>"`; for an Auto Crop set the layer then reports the canvas as `contentWidth/Height` (a note if not — what hardware reports there is not known). Skipped mid-take and on a screen with no background layer. | bundle + simulator |
+| Input EDID (live) | `inputList/items/INPUT_<n>/plugList/items/<plug>/edid/cmd/pp/xRequestPrefFormat` = `NONE`, then the format (`1920_1080_50HZ`, `…_RB`, `CUSTOM_<n>` for a custom output format) — offered only when the plug's `edid/status/pp/prefFormatAvailable` lists it | bundle only — the simulator's plugs list none |
+| Undo | each write put back to the value journalled beside it, newest first; then each uploaded slot emptied, `stillLibrary/bankList/items/<slot>/control/pp/xDelete` pulsed false then true, once no frame of ours shows it | simulator |
+
+⚠️ **The library slot is the switcher's choice, and it does not look where it puts it.** An upload
+goes into the lowest-numbered slot with `isValid` false — and a slot a Background or Foreground
+Image still points at counts as empty. Seen on a simulator: S1's BKG1 pointed at empty slot 1; an
+upload landed in slot 1 and S1's frame reported the picture at once. So the plan predicts the slot
+(the first empty ones, in plan order — two screens, two uploads), **refuses** when any frame of any
+screen points at it (Images: clear that frame, or fill the slot first), and the write checks the
+prediction again just before each upload. `isUsed` follows a frame's reference only loosely (it
+stayed true on an empty slot and cleared on an upload), so the plan reads the frames themselves.
+
+⚠️ **Waiting for the switcher means its own echo, not the mirror.** The page transport applies this
+page's outbound writes to the store (`transports/page-socket.js`, so the panels follow the vendor UI
+in the same tab), so a value written from the page reads back at once whether the switcher took it
+or not. On the simulator an accepted write came back inbound in about a millisecond, and a refused
+one (a `mode` that is not in the enum) came back not at all while the mirror showed it. So every
+Midra write waits for the inbound frame with its path and value (`wire.js`, `inbound`), and the
+status checks — the library slot, the frame's size, the preview's content size — are values only
+the switcher writes. (LivePremier's apply still waits on the store, as it was proved; it has the
+same exposure and has not been re-proved.)
+
+### What "pixel-exact" means here
+
+This side of it is exact, and the switcher says so. The image is the canvas: cut from the picture
+pixel for pixel when it is placed at its own size on whole pixels (`test/bg-slicer-mng.test.js`
+checks every pixel of each canvas image, a span of two screens, a corner placement, and — done the
+way the Web RCS draws Auto Crop — each output's crop of the image, including two outputs meeting at
+a column with no seam), uploaded as PNG, shown `1_1`, and the frame must report exactly the canvas
+size before the set is touched. In a browser the panel's own PNGs of a 2944 × 1080 pattern spanned
+over S1 and S2 decoded back with zero differing pixels, and the library gave them back byte for byte.
+
+The other side is the switcher's arithmetic and has not been seen. That Auto Crop lays the picture
+over the canvas and gives each output its own rectangle is how the vendor's page draws a set, not
+an observation; at a pitch of 1.000 that rectangle is the output's area of interest pixel for
+pixel, and at any other pitch the switcher scales it — the plan says **1:1** or **scaled by the
+switcher** on every output, in a table of the switcher's own rectangles. An output with an area of
+interest smaller than its raster (the simulator's Out 2 shows 1024 × 640 of a 1920 × 1080 raster)
+shows the canvas there and black around it, as drawn. In **Custom** the input is placed by
+`multiAlign`; the slicer sizes the media server's output to the switcher output's own format, so
+nothing should scale, and the region inside it is the area of interest — whether the alignment is
+taken against the raster or that area is not established, and the plan marks it.
+
+### What was done on the simulators (2026-10-06)
+
+- **A private Midra 4K simulator 3.2.29** (Pulse 4K — a copy of the session, on its own ports),
+  through the panel itself in the Browser pane: with S1's BKG1 pointing at empty slot 1, as on the
+  shared simulator, the plan refused and **Write** stayed disabled. With that cleared, a 2944 × 1080
+  pattern spanned over S1 (1920 × 1080) and S2 (1024 × 640): two uploads into slots 1 and 2, BKG1 of
+  each at 1:1 (the switcher reported 1920 × 1080 and 1024 × 640), S1 set 2 (set 1 was on program, so
+  passed over) and S2 set 1 in Auto Crop, both previews loaded (`contentWidth/Height` the canvases)
+  — 0.7 s in all, each write waited on its inbound echo. `GET /api/device/images/download/<slot>`
+  gave back the generated PNGs byte for byte. Undo put every value back and emptied both slots; a
+  before/after read matched except `stillLibrary/import/cmd/pp/path`, which the vendor's server
+  writes on every upload. Live: S2 set 1 Custom ← `INPUT_1`, preview, undone.
+- **The shared simulator** (in use by another session; screen 2 only): the plan refused for the
+  same reason and wrote nothing. Its library could not take an image by any route — its session
+  directory had lost `AW_FRAME_LIB` to the system's temp cleaner, and every import answered
+  `ERROR_NO_FREE_SPACE` — so the plugin's own write lists for S2 (BKG1 → a slot at 1:1 with a
+  label, set 1 Auto Crop ← `PRESET_FRAME_1`, preview `UP` ← set 1) were sent through the page,
+  read back off the device's store over HTTP, and `revertMng` put every one back. A before/after
+  read of S1's and S2's frames, sets and preset backgrounds and of the library matched, except the
+  import's read-only `status`.
+- Simulator facts worth knowing: the import command (`stillLibrary/import/cmd/pp/{path, slot,
+  xRequest}`) **moves** its file — the source is gone afterwards; a frame's reported size follows its
+  mode (a 1024 × 640 image read 1728 × 1080 `CENTERED` on a 1920 × 1080 canvas, the canvas in
+  `FULLSCREEN` and `CROPPED`, `sizeH × sizeV` in `CUSTOM`, its own size in `1_1`); an Auto Crop set
+  reports the canvas as a preset's `contentWidth/Height` even when empty, a Custom one 0; the
+  layer's `state` reads `OFF` throughout; and `/api/device/snapshots/screens/<n>/back/<k>` answers a
+  256 × 160 placeholder on a simulator, not the image.
+
+### Proven and assumed — Midra 4K / Alta 4K
+
+| | |
+|---|---|
+| **Proven** — bundle | the upload route and its `AUTO_SLOT_WITH_DOWNSCALE` import; the frame, set and preset paths and enums; Auto Crop's content up to `PRESET_FRAME_4`, Custom's up to `INPUT_16`; the background layer types and what each allows; the EDID preferred-format request |
+| **Proven** — simulator | every write above but the EDID, end to end, and its Undo; the auto slot landing on a slot a frame points at; the frame reporting 1:1 at the canvas; inbound echo of accepted writes and silence for a refused one |
+| **Assumed** — shown on the output | Auto Crop gives each output its own rectangle of the canvas, as drawn; a pitch other than 1.000 (scaled by the switcher); an area of interest smaller than the raster; Custom's alignment against an area of interest |
+| **Not handled** | auxiliaries (an aux has no background set); Foreground Images; one input across a whole screen in Auto Crop (the vendor offers it; the live mode here is an input per output) |
+
 ## Proving it on a frame
 
 On a LivePremier with a screen whose NATIVE layer is allocated, out of a show:
@@ -210,3 +323,17 @@ On a LivePremier with a screen whose NATIVE layer is allocated, out of a show:
 3. A 2X1 output group: the picture should cross the two connectors without a seam.
 4. A pitch ratio other than 1.000: the picture's scale on that wall should match the layers'.
 5. Live: a media server loaded with the Arena preset into two inputs; the same joins.
+
+On a Midra 4K or Alta 4K with a screen whose background layer takes stills, out of a show, and no
+frame pointing at the library's first empty slot:
+
+1. Two outputs edge to edge on one screen at pitch 1.000: a crosshatch with labelled edges, 1:1,
+   Auto Crop, load the set into preview and take it. No seam, no doubled or missing column — that
+   is Auto Crop cutting the way the Web RCS draws it.
+2. An output with an area of interest smaller than its raster: the picture sits in that area, at
+   `formatLeft/formatTop`, black around it.
+3. A pitch ratio other than 1.000: the output's part is scaled to match the layers.
+4. Custom: a media server loaded with the Arena preset into two inputs in the outputs' own format;
+   the same joins, and nothing offset (the alignment is top left).
+5. Read an input plug's `edid/status/pp/prefFormatAvailable`: if it lists formats, the live mode
+   offers the EDID request, and the source should then offer exactly the output's mode.

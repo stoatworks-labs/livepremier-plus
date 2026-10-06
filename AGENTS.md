@@ -579,6 +579,35 @@ Load-bearing, each read off the 6.2.73 bundle and proved on the simulator:
 - **The Arena writer is output-map's**, bundled by `tools/sync-output-map.mjs`
   with output-map's own rolldown. Fix it there.
 
+**On a Midra 4K or Alta 4K it is a different model**, `mng.js` + `apply-mng.js`,
+picked by `model.js` off the dialect; the panel draws whichever `plan.platform`
+says, and the picture, placement, cut, render and exports are shared. Read off
+the Midra 4K simulator 3.2.29's client and server bundle (Alta 4K 1.3.7's
+matches) and proved on that simulator:
+
+- **One picture per screen.** The image is the screen canvas, into one of the
+  screen's four Background Images (`screenList/items/<n>/backFrameList`) at
+  `mode` `1_1`, and an Auto Crop set (`backgroundSetList/…/singleContent` =
+  `PRESET_FRAME_<k>`) has the switcher crop it per output. The frame's
+  `status/pp/{width,height}` is the size it is shown at — the write waits for
+  the canvas size there. Custom (`MULTI_CUSTOM`) is the live mode: an input per
+  output. A preset loads a set through `presetList/items/<UP|DOWN>/background/
+  source/pp/set`. `backgroundLayerType` in the applied preconfig decides what a
+  screen may show.
+- ⚠️ **The upload takes no slot.** The server imports with
+  `AUTO_SLOT_WITH_DOWNSCALE`: the first slot with `isValid` false, even one a
+  frame points at — which then shows the upload. The plan refuses when a frame
+  points at the predicted slot; the write re-checks before each upload. The
+  shared simulator's S1 BKG1 points at empty slot 1, so it refuses there, by
+  design.
+- ⚠️ **The page mirror is not the switcher's echo.** `page-socket.js` applies
+  this page's outbound writes to the store, so a refused write reads back as
+  landed. The Midra apply waits for the inbound frame (`wire.js`, `inbound`); the
+  simulator echoes an accepted write in ~1 ms and a refused one never.
+  LivePremier's apply still waits on the store: same exposure, not re-proved.
+- No still capacity, no claims, no set label, no rotation, slices or groups on
+  this platform — the panel shows none of them there.
+
 ### `docs/OSC.md` is generated — `npm run gen:osc-docs`
 
 A published address space is a promise to somebody building a TouchOSC layout,
@@ -1184,7 +1213,9 @@ banks), **Pitch Compensation** and, at the Console, **audio routing** — mynah'
 `platform.audio` is `'routing'` there, and `Set Audio Patch Input 3 To Screen
 1` writes the preview preset's audio layer (`$preset/@items/UP/audio/control/
 @props/source`), `Follow …` the mode of a point, mutes where the device keeps
-them; the vendored mynah's `docs/PATHS.md` has the table. Withheld, with its
+them; the vendored mynah's `docs/PATHS.md` has the table. The **Background Slicer**
+too, on the platform's own model (one canvas picture per screen through a
+Background Image, Auto Crop; or Custom) — see its section. Withheld, with its
 reason in the table: **VPU Map** (no VPU) and **Matrix Routing** (its Router
 tab and box are written into LivePremier's pages). The MIDI Mapping entry anchors after a `Virtual RC400T`
 label the mng sidebar does not have, so it does not mount there either — and

@@ -119,6 +119,27 @@ in the order it would bite:
   await and serialised after it shows the later state. It had me chasing a claim that "reset
   itself" — it had not.
 
+## Background Slicer on Midra 4K / Alta 4K (2026-10-06)
+
+`plugins/bg-slicer/mng.js` + `apply-mng.js`, chosen by `model.js`; docs/BACKGROUNDS.md has the
+model and the run. In the order it would bite:
+
+- **The upload takes no slot.** The Midra server (`server.app.js`) imports every file with
+  `AUTO_SLOT_WITH_DOWNSCALE`; only `FILES` is read. The first empty slot (`isValid` false) wins
+  even when a frame points at it — S1's BKG1 pointed at empty slot 1 on the simulator, an upload
+  landed there, and S1's frame showed it. Hence the plan's refusal, and the re-check before each
+  upload. The shared simulator is in exactly that state, so the plugin refuses there.
+- **The page mirror is not an echo.** `page-socket.js` applies this page's outbound DEVICE frames
+  to the store; a refused write (an enum value that does not exist) shows in the mirror and is never
+  echoed inbound. The Midra apply waits on `dir: 'in'` frames (`wire.js`, `inbound`). LivePremier's
+  apply still waits on the store — the same exposure, not re-proved.
+- **A frame's `status/pp/{width,height}` is the size it is shown at**, by mode — the proof of 1:1.
+- **The import command moves its file** (`stillLibrary/import/cmd/pp/path` — the source is gone).
+- **A simulator session in a scratchpad gets reaped.** The shared Midra simulator's session dir had
+  lost `AW_FRAME_LIB` (and `AW_INTERNAL` saves fail), so every import answers
+  `ERROR_NO_FREE_SPACE`. A private copy of the session on other ports (AGENTS.md has the recipe)
+  was where the upload was proved.
+
 
 ## HyperDecks: Mitti refuses CR-ended commands (2026-09-29)
 
