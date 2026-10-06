@@ -170,11 +170,32 @@ which bundles its TypeScript with output-map's own rolldown and adds no dependen
 formats are real imports is the research written into `TARGETS` in `plugins/bg-slicer/exports.js`;
 nothing there invents a format a server has not been seen to read.
 
-## Writing to a simulator
+## Writing to a simulator: what was done to prove it
 
-Not yet run against the shared simulator: it is only written to when no other client is
-connected. The write path is proved against a stand-in switcher in `test/bg-slicer.test.js`
-(every write echoed, the order checked, the undo checked).
+2026-10-06, LivePremier Simulator 6.2.73 on 127.0.0.1:3000, with no other client connected (the
+device's own header read "1 Client"), through the panel itself:
+
+- **Stills.** A 3840 × 1080 pattern (every pixel encoding its own coordinates) spanned over S1
+  (outputs 1 and 3) and S2 (output 2). Write: three PNGs into library slots 1–3, stills 1–3 set
+  (`IMAGE`, slot, `NO_RESCALE`, label), the stills' claims, S1 and S2 set 1 filled and named, every
+  write echoed — 0.5 s in all. The switcher reported every set output `isContentValid: true`, and
+  `GET /api/device/images/download/<slot>` gave back **the same bytes** that were uploaded. Undo
+  emptied the slots (a download then answers `ERROR_NO_STILL`; the library's size went back to 0),
+  put the stills' mode, source, rescale and label back, cleared the content and labels and released
+  the claims.
+- **Live inputs** (EDIDs off — an EDID load cannot be undone): S1 Out 1 ← `LIVE_1`, Out 3 ←
+  `LIVE_2`, S2 Out 2 ← `LIVE_4` (IN_3 was passed over: it is on air), each input claiming its
+  output, `isContentValid` true; undone.
+- **Capacity**, by `applyCapacities` directly: still 45 to `UHDTV_2160P` — the check said 4K and
+  took still 46 out of service (`global: DISABLE`, empty), applied, `current` read 4K; put back to
+  `HDTV_1080P`, and 46 came back. Then still 2 to 4K, which would take still 3 while it held an
+  image: **refused**, the staged change discarded, nothing applied.
+
+After it all, every value read before was read again and matched, with two exceptions that are the
+simulator's: a deleted library slot keeps its last image's name and size in `status` (with
+`isValid` false), and the `newSnaphot` counters had moved on. The `xDelete` triggers were set back
+to false. The preview load was refused for both screens, correctly: their NATIVE layers are `OFF`.
+A simulator's outputs are a static picture, so none of it could be *seen*.
 
 ## Proving it on a frame
 

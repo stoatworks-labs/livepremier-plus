@@ -551,7 +551,8 @@ Load-bearing, each read off the 6.2.73 bundle and proved on the simulator:
   `preconfig/stills/new` (helper format, `xCheck` pulse), read back from
   `new/…/status`, applied with `xApply` only when nothing that holds something
   goes `DISABLE`; otherwise `xCopyFromCurrent` discards it. Never started over
-  someone else's staged change (`new/status/pp/hasChanged`).
+  someone else's staged change (`new/status/pp/hasChanged`). Seen on the
+  simulator: still 45 at 4K took still 46 (`DISABLE`), and back again.
 - **The upload is HTTP, single-flight.** `POST /api/device/images/upload`
   (`FILES`, `librarySlot` 1-based) answers 503 while another runs; `FINISH` in
   the body is the only success, and the library's `isValid` echo is the proof.

@@ -38,6 +38,42 @@ Proven against `tools/dante-sim.mjs` and in the Browser pane against LivePremier
 read-back, preset export → edit → import difference → apply, a snapshot saved). **No packet has
 gone to a real Dante device.** The first real test (DVS, then the switcher's card) is in DANTE.md.
 
+## Background Slicer — built against the 6.2.73 simulator (2026-10-06)
+
+`plugins/bg-slicer/`, off by default, `docs/BACKGROUNDS.md` the design. What was learned on the way,
+in the order it would bite:
+
+- **Slices are connectors.** I first read `canvas/status/slices/sliceList/items/<k>` as "a canvas
+  position plus an area of the raster". The bundle (`getGroupedOutputs`,
+  `getGroupedOutputStatus`) says slice k is connector k of the output's group: `pp.left/top` its
+  place in the group's raster, `aoi/pp` its size, and its canvas place is `output.left/top +
+  (slice − boundingBox) × pitch`. Both readings agree for the simulator's one full slice and
+  disagree for every group, so no simulator would have caught it. Also: `sliceList` lives under
+  `canvas/status/slices`, not beside it.
+- **A set's content write is three writes.** `axSetBackgroundSetOutputSource` releases the old
+  content's `useOnOutput` claim (to the next output using it, or NONE), claims the output for the
+  new input or still, then writes `content`. Stills have a claim too
+  (`preconfig/backgrounds/stillList`). No apply step under `preconfig/backgrounds`.
+- **The upload answer is keyed by multer's file name** (`s[i.filename]` in the server), which need
+  not be the name sent, so it is read as "the one value".
+- **Both simulator screens have NATIVE `OFF`**: a background set can be built and never shown there.
+- **The browser pane opens `window.open` in the same tab**, replacing Web RCS — so no popout can be
+  tested there. The Background Slicer's popout was checked in an iframe whose `opener` was set to
+  the Web RCS window: it booted, and showed the tab's job (picture, screens, span).
+- **`test/panel-render.test.js`'s simulator store was empty** until main fixed the merge (the memory
+  capture's `device` is a string); found here independently, fixed on main by the Variables work.
+- **The write path ran on the simulator** (docs/BACKGROUNDS.md has the run): three images, three
+  stills, two sets, a live-input set, a capacity raise (still 45 to 4K took still 46 out of
+  service) and a refused one (it would have taken a still holding an image), all undone. The
+  library gave back the uploaded PNGs byte for byte. Three things the simulator does that are worth
+  knowing: a deleted library slot keeps its last image's name and size with `isValid` false; the
+  claim's `status/pp/usedOnOutput` stays `NONE` while `control/pp/useOnOutput` is set; and the
+  library's `fileName` is the name the file was uploaded with.
+- **A trap in my own checking:** `store.get()` hands back the live node, so a value read before an
+  await and serialised after it shows the later state. It had me chasing a claim that "reset
+  itself" — it had not.
+
+
 ## HyperDecks: Mitti refuses CR-ended commands (2026-09-29)
 
 The link (`plugins/hyperdeck/link.js`, `pump()`) wrote every command as `line\r\n`.
