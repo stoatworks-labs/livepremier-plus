@@ -415,8 +415,8 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       return h('div', { class: 'aw-flex-col aw-gap-row-small' },
         h('div', { class: 'lpp-bgs-row' },
           h('span', { class: 'aw-font-body-1-bold', text: `${s.id}${s.label ? ` — ${s.label}` : ''}` }),
-          h('span', { class: 'aw-text-tertiary', text: 'into' }), setPick,
-          s.native.fitted ? null : h('span', { class: 'aw-font-caption aw-text-tertiary', text: 'NATIVE layer not allocated — the set can be built, not shown, until it is (Preconfig ▸ Resources)' })),
+          s.assign ? [h('span', { class: 'aw-text-tertiary', text: 'into' }), setPick] : h('span', { class: 'aw-text-tertiary', text: 'images and stills only — no background set' }),
+          !s.assign || s.native.fitted ? null : h('span', { class: 'aw-font-caption aw-text-tertiary', text: 'NATIVE layer not allocated — the set can be built, not shown, until it is (Preconfig ▸ Resources)' })),
         h('table', { class: 'wru-table' }, h('thead', {}, head), h('tbody', {}, rows)));
     });
     const freeSets = plan.screens.filter((s) => !s.set && firstFreeSet(readSets(store, s.id)) == null);
@@ -547,7 +547,9 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
           type: 'text', class: 'wru-input', maxlength: String(LABEL_MAX), value: job.options.label, 'data-lpp-key': 'bgs-label',
           placeholder: 'e.g. Act 1 BG', onChange: (ev) => { job.options.label = String(ev.target.value).slice(0, LABEL_MAX); changed(); }
         })),
-      checkbox('Load each set into its screen’s preview afterwards', job.options.loadPreview, (v) => { job.options.loadPreview = v; changed(); },
+      live ? null : checkbox('Put them into a background set', job.options.assignSet !== false, (v) => { job.options.assignSet = v; changed(); },
+        'Off: the images go into the library and the stills, and no set is touched'),
+      !live && job.options.assignSet === false ? null : checkbox('Load each set into its screen’s preview afterwards', job.options.loadPreview, (v) => { job.options.loadPreview = v; changed(); },
         noNative.length ? `${noNative.join(', ')}: NATIVE layer not allocated — those screens will be skipped` : 'Writes the preview buffer’s NATIVE layer source; never program, never a take'),
       live ? checkbox('Load each input plug with the switcher’s EDID for its output’s format', job.options.edids, (v) => { job.options.edids = v; changed(); },
         'The switcher builds the EDID itself (Inputs ▸ EDID ▸ load from template), so a media server offers exactly that mode') : null,
@@ -555,7 +557,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
 
     const confirmText = live
       ? `Write ${plan.screens.map((s) => `${s.id} set ${s.setIndex}`).join(', ')} with ${plan.screens.reduce((n, s) => n + s.outputs.length, 0)} live inputs?`
-      : `Upload ${job.generated ? job.generated.images.size : 0} images (${kb(total)}) into free library slots, set ${plan.screens.reduce((n, s) => n + s.outputs.length, 0)} free stills${plan.capacityChanges.length ? `, change ${plan.capacityChanges.length} still capacit${plan.capacityChanges.length === 1 ? 'y' : 'ies'} (a preconfig apply)` : ''}, and write ${plan.screens.map((s) => `${s.id} set ${s.setIndex}`).join(', ')}?`;
+      : `Upload ${job.generated ? job.generated.images.size : 0} images (${kb(total)}) into free library slots, set ${plan.screens.reduce((n, s) => n + s.outputs.length, 0)} free stills${plan.capacityChanges.length ? `, change ${plan.capacityChanges.length} still capacit${plan.capacityChanges.length === 1 ? 'y' : 'ies'} (a preconfig apply)` : ''}${plan.screens.some((s) => s.assign) ? `, and write ${plan.screens.filter((s) => s.assign).map((s) => `${s.id} set ${s.setIndex}`).join(', ')}` : ''}?`;
 
     return h('div', { class: 'aw-flex-col aw-gap-row-small lpp-bgs-section' },
       h('div', { class: 'aw-font-subtitle-2', text: live ? '5 · Write' : '6 · Write' }),

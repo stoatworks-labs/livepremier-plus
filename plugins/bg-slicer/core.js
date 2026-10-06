@@ -717,10 +717,14 @@ export function buildPlan(store, job, opts = {}) {
     const topo = screenTopology(store, id);
     if (!topo) { problems.push(`${id} is not a screen in service.`); continue; }
     const sets = readSets(store, id);
-    const setIndex = Number((job.sets || {})[id]) || (firstFreeSet(sets) || {}).index || null;
-    const set = sets.find((s) => s.index === setIndex) || null;
-    if (!set) problems.push(`${id}: no free background set — choose one to overwrite.`);
-    else if (set.onProgram && !opts.allowProgram) problems.push(`${id}: background set ${set.index} is on program — confirm to write it live.`);
+    /* Filling a set is optional in the stills mode — the images and stills
+       are useful without one (Allan: "and optionally also assign the
+       background set"). The live mode is nothing but a set. */
+    const assign = source === 'live' || !(job.options && job.options.assignSet === false);
+    const setIndex = assign ? Number((job.sets || {})[id]) || (firstFreeSet(sets) || {}).index || null : null;
+    const set = assign ? sets.find((s) => s.index === setIndex) || null : null;
+    if (assign && !set) problems.push(`${id}: no free background set — choose one to overwrite.`);
+    else if (set && set.onProgram && !opts.allowProgram) problems.push(`${id}: background set ${set.index} is on program — confirm to write it live.`);
     const place = placementFor(job, id, spanned);
     if (!place) problems.push(`${id}: the picture is not placed on this screen.`);
 
@@ -773,12 +777,12 @@ export function buildPlan(store, job, opts = {}) {
         row.content = input ? `LIVE_${String(input).replace(/^IN_/, '')}` : null;
         if (!input) problems.push(`${id} ${o.name}: choose the input that carries it.`);
       }
-      if (row.previous !== 'NONE' && row.previous !== row.content) warnings.push(`${id} set ${setIndex} ${o.name}: replaces ${row.previous}.`);
+      if (set && row.previous !== 'NONE' && row.previous !== row.content) warnings.push(`${id} set ${setIndex} ${o.name}: replaces ${row.previous}.`);
       return row;
     });
     if (!topo.outputs.length) problems.push(`${id} has no outputs to give a background.`);
     for (const s of topo.skipped) warnings.push(`${id} Out ${s.key}: skipped — ${s.why}.`);
-    screens.push({ id, label: topo.label, canvas: topo.canvas, set, setIndex, place, outputs, native: nativeLayer(store, id) });
+    screens.push({ id, label: topo.label, canvas: topo.canvas, assign, set, setIndex, place, outputs, native: nativeLayer(store, id) });
   }
 
   const inputsUsed = new Map();

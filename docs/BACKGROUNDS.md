@@ -34,9 +34,10 @@ needs to feed them, as files it can import.
    **resampled**. Problems stop it; warnings do not.
 5. **Generate** (stills). One PNG per output, cut in the page; thumbnails; a zip of them. A colour
    for where the picture does not reach.
-6. **Write.** A name for the sets and stills (16 characters, the switcher's limit), whether to load
-   each set into its screen's preview afterwards, and — live mode — whether to load each input's
-   EDID. It says what it will do and asks; then each step waits for the switcher's echo. A failure
+6. **Write.** A name for the sets and stills (16 characters, the switcher's limit), whether to put
+   them into a background set at all (on by default; off leaves the images in the library and the
+   stills, and touches no set), whether to load each set into its screen's preview afterwards, and —
+   live mode — whether to load each input's EDID. It says what it will do and asks; then each step waits for the switcher's echo. A failure
    stops the run and lists what was written; **Undo what was written** takes exactly that back off.
 7. **Media server.** The same map as files: see [Exports](#exports).
 

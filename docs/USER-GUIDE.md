@@ -1176,8 +1176,9 @@ shows, at exactly that output's resolution. This does the cutting, and fills the
    stops it; fix it first.
 5. **Generate** — cuts one PNG per output. The thumbnails show them; **Download images** saves them
    as a zip. **Background** is the colour where the picture does not reach.
-6. **Write** — give the sets and stills a **name** (16 characters), and tick **Load each set into
-   its screen's preview** if you want it ready to take. **Write to the switcher…** says what it will
+6. **Write** — give the sets and stills a **name** (16 characters). **Put them into a background
+   set** is on; switch it off to leave the images in the library and the stills and touch no set.
+   Tick **Load each set into its screen's preview** if you want it ready to take. **Write to the switcher…** says what it will
    do and asks. Each step then shows as it lands. If one fails it stops there; **Undo what was
    written** takes everything it wrote back off.
 

@@ -209,6 +209,7 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
     }
 
     for (const s of plan.screens) {
+      if (!s.assign) continue;
       const before = readSets(store, s.id).find((x) => x.index === s.setIndex) || { label: '', contents: {} };
       for (const o of s.outputs) {
         if (!o.content) continue;
@@ -227,6 +228,7 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
 
     if (options.loadPreview) {
       for (const s of plan.screens) {
+        if (!s.assign) continue;
         const n = nativeLayer(store, s.id);
         if (!n.fitted) { step(`${s.id}: not loaded — its NATIVE layer is not allocated (Preconfig ▸ Resources), so no background set can show`, 'note'); continue; }
         const banks = presetBanks(store, s.id);
@@ -254,9 +256,11 @@ function preflight(store, plan, options) {
   const lib = readLibrary(store);
   const stills = readStills(store);
   for (const s of plan.screens) {
-    const set = readSets(store, s.id).find((x) => x.index === s.setIndex);
-    if (!set) throw new Error(`${s.id} has no background set ${s.setIndex}`);
-    if (set.onProgram && !options.allowProgram) throw new Error(`${s.id} background set ${s.setIndex} is on program`);
+    if (s.assign) {
+      const set = readSets(store, s.id).find((x) => x.index === s.setIndex);
+      if (!set) throw new Error(`${s.id} has no background set ${s.setIndex}`);
+      if (set.onProgram && !options.allowProgram) throw new Error(`${s.id} background set ${s.setIndex} is on program`);
+    }
     for (const o of s.outputs) {
       if (plan.source !== 'stills') continue;
       const slot = lib.slots.find((x) => x.slot === o.librarySlot);

@@ -583,6 +583,20 @@ test('apply: uploads, stills, the set and its label in order, each confirmed by 
   assert.deepEqual(readLibrary(store).slots.filter((s) => s.free).map((s) => s.slot), [1, 2, 3, 4, 200]);
 });
 
+test('without a background set: the images and stills are written and no set is touched', async () => {
+  const store = simStore();
+  const { session, log, fetchImpl } = standIn(store);
+  const plan = buildPlan(store, { screens: ['S1'], mode: 'each', place: { S1: { x: 0, y: 0, w: 1920, h: 1080 } }, image: { width: 1920, height: 1080 }, options: { assignSet: false } });
+  assert.equal(plan.ok, true, plan.problems.join('; '));
+  assert.equal(plan.screens[0].setIndex, null);
+  const images = new Map(plan.screens[0].outputs.map((o) => [`S1/${o.key}`, { blob: new Blob([new Uint8Array([1])]), name: `b${o.key}.png` }]));
+  const result = await applyPlan({ session, plan, images, fetchImpl, options: { label: 'x', loadPreview: true } });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(result.journal.stills.length, 3);
+  assert.equal(result.journal.sets.length + result.journal.labels.length, 0);
+  assert.ok(!log.some(([p]) => p.includes('backgroundSetList') || p.includes('useOnOutput')));
+});
+
 test('apply refuses a slot or still taken since the plan, and writes nothing', async () => {
   const store = simStore();
   const { session, log, fetchImpl } = standIn(store);

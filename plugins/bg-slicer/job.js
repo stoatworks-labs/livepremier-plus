@@ -31,7 +31,7 @@ export function createJob() {
     sets: {},
     live: {},
     edid: {},
-    options: { label: '', loadPreview: false, allowProgram: false, edids: true, fill: '#000000' },
+    options: { label: '', assignSet: true, loadPreview: false, allowProgram: false, edids: true, fill: '#000000' },
     /** `{ key, images: Map('<screen>/<out>' → { blob, url, name, width, height }) }` once generated. */
     generated: null,
     progress: [],
