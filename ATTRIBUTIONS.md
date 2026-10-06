@@ -74,6 +74,14 @@ Copyright: Stoatworks Labs
 
 Same fleet, copied rather than shared: src/vendor/otter-edid-embed.js is otter-edid-editor's embed build, vendored unchanged. It bundles React, React DOM and Scheduler, credited below.
 
+### Resolume Arena Advanced Output writer — Stoatworks output-map
+
+Not yet published (a local Stoatworks repository)  
+Licence: MIT  
+Copyright: 2026 Stoatworks Labs
+
+Same fleet, bundled rather than re-derived: src/vendor/output-map/resolume.js is output-map's src/lib/resolume.ts and the geometry it uses, built by tools/sync-output-map.mjs. Every element and parameter it writes was read off files Resolume Arena 7.27 wrote; the Background Slicer's live-input export uses it.
+
 ## Third-party code this project uses
 
 Libraries, SDKs and frameworks the project is built on or bundles.
@@ -141,6 +149,14 @@ test/fixtures/dante/dante-controller-preset.xml is Examples/PresetTemplate.xml f
 ### Dante Controller and its user guide — Audinate
 
 LivePremier Plus is not affiliated with or endorsed by Audinate. The Dante plugin writes and reads Dante Controller preset files and follows that format's parameter rules as Dante Controller 4.18.1.1's own user guide states them (which channels a preset clears, how roles are matched to devices). No Audinate software, firmware or documentation is redistributed here, and nothing in it drives Dante Controller itself. Dante is a trademark of Audinate Pty Ltd.
+
+### Aquilon User Manual v6.2 — Analog Way
+
+How a background set, an output group and an image slot behave — a background shown unscaled in the output, one per output group, capacities that must match, a live background matching its output's format — comes from the manual (dwn01.analogway.com, v6.2, 2026). No text of it is reproduced; the Background Slicer's docs cite pages.
+
+### Media-server file formats — disguise, AV Stumpfl, Green Hippo, Anomes
+
+The Background Slicer's exports follow what each vendor documents its own software importing: disguise designer's Feed Mapping "Import from table" columns, the feed-rect CSV of Pixera's example file, Hippotizer V4's Video Mapper CSV import, and the SVG Millumin 5's Video Routing imports. Only column layouts and element shapes are used; nothing of their software or documentation is included.
 
 ## Inspirations
 

@@ -127,6 +127,18 @@ rather than as a bolt-on:
   up to 25 frames a second. The store gives each tile's position, so nothing is
   calibrated by hand. On a Midra 4K or Alta 4K the switcher's own H.264 streamer
   can be the feed. It has never yet met a real multiviewer.
+- **Background Slicer** *(preview, off by default)* — one picture laid over
+  one or more screens and cut into a background per output, pixel for pixel:
+  each screen's canvas drawn with its outputs, groups and slices, the picture
+  placed by drag or by numbers, a plan of every free library slot, still and
+  background set it will take before anything is written, then the images
+  uploaded, the stills set, still capacities raised only where nothing in use
+  is displaced, and the set filled — with an Undo. Its live-input mode feeds
+  each output's background from an input instead, loads each input with the
+  switcher's own EDID for that output, and exports the map the media server
+  needs: a Resolume Arena Advanced Output preset, disguise, Pixera, Hippotizer,
+  Millumin and TouchDesigner files, and a pixel-map pack for the rest.
+  Simulator-proven only.
 - **Your setup in one file** — the cue stack, layer groups, layer names, your
   variables, router patch and settings, written as one plain JSON file and read
   back the same way, so a rig restores with its `.awc` rather than half of it.
@@ -1045,6 +1057,39 @@ handed back to the switcher.
 > checked against a real Pulse 4K's store. Starting the streamer has never been
 > seen to work: the simulators never start a stream.
 
+## Background Slicer — preview
+
+**PLUS ▸ Background Slicer.** A background set gives each output of a screen its
+own still or input, shown 1:1 in the output's raster — so a picture that spans a
+wall has to be cut into exactly the piece each output shows. This does the
+cutting. Choose a picture and the screens; each screen's canvas is drawn with its
+outputs on it, the picture over them, to drag or type into place (Fit, Fill,
+Stretch, 1:1, Centre, or one picture spanning several screens). The plan says,
+before anything is written, which background set, free library slot and free
+still each output takes, the still capacity it needs, what it replaces, and
+whether its cut is a straight copy of pixels or resampled. **Generate** cuts the
+PNGs in the page; **Write** uploads them through the switcher's own image route,
+sets the stills, raises a capacity through the preconfig only when the switcher's
+own check says nothing in use is displaced, fills the set and, if asked, loads it
+into preview — each step confirmed by the switcher's echo, and **Undo** takes back
+exactly what was written.
+
+The **live-input mode** gives each output an input instead: the set takes
+`LIVE_n`, each input's plug is loaded with the switcher's own EDID for that
+output's format, and the map the media server behind those inputs needs is
+exported — an Arena Advanced Output preset (written by output-map, held to files
+Arena itself wrote), disguise's Feed Mapping table, Pixera feed rects, a
+Hippotizer Video Mapper CSV, Millumin SVGs, a TouchDesigner table, and a
+CSV/JSON/SVG/PNG pixel-map pack with a recipe for QLab, Mitti, MadMapper and
+Watchout. [docs/BACKGROUNDS.md](docs/BACKGROUNDS.md) is the design, what is
+proven, and which of those formats each server really imports.
+
+> ⚠️ **Preview: never yet run against a real frame.** Every write was proved on
+> the LivePremier Simulator, whose outputs are a static picture, so a background
+> written there cannot be seen. The cut is tested on every pixel; what the
+> switcher does with a rotated, grouped, sliced or pitched output is not seen
+> yet, and the panel marks each output that rests on that.
+
 ## Pixelhue panel — preview
 
 A Pixelhue U5, U5 Pro or U5 mini event controller, driving the switcher. Off by
@@ -1436,7 +1481,7 @@ under plain Node, which is what the test suite does. The browser panels are one
 front-end over it; a standalone client talking AWJ over TCP 10606 is meant to
 be another, and only needs a second `transports/` module.
 
-## Six things are vendored, not reimplemented
+## Seven things are vendored, not reimplemented
 
 | in `src/vendor/` | from | what it is |
 | --- | --- | --- |
@@ -1446,6 +1491,7 @@ be another, and only needs a second `transports/` module.
 | `pixelhue/` | pixelhue-bridge | the U-series console's frame codec |
 | `pitch-engine.js` | aquilon-pitch | the pitch-compensation arithmetic |
 | `otter-edid-embed.js` | otter-edid-editor | the EDID editor and encoder, React included |
+| `output-map/` | output-map | the Resolume Arena Advanced Output writer, bundled from its TypeScript |
 
 Each is copied rather than re-derived for the same reason, and it is not
 convenience: two implementations of one grammar, one device model or one decode

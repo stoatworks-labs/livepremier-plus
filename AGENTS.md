@@ -517,6 +517,57 @@ Four things are load-bearing:
   `0x00101307` as business data — it is the *command* report, and the
   correction belongs upstream rather than in a vendored file.
 
+### The Background Slicer (`plugins/bg-slicer/`) — **preview**
+
+One picture cut into a background per output, put into the image library, the
+stills and a background set; or each output fed from an input, with the media
+server's output map exported. `docs/BACKGROUNDS.md` is the design and the
+proven/assumed table; `core.js`'s head is the geometry. Off by default — it
+writes to the library, stills, still capacities and background sets, and has
+only met a simulator.
+
+Load-bearing, each read off the 6.2.73 bundle and proved on the simulator:
+
+- **A background is 1:1 in the output's raster**, so an image is exactly
+  `canvas/status/pp/{maxWidth,maxHeight}` and a still is set `rescale`
+  `NO_RESCALE` — "Downscale to capacity" would resample a cut made to be exact.
+- ⚠️ **An output's slices are its connectors, not areas of the canvas.**
+  `slices/sliceList/items/<k>/pp.left/top` is connector k's place in the
+  output's (group's) raster and `aoi/pp` its size; on the screen canvas it sits
+  at `canvas/status/pp.left/top + (slice − boundingBox) × pitch`. The first
+  reading of this field — canvas position plus area of the raster — gives the
+  same answer for the one full slice a simulator has, and the wrong one for
+  every group.
+- ⚠️ **A set's content write is not one write.** The Web RCS's
+  `axSetBackgroundSetOutputSource` first hands the replaced input or still's
+  claim (`preconfig/backgrounds/inputList|stillList/<n>/control/pp/
+  useOnOutput`) to the next output still using it (or NONE), then claims the
+  output for the new one, then writes `content`. `core.contentWrites` is that
+  sequence; Undo goes back through it too. Writes under `preconfig/backgrounds`
+  are immediate — there is no apply step, so a set on program changes on air
+  and is refused unless the operator says otherwise. The set's label is
+  `…/backgroundSetList/items/<n>/pp/label`, on `pp` itself, 16 characters.
+- **Still capacity is a shared budget, and the switcher decides it.** Staged in
+  `preconfig/stills/new` (helper format, `xCheck` pulse), read back from
+  `new/…/status`, applied with `xApply` only when nothing that holds something
+  goes `DISABLE`; otherwise `xCopyFromCurrent` discards it. Never started over
+  someone else's staged change (`new/status/pp/hasChanged`).
+- **The upload is HTTP, single-flight.** `POST /api/device/images/upload`
+  (`FILES`, `librarySlot` 1-based) answers 503 while another runs; `FINISH` in
+  the body is the only success, and the library's `isValid` echo is the proof.
+- **A picture is decoded with `colorSpaceConversion: 'none'`.** Without it an
+  embedded ICC profile changes every pixel on the way in and a "copy" is not one.
+- ⚠️ **Rotation is the one guess.** A rotated output's image is turned the way
+  the switcher turns its layers; whether it turns a background as well is not
+  known. The panel marks it; `docs/BACKGROUNDS.md` has the check.
+- **The simulator's screens have no NATIVE layer** (`capability` OFF), so a set
+  can be built there and not loaded; the preview load is skipped, not forced.
+- **Live EDIDs are the switcher's own**: `edid/cmd/fromTemplate/<w_h_rate>` (or
+  `fromCustom/<n>`) pulsed on the input plug — the vendor's "load from
+  template". Nothing here builds an EDID for this, and Undo cannot take one back.
+- **The Arena writer is output-map's**, bundled by `tools/sync-output-map.mjs`
+  with output-map's own rolldown. Fix it there.
+
 ### `docs/OSC.md` is generated — `npm run gen:osc-docs`
 
 A published address space is a promise to somebody building a TouchOSC layout,

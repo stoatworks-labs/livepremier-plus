@@ -51,6 +51,9 @@ as a bolt-on.
   moves opacity, position and size. Any browser, with DaVinci Resolve quit.
 - **Pixelhue panel** *(preview)* — a Pixelhue U5, U5 Pro or U5 mini driving the switcher, with
   **Pixelhue Mapping** to give any key, fader or encoder a different job.
+- **Background Slicer** *(preview)* — one picture cut into a pixel-exact background for every
+  output of one or more screens, uploaded and put into a background set; or each output fed live
+  from an input, with the output map for the media server behind it. Off until you switch it on.
 - **Thumbnail relay** and **Multiviewer thumbnails** *(preview)* — lighter source thumbnails, or
   live ones cut from a multiviewer. Both off until you switch them on.
 - **Remote access** — the app served over Tailscale (with a real HTTPS certificate) or ZeroTier,
@@ -1142,6 +1145,77 @@ within three seconds. Set a browser to **Off** at any time to have them all back
 
 > ⚠️ **Proven on the simulator only**, with the test pattern. It has never seen a real multiviewer
 > output, and the simulators never start a stream, so starting the streamer is untested.
+
+---
+
+## Background Slicer (preview)
+
+Off until you switch it on in **Preconfig ▸ LivePremier Plus → Plugins**. Then **PLUS ▸ Background
+Slicer** — **Pop out** gives it a window of its own.
+
+A background set gives each output of a screen its own still or input, and shows it **1:1 in the
+output** — no scaling. So a picture that spans a wall must be cut into exactly the piece each output
+shows, at exactly that output's resolution. This does the cutting, and fills the set.
+
+**Stills — a picture as the background**
+
+1. **Picture** — choose a file, or drop one on the box. Its size is shown.
+2. **Screens** — click the screens it goes on. With two or more, choose **On each screen** (the
+   picture placed on each separately) or **Span selected screens** (the screens side by side, in
+   order, under one picture; type where each sits in the strip if they are not edge to edge).
+3. **Placement** — the screen's canvas with its outputs drawn on it, and the picture over them. Drag
+   the picture, or type **X / Y / W / H** in canvas pixels, or press **Fit**, **Fill**, **Stretch**,
+   **1:1** or **Centre**. An output outlined in orange dashes is one whose cut rests on something not
+   yet seen on a real frame — rotated, grouped, sliced or pitched; hover it to see which.
+4. **Plan** — nothing has been written yet. For each screen, the **background set** it goes into
+   (the first empty one; pick another if you like — one with content says so). For each output: its
+   resolution, the **library slot** and **still** it will use (free ones only — nothing is ever
+   overwritten unless you pick a set that has content), the still's **capacity** and whether it must
+   change, the **content**, what it **replaces**, and whether the cut is a **pixel copy** or
+   **resampled** (anything scaled: Fit, Stretch, an LED pitch ratio). A red line is something that
+   stops it; fix it first.
+5. **Generate** — cuts one PNG per output. The thumbnails show them; **Download images** saves them
+   as a zip. **Background** is the colour where the picture does not reach.
+6. **Write** — give the sets and stills a **name** (16 characters), and tick **Load each set into
+   its screen's preview** if you want it ready to take. **Write to the switcher…** says what it will
+   do and asks. Each step then shows as it lands. If one fails it stops there; **Undo what was
+   written** takes everything it wrote back off.
+
+Good to know:
+
+- A set that is **on program** is refused unless you tick that it may be written live — a set's
+  content changes on air the moment it is written.
+- Raising a still's **capacity** (for a 4K output, say) is a preconfig change. It is only applied
+  when the switcher's own check says no still in use would be lost; and not at all while someone has
+  other changes waiting in Preconfig ▸ Images.
+- A screen shows a background set through its **NATIVE layer**. If the screen has none allocated
+  (Preconfig ▸ Resources), the set is built but cannot be loaded, and the panel says so.
+
+**Live inputs — a media server as the background**
+
+Switch to **Live inputs**. The steps are the same, without Generate: each output gets an **input**
+instead of a still (free ones are suggested; one input per output), and the set takes that input.
+**Load each input plug with the switcher's EDID** (on by default) makes each input ask its source for
+exactly the output's resolution and rate — a live background must match its output's format. No
+picture is needed: type the **content** size your media server works in.
+
+Then the media server has to play, into each input, exactly the piece of its content that the
+output shows. **Media server** downloads that map:
+
+| | |
+|---|---|
+| **Resolume Arena** | an Advanced Output preset. Copy it into `Documents/Resolume Arena/Presets/Advanced Output/`, choose it in Output ▸ Advanced Output, then bind each screen to its real output. |
+| **disguise** | a Feed Mapping table: put it in `<project>/objects/Table/`, then Feed Mapping ▸ Import from table. |
+| **Pixera**, **Hippotizer**, **Millumin**, **TouchDesigner** | files they load, with the step each leaves by hand — the list under *What each media server can import* says which. |
+| **QLab**, **Mitti**, **MadMapper**, **Watchout** | no file they can import; the pack's templates and the recipe beside each. |
+
+**Everything (.zip)** has all of it, plus `pixel-map.csv` / `.json` (every region, in pixels) and
+templates — the whole content and each output, every region outlined and labelled with its size —
+to load into any server as a guide.
+
+> ⚠️ **Proven on the simulator only.** A simulator's outputs are a still picture, so a background
+> written there cannot be seen. Check the first one on a real output — especially a rotated one: if
+> the picture comes out turned twice, say so.
 
 ---
 
