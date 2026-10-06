@@ -919,24 +919,35 @@ export function liveCandidates(store) {
     const bg = bgInputs[key] || {};
     const st = pp(bg.status);
     const plug = pp(node.plugList && node.plugList.items && node.plugList.items['1'] && node.plugList.items['1'].status);
+    const status = pp(node.status);
+    /* A member of an input group is not a source of its own, and a disabled
+       input carries nothing. */
+    if (status.global === 'GROUPED' || status.global === 'DISABLE') continue;
     out.push({
       key,
       label: String(pp(node.control).label || ''),
       plug: plug.type || null,
+      device: pp(node.mapping).device ?? null,
       usedOnOutput: st.usedOnOutput && st.usedOnOutput !== 'NONE' ? String(st.usedOnOutput) : null,
       compatibility: Array.isArray(st.outputsCompatibility) ? st.outputsCompatibility.map(String) : [],
-      state: pp(node.status).global || null
+      onAir: status.isOnProgram === true || status.isOnPreview === true,
+      state: status.global || null
     });
   }
   return out;
 }
 
-/** The inputs to suggest for an output, best first. */
-export function suggestInputs(candidates, outputKey, taken = new Set()) {
+/**
+ * The inputs to suggest for an output, best first: not already another
+ * output's background, compatible where the switcher says, on the output's
+ * own frame (the Web RCS offers nothing else), and not on air in a layer.
+ */
+export function suggestInputs(candidates, outputKey, taken = new Set(), device = null) {
   return candidates
     .filter((c) => !taken.has(c.key) && (!c.usedOnOutput || c.usedOnOutput === String(outputKey)))
     .filter((c) => !c.compatibility.length || c.compatibility.includes(String(outputKey)))
-    .sort((a, b) => (a.state === 'USED') - (b.state === 'USED'));
+    .filter((c) => device == null || c.device == null || String(c.device) === String(device))
+    .sort((a, b) => (a.onAir - b.onAir) || ((b.usedOnOutput === String(outputKey)) - (a.usedOnOutput === String(outputKey))));
 }
 
 /** Millihertz to the template spelling: 59940 → 59HZ94, 60000 → 60HZ. */

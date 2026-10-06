@@ -615,3 +615,43 @@ test('live apply: the EDID templates are loaded, then the set takes the inputs a
   assert.equal(store.get(setContentPath('S1', 1, '2')), 'LIVE_2');
   assert.equal(store.get(['device', 'preconfig', 'backgrounds', 'inputList', 'items', 'IN_2', 'control', 'pp', 'useOnOutput']), '2');
 });
+
+/*
+ * The preset against Arena itself: every element-and-attribute shape a
+ * generated preset contains must appear in a file a real Arena 7.27 wrote —
+ * output-map's conformance rule (its docs/resolume-export.md), run here on
+ * this plugin's own output, rotated and grouped regions included. The
+ * reference files live in an output-map checkout; without one, skipped.
+ */
+test('the Arena preset uses only shapes a real Arena wrote', async (t) => {
+  const refs = ['resolume-arena-preset.xml', 'resolume-arena-rotated-ndi.xml']
+    .map((f) => join(here, '..', '..', 'output-map', 'src', 'lib', '__tests__', 'fixtures', f));
+  let texts;
+  try {
+    texts = refs.map((f) => readFileSync(f, 'utf8'));
+  } catch {
+    t.skip('no output-map checkout beside this repo');
+    return;
+  }
+  const VOCAB = new Set(['Params', 'Param', 'ParamChoice', 'ParamRange', 'ValueRange']);
+  const shapes = (xml) => {
+    const out = new Set();
+    const stack = [];
+    for (const m of xml.matchAll(/<(\/?)([A-Za-z][\w]*)((?:\s+[\w:]+="[^"]*")*)\s*(\/?)>/g)) {
+      const [, close, tag, attrs, self] = m;
+      if (close) { stack.pop(); continue; }
+      const names = [...attrs.matchAll(/([\w:]+)="([^"]*)"/g)];
+      const vocab = VOCAB.has(tag) ? names.find(([, k]) => k === 'name') : null;
+      const key = `${stack.join('/')}/${tag}${vocab ? `[name=${vocab[2]}]` : ''}`;
+      out.add(`${key} ${names.map(([, k]) => k).filter((k) => !(k === 'name' && !VOCAB.has(tag))).sort().join(',')}`);
+      if (!self) stack.push(tag + (vocab ? `[name=${vocab[2]}]` : ''));
+    }
+    return out;
+  };
+  const real = new Set(texts.flatMap((x) => [...shapes(x)]));
+  const { plan, content } = livePlan();
+  const ours = shapes(toResolume(plan, content, 'Shape check'));
+  const missing = [...ours].filter((s) => !real.has(s));
+  assert.deepEqual(missing, [], 'every shape is one Arena wrote');
+  assert.ok(ours.size > 30);
+});

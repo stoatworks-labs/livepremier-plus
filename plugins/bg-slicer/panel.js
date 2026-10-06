@@ -378,7 +378,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       for (const o of (t && t.outputs) || []) {
         const k = `${sid}/${o.key}`;
         if (job.live[k] === undefined) {
-          const pick = suggestInputs(cands, o.key, taken)[0];
+          const pick = suggestInputs(cands, o.key, taken, o.device)[0];
           job.live[k] = pick ? pick.key : null;
           if (pick) taken.add(pick.key);
         }
