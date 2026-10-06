@@ -103,6 +103,10 @@ because the switcher allows five AWJ clients at once.
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only — none has met
 > real hardware yet.
 >
+> **0.17.0 adds Variables and arithmetic wherever a number goes, and Preview lock** (off by
+> default); **Dante** and the **Background Slicer** arrive as previews, off by default and proven
+> on simulators only. HyperDeck commands end with a bare line feed, so Mitti accepts them.
+>
 > **0.16.0 adds Audio Matrix, Remote access and Multiviewer thumbnails, and the Speed Editor works
 > on a real panel** — through the app's new device host, over USB. Audio Matrix and Multiviewer
 > thumbnails are proven on the simulator only.
@@ -709,9 +713,9 @@ In a cue, the **HyperDeck** field takes `VT 1 clip 3; VT 1 play; recorders recor
 > yet against a real HyperDeck.** `docs/HYPERDECK.md` has a short procedure for proving it on your
 > own deck before a show.
 >
-> **Mitti needs the release after 0.16.0.** A real Mitti 2.8.18 answers `103 unsupported` to any
-> command ending in a carriage return, which is how 0.16.0 ends them; the link now ends them with a
-> bare line feed, which a HyperDeck also takes. Until that release, Mitti accepts the connection and
+> **Mitti needs 0.17.0 or later.** A real Mitti 2.8.18 answers `103 unsupported` to any
+> command ending in a carriage return, which is how 0.16.0 ends them; 0.17.0 ends them with a
+> bare line feed, which a HyperDeck also takes. With 0.16.0, Mitti accepts the connection and
 > refuses everything after it.
 
 ---

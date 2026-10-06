@@ -185,7 +185,7 @@ or from the command line with Node 20. It works on a **LivePremier** and — for
 the Timeline, Console, Memories, Layer and Pitch Compensation — on a **Midra 4K
 or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 
-> **Status: field testing — v0.16.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.17.0.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -300,6 +300,17 @@ or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.0 (2026-10-06).** **Variables**: `$` names generated from the device store and `@` names
+> of your own, with bracketed arithmetic, wherever a number goes — the Console, cues, OSC input
+> and the vendor's own numeric fields. **Preview lock** (off by default) shuts the PRW padlock
+> while a screen transitions, so cues, Memories and the Console wait for a take to land.
+> **Dante** and the **Background Slicer** arrive as previews, off by default: Dante has only
+> talked to a simulator, and the Slicer — one picture cut into pixel-exact backgrounds, on
+> LivePremier and on Midra 4K / Alta 4K — has run on simulators only, its rotated outputs,
+> output groups and non-1.000 pitch ratios are unproven, and its Resolume preset has never been
+> opened in Arena. The Edit page speaks Midra 4K / Alta 4K, and HyperDeck commands end with a
+> bare line feed, so Mitti accepts them.
 >
 > **0.16.0 (2026-09-25).** The **Speed Editor** now works on a real panel: it
 > moved off WebHID, which cannot read the panel's handshake on macOS, into the
@@ -806,9 +817,9 @@ changes after they start, so opening a page never plays a deck already on air.
 > `node tools/hyperdeck-sim.mjs` is that emulation; **[docs/HYPERDECK.md](docs/HYPERDECK.md)**
 > has the protocol notes and a short procedure for proving it on your own deck.
 >
-> **Mitti needs the release after 0.16.0.** A real Mitti 2.8.18 answers
+> **Mitti needs 0.17.0 or later.** A real Mitti 2.8.18 answers
 > `103 unsupported` to any command ending in a carriage return, which is how
-> 0.16.0 ends them. `main` ends them with a bare line feed, which a HyperDeck
+> 0.16.0 ends them. 0.17.0 ends them with a bare line feed, which a HyperDeck
 > also takes, and the simulator's `--mitti` mode now refuses CR the same way.
 
 ## Dante — preview
