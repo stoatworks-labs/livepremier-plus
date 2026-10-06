@@ -102,6 +102,19 @@ export function layerSections(store = null) {
  */
 export const catalogueFor = (store) => dialectOrDefault(store).catalogue;
 
+/**
+ * The catalogue spec for a layer property named by what it means — `source`,
+ * or one of the dialect's `layerParams` — on whichever platform the store
+ * speaks. Null when there is no platform yet, or the platform has no such
+ * property (a Midra layer has no anchor), and a caller writes nothing.
+ */
+export function layerSpec(store, name) {
+  const dialect = dialectFor(store);
+  if (!dialect) return null;
+  const id = name === 'source' ? dialect.sourceParam : dialect.layerParams[name];
+  return (id && dialect.catalogue.layer.find((p) => p.id === id)) || null;
+}
+
 /** The member list for a spec's enum, whichever way the catalogue spelled it. */
 export const valuesFor = (spec, store = null) =>
   (Array.isArray(spec && spec.values) && spec.values) ||

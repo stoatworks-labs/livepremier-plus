@@ -9,6 +9,31 @@ Cross-cutting notes that are not specific to this repo live in
 
 *LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, injecting a VPU map and a theatre cue stack into a real LivePremier Web RCS session in the vendor's own CSS; PRIVATE + pushed; verified through the proxy against the simulator; no panel ever driven live on hardware in a browser*
 
+## The Edit page on Midra 4K / Alta 4K — it had never worked there (2026-10-06)
+
+The page is offered wherever `layerProperties` is, which includes mng-platform, and it spoke
+LivePremier throughout. The source click was the visible failure (`source.inputNum` looked up in a
+catalogue that calls it `source.input`, so every click — None included — said "not one this layer
+accepts"), but it was the last of five:
+
+- **The programmer could not be seeded.** Its buffer path was `screenList/items/S1/…`; a Midra keys
+  the screen `1`. `seed()` read nothing and returned false, so From PGM, From PRW and Empty all
+  failed, and a source write landed under `1` where `has('S1')` never looked.
+- **Empty wrote size under `position` and an anchor** a Midra layer does not have.
+- **A drag-resize wrote only the position**: `position.sizeH` is `size.sizeH` there, so the size
+  write was dropped and the box moved instead of resizing.
+- ⚠️ **Save via preview snapshotted preview from the same wrong key**, so `before` was `{}` and the
+  restore wrote nothing — preview would have been left holding the experiment on a real Midra.
+- **Direct and Load were offered** although no mng bank has an import or export.
+
+The fix is in the dialect, not the page: `bufferPath(id, buffer)`, `layerParams` (anchor, posH,
+posV, sizeH, sizeV, opacity by meaning; `anchor: null` on mng) and `memoryFile`, read through
+`layerSpec()` in `core/properties.js`. The LivePremier paths are byte-for-byte what they were — a
+before/after capture of the programmer tree, the writes and the rendered page against the 6.2.73
+simulator slices diffed identical — and `test/edit.test.js` drives the page against the Pulse 4K
+fixture. **Not driven in a browser on a Midra**: the Midra simulator's web child was up on 3010 but
+its engine was not, so every request answered 404.
+
 ## Dante: our own routing control, and Dante Controller's preset files (2026-10-06)
 
 Built `plugins/dante/` — preview, off by default — as two halves, because Dante Controller has no

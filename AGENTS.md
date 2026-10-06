@@ -900,6 +900,15 @@ machinery therefore drive it with no changes to any of them. Reads inside the
 buffer are answered locally; everything else falls through to the live mirror,
 so the programmer is never stale about the desk it is programming.
 
+⚠️ **The page runs on Midra 4K and Alta 4K too, so it spells nothing.** A
+buffer is `dialect.bufferPath` (a Midra keys screen 1 as `1`, not `S1`), a
+property is `layerSpec(store, 'source' | 'sizeH' | …)` over the dialect's
+`sourceParam` and `layerParams`, and Direct / Load exist only where
+`dialect.memoryFile` says the bank has a file. Each of those was once written
+out by hand here, and on a Midra the programmer could not be seeded, a source
+click was refused, and a save via preview restored nothing.
+`test/edit.test.js` drives the page against the Pulse 4K fixture.
+
 **The memory bank has an export and an import, and the file is plain JSON.**
 This is the part nothing else in the ecosystem seems to know about: Web RCS
 6.2.73 exposes no memory import in its UI at all, and the protocol guide does

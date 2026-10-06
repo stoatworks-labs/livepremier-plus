@@ -59,9 +59,9 @@
  * it. `structuredClone` on the way in, every time.
  */
 
-import { ROOT } from './paths.js';
 import { dialectFor } from './dialect.js';
 import { listDestinations, presetBanks } from './screens.js';
+import { layerSpec, paramPath } from './properties.js';
 
 /** The buffer key the programmer answers to. Not a letter the device has. */
 export const EDIT = 'EDIT';
@@ -174,13 +174,17 @@ export function createProgrammer({ session, buffer = EDIT } = {}) {
   const store = new ProgrammerStore(session.store, buffer);
   const events = new EventTarget();
 
-  /** Where one destination's programmer buffer lives. */
+  /**
+   * Where one destination's programmer buffer lives — beside its real ones,
+   * spelled the way the platform spells them, so the paths the Layer panel
+   * writes through `core/properties.js` land inside it.
+   */
   function bufferPath(id) {
     const dialect = dialectFor(session.store);
     if (!dialect) return null;
     const dest = destination(id);
     if (!dest) return null;
-    return [ROOT, dest.listName, 'items', dest.id, 'presetList', 'items', buffer];
+    return dialect.bufferPath(dest.id, buffer);
   }
 
   function destination(id) {
@@ -222,7 +226,7 @@ export function createProgrammer({ session, buffer = EDIT } = {}) {
     if (!letter) return false;
     if ((from === 'PROGRAM' || from === 'PREVIEW') && !banks.reported) return false;
 
-    const source = session.store.get([ROOT, dest.listName, 'items', dest.id, 'presetList', 'items', letter]);
+    const source = session.store.get(dialectFor(session.store).bufferPath(dest.id, letter));
     if (!source || typeof source !== 'object') return false;
 
     setIn(store.own, target, dropReported(structuredClone(source)));
@@ -270,23 +274,31 @@ export function createProgrammer({ session, buffer = EDIT } = {}) {
    * left to drift out of step with the next firmware. Everything this does not
    * name keeps the device's own value, and the three it does name are the ones
    * that mean "nothing on this screen".
+   *
+   * They are named by meaning and spelled by the platform (`layerSpec`): the
+   * source is `inputNum` on LivePremier and `input` on Midra, size is under
+   * `position` on one and `size` on the other, and a Midra layer has no
+   * anchor to write — its position is always the centre, which is where this
+   * puts it on both.
    */
   function clear(id, { from = 'PREVIEW' } = {}) {
     if (!seed(id, from)) return false;
-    const base = bufferPath(id);
     const canvas = (destination(id) || {}).canvas || { width: 1920, height: 1080 };
-    const layers = layerKeys(id);
-    const listName = layerListName();
+    const empty = [
+      ['source', 'NONE'],
+      ['opacity', 256],
+      ['anchor', 'MIDDLE_CENTER'],
+      ['posH', Math.round(canvas.width / 2)],
+      ['posV', Math.round(canvas.height / 2)],
+      ['sizeH', canvas.width],
+      ['sizeV', canvas.height]
+    ];
 
-    for (const key of layers) {
-      const layer = [...base, listName, 'items', String(key)];
-      store.set([...layer, 'source', 'pp', 'inputNum'], 'NONE');
-      store.set([...layer, 'opacity', 'pp', 'opacity'], 256);
-      store.set([...layer, 'position', 'pp', 'anchor'], 'MIDDLE_CENTER');
-      store.set([...layer, 'position', 'pp', 'posH'], Math.round(canvas.width / 2));
-      store.set([...layer, 'position', 'pp', 'posV'], Math.round(canvas.height / 2));
-      store.set([...layer, 'position', 'pp', 'sizeH'], canvas.width);
-      store.set([...layer, 'position', 'pp', 'sizeV'], canvas.height);
+    for (const key of layerKeys(id)) {
+      for (const [name, value] of empty) {
+        const path = paramPath({ id, bank: buffer, layer: String(key) }, layerSpec(session.store, name), session.store);
+        if (path) store.set(path, value);
+      }
     }
     changed(id);
     return true;

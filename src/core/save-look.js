@@ -39,7 +39,6 @@
  * refuses a write. Guessing here would write a look onto the output.
  */
 
-import { ROOT } from './paths.js';
 import { dialectFor } from './dialect.js';
 import { listDestinations, presetBanks } from './screens.js';
 import { catalogueFor } from './properties.js';
@@ -62,7 +61,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export function composeMemory({ programmer, id, slot, label = '', duration = null }) {
   const store = programmer.store;
   const dialect = dialectFor(store);
-  if (!dialect) return null;
+  /* The file is the LivePremier bank's, and no Midra or Alta bank reads one. */
+  if (!dialect || !dialect.memoryFile) return null;
 
   const dest = listDestinations(store, { includeUnused: true }).find((d) => d.id === id);
   const look = programmer.look(id);
@@ -175,9 +175,11 @@ export async function saveViaPreview({
   const look = programmer.look(id);
   if (!dest || !look) return { ok: false, message: `${id}: nothing programmed` };
 
-  /* Everything preview is holding, before a single write. */
-  const previewPath = [ROOT, dest.listName, 'items', id, 'presetList', 'items', banks.preview];
-  const before = structuredClone(store.get(previewPath) || {});
+  /* Everything preview is holding, before a single write. ⚠️ Spelled by the
+     dialect: on a Midra the screen is keyed `1`, and a path spelled with `S1`
+     reads nothing — an empty `before`, so a restore that writes nothing and
+     leaves preview holding the experiment. */
+  const before = structuredClone(store.get(dialect.bufferPath(id, banks.preview)) || {});
 
   const writes = bufferWrites({ store, id, buffer: banks.preview, look });
   if (!writes.length) return { ok: false, message: `${id}: the look has nothing to write` };

@@ -389,6 +389,36 @@ export const NLC = {
   },
 
   /**
+   * One whole preset buffer of one destination — the node `layerList` hangs
+   * off. The destination's id is its store key here; on Midra it is not.
+   */
+  bufferPath(id, buffer) {
+    return [ROOT, this.listNameFor(id), 'items', id, 'presetList', 'items', buffer];
+  },
+
+  /**
+   * The catalogue ids of the layer properties written by what they mean
+   * rather than picked off the catalogue — a drag on the Edit page, an
+   * emptied programmer. `sourceParam` below is the same idea for the source.
+   * Position and size are one node here, and the position is the anchor's.
+   */
+  layerParams: {
+    anchor: 'position.anchor',
+    posH: 'position.posH',
+    posV: 'position.posV',
+    sizeH: 'position.sizeH',
+    sizeV: 'position.sizeV',
+    opacity: 'opacity.opacity'
+  },
+
+  /**
+   * Whether the screen bank has an import and an export — a memory as a file,
+   * written or read without a preset buffer. `presetBank/import` and
+   * `presetBank/export`; `core/preset-file.js` is the format.
+   */
+  memoryFile: true,
+
+  /**
    * Pitch compensation: the node under an output's `canvas` that holds the
    * ratios and their commit, and which screen an output belongs to. On
    * LivePremier both are on the output itself.
@@ -914,6 +944,32 @@ export const MNG = {
     if (!s || s.kind !== 'screen') return null;
     return [ROOT, s.list, 'items', s.key, 'presetList', 'items', buffer, 'liveLayerList', 'items', String(layer), ...tail];
   },
+
+  /**
+   * One whole preset buffer. ⚠️ Keyed `1`, not `S1`: a path spelled with the
+   * id finds nothing on this platform, and a programmer seeded from nothing
+   * is a programmer that never starts.
+   */
+  bufferPath(id, buffer) {
+    const s = this.split(id);
+    return s ? [ROOT, s.list, 'items', s.key, 'presetList', 'items', buffer] : null;
+  },
+
+  /**
+   * As on LivePremier, but size is a node of its own and there is no anchor:
+   * the position is always the layer's centre (see `layerGeometry`).
+   */
+  layerParams: {
+    anchor: null,
+    posH: 'position.posH',
+    posV: 'position.posV',
+    sizeH: 'size.sizeH',
+    sizeV: 'size.sizeV',
+    opacity: 'opacity.opacity'
+  },
+
+  /** No bank here has an import or an export; saving goes through preview. */
+  memoryFile: false,
 
   /**
    * The ratios live under `canvas/pitch` here (`canvas/cmd` on LivePremier),

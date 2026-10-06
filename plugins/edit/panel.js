@@ -25,7 +25,7 @@
  *
  * ## Dragging writes through the catalogue, not around it
  *
- * A drag is turned into `position.posH`/`posV`/`sizeH`/`sizeV` and sent through
+ * A drag is turned into `posH`/`posV`/`sizeH`/`sizeV` and sent through
  * `core/properties.js`'s `writeCmd`, the same path the Layer panel's fields
  * use. So the clamps are the device's own declared ranges rather than a second
  * set invented here, and a layer cannot be dragged somewhere a typed number
@@ -40,13 +40,23 @@
  * - **The stage is drawn in fractions of the canvas**, so a pointer delta in
  *   pixels has to be scaled by the canvas width over the stage's own width —
  *   which changes with the size chip and with the window.
+ *
+ * ## Nothing here spells a property
+ *
+ * The page is offered on Midra 4K and Alta 4K too, whose layers are spelled
+ * differently: the source is `input` rather than `inputNum`, size is a node of
+ * its own, and the layer list is `liveLayerList`. So every property is asked
+ * for by meaning (`layerSpec`) and addressed by `paramPath`, and the buffer by
+ * the dialect. A path written out by hand here once made every source click on
+ * a Midra end in "not one this layer accepts".
  */
 
 import { h, button, icon } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
 import { stage } from '../../src/ui/stage.js';
 import { listDestinations, listSources, readLayers, sourceLabel, topLeftToAnchor } from '../../src/core/screens.js';
-import { fittedLayers, writeCmd, catalogueFor } from '../../src/core/properties.js';
+import { fittedLayers, writeCmd, readValue, layerSpec } from '../../src/core/properties.js';
+import { dialectFor } from '../../src/core/dialect.js';
 import { layerLabel } from '../../src/core/layer-names.js';
 import { EDIT } from '../../src/core/programmer.js';
 
@@ -182,18 +192,16 @@ export function createEditPanel({
    * arithmetic because only it knows how wide the stage was drawn.
    */
   function geometry(id, layerKey, rect, anchor) {
-    const specs = catalogueFor(store()).layer;
-    const spec = (paramId) => specs.find((s) => s.id === paramId);
     const target = { id, bank: EDIT, layer: String(layerKey) };
     const { posH, posV } = topLeftToAnchor(anchor, rect.left, rect.top, rect.width, rect.height);
 
-    for (const [paramId, value] of [
-      ['position.sizeH', Math.round(rect.width)],
-      ['position.sizeV', Math.round(rect.height)],
-      ['position.posH', Math.round(posH)],
-      ['position.posV', Math.round(posV)]
+    for (const [name, value] of [
+      ['sizeH', Math.round(rect.width)],
+      ['sizeV', Math.round(rect.height)],
+      ['posH', Math.round(posH)],
+      ['posV', Math.round(posV)]
     ]) {
-      const cmd = writeCmd(target, spec(paramId), value, store());
+      const cmd = writeCmd(target, layerSpec(store(), name), value, store());
       if (cmd) programmer.send(cmd);
     }
   }
@@ -261,12 +269,16 @@ export function createEditPanel({
     return { left, top, width, height };
   }
 
+  /** A Midra layer has no anchor; its position is the centre, which this says. */
   function layerAnchor(dest, key) {
-    return store().get([
-      'device', dest.listName, 'items', dest.id, 'presetList', 'items', EDIT,
-      'layerList', 'items', String(key), 'position', 'pp', 'anchor'
-    ]) || 'MIDDLE_CENTER';
+    const dialect = dialectFor(store());
+    const geo = dialect && dialect.layerGeometry(store(), dest, EDIT, key);
+    return (geo && geo.anchor) || 'MIDDLE_CENTER';
   }
+
+  /** What one EDIT layer is showing, in the platform's own values. */
+  const sourceOf = (id, layer) =>
+    readValue(store(), { id, bank: EDIT, layer: String(layer) }, layerSpec(store(), 'source'));
 
   /* --------------------------------------------------------------- source */
 
@@ -276,8 +288,7 @@ export function createEditPanel({
     if (!dest || layer == null) { note('warn', 'pick a layer first'); return; }
     if (!programmer.has(dest)) seed(dest, 'PREVIEW');
 
-    const spec = catalogueFor(store()).layer.find((s) => s.id === 'source.inputNum');
-    const cmd = writeCmd({ id: dest, bank: EDIT, layer: String(layer) }, spec, value, store());
+    const cmd = writeCmd({ id: dest, bank: EDIT, layer: String(layer) }, layerSpec(store(), 'source'), value, store());
     if (!cmd) { note('err', 'that source is not one this layer accepts'); return; }
     programmer.send(cmd);
     note('ok', `${dest} ${layerLabel(names(), dest, layer, { short: true })} = ${sourceLabel(value, store()) || 'none'}`);
@@ -472,10 +483,7 @@ export function createEditPanel({
     if (!layers.length) return null;
 
     return h('div', { class: 'lpp-layer-strip' }, layers.map((l) => {
-      const source = store().get([
-        'device', dest.listName, 'items', dest.id, 'presetList', 'items', EDIT,
-        'layerList', 'items', String(l.key), 'source', 'pp', 'inputNum'
-      ]);
+      const source = sourceOf(dest.id, l.key);
       const on = selDest === dest.id && String(selLayer) === String(l.key);
       return h('button', {
         class: ['lpp-layer-row', on ? 'lpp-layer-row--on' : ''],
@@ -495,13 +503,7 @@ export function createEditPanel({
   function sourcesColumn() {
     const sources = listSources(store());
     const { dest, layer } = selected();
-    const current = dest && layer != null
-      ? store().get([
-        'device', (offered().find((d) => d.id === dest) || {}).listName || 'screenList',
-        'items', dest, 'presetList', 'items', EDIT,
-        'layerList', 'items', String(layer), 'source', 'pp', 'inputNum'
-      ])
-      : null;
+    const current = dest && layer != null ? sourceOf(dest, layer) : null;
 
     return h('div', { class: 'lpp-edit-sources' },
       h('div', { class: 'aw-font-overline aw-text-tertiary lpp-rail-title', text: 'Sources' }),
@@ -575,11 +577,24 @@ export function createEditPanel({
     }
   ];
 
+  /**
+   * The routes this switcher's bank allows. A Midra or Alta bank has no
+   * import, so Direct is not offered there rather than offered and failed —
+   * and with it goes reading a memory back, which is the same file the other
+   * way.
+   */
+  const memoryFile = () => !!(dialectFor(store()) || {}).memoryFile;
+  const routes = () => ROUTES.filter((r) => r.id !== 'direct' || memoryFile());
+  const routeOf = () => {
+    const offeredRoutes = routes();
+    return (offeredRoutes.find((r) => r.id === view.saving?.route) || offeredRoutes[0]).id;
+  };
+
   function memoryRail() {
     const { dest } = selected();
     const slot = view.saving?.slot ?? '';
     const label = view.saving?.label ?? '';
-    const route = view.saving?.route || 'direct';
+    const route = routeOf();
 
     if (!dest || !programmer.has(dest)) {
       return h('div', { class: 'lpp-rail-body' },
@@ -605,20 +620,20 @@ export function createEditPanel({
       h('div', { class: 'aw-flex-col aw-gap-row-mini' },
         h('span', { class: 'aw-font-overline aw-text-tertiary', text: 'Route' }),
         h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
-          ROUTES.map((r) => chip(r.label, route === r.id, () => {
+          routes().map((r) => chip(r.label, route === r.id, () => {
             view.saving = { ...(view.saving || {}), route: r.id };
             onRefresh();
           })))),
       h('div', {
         class: 'aw-font-caption aw-text-tertiary',
-        text: (ROUTES.find((r) => r.id === route) || ROUTES[0]).what
+        text: ROUTES.find((r) => r.id === route).what
       }),
       button(view.busySave ? 'Saving…' : 'Save to memory', {
         iconId: 'shotbox-18',
         disabled: view.busySave || !onSave,
         onClick: () => saveMemory(dest)
       }),
-      onLoad
+      onLoad && memoryFile()
         ? h('div', { class: 'aw-flex-col aw-gap-row-mini' },
           h('span', { class: 'aw-font-overline aw-text-tertiary', text: 'Load into the programmer' }),
           h('div', {
@@ -642,7 +657,7 @@ export function createEditPanel({
     note('ok', `saving ${dest} into memory ${slot}…`);
     try {
       const result = await onSave({
-        id: dest, slot, label: view.saving?.label || '', route: view.saving?.route || 'direct'
+        id: dest, slot, label: view.saving?.label || '', route: routeOf()
       });
       note(result && result.ok ? 'ok' : 'err', (result && result.message) || `memory ${slot} saved`);
     } catch (err) {
