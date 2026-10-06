@@ -30,7 +30,7 @@ export default function activate(ctx) {
     id: 'dante',
     label: 'Dante',
     icon: ['dante-ideogramme-18', 'audio-18', 'audio-line-18'],
-    order: 57,
+    order: 58,
     render: () => dante.render()
   });
 

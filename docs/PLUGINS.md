@@ -142,7 +142,7 @@ anything that needs the screen list to set itself up waits for the event — Sen
 its menu has nothing to offer without one.
 
 **`order`** places an entry among the app's own, which are numbered in tens: in PLUS, Edit 10, VPU Map
-20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix Routing 50, Audio Matrix 55, Variables 57 — and Companion asks for 60. On the strip,
+20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix Routing 50, Audio Matrix 55, Variables 57, Dante 58 — and Companion asks for 60. On the strip,
 Console 10, Timeline 20, Layer 30, Groups 40.
 
 **`busy()`** holds every repaint off while it returns true — for a panel with a text field that
@@ -238,7 +238,8 @@ The rules, each one there to stop a plugin quietly taking something over:
 
 - **No two plugins share a kind or overlap an address space.** A second is refused, naming the first.
 - **`/lp/…` is the switcher's address space.** Only a built-in may answer under it — Matrix Routing's
-  `/lp/matrix/` predates the rule — so no plugin can take `/lp/screen/…` away from the switcher.
+  `/lp/matrix/` predates the rule, and Dante's `/lp/dante/` is a built-in's too — so no plugin can
+  take `/lp/screen/…` away from the switcher.
 - **Each half has its own points.** A `cueAction` made from a server half is refused, and so is an
   `oscAddress` made from a page half, each saying which file it belongs in.
 - **Switching a plugin off takes its contributions with it**, the same moment its routes go.
