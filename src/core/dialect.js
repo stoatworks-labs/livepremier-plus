@@ -82,6 +82,9 @@ import mngCatalogue from '../vendor/surface/catalogue-mng.json' with { type: 'js
 
 const pp = (node) => (node && typeof node === 'object' ? node.pp : null) || {};
 const num = (v) => (typeof v === 'number' ? v : null);
+const text = (v) => (typeof v === 'string' ? v : null);
+/** A rate in Hz from the store's own number, which is thousandths on nlc. */
+const perSecond = (v, scale) => (typeof v === 'number' ? v / scale : null);
 
 /** `S1` -> `{kind:'screen', n:'1'}`; `A2` -> `{kind:'aux', n:'2'}`. */
 export function parseId(id) {
@@ -486,8 +489,123 @@ export const NLC = {
       });
     }
     return out;
-  }
+  },
+
+  /*
+   * The readouts below — what an input is receiving, what an output drives,
+   * which stills are loaded, what a timer says — are for anything that wants
+   * to *read* a fact, the Variables plugin's `$IN3.rate` first. They write
+   * nothing and build no path anyone writes to. Rates come back in Hz on both
+   * platforms; the store does not agree with itself about that (below).
+   */
+
+  /**
+   * The fitted inputs and the format each is receiving.
+   *
+   * Gated on `mapping/pp/isValid`, the same gate as `sources()` and
+   * `core/connectors.js`. The signal is the active plug's —
+   * `status/pp/plug` names it — under `plugList/items/<plug>/status/signal`.
+   * ⚠️ `fieldFrequency` is in **thousandths** here: `60000` beside a
+   * `formatName` of `HDTV 1080p 60Hz` on the 6.2.73 simulator. Midra says
+   * `60` for the same thing.
+   */
+  inputFormats(store) {
+    const list = store.get([ROOT, 'inputList']);
+    const out = [];
+    for (const key of keysOf(list)) {
+      const node = list.items[key];
+      if (!pp(node && node.mapping).isValid) continue;
+      const m = /^IN_(\d+)$/.exec(key);
+      if (!m) continue;
+      const plug = String(pp(node.status).plug || pp(node.control).plug || '1');
+      const signal = pp(node.plugList && node.plugList.items && node.plugList.items[plug] &&
+        node.plugList.items[plug].status && node.plugList.items[plug].status.signal);
+      out.push({
+        n: Number(m[1]), key, plug,
+        label: text(pp(node.control).label),
+        valid: signal.isValid === true,
+        width: num(signal.formatWidth),
+        height: num(signal.formatHeight),
+        rate: perSecond(signal.fieldFrequency, 1000),
+        format: text(signal.formatName)
+      });
+    }
+    return out;
+  },
+
+  /**
+   * The fitted outputs: the raster each drives, where it sits on its screen's
+   * canvas, and which screen that is. The raster is `status/pp/sizeH|V`; the
+   * footprint is the canvas's `pitchedWidth|Height` — `core/pitch.js` says why
+   * the two pairs must never be confused. `rate` is thousandths, as above.
+   */
+  outputFormats(store) {
+    const list = store.get([ROOT, 'outputList']);
+    const out = [];
+    for (const key of keysOf(list)) {
+      const node = list.items[key];
+      if (!pp(node && node.mapping).isValid) continue;
+      const m = /^(?:OUT_)?(\d+)$/.exec(key);
+      if (!m) continue;
+      const status = pp(node.status);
+      const canvas = pp(node.canvas && node.canvas.status);
+      out.push({
+        n: Number(m[1]), key,
+        label: text(pp(node.control).label),
+        width: num(status.sizeH), height: num(status.sizeV),
+        rate: perSecond(status.rate, 1000),
+        x: num(canvas.left), y: num(canvas.top),
+        cw: num(canvas.pitchedWidth), ch: num(canvas.pitchedHeight),
+        screen: NLC.pitch.screenOf(store, key)
+      });
+    }
+    return out;
+  },
+
+  /** The still slots that hold a picture, and its size. */
+  stills(store) {
+    const list = store.get([ROOT, 'stillList']);
+    const out = [];
+    for (const key of keysOf(list)) {
+      const status = pp(list.items[key] && list.items[key].status);
+      if (!status.isValid) continue;
+      out.push({
+        n: Number(key), key,
+        label: text(pp(list.items[key].control).label),
+        width: num(status.formatWidth), height: num(status.formatHeight)
+      });
+    }
+    return out;
+  },
+
+  /**
+   * The timers. `value` is the device's own number, passed through: on the
+   * 6.2.73 simulator a time-of-day clock read 4222087 at 01:10:22, which is
+   * milliseconds since midnight — one observation, so it is not converted.
+   */
+  timers: (store) => readTimers(store)
 };
+
+/** Timers are spelled the same on both platforms; mng publishes no value. */
+function readTimers(store) {
+  const list = store.get([ROOT, 'timerList']);
+  const out = [];
+  for (const key of keysOf(list)) {
+    const m = /^TIMER_(\d+)$/.exec(key);
+    if (!m) continue;
+    const node = list.items[key];
+    const control = pp(node && node.control);
+    const status = pp(node && node.status);
+    out.push({
+      n: Number(m[1]), key,
+      label: text(control.label),
+      type: text(control.type),
+      state: text(status.state),
+      value: num(status.value)
+    });
+  }
+  return out;
+}
 
 /* ================================================================== mng */
 
@@ -872,7 +990,90 @@ export const MNG = {
       });
     }
     return out;
-  }
+  },
+
+  /**
+   * The inputs and the format each is receiving — the readout nlc's
+   * `inputFormats` gives, read off the Midra 4K simulator (3.2.29).
+   *
+   * Three differences, each from that store: the keys are `INPUT_<n>`; there
+   * is **no `mapping`** to say an input is fitted, so `status/pp/isAvailable`
+   * is the gate; and the label is on the **plug**, `plugList/items/<plug>/
+   * control/pp/label`, not on the input. `fieldFrequency` is plain Hz here.
+   */
+  inputFormats(store) {
+    const list = store.get([ROOT, 'inputList']);
+    const out = [];
+    for (const key of keysOf(list)) {
+      const node = list.items[key];
+      const status = pp(node && node.status);
+      if (status.isAvailable === false) continue;
+      const m = /^(?:INPUT_|IN_)?(\d+)$/.exec(key);
+      if (!m) continue;
+      const plug = String(status.plug || pp(node.control).plug || '1');
+      const plugNode = node.plugList && node.plugList.items && node.plugList.items[plug];
+      const signal = pp(plugNode && plugNode.status && plugNode.status.signal);
+      out.push({
+        n: Number(m[1]), key, plug,
+        label: text(pp(plugNode && plugNode.control).label) ?? text(pp(node.control).label),
+        valid: signal.isValid === true,
+        width: num(signal.formatWidth),
+        height: num(signal.formatHeight),
+        rate: perSecond(signal.fieldFrequency, 1),
+        format: text(signal.formatName)
+      });
+    }
+    return out;
+  },
+
+  /**
+   * The outputs, as nlc's, with no `mapping` (gated on `isAvailable`), a
+   * multiviewer output keyed `MTVW` that is not a numbered output, `rate` in
+   * plain Hz, and the screen from the applied preconfig (`pitch.screenOf`).
+   */
+  outputFormats(store) {
+    const list = store.get([ROOT, 'outputList']);
+    const out = [];
+    for (const key of keysOf(list)) {
+      const node = list.items[key];
+      const status = pp(node && node.status);
+      if (status.isAvailable === false) continue;
+      if (!/^\d+$/.test(key)) continue;
+      const canvas = pp(node.canvas && node.canvas.status);
+      out.push({
+        n: Number(key), key,
+        label: text(pp(node.control).label),
+        width: num(status.sizeH), height: num(status.sizeV),
+        rate: perSecond(status.rate, 1),
+        x: num(canvas.left), y: num(canvas.top),
+        cw: num(canvas.pitchedWidth), ch: num(canvas.pitchedHeight),
+        screen: MNG.pitch.screenOf(store, key)
+      });
+    }
+    return out;
+  },
+
+  /**
+   * The still library's loaded slots. Not layer sources on this platform
+   * (see `sourceFromSnapshot`), but a picture with a size all the same.
+   */
+  stills(store) {
+    const list = store.get([ROOT, 'stillLibrary', 'bankList']);
+    const out = [];
+    for (const key of keysOf(list)) {
+      const status = pp(list.items[key] && list.items[key].status);
+      if (!status.isValid) continue;
+      out.push({
+        n: Number(key), key,
+        label: text(pp(list.items[key].control).label),
+        width: num(status.width), height: num(status.height)
+      });
+    }
+    return out;
+  },
+
+  /** As nlc's; a Midra publishes a timer's state and no value. */
+  timers: (store) => readTimers(store)
 };
 
 export const DIALECTS = [NLC, MNG];

@@ -1,0 +1,504 @@
+{
+ "device": {
+  "inputList": {
+   "items": {
+    "IN_1": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "0",
+       "slot": 0,
+       "physical": "IN_1",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": "",
+       "plug": "1",
+       "black": false,
+       "freeze": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "isEnabled": true,
+       "global": "USED",
+       "scope": "LOCAL",
+       "capability": "DUAL",
+       "group": "1X1",
+       "plug": "1",
+       "isOnProgram": false,
+       "isOnPreview": false,
+       "hdcp": "INACTIVE"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "signal": {
+          "pp": {
+           "isValid": true,
+           "outOfCapability": false,
+           "groupFormatMismatch": false,
+           "currentFormat": "HDTV_1080P",
+           "formatName": "HDTV 1080p 60Hz",
+           "formatKind": "HDTV",
+           "scanType": "PROGRESSIVE",
+           "signalWidth": 2200,
+           "signalHeight": 1125,
+           "formatWidth": 1920,
+           "formatHeight": 1080,
+           "aspectWidth": 1920,
+           "aspectHeight": 1080,
+           "imageWidth": 1920,
+           "imageHeight": 1080,
+           "imagePlugLeft": 0,
+           "imagePlugTop": 0,
+           "imagePlugWidth": 1920,
+           "imagePlugHeight": 1080,
+           "fieldFrequency": 60000,
+           "lineFrequency": 67500,
+           "syncPolH": true,
+           "syncPolV": true,
+           "syncSizeH": 44,
+           "syncSizeV": 5,
+           "hasAvi": false,
+           "colorDepth": "24_BITS",
+           "colorSpace": "YUV_ITU709_444",
+           "isHdcp": "2X",
+           "sdiStandard": "SD_SDI",
+           "dpLinkCount": "1_LANE",
+           "dpLinkRate": "RBR",
+           "slot": 0
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_2": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "0",
+       "slot": 1,
+       "physical": "IN_2",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": "",
+       "plug": "1",
+       "black": false,
+       "freeze": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "isEnabled": true,
+       "global": "USED",
+       "scope": "LOCAL",
+       "capability": "DUAL",
+       "group": "1X1",
+       "plug": "1",
+       "isOnProgram": false,
+       "isOnPreview": false,
+       "hdcp": "INACTIVE"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "signal": {
+          "pp": {
+           "isValid": true,
+           "outOfCapability": false,
+           "groupFormatMismatch": false,
+           "currentFormat": "HDTV_1080P",
+           "formatName": "HDTV 1080p 60Hz",
+           "formatKind": "HDTV",
+           "scanType": "PROGRESSIVE",
+           "signalWidth": 2200,
+           "signalHeight": 1125,
+           "formatWidth": 1920,
+           "formatHeight": 1080,
+           "aspectWidth": 1920,
+           "aspectHeight": 1080,
+           "imageWidth": 1920,
+           "imageHeight": 1080,
+           "imagePlugLeft": 0,
+           "imagePlugTop": 0,
+           "imagePlugWidth": 1920,
+           "imagePlugHeight": 1080,
+           "fieldFrequency": 60000,
+           "lineFrequency": 67500,
+           "syncPolH": true,
+           "syncPolV": true,
+           "syncSizeH": 44,
+           "syncSizeV": 5,
+           "hasAvi": false,
+           "colorDepth": "24_BITS",
+           "colorSpace": "YUV_ITU709_444",
+           "isHdcp": "2X",
+           "sdiStandard": "SD_SDI",
+           "dpLinkCount": "1_LANE",
+           "dpLinkRate": "RBR",
+           "slot": 0
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_3": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "0",
+       "slot": 2,
+       "physical": "IN_3",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": "",
+       "plug": "1",
+       "black": false,
+       "freeze": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "isEnabled": true,
+       "global": "USED",
+       "scope": "LOCAL",
+       "capability": "DUAL",
+       "group": "1X1",
+       "plug": "1",
+       "isOnProgram": true,
+       "isOnPreview": true,
+       "hdcp": "INACTIVE"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "signal": {
+          "pp": {
+           "isValid": true,
+           "outOfCapability": false,
+           "groupFormatMismatch": false,
+           "currentFormat": "HDTV_1080P",
+           "formatName": "HDTV 1080p 60Hz",
+           "formatKind": "HDTV",
+           "scanType": "PROGRESSIVE",
+           "signalWidth": 2200,
+           "signalHeight": 1125,
+           "formatWidth": 1920,
+           "formatHeight": 1080,
+           "aspectWidth": 1920,
+           "aspectHeight": 1080,
+           "imageWidth": 1920,
+           "imageHeight": 1080,
+           "imagePlugLeft": 0,
+           "imagePlugTop": 0,
+           "imagePlugWidth": 1920,
+           "imagePlugHeight": 1080,
+           "fieldFrequency": 60000,
+           "lineFrequency": 67500,
+           "syncPolH": true,
+           "syncPolV": true,
+           "syncSizeH": 44,
+           "syncSizeV": 5,
+           "hasAvi": false,
+           "colorDepth": "24_BITS",
+           "colorSpace": "YUV_ITU709_444",
+           "isHdcp": "2X",
+           "sdiStandard": "SD_SDI",
+           "dpLinkCount": "1_LANE",
+           "dpLinkRate": "RBR",
+           "slot": 0
+          }
+         }
+        }
+       }
+      }
+     }
+    },
+    "IN_4": {
+     "mapping": {
+      "pp": {
+       "device": "1",
+       "card": "IN_1",
+       "frontend": "0",
+       "slot": 3,
+       "physical": "IN_4",
+       "isValid": true
+      }
+     },
+     "control": {
+      "pp": {
+       "label": "",
+       "plug": "1",
+       "black": false,
+       "freeze": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "isEnabled": true,
+       "global": "USED",
+       "scope": "LOCAL",
+       "capability": "DUAL",
+       "group": "1X1",
+       "plug": "1",
+       "isOnProgram": false,
+       "isOnPreview": false,
+       "hdcp": "INACTIVE"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "status": {
+         "signal": {
+          "pp": {
+           "isValid": true,
+           "outOfCapability": false,
+           "groupFormatMismatch": false,
+           "currentFormat": "HDTV_1080P",
+           "formatName": "HDTV 1080p 60Hz",
+           "formatKind": "HDTV",
+           "scanType": "PROGRESSIVE",
+           "signalWidth": 2200,
+           "signalHeight": 1125,
+           "formatWidth": 1920,
+           "formatHeight": 1080,
+           "aspectWidth": 1920,
+           "aspectHeight": 1080,
+           "imageWidth": 1920,
+           "imageHeight": 1080,
+           "imagePlugLeft": 0,
+           "imagePlugTop": 0,
+           "imagePlugWidth": 1920,
+           "imagePlugHeight": 1080,
+           "fieldFrequency": 60000,
+           "lineFrequency": 67500,
+           "syncPolH": true,
+           "syncPolV": true,
+           "syncSizeH": 44,
+           "syncSizeV": 5,
+           "hasAvi": false,
+           "colorDepth": "24_BITS",
+           "colorSpace": "YUV_ITU709_444",
+           "isHdcp": "2X",
+           "sdiStandard": "SD_SDI",
+           "dpLinkCount": "1_LANE",
+           "dpLinkRate": "RBR",
+           "slot": 0
+          }
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "itemKeys": [
+    "IN_1",
+    "IN_2",
+    "IN_3",
+    "IN_4"
+   ]
+  },
+  "timerList": {
+   "items": {
+    "TIMER_1": {
+     "control": {
+      "pp": {
+       "type": "CURRENTTIME",
+       "label": "",
+       "currentTimeMode": "24H",
+       "unitMode": "IN_HOURS",
+       "timeOffset": 0,
+       "countdownDuration": 0,
+       "xStart": false,
+       "xPause": false,
+       "xStop": false
+      },
+      "text": {
+       "color": {
+        "pp": {
+         "red": 255,
+         "green": 255,
+         "blue": 255,
+         "alpha": 255
+        }
+       }
+      },
+      "background": {
+       "color": {
+        "pp": {
+         "red": 89,
+         "green": 89,
+         "blue": 89,
+         "alpha": 255
+        }
+       }
+      }
+     },
+     "status": {
+      "pp": {
+       "state": "IDLE",
+       "value": 4222087
+      }
+     }
+    },
+    "TIMER_2": {
+     "control": {
+      "pp": {
+       "type": "CURRENTTIME",
+       "label": "",
+       "currentTimeMode": "24H",
+       "unitMode": "IN_HOURS",
+       "timeOffset": 0,
+       "countdownDuration": 0,
+       "xStart": false,
+       "xPause": false,
+       "xStop": false
+      },
+      "text": {
+       "color": {
+        "pp": {
+         "red": 255,
+         "green": 255,
+         "blue": 255,
+         "alpha": 255
+        }
+       }
+      },
+      "background": {
+       "color": {
+        "pp": {
+         "red": 89,
+         "green": 89,
+         "blue": 89,
+         "alpha": 255
+        }
+       }
+      }
+     },
+     "status": {
+      "pp": {
+       "state": "IDLE",
+       "value": 4222087
+      }
+     }
+    },
+    "TIMER_3": {
+     "control": {
+      "pp": {
+       "type": "CURRENTTIME",
+       "label": "",
+       "currentTimeMode": "24H",
+       "unitMode": "IN_HOURS",
+       "timeOffset": 0,
+       "countdownDuration": 0,
+       "xStart": false,
+       "xPause": false,
+       "xStop": false
+      },
+      "text": {
+       "color": {
+        "pp": {
+         "red": 255,
+         "green": 255,
+         "blue": 255,
+         "alpha": 255
+        }
+       }
+      },
+      "background": {
+       "color": {
+        "pp": {
+         "red": 89,
+         "green": 89,
+         "blue": 89,
+         "alpha": 255
+        }
+       }
+      }
+     },
+     "status": {
+      "pp": {
+       "state": "IDLE",
+       "value": 4222087
+      }
+     }
+    },
+    "TIMER_4": {
+     "control": {
+      "pp": {
+       "type": "CURRENTTIME",
+       "label": "",
+       "currentTimeMode": "24H",
+       "unitMode": "IN_HOURS",
+       "timeOffset": 0,
+       "countdownDuration": 0,
+       "xStart": false,
+       "xPause": false,
+       "xStop": false
+      },
+      "text": {
+       "color": {
+        "pp": {
+         "red": 255,
+         "green": 255,
+         "blue": 255,
+         "alpha": 255
+        }
+       }
+      },
+      "background": {
+       "color": {
+        "pp": {
+         "red": 89,
+         "green": 89,
+         "blue": 89,
+         "alpha": 255
+        }
+       }
+      }
+     },
+     "status": {
+      "pp": {
+       "state": "IDLE",
+       "value": 4222087
+      }
+     }
+    }
+   },
+   "itemKeys": [
+    "TIMER_1",
+    "TIMER_2",
+    "TIMER_3",
+    "TIMER_4"
+   ]
+  }
+ }
+}
