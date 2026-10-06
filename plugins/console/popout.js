@@ -24,6 +24,7 @@ import { bootPopout } from '../../src/ui/popout.js';
 import { createConsolePanel } from './panel.js';
 import { createPreviewWall } from './preview.js';
 import { createSyntaxPanel, createMacroPanel } from './syntax-panel.js';
+import { createVariablesShelf } from './variables-shelf.js';
 
 /**
  * Build the console popout into `doc`, driving the opener's session.
@@ -36,6 +37,11 @@ export function mountConsolePopout({ doc = document, opener = window.opener } = 
 
 function buildConsole(doc, bridge) {
   const { session } = bridge;
+  /* The Variables plugin's service, through the opener's plugins — asked per
+     use, so switching it off in the main tab reaches this window too. */
+  const variables = () => {
+    try { return bridge.plugins && bridge.plugins.use ? bridge.plugins.use('variables') : null; } catch { return null; }
+  };
 
   /* No Pop out button in here — this is where it pops out to. */
   /* Preview lock lives in the Web RCS tab; a line typed here asks it the same way. */
@@ -43,13 +49,19 @@ function buildConsole(doc, bridge) {
     const lock = bridge.services && bridge.services.use ? bridge.services.use('preview-lock') : null;
     return lock ? lock.holdWrites(cmds) : null;
   };
-  const consolePanel = createConsolePanel({ session, onRefresh: () => paintConsole(), popoutEnabled: false, hold });
+  const consolePanel = createConsolePanel({ session, onRefresh: () => paintConsole(), popoutEnabled: false, variables, hold });
   const wall = createPreviewWall({ session, onRefresh: () => paintWall(), doc });
   const syntax = createSyntaxPanel();
   const macros = createMacroPanel();
+  const shelf = createVariablesShelf({
+    variables,
+    onPick: (name) => consolePanel.insert(name),
+    onRefresh: () => repaint(sideBody, () => shelf.render())
+  });
 
   const tabs = [
     { id: 'syntax', label: 'Syntax', panel: syntax },
+    { id: 'variables', label: 'Variables', panel: shelf },
     { id: 'macros', label: 'Macros', panel: macros }
   ];
   let activeTab = 'syntax';
@@ -119,7 +131,12 @@ function buildConsole(doc, bridge) {
   const onFrame = () => {
     if (queued) return;
     queued = true;
-    (doc.defaultView || window).requestAnimationFrame(() => { queued = false; paintWall(); });
+    (doc.defaultView || window).requestAnimationFrame(() => {
+      queued = false;
+      paintWall();
+      /* The variables read live, so their tab follows the switcher too. */
+      if (activeTab === 'variables') repaint(sideBody, () => shelf.render());
+    });
   };
   session.addEventListener('frame', onFrame);
   session.addEventListener('state', onFrame);

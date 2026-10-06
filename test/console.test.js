@@ -148,3 +148,74 @@ test('with Preview lock holding, a recall whose take never lands is not sent', a
   assert.equal(panel.state.log[0].kind, 'error');
   assert.match(panel.state.log[0].detail, /not sent — S1 still mid-take/);
 });
+
+/* ------------------------------------------------------------- variables */
+
+/*
+ * The Console hands mynah the Variables plugin's resolver, asked per run.
+ * Built here from the plugin's own service over the Midra capture's store,
+ * which is what `ctx.use('variables')` answers in the page.
+ */
+async function consoleWithVariables(store, definitions = []) {
+  const { createVariables } = await import('../plugins/variables/service.js');
+  const variables = createVariables({ store: () => store, load: async () => ({ variables: definitions }), save: async () => {} });
+  await variables.start();
+  const sent = [];
+  const session = { store, state: 'live', send: (msg) => { sent.push(msg); return true; } };
+  const panel = createConsolePanel({ session, onRefresh: () => {}, popoutEnabled: false, variables: () => variables.service });
+  const type = (line) => { panel.state.line = line; panel.execute(); return panel.state.log[0]; };
+  return { sent, type, panel };
+}
+
+test('a line with variables resolves against the store at Enter, and sends numbers', async () => {
+  const { sent, type } = await consoleWithVariables(hydrated('midra-3.2.29-variables.json'), [{ name: 'gap', value: '40' }]);
+  const row = type('Set Screen 2 Layer 1 Size ($S2.width / 2) $S2.height Position (@gap * 3) 540');
+  assert.equal(row.kind, 'ok', row.detail);
+  assert.deepEqual(sent.map((m) => m.value), [512, 640, 120, 540]);
+  /* S2 is 1024×640 in the capture; preview is UP there (AT_DOWN). */
+  assert.match(path(sent[0]), /screenList\/items\/2\/presetList\/items\/UP\/liveLayerList\/items\/1\/size\/pp\/sizeH$/);
+});
+
+test('an OSC argument typed at the Console resolves $ names, because the page has the store', async () => {
+  const { sent, type } = await consoleWithVariables(hydrated('midra-3.2.29-variables.json'));
+  const row = type('/lp/screen/2/preset/up/layer/1/position/posH "$S2.width / 4"');
+  assert.equal(row.kind, 'ok', row.detail);
+  assert.equal(sent[0].value, 256);
+});
+
+test('the preview names what each variable reads, and does not nag one still being typed', async () => {
+  const { panel } = await consoleWithVariables(hydrated('midra-3.2.29-variables.json'), [{ name: 'gap', value: '40' }]);
+  panel.preview('Set Screen 1 Layer 1 Size $S1.width @gap');
+  assert.deepEqual(panel.state.vars.map((v) => [v.text, v.answer.ok ? v.answer.value : v.answer.error]),
+    [['$S1.width', 1920], ['@gap', 40]]);
+  panel.preview('Set Screen 1 Layer 1 Size $S1.wid');
+  assert.deepEqual(panel.state.vars, [], 'half a name at the end is still being typed');
+  panel.preview('Set Screen 1 Layer 1 Size $S1.wid 100');
+  assert.match(panel.state.vars[0].answer.error, /unknown/);
+  /* An AWJ path is full of $ and @ that are not variables. */
+  panel.preview('AWJ DeviceObject/$screenAuxGroup/@items/S1/control/@props/xTake = true');
+  assert.deepEqual(panel.state.vars, []);
+  /* Nor is a quoted label. */
+  panel.preview('Label Screen 1 Memory 5 "@home"');
+  assert.deepEqual(panel.state.vars, []);
+});
+
+test('mid-take, a role variable stops the line rather than landing in the wrong buffer', async () => {
+  const store = hydrated('midra-3.2.29-variables.json');
+  store.set(['device', 'transition', 'screenList', 'items', '1', 'status', 'pp', 'transition'], 'EFFECT_FROM_DOWN');
+  const { sent, type } = await consoleWithVariables(store);
+  const row = type('Set Screen 1 Layer 2 Position $S1.PGM.L1.x 540');
+  assert.equal(row.kind, 'error');
+  assert.match(row.detail, /S1 is mid-take/);
+  assert.equal(sent.length, 0);
+});
+
+test('with the Variables plugin off, a variable is refused saying so', () => {
+  const { sent, type } = consoleOver(hydrated('midra-3.2.29-pulse4k.json'));
+  const row = type('Recall Screen 1 Memory @opener');
+  assert.equal(row.kind, 'error');
+  assert.match(row.detail, /Variables plugin is switched off/);
+  assert.equal(sent.length, 0);
+  /* And a line without one is untouched by any of this. */
+  assert.equal(type('Take Screen 1').kind, 'ok');
+});

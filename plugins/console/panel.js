@@ -55,6 +55,20 @@
  * The line parses as you type, purely for feedback. Compilation and sending
  * happen on Enter and nowhere else, because a half-typed `Take Screen 1` is a
  * prefix of a command that puts something on air.
+ *
+ * ## Variables
+ *
+ * `$S1.width` and `@gap` stand wherever a number goes in Mynah and in an OSC
+ * argument — the grammar is mynah's, the values are the Variables plugin's.
+ * The panel asks the `variables` service for a fresh resolver on every run
+ * and hands it to mynah as `vars`, so a line is resolved against the store as
+ * it is at Enter, not as it was when the panel opened. The preview names what
+ * each variable on the line reads right now, beside the summary, so an
+ * operator sees `$S1.width = 1920` before they commit to it.
+ *
+ * With the plugin off nobody provides the service, and a line with a variable
+ * in it is refused saying so — not with mynah's general "needs a host", which
+ * would send someone looking for a host.
  */
 
 import { h, button, icon, isEnter } from '../../src/ui/dom.js';
@@ -62,6 +76,7 @@ import { panel } from '../../src/ui/shell.js';
 import {
   run, declared, sniff, completions, shortestForm, KEYWORDS, LANGUAGE_LABELS
 } from '../../src/vendor/mynah-lang.mjs';
+import { variablesIn } from '../../src/core/expr.js';
 import { PARAMS, paramsFor, mynahPlatform } from '../../src/core/osc-dictionary.js';
 import { presetBanks, listDestinations } from '../../src/core/screens.js';
 import { dialectFor } from '../../src/core/dialect.js';
@@ -75,13 +90,31 @@ const POPOUT = new URL('./popout.html', import.meta.url).href;
 const HISTORY_MAX = 100;
 const LOG_MAX = 200;
 
+/** What a variable resolves to when the Variables plugin is not running. */
+const VARIABLES_OFF = {
+  resolve: () => ({ ok: false, error: 'the Variables plugin is switched off — Preconfig ▸ LivePremier Plus → Plugins' })
+};
+
+/**
+ * The variables a line names, where they can be variables at all: in a Mynah
+ * line outside its quoted labels, and in an OSC line's arguments. Never in AWJ
+ * or JSON, whose paths are full of `$screen` and `@items`.
+ */
+function namedIn(language, body) {
+  if (language === 'mynah') return variablesIn(body.replace(/"[^"]*"?/g, ''));
+  if (language === 'osc') return variablesIn(body.trim().split(/\s+/).slice(1).join(' '));
+  return [];
+}
+
 /**
  * @param {object} opts
  * @param {boolean} [opts.popoutEnabled] show the Pop out button. False inside
  *   the popout itself, which has nowhere further to go.
+ * @param {() => object|null} [opts.variables] the `variables` service, asked
+ *   per run — null while the Variables plugin is off
  */
 export function createConsolePanel({
-  session, onRefresh = () => {}, popoutEnabled = true,
+  session, onRefresh = () => {}, popoutEnabled = true, variables = () => null,
   /* `(cmds) => null | Promise<{ok, message?}>` — Preview lock's, when it is on. */
   hold = null
 } = {}) {
@@ -107,7 +140,10 @@ export function createConsolePanel({
     /* The address subtrees plugins answer — Matrix Routing's `/lp/matrix/`
        among them — as the server lists them. A line under one of these is the
        plugin's, not mynah's. */
-    addresses: []
+    addresses: [],
+    /* What each variable on the line being typed reads right now:
+       `[{ text, answer }]`. Shown beside the summary. */
+    vars: []
   };
 
   /** Which subtrees the plugins answer. Asked once; switching a plugin applies on reload. */
@@ -178,11 +214,23 @@ export function createConsolePanel({
    * the first was supplied, so every mynah `Set` typed here was refused with
    * "needs a live connection" while the connection was live beside it.
    */
+  /*
+   * Where `$` and `@` get their values: a resolver fresh from the Variables
+   * plugin, made per run so it reads the store as it is now.
+   */
+  function varsFor() {
+    let service = null;
+    try { service = variables(); } catch { service = null; }
+    if (!service) return VARIABLES_OFF;
+    return { resolve: service.resolver() };
+  }
+
   const runContext = () => ({
     language: state.settings.consoleLanguage,
     platform: platform(),
     facts: { buffer: bufferForMode, canvas: canvasFor },
-    osc: { params: paramsFor(platform()), buffer: bufferForMode }
+    osc: { params: paramsFor(platform()), buffer: bufferForMode },
+    vars: varsFor()
   });
 
   /**
@@ -220,18 +268,39 @@ export function createConsolePanel({
     state.error = null;
     state.hint = null;
     state.language = null;
+    state.vars = [];
     if (!text.trim()) return;
 
+    const head = declared(text);
+    const reading = head.language ||
+      (state.settings.consoleLanguage === 'all' ? sniff(head.body) : state.settings.consoleLanguage);
     if (state.settings.consoleLanguage === 'all') {
-      const head = declared(text);
-      const id = head.language || sniff(head.body);
       state.language = head.language
-        ? `${LANGUAGE_LABELS[id]} (declared)`
-        : LANGUAGE_LABELS[id];
+        ? `${LANGUAGE_LABELS[reading]} (declared)`
+        : LANGUAGE_LABELS[reading];
+    }
+
+    const ctx = runContext();
+    /* Each variable on the line, as it reads now — the same resolver the run
+       below is handed, so the two cannot disagree. One still being typed at
+       the end of the line is not complained about: `$S1.wi` is on its way to
+       being `$S1.width`, as a half-typed keyword is on its way to a word. */
+    const seen = new Set();
+    const named = namedIn(reading, head.body);
+    const typing = head.body.trimEnd() === head.body && named.length && head.body.endsWith(named[named.length - 1].text)
+      ? named[named.length - 1] : null;
+    for (const v of named) {
+      const key = v.text.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      let answer;
+      try { answer = ctx.vars.resolve(v.name, v.sigil === '$' ? 'system' : 'user'); } catch (err) { answer = { ok: false, error: err.message }; }
+      if (!answer && v === typing) continue;
+      state.vars.push({ text: v.text, answer: answer || { ok: false, error: 'unknown' } });
     }
 
     let result;
-    try { result = run(text, runContext()); } catch { return; }
+    try { result = run(text, ctx); } catch { return; }
     if (!result) return;
 
     if (result.ok === false) {
@@ -541,6 +610,15 @@ export function createConsolePanel({
       } else if (state.hint) {
         feedback.append(h('span', { class: 'wru-tag', text: state.hint }));
       }
+      /* What each variable reads, after the verdict — `$S1.width = 1920`, or
+         why it reads nothing, in the resolver's own words. */
+      for (const v of state.vars) {
+        const a = v.answer;
+        const text = a.ok
+          ? `${v.text} = ${typeof a.value === 'string' ? `"${a.value}"` : String(Number.isInteger(a.value) ? a.value : Number(a.value.toFixed(4)))}`
+          : `${v.text}: ${a.error}`;
+        feedback.append(h('span', { class: ['wru-tag', 'wru-console-var', a.ok ? '' : 'wru-warn'], text }));
+      }
     }
     paintFeedback();
 
@@ -654,10 +732,19 @@ export function createConsolePanel({
     } catch { /* a cross-origin opener is not ours to listen to */ }
   }
 
+  /** Put text into the line at its end — the variables shelf in the popout. */
+  function insert(text) {
+    const sep = state.line && !/\s$/.test(state.line) ? ' ' : '';
+    state.line = state.line + sep + text;
+    preview(state.line);
+    onRefresh();
+  }
+
   /* `execute` and `runContext` are exposed so a test can type a line at the
      panel and see what it sends, without a DOM: the facts the compiler is
-     handed are the part that went unexercised for a year. */
-  return { render, state, popOut, reloadSettings: loadSettings, execute, runContext };
+     handed are the part that went unexercised for a year. `preview` likewise,
+     for what the feedback line says before Enter. */
+  return { render, state, popOut, reloadSettings: loadSettings, execute, runContext, preview, insert };
 }
 
 /** The keyword table, for a help view. Exposed so tests can assert on it. */

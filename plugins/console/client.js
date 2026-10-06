@@ -15,9 +15,11 @@
 import { createConsolePanel } from './panel.js';
 
 export default function activate(ctx) {
+  /* The Variables plugin's service, asked per run: it may start after this
+     plugin, or be switched off, and a Console must work either way. Preview
+     lock's hold likewise. */
   const consolePanel = createConsolePanel({
-    session: ctx.session,
-    onRefresh: ctx.refresh,
+    session: ctx.session, onRefresh: ctx.refresh, variables: () => ctx.use('variables'),
     hold: (cmds) => { const lock = ctx.use('preview-lock'); return lock ? lock.holdWrites(cmds) : null; }
   });
   ctx.ui.tab({

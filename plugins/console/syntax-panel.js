@@ -48,7 +48,9 @@ const EXAMPLES = [
   ['Set Audio Patch Input 1 Channel 1 To Dante 1', 'Route one audio channel.'],
   ['Set Audio Patch Input 1 Channel 1 Thru 8 To Dante 1', 'Lay a run of eight onto Dante 1–8.'],
   ['Set Audio Mute Dante 1 Thru 6', 'Silence six Dante channels.'],
-  ['Set Audio Patch None To Output 3', 'Clear all eight channels of output 3.']
+  ['Set Audio Patch None To Output 3', 'Clear all eight channels of output 3.'],
+  ['Set Screen 1 Layer 2 Size ($S1.width / 2) $S1.height', 'Half the canvas wide, read off the switcher — arithmetic in brackets, with Variables on.'],
+  ['Set Screen 1 Layer 2 Position (@gap * 3) 540', 'One of your own @ variables, wherever a number goes.']
 ];
 
 export function createSyntaxPanel() {
