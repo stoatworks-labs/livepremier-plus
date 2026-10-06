@@ -45,6 +45,22 @@
  * `value` property on the element, so setting it directly is invisible to
  * React's state. The native setter off the prototype, followed by an `input`
  * event, is what makes React's `onChange` fire and its state agree with the DOM.
+ *
+ * ## Variables
+ *
+ * With the Variables plugin on, `$S1.width/2` and `@gap*3` are expressions
+ * too: `installMathFields` is handed a getter for the `variables` service and
+ * asks it per commit — never once at start, because the plugin may be switched
+ * off, or start after this one. Its `resolver()` goes to `core/expr.js`, which
+ * knows no names itself. Nothing else about the field changes: the vendor
+ * still validates, clamps and commits.
+ *
+ * Switched off, there is no resolver, a variable cannot evaluate, and the
+ * field is left exactly as typed — which is what happened before variables
+ * existed, when `$` was simply not arithmetic. A variable that *is* known and
+ * cannot be read right now — `$S1.PGM.L2.x` mid-take — is refused the same
+ * way, with an amber flash and the reason in the field's tooltip for a few
+ * seconds, so the operator sees why their number did not land.
  */
 
 import { evaluate, fitToField, looksLikeExpression } from '../../src/core/expr.js';
@@ -54,13 +70,20 @@ import { isEnter } from '../../src/ui/dom.js';
 export { isEnter };
 
 const FLASH_MS = 900;
+/** How long a refusal's reason stays in the field's tooltip. */
+const REASON_MS = 6000;
 
 const CSS = `
 @keyframes wru-math-flash {
   from { background-color: rgba(33, 133, 208, 0.45); }
   to   { background-color: transparent; }
 }
+@keyframes wru-math-refuse {
+  from { background-color: rgba(243, 153, 16, 0.45); }
+  to   { background-color: transparent; }
+}
 .wru-math-applied { animation: wru-math-flash ${FLASH_MS}ms ease-out; }
+.wru-math-refused { animation: wru-math-refuse ${FLASH_MS}ms ease-out; }
 `;
 
 /**
@@ -106,12 +129,15 @@ export function isNumericField(el) {
  * Split out from the DOM so the decision is testable on its own — this is the
  * part that must never be wrong, and it is pure.
  *
+ * `resolve` is the Variables plugin's resolver, or null when it is off — in
+ * which case a variable is simply not something this can evaluate.
+ *
  * @returns {{apply: false, reason: string} | {apply: true, value: number, text: string}}
  */
-export function resolveField(raw, { min = null, max = null, step = null } = {}) {
+export function resolveField(raw, { min = null, max = null, step = null } = {}, resolve = null) {
   if (!looksLikeExpression(raw)) return { apply: false, reason: 'not an expression' };
 
-  const result = evaluate(raw);
+  const result = evaluate(raw, { resolve });
   if (!result.ok) return { apply: false, reason: result.error };
 
   const value = fitToField(result.value, { min, max, step });
@@ -154,19 +180,49 @@ function flash(el) {
 }
 
 /**
+ * Say, briefly and in the field, why an expression was not applied — only
+ * when a resolver was there to ask, so a field with the plugin off behaves
+ * exactly as it did before variables. The field's own tooltip comes back.
+ */
+function refuse(el, reason) {
+  try {
+    el.classList.remove('wru-math-refused');
+    void el.offsetWidth;
+    el.classList.add('wru-math-refused');
+    const had = el.getAttribute('title');
+    el.setAttribute('title', `Not applied: ${reason}`);
+    setTimeout(() => {
+      el.classList.remove('wru-math-refused');
+      if (el.getAttribute('title') !== `Not applied: ${reason}`) return;
+      if (had === null) el.removeAttribute('title'); else el.setAttribute('title', had);
+    }, REASON_MS);
+  } catch { /* cosmetic only */ }
+  console.warn('[LivePremier Plus] maths: not applied —', reason);
+}
+
+/**
  * Evaluate a field in place, if it holds an expression.
  *
+ * `resolver` is asked only once the field turns out to hold one, so the
+ * focusout of every other control on the page costs nothing.
+ *
+ * @param {{resolver?: () => (Function|null)}} [opts]
  * @returns {boolean} whether anything was substituted
  */
-export function applyTo(el) {
+export function applyTo(el, { resolver = () => null } = {}) {
   if (!isNumericField(el)) return false;
+  if (!looksLikeExpression(el.value)) return false;
 
+  const resolve = resolver();
   const decision = resolveField(el.value, {
     min: el.getAttribute('min'),
     max: el.getAttribute('max'),
     step: el.getAttribute('step')
-  });
-  if (!decision.apply) return false;
+  }, resolve);
+  if (!decision.apply) {
+    if (resolve && decision.reason !== 'unchanged') refuse(el, decision.reason);
+    return false;
+  }
 
   if (!writeValue(el, decision.text)) return false;
   flash(el);
@@ -181,10 +237,22 @@ export function applyTo(el) {
  * must degrade to "expressions do not work", never to a Web RCS whose fields
  * have stopped committing.
  *
+ * @param {Document} [doc]
+ * @param {{variables?: () => ({resolver: () => Function}|null)}} [opts]
+ *        the `variables` service, asked per commit
  * @returns {() => void} an uninstall function
  */
-export function installMathFields(doc = document) {
+export function installMathFields(doc = document, { variables = () => null } = {}) {
   if (doc.__wruMathFields) return doc.__wruMathFields;
+
+  const resolver = () => {
+    try {
+      const service = variables();
+      return service ? service.resolver() : null;
+    } catch {
+      return null;
+    }
+  };
 
   if (!doc.getElementById('wru-math-styles')) {
     const style = doc.createElement('style');
@@ -201,11 +269,11 @@ export function installMathFields(doc = document) {
        carrying `code` or the legacy `keyCode`. Missing a commit would silently
        send the vendor an unparseable string. */
     if (!isEnter(ev)) return;
-    try { applyTo(ev.target); } catch (err) { console.warn('[LivePremier Plus] maths', err); }
+    try { applyTo(ev.target, { resolver }); } catch (err) { console.warn('[LivePremier Plus] maths', err); }
   };
 
   const onFocusOut = (ev) => {
-    try { applyTo(ev.target); } catch (err) { console.warn('[LivePremier Plus] maths', err); }
+    try { applyTo(ev.target, { resolver }); } catch (err) { console.warn('[LivePremier Plus] maths', err); }
   };
 
   doc.addEventListener('keydown', onKeyDown, true);

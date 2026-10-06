@@ -309,3 +309,16 @@ test('mynah’s evaluateExpression and this one agree', () => {
     if (ours.ok) assert.equal(ours.value, theirs.value, c);
   }
 });
+
+test('resolveField takes the Variables resolver, and without one leaves a variable alone', () => {
+  const width = { min: '0', max: '8192', step: '1' };
+  assert.deepEqual(resolveField('$S1.width/2', width, resolve), { apply: true, value: 960, text: '960' });
+  assert.deepEqual(resolveField('@gap*3', width, resolve), { apply: true, value: 120, text: '120' });
+  /* Fitted to the field as any expression is. */
+  assert.deepEqual(resolveField('$S1.width*10', width, resolve), { apply: true, value: 8192, text: '8192' });
+  /* Refused — and with no resolver, exactly as before variables: not applied. */
+  assert.equal(resolveField('$S1.PGM.L2.x', width, resolve).apply, false);
+  assert.match(resolveField('$S1.PGM.L2.x', width, resolve).reason, /mid-take/);
+  assert.equal(resolveField('$S1.width/2', width).apply, false);
+  assert.equal(resolveField('$S1.width/2', width, null).apply, false);
+});
