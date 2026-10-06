@@ -1428,3 +1428,34 @@ test that cached "preview is A" was not.
 - Midra 4K / Alta 4K: the code is dialect-generic (takes are recognised
   through `dialect.takeControl`, layers through `layerParamPath`), no
   simulator was run and there is no verdict field there.
+
+## Connectors on Midra 4K / Alta 4K (2026-10-06)
+
+`readConnectors` applied the LivePremier reading everywhere — a
+`mapping/pp/isValid` gate, `IN_`/bare keys — and a Midra has neither, so it
+reported no inputs. The visible cost: HyperDecks' **Plays into** offered nothing
+on a Midra, no deck could be linked, and its on-air rules never ran
+(`sourceForInput` could not number `INPUT_7` either). Same bug as
+`MNG.sources()` earlier that day.
+
+Read off the Midra 4K simulator as a Pulse 4K (GET only) and checked against
+the rear panel the Midra 3.2.29 and Alta 1.3.7 bundles draw:
+
+- Inputs `INPUT_1..16`, ten `isAvailable`. Plugs 1–4 are **alternatives**
+  (INPUT_1: HDMI or SDI), `status/pp/plug` the one read; the label is on it.
+- Outputs `1..6` and `MTVW`; 1, 2 and `MTVW` available. Plugs are **copies**:
+  output 1 drives HDMI and SDI at once (`plugStatus` ACTIVE on both). Only
+  `NOT_AVAILABLE` means no socket — `DISABLE_NO_DISPLAY` is a socket with no
+  monitor on it. The rear panel draws `MTVW` as output connector `MON_1`.
+
+Each dialect now has `connector(side, node)`; `connectors.js` walks and knows
+neither spelling. `logicalIndex` reads `INPUT_<n>`, and `core/patch.js` uses it
+instead of its private copy (which would have missed `INPUT_3` on OSC).
+
+Decided per caller: HyperDecks — fixed, on both platforms. Variables — already
+right (it reads `dialect.inputFormats`/`outputFormats`). Audio Matrix — nlc
+only by design. Matrix Routing — **still not offered on mng**: the probe lost
+its mng half on purpose, because `connectorForPage` turns LivePremier URLs and
+headings into LivePremier keys (`In3` → `IN_3`) and Midra's pages have not been
+read for it. Lighting it is a separate job: read those pages on the simulator,
+teach `connectorForPage` the dialect, then add the probe back.

@@ -46,7 +46,8 @@ kind, and its role.
 Under **Settings and rules** on its card:
 
 - **Plays into** — the plug on the back of the frame the deck's output is cabled to, as the
-  switcher names it (`Input 1 · card IN_1 · hdmi`). This is what the rules watch; a deck with no
+  switcher names it (`Input 1 · card IN_1 · hdmi`; a Midra or Alta has no cards, so
+  `Input 1 · hdmi`, the plug it is reading). This is what the rules watch; a deck with no
   input linked has no rules to run.
 - **Records** — the switcher output cabled to a recorder's input. For the record: nothing switches
   it, and it makes the patch readable on the card.

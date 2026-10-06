@@ -400,6 +400,16 @@ input 1 and the first input card depending on the field. `core/connectors.js`
 absorbs it; nothing above it should learn it. `slot` repeats within a card, so
 (card, slot) is never an identity — `physical` is.
 
+⚠️ **A Midra or Alta is a third spelling**: `INPUT_5` and `5` (plus `MTVW`),
+**no `mapping` at all**, and `status/pp/isAvailable` as the gate; an input is
+named and typed by its active plug (`status/pp/plug`), an output by every plug
+not `NOT_AVAILABLE`. Each dialect's `connector(side, node)` reads its own
+platform; `readConnectors` walks the list and knows neither. Until 2026-10-06
+the LivePremier reading was applied there and found no inputs, so a HyperDeck
+could not be linked on a Midra. Matrix Routing is still **not offered** on
+mng (no mng probe): `connectorForPage` builds LivePremier keys from
+LivePremier pages, and Midra's pages have not been read for it.
+
 ### HyperDecks (`plugins/hyperdeck/`) — never met a real deck
 
 Blackmagic HyperDecks and anything that answers their TCP 9993 protocol; Mitti is the reference,
@@ -1158,7 +1168,8 @@ banks), **Pitch Compensation** and, at the Console, **audio routing** — mynah'
 1` writes the preview preset's audio layer (`$preset/@items/UP/audio/control/
 @props/source`), `Follow …` the mode of a point, mutes where the device keeps
 them; the vendored mynah's `docs/PATHS.md` has the table. Withheld, with its
-reason in the table: **VPU Map** (no VPU). The MIDI Mapping entry anchors after a `Virtual RC400T`
+reason in the table: **VPU Map** (no VPU) and **Matrix Routing** (its Router
+tab and box are written into LivePremier's pages). The MIDI Mapping entry anchors after a `Virtual RC400T`
 label the mng sidebar does not have, so it does not mount there either — and
 its engine (`vendor/surface/`) is still LivePremier's, so that is right for now.
 

@@ -33,6 +33,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import { DeviceStore } from '../src/core/device-store.js';
+import { ROOT } from '../src/core/paths.js';
 import {
   readConnectors, readAllConnectors, describeConnector, logicalIndex, parseConnectorId,
 } from '../src/core/connectors.js';
@@ -152,11 +153,61 @@ test('an empty store yields no connectors rather than throwing', () => {
   assert.deepEqual(readConnectors(store, 'input'), []);
 });
 
-test('logicalIndex reads both spellings and refuses a third', () => {
+/*
+ * `midra-3.2.29-inputs.json` is the Midra 4K simulator as a Pulse 4K, read
+ * (GET only) on 2026-10-06: sixteen inputs keyed `INPUT_<n>`, ten available,
+ * and outputs `1`..`6` and `MTVW`, three available — with no `mapping` on any
+ * of them. The LivePremier reading found nothing here at all.
+ */
+function midraStore() {
+  const store = new DeviceStore();
+  store.hydrate(JSON.parse(readFileSync(join(here, 'fixtures', 'midra-3.2.29-inputs.json'), 'utf8')));
+  return store;
+}
+
+test('a Midra’s inputs are INPUT_n, fitted when available, with no card to report', () => {
+  const inputs = readConnectors(midraStore(), 'input');
+  assert.deepEqual(inputs.map((c) => c.key), Array.from({ length: 10 }, (_, i) => `INPUT_${i + 1}`));
+  assert.deepEqual(inputs.map((c) => c.index), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  const third = inputs[2];
+  assert.equal(third.id, 'input:INPUT_3');
+  assert.deepEqual([third.card, third.physical, third.slot, third.device], [null, null, null, null]);
+  assert.equal(describeConnector(third), 'Input 3 · sdi');
+
+  const every = readConnectors(midraStore(), 'input', { includeUnfitted: true });
+  assert.equal(every.length, 16);
+  assert.deepEqual(every.filter((c) => !c.fitted).map((c) => c.key),
+    ['INPUT_11', 'INPUT_12', 'INPUT_13', 'INPUT_14', 'INPUT_15', 'INPUT_16']);
+});
+
+test('a Midra input is named and typed by the plug it is reading', () => {
+  const store = midraStore();
+  const input = [ROOT, 'inputList', 'items', 'INPUT_1'];
+  store.set([...input, 'plugList', 'items', '2', 'control', 'pp', 'label'], 'VT 2');
+  const first = () => readConnectors(store, 'input')[0];
+  /* Plug 1 is HDMI, plug 2 SDI: alternatives into one input, not two sockets. */
+  assert.deepEqual([first().plug, first().label], ['HDMI', '']);
+  store.set([...input, 'status', 'pp', 'plug'], '2');
+  assert.deepEqual([first().plug, first().label], ['SDI', 'VT 2']);
+  assert.equal(describeConnector(first()), 'Input 1 · sdi — VT 2');
+});
+
+test('a Midra’s outputs are numbered and MTVW, and name every plug they drive', () => {
+  const outputs = readConnectors(midraStore(), 'output');
+  assert.deepEqual(outputs.map((c) => c.key), ['1', '2', 'MTVW']);
+  assert.deepEqual(outputs.map((c) => c.index), [1, 2, null]);
+  /* HDMI and SDI at once; plugs 3 and 4 are NOT_AVAILABLE, so not sockets. */
+  assert.equal(outputs[0].plug, 'HDMI/SDI');
+  assert.equal(describeConnector(outputs[2]), 'Output MTVW · hdmi/sdi');
+});
+
+test('logicalIndex reads every spelling and refuses anything else', () => {
   assert.equal(logicalIndex('IN_7'), 7);
+  assert.equal(logicalIndex('INPUT_7'), 7);
   assert.equal(logicalIndex('7'), 7);
   assert.equal(logicalIndex('OUT_7'), 7);
   assert.equal(logicalIndex('SDI_A'), null);
+  assert.equal(logicalIndex('MTVW'), null);
   assert.deepEqual(parseConnectorId('input:IN_5'), { side: 'input', key: 'IN_5' });
   assert.equal(parseConnectorId('nonsense'), null);
 });
@@ -349,6 +400,15 @@ test('osc: sending an output takes a range in one string or several ints', () =>
   assert.deepEqual(asRange.crosspoints, asInts.crosspoints);
   assert.deepEqual(asRange.crosspoints.map((c) => c.output), [1, 2, 3, 4]);
   assert.equal(asRange.crosspoints[0].input, 7);
+});
+
+test('osc: a Midra input is found by its number too', () => {
+  /* `INPUT_3` is the same socket number as `IN_3`; the parser used to be a
+     private copy of `logicalIndex` that knew only the LivePremier spelling. */
+  const patch = normalisePatch([{ side: 'input', key: 'INPUT_3', matrix: 'hub', port: 4 }]);
+  const r = resolveMatrixOsc('/lp/matrix/input/3/source', [6], patch);
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.crosspoints, [{ matrix: 'hub', output: 4, input: 6 }]);
 });
 
 test('osc: an unpatched connector is refused by name', () => {

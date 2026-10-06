@@ -58,6 +58,8 @@
  * `core/settings.js` gives for the OSC port.
  */
 
+import { logicalIndex } from './connectors.js';
+
 /** Switcher side -> the router side at the other end of the cable. */
 export const ROUTER_SIDE = { input: 'output', output: 'input' };
 
@@ -538,7 +540,7 @@ export function resolveMatrixOsc(address, args, patch) {
     const number = Number(parts[3]);
     if (!Number.isInteger(number)) return { ok: false, error: `“${parts[3]}” is not a connector number` };
 
-    const entry = patch.find((e) => e.side === side && keyIndex(e.key) === number);
+    const entry = patch.find((e) => e.side === side && logicalIndex(e.key) === number);
     if (!entry) return { ok: false, error: `switcher ${side} ${number} is not patched to a matrix` };
     const id = entryConnectorId(entry);
 
@@ -604,12 +606,6 @@ export const MATRIX_OSC = [
     summary: 'Raw crosspoint on the router with that id: output out takes that input. Consults no patch.',
   },
 ];
-
-/** The logical number in a connector key, either spelling. See core/connectors.js. */
-const keyIndex = (key) => {
-  const match = /^(?:IN_|OUT_)?(\d+)$/.exec(String(key));
-  return match ? Number(match[1]) : null;
-};
 
 const isPort = (n) => Number.isInteger(n) && n >= 1 && n <= MAX_PORT;
 const fail = (error) => ({ ok: false, error });

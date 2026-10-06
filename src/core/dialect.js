@@ -592,6 +592,30 @@ export const NLC = {
     return out;
   },
 
+  /**
+   * One socket on the back of the frame, for `core/connectors.js` — which
+   * walks the list, builds the record, and tells the whole story of the
+   * `IN_5`/`5` keying. This is only the part a Midra spells differently.
+   *
+   * Fitted is `mapping/pp/isValid`, a card being in the slot. Plug 1 is the
+   * connector itself: a plug list with more than one entry is a socket that
+   * carries several signals (a quad-link SDI group, say), so the type of the
+   * first is what names the socket, and taking it is not a simplification.
+   */
+  connector(side, node) {
+    const mapping = pp(node.mapping);
+    const first = node.plugList && node.plugList.items && node.plugList.items['1'];
+    return {
+      fitted: mapping.isValid === true,
+      card: mapping.card,
+      physical: mapping.physical,
+      slot: mapping.slot,
+      device: mapping.device,
+      plug: pp(first && first.status).type,
+      label: pp(node.control).label
+    };
+  },
+
   /** The still slots that hold a picture, and its size. */
   stills(store) {
     const list = store.get([ROOT, 'stillList']);
@@ -1124,6 +1148,44 @@ export const MNG = {
       });
     }
     return out;
+  },
+
+  /**
+   * One socket on the back of the frame, as nlc's — read off the Midra 4K
+   * simulator (3.2.29) on 2026-10-06, and checked against the rear panel the
+   * vendor's own bundle draws (Midra 3.2.29 and Alta 1.3.7 agree).
+   *
+   * - There is **no `mapping`**, so no card, physical number or slot. Fitted
+   *   is `status/pp/isAvailable`, the gate `sources()` and the vendor use:
+   *   ten of a Pulse 4K's sixteen inputs; outputs 1, 2 and `MTVW`.
+   * - An input's plugs are **alternatives** — HDMI or SDI into one input —
+   *   and `status/pp/plug` is the one being read, so its type and its label
+   *   are the input's.
+   * - An output's plugs are **copies**: output 1 drives HDMI and SDI at once,
+   *   so its type is both, `HDMI/SDI`. Only `NOT_AVAILABLE` means there is no
+   *   socket; `DISABLE_NO_DISPLAY` and the rest are a socket with nothing
+   *   working on the end of it, which is still a socket.
+   * - `MTVW`, the multiviewer output, is a socket like the rest — the rear
+   *   panel draws it as an output, `MON_1`. It is not a numbered output, so
+   *   `logicalIndex` gives it no number and it reads as its key.
+   */
+  connector(side, node) {
+    const status = pp(node.status);
+    const plugs = (node.plugList && node.plugList.items) || {};
+    const fitted = status.isAvailable === true;
+    if (side === 'input') {
+      const active = plugs[String(status.plug || pp(node.control).plug || '1')];
+      return {
+        fitted,
+        plug: pp(active && active.status).type,
+        label: text(pp(active && active.control).label) ?? text(pp(node.control).label)
+      };
+    }
+    const types = keysOf(node.plugList)
+      .map((k) => pp(plugs[k].status))
+      .filter((s) => s.plugStatus && s.plugStatus !== 'NOT_AVAILABLE' && s.type)
+      .map((s) => s.type);
+    return { fitted, plug: [...new Set(types)].join('/') || null, label: pp(node.control).label };
   },
 
   /**

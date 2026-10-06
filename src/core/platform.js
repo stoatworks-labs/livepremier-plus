@@ -192,19 +192,19 @@ export const CAPABILITIES = [
   {
     id: 'matrixRouting',
     label: 'Matrix routing',
-    /* The patch names the sockets on the back of the frame, so all it needs
-       is that the device describes them. Both families carry an `outputList`
-       with a `mapping` node — but the mapping shape has only been read off a
-       LivePremier, so the probe asks for the field the panel actually uses
-       rather than for the collection. A Midra that turns out to spell it the
-       same way will light this up on its own; one that does not will say so
-       here instead of drawing an empty table. */
+    /* The patch names the sockets on the back of the frame. `core/connectors.js`
+       reads them on both families now — but the Router tab and box are
+       written into LivePremier's Setup and Preconfig pages, and
+       `connectorForPage` turns their URLs and headings into LivePremier keys
+       (`In3` -> `IN_3`), which on a Midra would name a socket that is not
+       there. So no mng probe, by design, until those pages are read on a
+       Midra: a Midra has no `mapping` (read 2026-10-06), so the nlc probe
+       stays false there. */
     probes: {
-      nlc: [ROOT, 'outputList', 'items', '*', 'mapping'],
-      mng: [ROOT, 'outputList', 'items', '*', 'mapping']
+      nlc: [ROOT, 'outputList', 'items', '*', 'mapping']
     },
     needs: 'the connector mapping for its outputs',
-    absent: 'This switcher does not describe its physical connectors in a way this panel can read.'
+    absent: 'Matrix routing has only been built against LivePremier’s own Setup and Preconfig pages.'
   },
   {
     id: 'audioPatch',

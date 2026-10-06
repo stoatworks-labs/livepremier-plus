@@ -1548,6 +1548,8 @@ what the device's store contains rather than by its model name:
 | OSC input | yes — 173 addresses, widened by the device's own catalogue | **yes** — 44 addresses, mynah's vouched-for table; the Midra catalogue is vendored for the Layer tab but not yet merged into the dictionary |
 | MIDI Mapping | yes | not yet — the surface engine still spells LivePremier |
 | EDID builder | yes — the 100-slot bank and M1–M16, read off the simulator | not yet seen — it lights up by itself if the store has the same `system/edid/bankList` |
+| HyperDecks | yes | **yes** — a deck plays into an `INPUT_<n>` and records an output or `MTVW`; the rules are tested against a Pulse 4K's store |
+| Matrix routing | yes | not yet — the sockets are read, but the Router tab and box are written into LivePremier's own pages |
 | Arithmetic in fields, Settings | yes | yes |
 
 Destinations keep one spelling everywhere — `S1`, `A2` — and only the last step

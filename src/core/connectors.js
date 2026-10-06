@@ -52,15 +52,25 @@
  *
  * ## Platforms
  *
- * Verified on `nlc-platform` only. Midra 4K and Alta 4K carry an `inputList`
- * and `outputList` too, but their mapping shape has not been read off a device,
- * so `readConnectors` reports what it finds rather than asserting a model —
- * a connector with no `mapping` comes back with nulls and `fitted: false`
- * rather than being dropped, so a Midra shows an honest empty list instead of
- * a confident wrong one.
+ * Everything above is `nlc-platform`. Midra 4K and Alta 4K carry an
+ * `inputList` and an `outputList` too, spelled differently enough that the
+ * LivePremier reading of them found nothing at all: inputs are keyed
+ * `INPUT_<n>`, outputs `1`..`n` and `MTVW`, and **neither has a
+ * `mapping`** — so there is no card, physical number or slot to report, and
+ * `isValid` is not the gate; `status/pp/isAvailable` is. What a socket is
+ * fitted with and called is therefore asked of the dialect
+ * (`dialect.connector`), which says it in that platform's spelling; this file
+ * walks the list, keeps the device's keys verbatim and builds the record, and
+ * knows neither spelling. A store whose platform cannot be told yet is read as
+ * a LivePremier, which is what this file always did.
+ *
+ * ⚠️ Until 2026-10-06 the Midra half was the LivePremier half, and every
+ * Midra and Alta reported no inputs: a HyperDeck could not be linked to one,
+ * so its on-air rules never ran.
  */
 
 import { ROOT } from './paths.js';
+import { dialectOrDefault } from './dialect.js';
 
 /** The two sides, and the store collection each lives in. */
 export const SIDES = {
@@ -90,32 +100,25 @@ export function readConnectors(store, side, { includeUnfitted = false } = {}) {
   const items = store.get([...base, 'items']);
   if (!items) return [];
 
+  const dialect = dialectOrDefault(store);
   const out = [];
   for (const key of store.itemKeys(base)) {
     const node = items[key];
     if (!node) continue;
-    const mapping = (node.mapping || {}).pp || {};
-    const fitted = mapping.isValid === true;
-    if (!fitted && !includeUnfitted) continue;
-
-    /* Plug 1 is the connector itself. A plug list with more than one entry is
-       a socket that carries several signals (a quad-link SDI group, say); the
-       type of the first is what names the socket, and the rest are the same
-       socket, so taking [0] is not a simplification. */
-    const plug = (((node.plugList || {}).items || {})['1'] || {}).status;
-
+    const found = dialect.connector(side, node);
+    if (!found.fitted && !includeUnfitted) continue;
     out.push({
       id: `${side}:${key}`,
       side,
       key,
       index: logicalIndex(key),
-      card: nullish(mapping.card),
-      physical: nullish(mapping.physical),
-      slot: Number.isInteger(mapping.slot) ? mapping.slot : null,
-      device: nullish(mapping.device),
-      plug: nullish((plug && plug.pp || {}).type),
-      label: String(((node.control || {}).pp || {}).label ?? ''),
-      fitted,
+      card: nullish(found.card),
+      physical: nullish(found.physical),
+      slot: Number.isInteger(found.slot) ? found.slot : null,
+      device: nullish(found.device),
+      plug: nullish(found.plug),
+      label: String(found.label ?? ''),
+      fitted: found.fitted,
     });
   }
   return out;
@@ -130,14 +133,15 @@ export function readAllConnectors(store, opts) {
 }
 
 /**
- * The number a human reads out of a key, on either side's spelling.
+ * The number a human reads out of a key, in any spelling a switcher uses.
  *
- * `IN_5` and `5` are both logical connector 5. Returns null rather than a
- * guess for anything that is neither, so a firmware with a third spelling
- * shows the raw key instead of a wrong number.
+ * `IN_5` (a LivePremier input), `INPUT_5` (a Midra or Alta input) and `5`
+ * (an output on either) are all logical connector 5. Returns null rather than
+ * a guess for anything else — `MTVW`, or a firmware's next spelling — so
+ * it shows as the raw key instead of a wrong number.
  */
 export function logicalIndex(key) {
-  const match = /^(?:IN_|OUT_)?(\d+)$/.exec(String(key));
+  const match = /^(?:INPUT_|IN_|OUT_)?(\d+)$/.exec(String(key));
   return match ? Number(match[1]) : null;
 }
 

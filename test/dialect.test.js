@@ -443,9 +443,10 @@ test('a Midra write clamps to the Midra range and names the buffer by the take s
 /*
  * `midra-3.2.29-inputs.json` is the Midra 4K simulator's input list as a
  * Pulse 4K, read 2026-10-06 and trimmed to the control, status and plug
- * labels: sixteen inputs keyed `INPUT_<n>`, no `mapping` on any of them,
- * `isAvailable` true on the first ten. The reader used to look for nlc's
- * `mapping` and `IN_` keys here and offered nothing at all.
+ * labels and types: sixteen inputs keyed `INPUT_<n>`, no `mapping` on any of
+ * them, `isAvailable` true on the first ten. The reader used to look for
+ * nlc's `mapping` and `IN_` keys here and offered nothing at all. Its output
+ * list (`1`..`6`, `MTVW`) is the connector tests' in `test/matrix.test.js`.
  */
 test('a Midra offers its available inputs and a colour, in the values its layers take', () => {
   const midra = hydrated('midra-3.2.29-inputs.json');

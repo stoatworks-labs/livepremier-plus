@@ -117,6 +117,12 @@ it to the silkscreen.
 > different things depending on the field — logical input 1 as a key, the first
 > input *card* under `mapping.card`. `src/core/connectors.js` absorbs all of
 > this; nothing above it has to know.
+>
+> A Midra 4K or Alta 4K spells it a third way: inputs `INPUT_5`, outputs `5`
+> and `MTVW`, no `mapping` at all, and `status/pp/isAvailable` for fitted. The
+> reader handles that too (each dialect's `connector`), but Matrix Routing is
+> not offered there yet: the Router tab and box are written into LivePremier's
+> own pages, and `connectorForPage` turns their headings into LivePremier keys.
 
 ---
 

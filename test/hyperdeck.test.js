@@ -30,6 +30,7 @@ import {
 import {
   normaliseDecks, resolveDecks, parseCueText, describeCueAction, sourceForInput, airState, decide, endAction,
 } from '../plugins/hyperdeck/core.js';
+import { readConnectors } from '../src/core/connectors.js';
 import { DeckLink } from '../plugins/hyperdeck/link.js';
 import activateHyperdeck from '../plugins/hyperdeck/server.js';
 import { startHyperDeckSim } from '../tools/hyperdeck-sim.mjs';
@@ -227,6 +228,40 @@ const setTransition = (store, transition) => store.set([ROOT, 'screenAuxGroupLis
 test('an input connector is the dialect’s own source name', () => {
   assert.equal(sourceForInput(airStore(), 'input:IN_1'), 'LIVE_1');
   assert.equal(sourceForInput(airStore(), 'output:5'), null);
+});
+
+/*
+ * A Midra: the Pulse 4K store (screens, presets, layers) with the simulator's
+ * input list from 2026-10-06 put in. Its inputs are `INPUT_<n>` with no
+ * `mapping`, and until the connector reader learnt that, "Plays into" offered
+ * nothing and `sourceForInput` could not number `INPUT_7` — no deck could be
+ * linked, so no rule ever fired.
+ */
+function midraAirStore() {
+  const pulse = fixture('midra-3.2.29-pulse4k.json');
+  pulse.device.inputList = fixture('midra-3.2.29-inputs.json').device.inputList;
+  const store = new DeviceStore();
+  store.hydrate(pulse);
+  return store;
+}
+
+test('on a Midra a deck links to an INPUT_n and its rules see it go on air', () => {
+  const store = midraAirStore();
+  const choices = readConnectors(store, 'input').map((c) => c.id);
+  assert.ok(choices.includes('input:INPUT_7'), 'Plays into offers the Midra’s inputs');
+  assert.equal(sourceForInput(store, 'input:INPUT_7'), 'INPUT_7');
+  assert.equal(sourceForInput(store, 'input:INPUT_12'), null, 'not available on a Pulse 4K');
+
+  /* S1 is AT_UP, and UP's layer 1 is INPUT_7. */
+  const [deck] = normaliseDecks([{ name: 'VT', input: 'input:INPUT_7', rules: { automate: true, onProgram: 'play' } }]);
+  const where = () => new Map([[deck.id, airState(store, new Set(['INPUT_7'])).get('INPUT_7')]]);
+  const onAir = where();
+  assert.deepEqual([...onAir.get(deck.id).program], ['S1']);
+
+  store.set([ROOT, 'screenList', 'items', '1', 'presetList', 'items', 'UP', 'liveLayerList', 'items', '1', 'source', 'pp', 'input'], 'NONE');
+  const offAir = where();
+  assert.deepEqual([...offAir.get(deck.id).program], []);
+  assert.deepEqual(decide([deck], offAir, onAir).map((a) => a.sequence.map((s) => s.command)), [['play']]);
 });
 
 test('program is the program buffer; mid-transition, both buffers are on air', () => {
