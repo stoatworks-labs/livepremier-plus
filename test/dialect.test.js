@@ -35,7 +35,7 @@ import { CMD, screenAuxControl } from '../src/core/paths.js';
 import { NLC, MNG, dialectFor, dialectOrDefault, parseId } from '../src/core/dialect.js';
 import { commandsFor } from '../src/core/commands.js';
 import { CueStack, ACTION_KINDS, SETTLE_MS } from '../src/core/cuestack.js';
-import { listDestinations, presetBanks, readLayers, sourceLabel } from '../src/core/screens.js';
+import { listDestinations, listSources, presetBanks, readLayers, sourceLabel } from '../src/core/screens.js';
 import {
   banksFor, bankFor, targetsFor, listSlots, slotCount, assignments,
   recallCmd, saveCmd, labelCmd, deleteCmd, saveFilters
@@ -436,6 +436,39 @@ test('a Midra write clamps to the Midra range and names the buffer by the take s
   assert.deepEqual(bankLetter(pulse, 'S1', 'PREVIEW'), { letter: 'DOWN', live: false, settled: true, reported: true });
   assert.equal(bankLetter(pulse, 'S1', 'PROGRAM').letter, 'UP');
   assert.equal(bankLetter(pulse, 'S2', 'PREVIEW').letter, 'UP', 'S2 is AT_DOWN');
+});
+
+/* ------------------------------------------------------------- sources */
+
+/*
+ * `midra-3.2.29-inputs.json` is the Midra 4K simulator's input list as a
+ * Pulse 4K, read 2026-10-06 and trimmed to the control, status and plug
+ * labels: sixteen inputs keyed `INPUT_<n>`, no `mapping` on any of them,
+ * `isAvailable` true on the first ten. The reader used to look for nlc's
+ * `mapping` and `IN_` keys here and offered nothing at all.
+ */
+test('a Midra offers its available inputs and a colour, in the values its layers take', () => {
+  const midra = hydrated('midra-3.2.29-inputs.json');
+  const sources = dialectFor(midra).sources(midra);
+  assert.deepEqual(sources.map((s) => s.value),
+    ['INPUT_1', 'INPUT_2', 'INPUT_3', 'INPUT_4', 'INPUT_5', 'INPUT_6', 'INPUT_7', 'INPUT_8', 'INPUT_9', 'INPUT_10', 'COLOR']);
+  assert.deepEqual(sources[2], { value: 'INPUT_3', kind: 'input', label: 'IN3', snapshot: '/api/device/snapshots/inputs/3' });
+  assert.deepEqual(sources.at(-1), { value: 'COLOR', kind: 'color', label: 'COLOR', snapshot: null });
+
+  const spec = layerSections(midra).flatMap((s) => s.params).find((p) => p.id === MNG.sourceParam);
+  for (const s of sources) assert.ok(valuesFor(spec, midra).includes(s.value), `${s.value} is a value a layer takes`);
+  assert.deepEqual(listSources(midra).map((s) => s.value).slice(0, 2), ['NONE', 'INPUT_1']);
+});
+
+test('a Midra input is named by its active plug', () => {
+  const midra = hydrated('midra-3.2.29-inputs.json');
+  const input = ['device', 'inputList', 'items', 'INPUT_3'];
+  midra.set([...input, 'plugList', 'items', '1', 'control', 'pp', 'label'], 'HDMI cam');
+  midra.set([...input, 'plugList', 'items', '2', 'control', 'pp', 'label'], 'SDI cam');
+  const label = () => MNG.sources(midra).find((s) => s.value === 'INPUT_3').label;
+  assert.equal(label(), 'HDMI cam');
+  midra.set([...input, 'status', 'pp', 'plug'], '2');
+  assert.equal(label(), 'SDI cam');
 });
 
 test('the LivePremier capabilities are unchanged by the per-family probes', () => {

@@ -969,26 +969,43 @@ export const MNG = {
   },
 
   /**
-   * Inputs only, for the reason `sourceFromSnapshot` gives just above: a still
-   * is not a layer source on this platform, so offering one would build a
-   * value the device refuses.
+   * What a screen's live layer can be given: the available inputs, then
+   * `COLOR`. Read off the Midra 4K simulator (3.2.29) and checked against the
+   * selectors in its own bundle and in Alta 4K 1.3.7's, which agree:
+   *
+   * - An input is keyed `INPUT_<n>`, which is also the value a layer takes,
+   *   and has **no `mapping`**. The vendor lists one when
+   *   `status/pp/isAvailable` is true, in `itemKeys` order — `INPUT_1`..`10`
+   *   of the sixteen on a Pulse 4K.
+   * - Its label is on the active plug, as `inputFormats` reads it.
+   * - `COLOR` is the only other `LAYER_CONTENT`, and the vendor's drop rule
+   *   offers it on a live layer beside the inputs. Which colour is the
+   *   layer's own `color.*`, so it is one choice rather than a palette.
+   *
+   * No still, for the reason `sourceFromSnapshot` gives: offering one would
+   * build a value the device refuses.
+   *
+   * ⚠️ Until 2026-10-06 this read nlc's shape — a `mapping` gate and `IN_`
+   * keys — and returned nothing on every Midra and Alta.
    */
   sources(store) {
     const out = [];
     const inputs = store.get([ROOT, 'inputList']);
     for (const key of keysOf(inputs)) {
       const node = (inputs.items || {})[key];
-      if (!pp(node && node.mapping).isValid) continue;
-      const n = /^(?:IN_)?(\d+)$/.exec(key);
-      if (!n) continue;
-      const value = 'INPUT_' + n[1];
+      const status = pp(node && node.status);
+      if (status.isAvailable !== true) continue;
+      if (!/^INPUT_\d+$/.test(key)) continue;
+      const plug = String(status.plug || pp(node.control).plug || '1');
+      const plugNode = node.plugList && node.plugList.items && node.plugList.items[plug];
       out.push({
-        value,
+        value: key,
         kind: 'input',
-        label: pp(node && node.control).label || MNG.sourceLabel(value),
-        snapshot: MNG.snapshotUrl(value)
+        label: text(pp(plugNode && plugNode.control).label) || MNG.sourceLabel(key),
+        snapshot: MNG.snapshotUrl(key)
       });
     }
+    out.push({ value: 'COLOR', kind: 'color', label: MNG.sourceLabel('COLOR'), snapshot: null });
     return out;
   },
 

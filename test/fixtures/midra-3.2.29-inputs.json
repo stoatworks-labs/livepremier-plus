@@ -1,0 +1,1279 @@
+{
+ "device": {
+  "system": {
+   "pp": {
+    "dev": "PULSE",
+    "platformId": 1536,
+    "platformLabel": "Midra 4K",
+    "label": "",
+    "ready": true
+   },
+   "version": {
+    "pp": {
+     "variable": 40,
+     "updater": "3.2.29"
+    }
+   }
+  },
+  "transition": {
+   "control": {
+    "pp": {
+     "xTakeMany": [
+      "SCREEN_1",
+      "SCREEN_2"
+     ]
+    }
+   },
+   "screenList": {
+    "items": {
+     "1": {
+      "control": {
+       "pp": {
+        "enablePresetToggle": true,
+        "tbarPosition": 65535,
+        "takeTime": 10,
+        "xTake": true,
+        "xTakeAbort": false,
+        "xCut": true,
+        "xStepBack": true,
+        "xCopyProgramToPreview": false
+       }
+      },
+      "status": {
+       "pp": {
+        "transition": "AT_DOWN",
+        "tbarPosition": 0,
+        "isTbarPositionValid": true
+       }
+      }
+     },
+     "2": {
+      "control": {
+       "pp": {
+        "enablePresetToggle": true,
+        "tbarPosition": 0,
+        "takeTime": 10,
+        "xTake": true,
+        "xTakeAbort": false,
+        "xCut": true,
+        "xStepBack": false,
+        "xCopyProgramToPreview": false
+       }
+      },
+      "status": {
+       "pp": {
+        "transition": "AT_DOWN",
+        "tbarPosition": 0,
+        "isTbarPositionValid": true
+       }
+      }
+     },
+     "3": {
+      "control": {
+       "pp": {
+        "enablePresetToggle": true,
+        "tbarPosition": 0,
+        "takeTime": 33,
+        "xTake": false,
+        "xTakeAbort": false,
+        "xCut": false,
+        "xStepBack": false,
+        "xCopyProgramToPreview": false
+       }
+      },
+      "status": {
+       "pp": {
+        "transition": "AT_DOWN",
+        "tbarPosition": 0,
+        "isTbarPositionValid": true
+       }
+      }
+     },
+     "4": {
+      "control": {
+       "pp": {
+        "enablePresetToggle": true,
+        "tbarPosition": 0,
+        "takeTime": 33,
+        "xTake": false,
+        "xTakeAbort": false,
+        "xCut": false,
+        "xStepBack": false,
+        "xCopyProgramToPreview": false
+       }
+      },
+      "status": {
+       "pp": {
+        "transition": "AT_DOWN",
+        "tbarPosition": 0,
+        "isTbarPositionValid": true
+       }
+      }
+     }
+    },
+    "itemKeys": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ]
+   },
+   "auxiliaryScreenList": {
+    "items": {
+     "1": {
+      "control": {
+       "pp": {
+        "enablePresetToggle": true,
+        "tbarPosition": 0,
+        "takeTime": 10,
+        "xTake": false,
+        "xTakeAbort": false,
+        "xCut": false,
+        "xStepBack": false,
+        "xCopyProgramToPreview": false
+       }
+      },
+      "status": {
+       "pp": {
+        "transition": "AT_DOWN",
+        "tbarPosition": 0,
+        "isTbarPositionValid": true
+       }
+      }
+     },
+     "2": {
+      "control": {
+       "pp": {
+        "enablePresetToggle": true,
+        "tbarPosition": 0,
+        "takeTime": 10,
+        "xTake": false,
+        "xTakeAbort": false,
+        "xCut": false,
+        "xStepBack": false,
+        "xCopyProgramToPreview": false
+       }
+      },
+      "status": {
+       "pp": {
+        "transition": "AT_DOWN",
+        "tbarPosition": 0,
+        "isTbarPositionValid": true
+       }
+      }
+     },
+     "3": {
+      "control": {
+       "pp": {
+        "enablePresetToggle": true,
+        "tbarPosition": 0,
+        "takeTime": 10,
+        "xTake": false,
+        "xTakeAbort": false,
+        "xCut": false,
+        "xStepBack": false,
+        "xCopyProgramToPreview": false
+       }
+      },
+      "status": {
+       "pp": {
+        "transition": "AT_DOWN",
+        "tbarPosition": 0,
+        "isTbarPositionValid": true
+       }
+      }
+     },
+     "4": {
+      "control": {
+       "pp": {
+        "enablePresetToggle": true,
+        "tbarPosition": 0,
+        "takeTime": 10,
+        "xTake": false,
+        "xTakeAbort": false,
+        "xCut": false,
+        "xStepBack": false,
+        "xCopyProgramToPreview": false
+       }
+      },
+      "status": {
+       "pp": {
+        "transition": "AT_DOWN",
+        "tbarPosition": 0,
+        "isTbarPositionValid": true
+       }
+      }
+     }
+    },
+    "itemKeys": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ]
+   }
+  },
+  "inputList": {
+   "items": {
+    "INPUT_1": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_2": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_3": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_4": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_5": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_6": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_7": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_8": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_9": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_10": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": true,
+       "plug": "1",
+       "ledColor": "GREEN"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_11": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": false,
+       "plug": "1",
+       "ledColor": "OFF"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_12": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": false,
+       "plug": "1",
+       "ledColor": "OFF"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_13": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": false,
+       "plug": "1",
+       "ledColor": "OFF"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_14": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": false,
+       "plug": "1",
+       "ledColor": "OFF"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_15": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": false,
+       "plug": "1",
+       "ledColor": "OFF"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    },
+    "INPUT_16": {
+     "control": {
+      "pp": {
+       "plug": "1",
+       "black": false,
+       "freeze": false,
+       "xBlinkLed": false
+      }
+     },
+     "status": {
+      "pp": {
+       "isAvailable": false,
+       "plug": "1",
+       "ledColor": "OFF"
+      }
+     },
+     "plugList": {
+      "items": {
+       "1": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "2": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "3": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       },
+       "4": {
+        "control": {
+         "pp": {
+          "source": 0,
+          "signalType": "AUTO",
+          "enableHdcp": "DEFAULT",
+          "enableCropFinder": false,
+          "label": ""
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "itemKeys": [
+    "INPUT_1",
+    "INPUT_2",
+    "INPUT_3",
+    "INPUT_4",
+    "INPUT_5",
+    "INPUT_6",
+    "INPUT_7",
+    "INPUT_8",
+    "INPUT_9",
+    "INPUT_10",
+    "INPUT_11",
+    "INPUT_12",
+    "INPUT_13",
+    "INPUT_14",
+    "INPUT_15",
+    "INPUT_16"
+   ]
+  }
+ }
+}
