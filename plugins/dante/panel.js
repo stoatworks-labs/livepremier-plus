@@ -344,11 +344,16 @@ export function createDantePanel({ session, model, settings = () => ({}), onRefr
         mine ? h('span', { class: 'lpp-dn-badge', text: 'this switcher' }) : null)));
       if (open) {
         const pt = mine ? patches.get(d.name) : null;
-        d.tx.forEach((c, i) => head2.append(h('th', {
-          class: ['lpp-dn-ch', i === 0 ? 'lpp-dn-ch--first' : ''],
-          title: `${c.label}@${d.name} — transmit channel ${c.number}${c.factory && c.factory !== c.label ? ` (factory name ${c.factory})` : ''}`
-            + (pt ? ` · Audio Matrix: Dante ${c.number} carries ${pt.tx.get(c.number) || 'nothing'}` : '')
-        }, h('span', { text: c.label }))));
+        d.tx.forEach((c, i) => {
+          /* The label the switcher's own store gives this Dante channel, when it differs. */
+          const stored = mine && mine.card ? (mine.card.tx.get(c.number) || {}).label : '';
+          head2.append(h('th', {
+            class: ['lpp-dn-ch', i === 0 ? 'lpp-dn-ch--first' : ''],
+            title: `${c.label}@${d.name} — transmit channel ${c.number}${c.factory && c.factory !== c.label ? ` (factory name ${c.factory})` : ''}`
+              + (pt ? ` · Audio Matrix: Dante ${c.number} carries ${pt.tx.get(c.number) || 'nothing'}` : '')
+              + (stored && stored !== c.label ? ` · the switcher’s store calls it ${stored}` : '')
+          }, h('span', { text: c.label })));
+        });
       } else head2.append(h('th', { class: 'lpp-dn-ch lpp-dn-ch--first' }));
     }
 
@@ -384,10 +389,12 @@ export function createDantePanel({ session, model, settings = () => ({}), onRefr
         title: `${c.label}@${d.name} — receive channel ${c.number}. ${c.status ? c.status.label : ''}`
           + (sub ? ` · from ${formatRef(sub)}` : '')
           + (pt ? ` · Audio Matrix: Dante ${c.number} feeds ${feeds && feeds.length ? feeds.join(', ') : 'nothing'}` : '')
+          + (card && card.label && card.label !== c.label ? ` · the switcher’s store calls it ${card.label}` : '')
           + (card && card.connectedTo ? ` · the switcher’s store says ${card.connectedTo}` : '')
       }, h('span', { class: 'lpp-dn-row' },
         h('span', { class: `lpp-dn-dot lpp-dn-dot--${sub && c.status ? c.status.state : 'none'}` }),
         h('span', { text: `${c.number} ${c.label}` }),
+        card && card.label && card.label !== c.label ? h('span', { class: 'lpp-dn-sub', text: `(${card.label})` }) : null,
         sub ? h('span', { class: 'lpp-dn-sub', text: `← ${formatRef(sub)}` }) : null,
         pt && feeds && feeds.length ? h('span', { class: 'lpp-dn-sub', text: `→ ${feeds.join(', ')}` }) : null)));
     } else {

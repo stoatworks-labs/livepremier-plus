@@ -297,7 +297,10 @@ test('Memories: a recall into a preview mid-take waits for the hold, then goes',
 test('the Dante panel draws its grid, marks the switcher’s card and opens into channels', async () => {
   await withDom(async () => {
     const store = new DeviceStore();
-    store.hydrate(merged('sim-6.2.73-identity.json', 'sim-6.2.73-dante.json', 'sim-6.2.73-audio.json'));
+    const tree = merged('sim-6.2.73-identity.json', 'sim-6.2.73-dante.json', 'sim-6.2.73-audio.json');
+    /* The simulator's card labels nothing; one label is put in by hand, to see it drawn. */
+    tree.device.system.deviceList.items['1'].dante.channelList.items.DANTE_1_CHANNEL_1.source.status.pp.label = 'Desk L';
+    store.hydrate(tree);
     const { createDantePanel } = await import('../plugins/dante/panel.js');
     const status = (code, rx) => ({ code, name: code === 9 ? 'DYNAMIC' : 'NONE', state: code === 9 ? 'connected' : 'none', label: code === 9 ? 'Subscribed (unicast)' : 'Not subscribed' });
     const device = (name, tx, rx, extra = {}) => ({
@@ -331,6 +334,7 @@ test('the Dante panel draws its grid, marks the switcher’s card and opens into
     panel.render();
     const channelRow = root.querySelectorAll('th.lpp-dn-rh--ch')[0];
     assert.match(channelRow.getAttribute('title'), /Audio Matrix: Dante 1 feeds Output 1 ch 1/);
+    assert.match(channelRow.textContent, /\(Desk L\)/, 'the switcher’s own label for the channel, beside Dante’s');
     const lit = root.querySelectorAll('td.lpp-dn-x--connected');
     assert.equal(lit.length, 1, 'one subscription, one lit cell');
     lit[0].click();
