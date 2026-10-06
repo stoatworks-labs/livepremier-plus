@@ -448,6 +448,14 @@ export function formatLatency(ns) {
   return `${Number((ns / 1e6).toFixed(3))} ms`;
 }
 
+/** A time as the operator's clock reads it: `2026-10-06 14:05`. */
+export function formatLocal(when) {
+  const d = new Date(when);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export function formatRate(hz) {
   if (!Number.isFinite(hz) || !hz) return '—';
   return `${(hz / 1000).toFixed(hz % 1000 ? 1 : 0)} kHz`;

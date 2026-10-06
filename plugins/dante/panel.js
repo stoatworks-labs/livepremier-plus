@@ -43,7 +43,7 @@
 import { h, button, fill } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
 import {
-  blockState, blockRoutes, cellRoute, isSubscribedTo, subscriptionOf, matches, formatLatency, formatRate, formatRef
+  blockState, blockRoutes, cellRoute, isSubscribedTo, subscriptionOf, matches, formatLatency, formatRate, formatRef, formatLocal
 } from './core.js';
 import { switcherCards, matchSwitcher, audioPatches } from './switcher.js';
 
@@ -225,7 +225,7 @@ export function createDantePanel({ session, model, settings = () => ({}), onRefr
         filterInput, bar.routed,
         chip('Collapse all', false, () => { view.openRows.clear(); view.openCols.clear(); rerender(); }, 'Close every open device'),
         bar.lock,
-        button('Refresh', { iconId: 'refresh-18', title: 'Read every device again now', onClick: () => model && model.refresh() }),
+        button('Refresh', { iconId: ['refresh-14', 'refresh-18'], title: 'Read every device again now', onClick: () => model && model.refresh() }),
         popoutEnabled ? button('Pop out', { iconId: 'set-layer-to-fullscreen-18', title: 'Open the Dante panel in its own window', onClick: popOut }) : null));
     snapSave = button('Save current routing', {
       title: 'Every receiving device’s subscriptions as they read now; recall puts back only what differs',
@@ -421,7 +421,10 @@ export function createDantePanel({ session, model, settings = () => ({}), onRefr
       });
     } else if (rxCh && col.ch) {
       const on = isSubscribedTo(rxDev, rxCh, txDev, col.ch);
-      const waiting = model && model.isPending(rxDev.name, rxCh.number);
+      /* Only the cell the click was about waits: the one asked for, or the lit one being cleared. */
+      const asked = model && model.pendingFor ? model.pendingFor(rxDev.name, rxCh.number) : undefined;
+      const waiting = asked !== undefined && (asked ? asked.device.toLowerCase() === String(txDev.name).toLowerCase() && asked.channel === col.ch.label
+        : isSubscribedTo(rxDev, rxCh, txDev, col.ch));
       const state = on ? (rxCh.status && rxCh.status.state === 'connected' ? 'connected' : rxCh.status ? rxCh.status.state : 'none') : null;
       td.className += (on ? ` lpp-dn-x--${state}` : '') + (waiting ? ' lpp-dn-x--pending' : '');
       td.setAttribute('title', `${col.ch.label}@${txDev.name} → ${rxCh.label}@${rxDev.name}`
@@ -597,7 +600,7 @@ export function createDantePanel({ session, model, settings = () => ({}), onRefr
     return h('table', { class: 'lpp-dn-list' }, h('tbody', {}, snapshots.map((s) => h('tr', {},
       h('td', { text: s.name }),
       h('td', { class: 'aw-text-tertiary', text: `${s.devices.length} device${s.devices.length === 1 ? '' : 's'}, ${s.routes} subscription${s.routes === 1 ? '' : 's'}` }),
-      h('td', { class: 'aw-text-tertiary', text: s.savedAt ? s.savedAt.slice(0, 16).replace('T', ' ') : '' }),
+      h('td', { class: 'aw-text-tertiary', text: s.savedAt ? formatLocal(s.savedAt) : '' }),
       h('td', {}, h('span', { class: 'aw-flex-row-center-v aw-gap-col-small' },
         button('Recall', { title: 'Apply only what differs; the result is listed above', onClick: () => recall(s.name) }),
         button('Delete', { onClick: () => { if (confirmAsk(`Delete the snapshot “${s.name}”?`)) model.deleteSnapshot(s.name); } })))))));

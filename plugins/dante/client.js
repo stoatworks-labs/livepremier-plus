@@ -29,7 +29,7 @@ export default function activate(ctx) {
   ctx.ui.sidebar({
     id: 'dante',
     label: 'Dante',
-    icon: ['audio-18', 'audio-line-18'],
+    icon: ['dante-ideogramme-18', 'audio-18', 'audio-line-18'],
     order: 57,
     render: () => dante.render()
   });

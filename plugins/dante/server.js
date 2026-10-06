@@ -46,7 +46,7 @@ import { Discovery, localInterfaces } from './discovery.js';
 import { DanteSupervisor } from './supervisor.js';
 import {
   normaliseSettings, settingsChanged, parseAddress, plan, changesByDevice, confirm, summarise, failed,
-  normaliseSnapshots, snapshotOf, snapshotRoutes, findDevice, OSC_PREFIX, DANTE_OSC, parseDanteOsc
+  normaliseSnapshots, snapshotOf, snapshotRoutes, findDevice, formatLocal, OSC_PREFIX, DANTE_OSC, parseDanteOsc
 } from './core.js';
 import { readPreset, assignRoles, presetRoutes, writePreset, presetFileName, MAX_PRESET_BYTES } from './preset.js';
 import { channelReferenceProblem, deviceNameProblem } from './protocol.js';
@@ -180,7 +180,7 @@ export default async function activate(ctx) {
     const all = supervisor.describe().filter((d) => d.status === 'ok');
     const devices = names.length ? names.map((n) => findDevice(all, n)).filter(Boolean) : all;
     if (!devices.length) throw new ctx.HttpError(409, 'no Dante device has been read yet');
-    const name = (h.url.searchParams.get('name') || '').trim() || `LivePremier Plus ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`;
+    const name = (h.url.searchParams.get('name') || '').trim() || `LivePremier Plus ${formatLocal(Date.now())}`;
     const xml = writePreset({ name, devices });
     res.writeHead(200, {
       'content-type': 'application/xml; charset=utf-8',

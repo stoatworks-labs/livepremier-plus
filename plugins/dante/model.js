@@ -100,6 +100,8 @@ export function createDanteModel({ url, fetchImpl = (...a) => fetch(...a), Event
     load,
     apply,
     isPending: (device, number) => state.pending.has(`${device}\u0000${number}`),
+    /** What a pending click asked of a receive channel: a route, null for a clear, undefined for nothing pending. */
+    pendingFor: (device, number) => state.pending.get(`${device}\u0000${number}`),
     async refresh(device = null) {
       try { take(await call('/refresh', { body: device ? { device } : {} })); note('ok', device ? `Read ${device} again` : 'Read every device again'); } catch (err) { note('warn', `Could not refresh: ${err.message}`); }
     },
