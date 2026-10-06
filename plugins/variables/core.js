@@ -228,8 +228,10 @@ function addDestination(store, dialect, dest, add) {
     add(g, `${prefix}.memory`, 'number', null, `The memory ${role.label} was recalled from`, () => {
       const buffer = roleBuffer(store, id, role);
       if (!buffer.ok) return buffer;
+      /* Slots count from 1; LivePremier reports 0 for a buffer that was not
+         loaded from one, where a Midra reports null. */
       const held = (safe(() => dialect.assignments(store, id)) || {})[buffer.value];
-      return held && Number.isFinite(held.slot)
+      return held && Number.isFinite(held.slot) && held.slot > 0
         ? ok(held.slot)
         : no(`${id}’s ${role.label} was not recalled from a memory`);
     });

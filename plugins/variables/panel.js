@@ -324,8 +324,10 @@ export function createVariablesPanel({ variables, session, onRefresh = () => {},
       view.focus = null;
       const win = doc.defaultView || globalThis;
       if (win && typeof win.requestAnimationFrame === 'function') {
+        /* Asked of the document, not of this render's root: a frame from the
+           switcher may have drawn the panel again before this one is up. */
         win.requestAnimationFrame(() => {
-          const field = root.querySelector && root.querySelector(`[data-lpp-key="${key}"]`);
+          const field = doc.querySelector && doc.querySelector(`[data-lpp-key="${key}"]`);
           if (field && field.focus) { field.focus(); if (field.select) field.select(); }
         });
       }
