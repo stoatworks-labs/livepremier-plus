@@ -605,6 +605,51 @@ take, Companion speaking AWJ, another browser. The panel says so on every
 render. Proven on the simulator only (2026-09-23): lock + follower, a
 recall-and-vendor-TAKE in one tick, take-only on one and on two screens.
 
+### Preview lock during takes (`plugins/preview-lock/`, `ui/preset-lock.js`)
+
+**Mid-take, PREVIEW is the buffer arriving on program.** Both platforms
+resolve the role against the transition state (the suffix rule in
+`core/dialect.js`), so a recall to PREVIEW sent while `EFFECT_FROM_*` /
+`COPY_FROM_*` is running loads the picture that is fading up, and it rides
+the take to air. An operator who presses TAKE and then recalls the next look
+straight away does exactly this.
+
+**The fix is the vendor's own padlock, pressed for them — not a lock of
+ours.** Web RCS 6.2.73's Redux `presetLockMiddleware` refuses the vendor UI's
+screen, aux, layer and master memory loads into a locked role, with its own
+warnings (`raiseScreenAuxMemoryLoadWarning`). The lock is Redux state keyed
+by **role per screen** (`lock[PRESETMODE][screenAux]`), or the MST
+`remoteStore.live.screens.presetModeLock` when remote selection is on. A
+`.click()` on the card's padlock button goes through the vendor's own handler,
+so the vendor's state, icon, master-pair display and warnings all follow.
+`cardPadlock()` hands back the card's button and never the master pair, which
+would lock every screen on the page.
+
+Load-bearing:
+
+- **Lock on the outbound TAKE frame, not on the status echo.** The take
+  leaving the page is the earliest moment there is; the status echo is the
+  fallback for takes from anywhere else. `xCut` is not a reason — no window.
+- **Release only at rest, and only once the take happened** (seen in flight,
+  or resting at the other end). A take this page sent that never starts is
+  released after `START_GRACE_MS`, or a refused take leaves PRW shut for
+  good. There is deliberately **no cap while in flight**: a T-bar parked half
+  way has preview half on air.
+- **Only ever open a padlock this page shut.** Shut before the take: the
+  operator's. Opened mid-take: overridden, left alone. Card gone when the take
+  lands: owed, opened when it is next drawn — otherwise a page change leaves
+  PRW locked with nobody knowing why.
+- ⚠️ **It stops the vendor's buttons, not the switcher.** Our own recall paths
+  (cue engine, Memories panel, Console) go over the socket and are not subject
+  to it; `send-to` is the only one that consults `lockedFor()`. The
+  `preview-lock` service (`guarded()`, `isGuarded(id)`) is there for a panel
+  that chooses to hold back.
+
+Proven on the LivePremier simulator (2026-10-06) with the page socket's
+`send` replaced by a catcher: the plugin's click shut S1's PRW; a vendor
+Memories ▸ Screen ▸ Load into PRW on S1+S2 sent only S2's recall; after the
+take landed it sent both. Not run on a frame, a Midra or an Alta.
+
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 
 There are four — the Console's, the Timeline's cue editor, Memories' and

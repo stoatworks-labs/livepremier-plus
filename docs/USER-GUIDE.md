@@ -23,6 +23,8 @@ as a bolt-on.
   follows a source change made to any member, wherever it came from.
 - **Layer Lock** — a take that leaves chosen layers where they are, or takes one layer (or one
   group) alone — neither of which the switcher can do by itself.
+- **Preview lock during takes** — the vendor's own PRW padlock shut while a screen transitions,
+  so a memory recalled straight after TAKE is refused instead of riding the take onto program.
 - **Send to** — a `…` on every source card that routes it to a screen and layer, or to a whole
   group, in preview or program, without a drag.
 - **Matrix Routing** — patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
@@ -460,6 +462,47 @@ the switcher agreeing. A simulator says *stays* for every layer whatever the buf
 > ⚠️ **Proven on the simulator only.** No real frame has yet been asked what it does with a locked
 > layer that has a live source on it. The first time you use this on a frame, lock a layer in
 > rehearsal, take, and watch it.
+
+---
+
+## Preview lock during takes
+
+**Off until you switch it on** in Preconfig ▸ LivePremier Plus → Plugins; its card is on the same
+settings page.
+
+Press TAKE, then recall the next memory into preview before the take has finished, and the memory
+does not wait: while a transition runs, the buffer the switcher calls *preview* is the one fading
+up onto program, so the recall lands in the picture going to air.
+
+Web RCS already has the guard rail for this — the **PRW padlock** on each screen card. This feature
+presses it for you:
+
+- When a take starts on a screen — TAKE sent from this page, or a transition reported by the
+  switcher from anywhere (front panel, T-bar, Companion, OSC) — that screen's PRW padlock is shut.
+  A TAKE from this page shuts it before the switcher has even answered.
+- While it is shut, Web RCS refuses a memory recalled into that screen's preview, with its own
+  warning (*Screen memory could not be loaded … because PRW is locked*). A screen memory loaded on
+  several selected screens still loads on the ones that are not mid-take; a master memory that
+  includes a screen mid-take is refused whole, with Web RCS's master warning (read from its code,
+  not yet tried).
+- When the take lands, the padlock is opened again. A take that never starts is let go after a
+  second and a half.
+
+It is careful with your own padlocks: one you had shut before the take stays shut, and one you open
+mid-take is left open. The card lists the screens it looks after (untick one to leave it alone),
+what is mid-take now, and the last few things it did.
+
+> ⚠️ **The padlock stops Web RCS's own buttons, not the switcher.** A recall sent another way — a
+> cue in the Timeline, this app's Memories panel, Companion, OSC, the front panel — is not held
+> back by it. And only screens whose card is drawn on the Screens / Aux. page can be locked; a
+> screen whose card is not on the page when its take lands is unlocked the next time it is.
+
+> ⚠️ **With Web RCS's remote selection switched on**, padlocks are shared between everyone
+> connected, so run this in one browser only.
+
+> Proven on the LivePremier simulator against Web RCS 6.2.73's own lock: a memory clicked into
+> PRW while a screen was mid-take was refused for that screen and loaded on the other, and loaded on
+> both once the take had landed. Not yet run on a real frame, nor on a Midra 4K or Alta 4K.
 
 ---
 

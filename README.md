@@ -55,6 +55,14 @@ rather than as a bolt-on:
   every TAKE or CUT sent from this page — the vendor's own button included — is
   held for the moment it takes to line it up. Takes from the front panel, a
   T-bar or OSC are not held, and the panel says so.
+- **Preview lock during takes** (off until you switch it on) — press TAKE and
+  recall the next memory a moment later, and the switcher loads it into the
+  buffer that is fading up, so it rides the take onto program. This shuts the
+  vendor's own PRW padlock on a screen's card for as long as that screen is
+  transitioning, so Web RCS refuses the recall with its own warning, and opens
+  it again when the take lands. It never opens a padlock you shut yourself.
+  The padlock stops Web RCS's buttons only: cues, Companion, OSC and the front
+  panel are not held back by it.
 - **Send to** — a `…` on every source card that routes it without a drag:
   preview or program, then a screen and layer or a whole group. It respects the
   vendor's own PGM padlock, asking before it steps past one.
