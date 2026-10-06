@@ -13,7 +13,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { evaluate, fitToField, isPlainNumber, looksLikeExpression } from '../src/core/expr.js';
+import { evaluate, fitToField, isPlainNumber, looksLikeExpression, variablesIn } from '../src/core/expr.js';
+import { evaluateExpression as mynahEvaluate } from '../src/vendor/mynah-lang.mjs';
 import { resolveField, isNumericField, isEnter } from '../plugins/arithmetic/math-fields.js';
 
 const value = (s) => {
@@ -200,4 +201,111 @@ test('Enter is recognised however the event spells it', () => {
   assert.ok(isEnter({ key: '', keyCode: 13 }));
   assert.equal(isEnter({ key: 'a', keyCode: 65 }), false);
   assert.equal(isEnter({ key: '' }), false);
+});
+
+/* ------------------------------------------------------------- variables */
+
+/*
+ * The resolver is injected, so the module stays pure. A Map, not an object:
+ * `$constructor` must be unknown, not Object's own constructor.
+ */
+const TABLE = new Map([
+  ['system:s1.width', { ok: true, value: 1920 }],
+  ['system:s1.height', { ok: true, value: 1080 }],
+  ['system:s1.label', { ok: true, value: 'Main LED' }],
+  ['system:s1.pgm.l2.x', { ok: false, error: 'S1 is mid-take' }],
+  ['user:gap', { ok: true, value: 40 }],
+  ['user:zero', { ok: true, value: 0 }],
+  ['user:nan', { ok: true, value: NaN }]
+]);
+const asked = [];
+const resolve = (name, kind) => {
+  asked.push([name, kind]);
+  return TABLE.get(`${kind}:${name.toLowerCase()}`);
+};
+const withVars = (s) => {
+  const r = evaluate(s, { resolve });
+  assert.ok(r.ok, `expected ${s} to evaluate, got ${r.error}`);
+  return r.value;
+};
+const refusedWith = (s, pattern, opts = { resolve }) => {
+  const r = evaluate(s, opts);
+  assert.equal(r.ok, false, `expected ${s} to be refused`);
+  assert.match(r.error, pattern);
+};
+
+test('a variable is a primary: alone, in a sum, in brackets, signed', () => {
+  assert.equal(withVars('$S1.width'), 1920);
+  assert.equal(withVars('$S1.width/2'), 960);
+  assert.equal(withVars('@gap*3'), 120);
+  assert.equal(withVars('($S1.width - @gap * 2) / 2'), 920);
+  assert.equal(withVars('-@gap'), -40);
+});
+
+test('the resolver hears the name as typed and which sigil it had', () => {
+  asked.length = 0;
+  withVars('$S1.Width + @GAP');
+  assert.deepEqual(asked, [['S1.Width', 'system'], ['GAP', 'user']]);
+});
+
+test('a variable is refused, by name, rather than read as zero or NaN', () => {
+  refusedWith('$S1.widht/2', /unknown variable \$S1\.widht/);
+  refusedWith('$S1.label', /\$S1\.label is text \("Main LED"\), not a number/);
+  refusedWith('$S1.PGM.L2.x + 10', /\$S1\.PGM\.L2\.x: S1 is mid-take/);
+  refusedWith('@nan', /not a finite number/);
+  refusedWith('1920/@zero', /division by zero/);
+  refusedWith('$constructor', /unknown variable/);
+  /* No resolver: the Variables plugin is off, or this caller has none. */
+  refusedWith('$S1.width/2', /variables are not available/, {});
+  /* A resolver that throws is a refusal, not a crash in the vendor's handler. */
+  refusedWith('@gap', /boom/, { resolve: () => { throw new Error('boom'); } });
+});
+
+test('a sigil needs a name, and a name has a shape', () => {
+  for (const bad of ['$', '@', '$ S1', '@9', '$S1..width', '$S1.width.']) {
+    assert.equal(evaluate(bad, { resolve }).ok, false, `${bad} is refused`);
+  }
+});
+
+test('looksLikeExpression counts a bare variable, and still nothing that is not arithmetic', () => {
+  assert.ok(looksLikeExpression('$S1.width'));
+  assert.ok(looksLikeExpression('@gap'));
+  assert.ok(looksLikeExpression('$S1.width/2'));
+  assert.equal(looksLikeExpression('$'), false);
+  assert.equal(looksLikeExpression('Main LED'), false);
+  assert.equal(looksLikeExpression('LIVE_3'), false);
+  assert.equal(looksLikeExpression('a@b.com'), false);
+  assert.equal(looksLikeExpression('-960'), false);
+});
+
+test('variablesIn lists what a line names, without evaluating anything', () => {
+  assert.deepEqual(variablesIn('Size ($S1.width / 2) @gap. 50%').map((v) => v.text), ['$S1.width', '@gap']);
+  assert.deepEqual(variablesIn('Recall Screen 1 Memory 5'), []);
+});
+
+/*
+ * Two implementations of one grammar: this file's, for the vendor's fields,
+ * and mynah's, for the command line. They were written apart, so agreeing is
+ * evidence and disagreeing is a bug in one of them. Every case either
+ * evaluates to the same number in both or is refused by both.
+ *
+ * One known difference is left out on purpose: a leading-dot decimal (`.5`),
+ * which this file accepts and mynah's lexer does not — mynah reads a `.` as
+ * part of a number only after a digit, so that `50.` ends a sentence.
+ */
+test('mynah’s evaluateExpression and this one agree', () => {
+  const vars = { resolve };
+  const cases = [
+    '1080-80', '1+2*3', '(1+2)*3', '100-10-5', '100/10/2', '--100', '1920+-20',
+    '$S1.width/2', '@gap*3', '($S1.width - @gap * 2) / 2', '-@gap', '((((1+1))))',
+    '1/0', '1920/(10-10)', '@zero', '1920/@zero', '$S1.widht', '$S1.label', '$S1.PGM.L2.x',
+    '2+', '*2', '(1+2', '1+2)', '()', '1 2', '50%', '1e3', 'Main LED', '$', '@9',
+    '('.repeat(30) + '1' + ')'.repeat(30)
+  ];
+  for (const c of cases) {
+    const ours = evaluate(c, { resolve });
+    const theirs = mynahEvaluate(c, vars);
+    assert.equal(ours.ok, theirs.ok, `${c}: expr.js ${ours.ok ? ours.value : ours.error} vs mynah ${theirs.ok ? theirs.value : theirs.error}`);
+    if (ours.ok) assert.equal(ours.value, theirs.value, c);
+  }
 });
