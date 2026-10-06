@@ -40,6 +40,18 @@
  * this machine, and anything else is the operator saying they want the network
  * to be able to drive the switcher. The setting says so in as many words.
  *
+ * ## Variables: `@` yes, `$` no
+ *
+ * A numeric argument may be a variable or a sum — `"@gap"`, `"@gap * 3"` —
+ * resolved by mynah through the `variables` resolver this is handed (the
+ * Variables plugin's server half). Only **user** variables answer here, and
+ * only those whose definitions reach nothing but numbers and other user
+ * variables: a **system** variable (`$S1.width`) is read off the store
+ * mirror, which this process does not hold, so it is refused with that
+ * reason — the same asymmetry, for the same reason, as `preview` and
+ * `program` below. Typed at the Console, the same address resolves `$`
+ * names, because the page has the store.
+ *
  * ## No replies, and no bundles going out
  *
  * This receives; it does not answer. OSC has no acknowledgement in the shape
@@ -158,6 +170,10 @@ export function decode(buf) {
  *   `src/core/contributions.js`. Read per message, so a plugin switched on or
  *   off changes what is answered without rebinding the socket. Matrix
  *   Routing's `/lp/matrix/…` is one.
+ * @param {() => Promise<Function|null>} [opts.variables]  a resolver for
+ *   variables in arguments, `(name, kind) => answer`, asked per message so a
+ *   definition changed in the panel applies to the next packet. Null, or
+ *   absent, and every variable is refused.
  */
 export function createOscServer({
   port = DEFAULT_OSC_PORT,
@@ -170,6 +186,7 @@ export function createOscServer({
      stand a fake device up on an ephemeral port. */
   awjPort = AWJ_PORT,
   awj = null,
+  variables = null,
 }) {
   const talk = (host, messages) => (awj ? awj(messages) : exchange({ host, port: awjPort, messages }));
   const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
@@ -328,7 +345,19 @@ export function createOscServer({
       }
     }
 
-    const resolved = resolveOsc(msg, { params: paramsFor(platform), platform });
+    /* Asked only for a message with a string argument — the only place a
+       variable can be — so a fader's stream of floats never waits on it. */
+    let vars;
+    if (variables && msg.args.some((a) => typeof a === 'string')) {
+      try {
+        const resolve = await variables();
+        if (resolve) vars = { resolve };
+      } catch (err) {
+        log(`OSC: variables could not be read: ${err.message}`);
+      }
+    }
+
+    const resolved = resolveOsc(msg, { params: paramsFor(platform), platform, vars });
 
     if (!resolved.ok) {
       state.failed++;

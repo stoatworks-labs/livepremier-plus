@@ -30,6 +30,9 @@ export const settings = {
 /* A tail for debugging a sender, not a log — small on purpose. */
 const HISTORY = 100;
 
+/** What a variable in an argument answers while the Variables plugin is off. */
+const VARIABLES_OFF = () => ({ ok: false, error: 'the Variables plugin is switched off' });
+
 export default function activate(ctx) {
   const history = [];
   /* What the listener has heard: the tail first, then live, so a console
@@ -68,6 +71,12 @@ export default function activate(ctx) {
         deviceHost: () => ctx.device(),
         awj: ctx.awj,
         addresses: () => ctx.contributions('oscAddress'),
+        /* `@` variables in an argument, from the Variables plugin's server
+           half — asked per message, and refused by name while it is off. */
+        variables: async () => {
+          const service = ctx.use('variables');
+          return service ? service.resolver() : VARIABLES_OFF;
+        },
         onActivity: note,
         log: ctx.log
       });

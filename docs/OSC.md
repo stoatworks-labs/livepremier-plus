@@ -85,6 +85,27 @@ has nowhere to put a name. Names are matched case-insensitively; an index is
 bounds-checked. A value the device does not have is refused rather than
 rounded to the nearest one.
 
+### Variables in an argument
+
+A number may be sent as a **string of arithmetic** instead, and it is worked
+out before it is written — `"1080-80"`, and, with the Variables plugin on,
+your own `@` variables (see [VARIABLES.md](VARIABLES.md)):
+
+```
+/lp/screen/1/preset/a/layer/2/position/posH "@gap * 3"
+/lp/screen/1/preset/a/layer/2/size/sizeH @half
+```
+
+Only the argument, never the address — rule 1. An enum's value name (`LIVE_3`)
+and a string that is already a plain number pass through untouched.
+
+> ⚠️ **Over UDP, only `@` variables work, and only those that do not depend on
+> a `$` one.** A system variable — `$S1.width`, `$S1.PGM.L2.x` — is read off
+> the store mirror, which the OSC listener does not hold, so it is refused with
+> that reason; so is an `@` variable whose definition reaches one. The same
+> asymmetry as rule 5, for the same reason. The Console resolves both kinds,
+> because the page has the store.
+
 Nothing is ever sent back. This listens; it does not answer.
 
 ---

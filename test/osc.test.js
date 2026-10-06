@@ -660,3 +660,54 @@ test('plugin entries are in the dictionary shape, under their own prefix', () =>
     }
   }
 });
+
+/*
+ * Variables in an argument, over UDP. The listener holds no store, so the
+ * resolver it is handed — the Variables plugin's server half — answers `@`
+ * names and refuses `$` ones with the reason, the same asymmetry as
+ * `preview` and `program`. Through `awj`, as the plugin runs it.
+ */
+test('an @ variable in an argument is worked out; a $ one is refused, saying why', async () => {
+  const { storelessResolver } = await import('../plugins/variables/core.js');
+  const said = [];
+  const awj = async (messages) => {
+    said.push(...messages);
+    return messages.map((m) => (m.op === 'get' && m.path.endsWith('$device/@items/1/@props/dev')
+      ? { path: m.path, value: 'NLC_C' }
+      : { path: m.op === 'get' ? '' : m.path, value: null }));
+  };
+  const entries = [];
+  let wake = () => {};
+  const osc = createOscServer({
+    port: 0, address: '127.0.0.1',
+    deviceHost: () => 'switcher.example:80',
+    awj,
+    variables: async () => storelessResolver([
+      { name: 'gap', value: '40' },
+      { name: 'half', value: '$S1.width / 2' }
+    ]),
+    onActivity: (e) => { entries.push(e); wake(); }
+  });
+  await osc.start();
+  const send = async (address, text) => {
+    const heard = new Promise((r) => { wake = r; });
+    const client = dgram.createSocket('udp4');
+    await new Promise((r) => client.send(omsg(address, 's', ostr(text)), osc.state.port, '127.0.0.1', () => { client.close(); r(); }));
+    await Promise.race([heard, new Promise((_, rej) => setTimeout(() => rej(new Error('nothing heard')), 3000))]);
+    return entries[entries.length - 1];
+  };
+  try {
+    const posH = '/lp/screen/1/preset/a/layer/2/position/posH';
+    const ok = await send(posH, '@gap * 3');
+    assert.equal(ok.error, undefined, ok.error);
+    assert.ok(said.some((m) => m.op === 'replace' && m.path.endsWith('position/@props/posH') && m.value === 120));
+
+    const sys = await send(posH, '$S1.width / 2');
+    assert.match(sys.error, /\$S1\.width: needs the switcher’s state, which this process does not hold/);
+    const leaning = await send(posH, '@half');
+    assert.match(leaning.error, /@half: \$S1\.width: needs the switcher’s state/);
+    assert.equal(said.filter((m) => m.op === 'replace').length, 1, 'nothing refused was written');
+  } finally {
+    await osc.stop();
+  }
+});
