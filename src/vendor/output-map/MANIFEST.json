@@ -1,0 +1,16 @@
+{
+  "upstream": "output-map",
+  "published": false,
+  "entry": "src/lib/resolume.ts",
+  "commit": "775b041c4361ceddc18107bd0df6fe0e30447745",
+  "synced": "2026-10-06",
+  "license": "MIT",
+  "sources": {
+    "src/lib/geometry.ts": "da19d236dac259a78b4f45c83e1fbf7a1e65041a71e9cbb6316e654f7289bfe2",
+    "src/lib/resolume.ts": "6db263b706c5dac8a31e370c6250bc822a0e13f2228cd9899800e43a7d251453",
+    "src/types.ts": "ea8a810f2e51603b07d7c545b1b71c40aee054cf0a39734fa71d716b6e935b3d"
+  },
+  "files": {
+    "resolume.js": "e56f315cd203e31d3fd5251dfe79fe8647f1f5580cd0d8695b2ac59c4a414c90"
+  }
+}

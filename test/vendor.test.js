@@ -8,6 +8,8 @@
  *   surface/          awj-surface's control-surface engine and profiles
  *   pixelhue/         pixelhue-bridge's console frame codec and key tables
  *   pitch-engine.js   aquilon-pitch's pitch-compensation engine, ditto
+ *   output-map/       output-map's Resolume Arena Advanced Output writer,
+ *                     bundled from its TypeScript by tools/sync-output-map.mjs
  *
  * In every case the reason is the same, and it is not convenience: two
  * implementations of one grammar, one device model or one decode table will
@@ -36,6 +38,8 @@ const pixelhueDir = join(here, '..', 'src', 'vendor', 'pixelhue');
 const pixelhueUpstream = join(here, '..', '..', 'pixelhue-bridge');
 const pitchVendored = join(here, '..', 'src', 'vendor', 'pitch-engine.js');
 const pitchUpstream = join(here, '..', '..', 'aquilon-pitch', 'dist-lib', 'aquilon-pitch-engine.js');
+const outputMapDir = join(here, '..', 'src', 'vendor', 'output-map');
+const outputMapUpstream = join(here, '..', '..', 'output-map');
 
 const MARKER = ' * ------------------------------------------------------------------------- */';
 
@@ -310,4 +314,48 @@ test('the vendored engine and core/paths.js agree on where the ratio lives', asy
   assert.deepEqual(outputPitch('7', 'H'), eng.awjPath('7', 'H'));
   assert.deepEqual(outputPitch('7', 'V'), eng.awjPath('7', 'V'));
   assert.deepEqual(outputPitchCommit('7'), eng.awjCommitPath('7'));
+});
+
+test('the vendored Arena writer is output-map’s, unedited, and its sources have not moved on', async (t) => {
+  const { createHash } = await import('node:crypto');
+  const sha = (b) => createHash('sha256').update(b).digest('hex');
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(join(outputMapDir, 'MANIFEST.json'), 'utf8'));
+  } catch {
+    assert.fail('src/vendor/output-map/MANIFEST.json is missing — run: npm run sync:output-map');
+  }
+  for (const [rel, hash] of Object.entries(manifest.files)) {
+    assert.equal(sha(await readFile(join(outputMapDir, rel))), hash,
+      `src/vendor/output-map/${rel} was edited in place — edits belong upstream`);
+  }
+  assert.match(manifest.commit, /^[0-9a-f]{40}$|^unknown$/);
+  assert.equal(manifest.license, 'MIT');
+
+  /* It is a build, not a copy, so drift is judged on the sources that went
+     into it: any of them changed upstream means the bundle is stale. */
+  for (const [rel, hash] of Object.entries(manifest.sources)) {
+    let body;
+    try {
+      body = await readFile(join(outputMapUpstream, rel));
+    } catch {
+      t.skip('no output-map checkout beside this repo');
+      return;
+    }
+    assert.equal(sha(body), hash, `output-map's ${rel} has moved on — run: npm run sync:output-map`);
+  }
+});
+
+test('the vendored Arena writer writes a preset with a screen and a slice', async () => {
+  const { exportResolumeXml } = await import('../src/vendor/output-map/resolume.js');
+  const quad = (x, y, w, h) => [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }];
+  const xml = exportResolumeXml({
+    name: 'Vendor check',
+    composition: { width: 1920, height: 1080 },
+    connectors: [{ id: 'c', name: 'Out', width: 1920, height: 1080, device: 'virtual', enabled: true, hidden: false, desktop: { x: 0, y: 0 } }],
+    slices: [{ id: 's', connectorId: 'c', name: 'S', enabled: true, output: quad(0, 0, 960, 1080), lattice: null, input: quad(960, 0, 960, 1080), inputMode: 'manual' }]
+  }, { target: 'preset' });
+  assert.match(xml, /<XmlState name="Vendor check">/);
+  assert.match(xml, /<InputRect orientation="0">\n\t+<v x="960" y="0"\/>/);
+  assert.match(xml, /<BezierWarper controlWidth="4" controlHeight="4">/);
 });
