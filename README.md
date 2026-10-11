@@ -1705,8 +1705,12 @@ decision.
 the same VPU mapping over AWJ. It and this app solve the same problem from
 opposite ends — that one reaches the device directly and can run headless, this
 one has the whole device store for free but only inside a browser tab.
-`core/vpu.js` exposes `toMixerRecords()`, which emits the exact record shape
-that tool reads, so a map from either can be opened in the other.
+The two share one model rather than translating between two:
+`src/vendor/vpu-model.js` is that tool's `public/vpu.js`, copied in by
+`npm run sync:vpu-model` and held to it by `test/vendor.test.js`. Neither app
+opens the other's files: this one reads the live device store, and that one reads
+the device over AWJ or a recorded capture, which is still the only way to look at
+a VPU map with no switcher connected.
 
 <!-- attributions:start -->
 This project is built on other people's work — see [ATTRIBUTIONS.md](ATTRIBUTIONS.md).

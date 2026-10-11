@@ -1550,9 +1550,11 @@ with injection).
 `~/projects/video/aquilon-vpu-map` reads the same VPU mapping over AWJ from a
 server. Same problem, opposite end: it reaches the device directly and runs
 headless; this has the whole device store for free but only inside a tab.
-`core/vpu.js :: toMixerRecords()` emits that tool's record shape so captures
-cross over. Deliberately an adapter rather than a shared import — see the
-no-AWJ-path argument above.
+Since 20e09f1 the two share one model: `src/vendor/vpu-model.js` is that
+project's `public/vpu.js`, refreshed by `npm run sync:vpu-model` and checked by
+`test/vendor.test.js`. There is no record adapter any more (`toMixerRecords()`
+went in that commit), so captures do not cross over; offline captures stay
+aquilon-vpu-map's job. This app still has no AWJ path — see the argument above.
 
 `~/projects/video/webrcs-timeline` is a Rust workspace covering the same cue
 ground — `awj-proto`, `awj-link` (both transports) and `awj-cue`, 58 tests,
