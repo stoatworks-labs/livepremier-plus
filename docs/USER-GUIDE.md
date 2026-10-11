@@ -103,6 +103,9 @@ because the switcher allows five AWJ clients at once.
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only — none has met
 > real hardware yet.
 >
+> **0.17.1 fixes the Background Slicer's LivePremier apply**, which took its own write as the
+> switcher's answer, so a refused write read as landed. It now waits for the switcher's echo.
+>
 > **0.17.0 adds Variables and arithmetic wherever a number goes, and Preview lock** (off by
 > default); **Dante** and the **Background Slicer** arrive as previews, off by default and proven
 > on simulators only. HyperDeck commands end with a bare line feed, so Mitti accepts them.

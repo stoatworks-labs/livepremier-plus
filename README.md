@@ -185,7 +185,7 @@ or from the command line with Node 20. It works on a **LivePremier** and — for
 the Timeline, Console, Memories, Layer and Pitch Compensation — on a **Midra 4K
 or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 
-> **Status: field testing — v0.17.0.** The panels render inside a real Web RCS
+> **Status: field testing — v0.17.1.** The panels render inside a real Web RCS
 > session and the device store mirrors live — both verified through this proxy
 > against LivePremier Simulator 6.2.73, along with cue-stack persistence and
 > the whole setup flow. The VPU map has been **read from a live Aquilon C** and
@@ -300,6 +300,11 @@ or Alta 4K** as well; [Platforms](#platforms) says which panels each gets.
 > could show: with *preset toggle* off a take passes `COPY_FROM_x` after its
 > effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real
 > 30 ms window rather than the simulator's zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.1 (2026-10-11).** The **Background Slicer**'s LivePremier apply waits for the switcher's
+> own echo. It had been taking its own outbound write as the answer, so a write the switcher
+> refused read back as landed; Apply, Undo and the capacity change now wait for the inbound frame,
+> as the Midra apply already did. Proven on LivePremier Simulator 6.2.73 only.
 >
 > **0.17.0 (2026-10-06).** **Variables**: `$` names generated from the device store and `@` names
 > of your own, with bracketed arithmetic, wherever a number goes — the Console, cues, OSC input
