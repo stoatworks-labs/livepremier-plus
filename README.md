@@ -163,8 +163,8 @@ connection of their own when they act, and the switcher has a budget of five AWJ
 
 It runs as a desktop tray app for macOS, Windows and Linux, as a Docker image, or from the
 command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or Alta 4K** as
-well for the Timeline, Console, Memories, Layer and Pitch Compensation.
-[Platforms](#platforms) says which panels each one gets.
+well for the Edit page, Timeline, Console, Memories, Layer, Pitch Compensation, HyperDecks and
+the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 
 > **Status: field testing, v0.17.1.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
@@ -307,8 +307,9 @@ well for the Timeline, Console, Memories, Layer and Pitch Compensation.
 > whole Otter editor on any slot. **Mosaic inputs** group inputs 2X1/2X2 and load each plug with
 > its tiled EDID, so a Mac joins them into one display. **Pixelhue Mapping** draws the U5 as a
 > Virtual RC400T with every key, fader and encoder remappable. **Speed Editor** *(preview)*
-> drives the switcher from a DaVinci Resolve Speed Editor over WebHID, never yet tried with a
-> physical panel. None of these has met real hardware.
+> drives the switcher from a DaVinci Resolve Speed Editor over WebHID, not yet tried with a
+> physical panel. None of these had met real hardware at 0.15.0; the Speed Editor met a real
+> panel in 0.16.0, above.
 >
 > **0.14.0 (2026-09-23).** **Thumbnail relay** *(preview, off by default)*: the switcher's source
 > thumbnails re-encoded as JPEG and shared between pages, at a twentieth or less of the bytes.
@@ -1219,8 +1220,8 @@ group, or a screen and one of its fitted layers.
 C), and which letter is program changes on every take, so two screens are routinely on opposite
 ones. Sending to "program" works that out per screen. A gang that copied letter to letter would
 put a preview edit on air on half the screens, which is the one thing this feature absolutely
-has to get right. It's verified on a device with S1 at `AT_UP` and S2 at `AT_DOWN`, the only
-arrangement where a wrong answer shows up.
+has to get right. It's verified on LivePremier Simulator 6.2.73 with S1 at `AT_UP` and S2 at
+`AT_DOWN`, the only arrangement where a wrong answer shows up.
 
 **It respects the PGM padlock.** The lock on a screen card is React state inside the vendor
 bundle. It isn't in the device store, and a write over the socket doesn't have to obey it. The
@@ -1431,12 +1432,14 @@ device's store rather than by the model name:
 | Console | yes | **yes** — mynah compiles the same grammar for this platform (`Take Screen 1`, `Recall Aux 1 Memory 7`, `Set Aux 1 Source 4`); no layer memories, no stills on a layer, and it says so |
 | Audio | `Set Audio Patch … To …` on the channel matrix | **yes** — routed, not patched: `Set Audio Patch Input 3 To Screen 1` writes the preset's audio layer, `Follow Layer 2 On Screen 1` / `Follow Screen 2 On Line Output 1` set what a point follows, mutes land where the device keeps them |
 | Layer | yes | **yes** — from a catalogue generated from a Pulse 4K's own bundle: 57 properties, `UP`/`DOWN` buffers |
+| Edit page | yes — saves direct or via preview | **yes** — saves via preview only: the banks there have no import, so there's no direct route |
 | VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
 | Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |
 | OSC input | yes — 173 addresses, widened by the device's own catalogue | **yes** — 44 addresses, mynah's vouched-for table; the Midra catalogue is vendored for the Layer tab but not yet merged into the dictionary |
 | MIDI Mapping | yes | not yet — the surface engine still spells LivePremier |
 | EDID builder | yes — the 100-slot bank and M1–M16, read off the simulator | not yet seen — it lights up by itself if the store has the same `system/edid/bankList` |
 | HyperDecks | yes | **yes** — a deck plays into an `INPUT_<n>` and records an output or `MTVW`; the rules are tested against a Pulse 4K's store |
+| Background Slicer | yes — a background per output, from a still or from an input | **yes** — one picture per screen through an Auto Crop set, or a Custom set with an input per output |
 | Matrix routing | yes | not yet — the sockets are read, but the Router tab and box are written into LivePremier's own pages |
 | Arithmetic in fields, Settings | yes | yes |
 
