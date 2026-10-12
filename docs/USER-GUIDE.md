@@ -78,12 +78,13 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 > interleaved output links, and a staged preconfig that differs from the running one.
 >
 > **Midra 4K and Alta 4K (QuickVu, Pulse, Eikos, QuickMatrix, Zenith 100/200) have been supported
-> since 0.6.0** for the Timeline, Console, Memories, Layer and Pitch Compensation. There's no VPU
-> to map on those, and MIDI Mapping isn't offered there yet. The port was proven on a **live Pulse
-> 4K**: every write over the device protocol by a test harness, and the Console panel's own lines
-> typed by the operator, which were the first writes this app's panels have made to real
-> hardware. On LivePremier, nothing has been written to a physical device yet, and the timeline
-> has only ever fired at a simulator.
+> since 0.6.0** for the Timeline, Console, Memories, Layer and Pitch Compensation, and since
+> 0.17.0 for the Edit page, HyperDecks and the Background Slicer too. There's no VPU to map on
+> those, and MIDI Mapping isn't offered there yet. The port was proven on a **live Pulse 4K**:
+> every write over the device protocol by a test harness, and the Console panel's own lines typed
+> by the operator, which were the first writes this app's panels have made to real hardware. On
+> LivePremier, nothing has been written to a physical device yet, and the timeline has only ever
+> fired at a simulator.
 >
 > **The Edit page and Companion (0.10.0, 0.11.0) have been proven on simulators and a running
 > Companion 5.0.5, not on a physical switcher.** Two of their limits are worth knowing now. The
@@ -100,8 +101,8 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 > The relay is off until you switch it on.
 >
 > **0.15.0 adds Layer Lock, HyperDecks, the EDID builder, Mosaic inputs, Pixelhue Mapping and the
-> Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None has met
-> real hardware yet.
+> Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
+> real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
 > **0.17.1 fixes the Background Slicer's LivePremier apply**, which took its own write as the
 > switcher's answer, so a refused write read as landed. It now waits for the switcher's echo.
@@ -1373,7 +1374,7 @@ touched.
 ## Switching features off
 
 **Preconfig ▸ LivePremier Plus → Plugins** lists every feature this app adds, each with a switch.
-Everything is on until you switch it off, except the previews that say otherwise.
+Everything is on until you switch it off, except Preview lock and the previews that say otherwise.
 
 ![Preconfig ▸ LivePremier Plus → Plugins: every feature with its switch, what it does and where it lives](screenshots/plugins.png)
 
@@ -1421,8 +1422,8 @@ curl -o livepremier-plus.json 'http://127.0.0.1:8535/__lpp/config?download=1'
 It's plain JSON, so it's readable, diffable and fine in a git repo. It carries which switcher it
 was written against, and three separate groups:
 
-- **installation:** app settings (console language, OSC port and bind) and your external routers.
-  Not tied to a switcher.
+- **installation:** app settings (console language, OSC port and bind), your external routers,
+  your HyperDecks and your Dante snapshots. Not tied to a switcher.
 - **show:** the cue stack, layer groups, layer names, layer locks, your variables and Companion
   memory triggers. Tied to the switcher they were built on, because they name screens and layer
   slots like `S1/2`.

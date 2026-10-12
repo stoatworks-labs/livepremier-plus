@@ -3,7 +3,7 @@
 A small menu-bar app for LivePremier Plus: pick a network interface + port,
 Start/Stop the proxy, and open it in a browser. Lives in the system tray.
 
-Download the `.dmg` / `.msi` / `.deb` / `.rpm` from the repo's
+Download the `.dmg` / `.pkg` / `.exe` / `.deb` / `.rpm` from the repo's
 [Releases](https://github.com/stoatworks-labs/livepremier-plus/releases).
 
 > **Fully self-contained.** The bundle embeds a Node runtime and the app itself,

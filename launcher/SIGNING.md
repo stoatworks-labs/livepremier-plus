@@ -36,7 +36,7 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 
 ## How it builds
 
-`release-macos.yml` (on a `v*` tag or manual run):
+`release-desktop.yml` (on a `v*` tag or manual run):
 
 1. builds + stages the embedded app (`scripts/prepare.sh`),
 2. imports `APPLE_CERTIFICATE` into a temporary keychain (only if present),

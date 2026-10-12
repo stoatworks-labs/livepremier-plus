@@ -1,6 +1,6 @@
 # The Web RCS transport
 
-What the extension rides on, and why it is shaped the way it is. Every claim
+What this app's panels ride on, and why it is shaped the way it is. Every claim
 here was confirmed on the wire against a running LivePremier simulator 6.2.73,
 not taken from the protocol guide — the guide is a firmware behind in places
 that matter.
@@ -38,15 +38,15 @@ client discards frames failing either check. **Writing a property is the
 command** — there is no verb channel, and a write is what a button press
 becomes.
 
-Writes are broadcast to every connected client, so a second tab, the extension
-and the vendor UI all see each other's changes.
+Writes are broadcast to every connected client, so a second tab, this app's
+panels and the vendor UI all see each other's changes.
 
 ### REMOTE
 
 The vendor UI's *own* view state — a mobx-state-tree snapshot followed by JSON
 patches (`{"channel":"INIT", snapshot, socketId}`, then `{"channel":"PATCH",
 patch}`). Selected screens, panel layout, connected clients. Not the device.
-The extension ignores it.
+This app ignores it.
 
 ### LOG
 

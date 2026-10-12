@@ -270,9 +270,9 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > inbound frame, as the Midra apply already did. Proven on LivePremier Simulator 6.2.73 only.
 >
 > **0.17.0 (2026-10-06).** **Variables**: `$` names generated from the device store and `@`
-> names of your own, with bracketed arithmetic, wherever a number goes (the Console, cues, OSC
-> input and the vendor's own numeric fields). **Preview lock** (off by default) shuts the PRW
-> padlock while a screen transitions, so cues, Memories and the Console wait for a take to land.
+> names of your own, with bracketed arithmetic, wherever a number goes (the Console, OSC input
+> and the vendor's own numeric fields; not cues yet). **Preview lock** (off by default) shuts the
+> PRW padlock while a screen transitions, so cues, Memories and the Console wait for a take to land.
 > **Dante** and the **Background Slicer** arrive as previews, off by default. Dante has only
 > talked to a simulator. The Slicer (one picture cut into pixel-exact backgrounds, on LivePremier
 > and on Midra 4K / Alta 4K) has run on simulators only, its rotated outputs, output groups and
@@ -1178,7 +1178,11 @@ PLUS                 <- ours
   Layer Groups
   Layer Lock
   Matrix Routing
+  Audio Matrix
   HyperDecks
+  Variables
+  Dante
+  Background Slicer
   Companion
 ```
 
@@ -1501,9 +1505,9 @@ in service. Anything a panel holds back is listed with its reason on the Setting
 npm test
 ```
 
-About 830 tests, and no browser. The socket tests bind real ports on loopback.
+About 1,000 tests, and no browser. The socket tests bind real ports on loopback.
 
-Twenty-three cover OSC and AWJ. The framing ones run against a stand-in device on a real TCP
+Thirty-three cover OSC and AWJ. The framing ones run against a stand-in device on a real TCP
 socket rather than a mock, on purpose, because everything worth catching there lives in the
 plumbing: the `0x04` terminator, a reply that straddles a read boundary, a write thrown away
 because the socket was destroyed before it flushed. A mocked `net.connect` would just agree with
@@ -1513,11 +1517,11 @@ One test checks that `docs/OSC.md` is exactly what its generator produces, and a
 every address the document lists through the resolver, so the published list can't promise an
 address that doesn't work.
 
-Twenty cover the expression evaluator, weighted towards what it has to **refuse** (`1/0`, `2+`,
-`1920x1080`, `00:01.000`, and anything that looks like code), because the failure that matters
-is a plausible wrong value on air, not a parse error somebody notices.
+Twenty-eight cover the expression evaluator, weighted towards what it has to **refuse** (`1/0`,
+`2+`, `1920x1080`, `00:01.000`, and anything that looks like code), because the failure that
+matters is a plausible wrong value on air, not a parse error somebody notices.
 
-Twenty-two cover the proxy against a stand-in Web RCS on a real socket rather than a mock:
+Forty-six cover the proxy against a stand-in Web RCS on a real socket rather than a mock:
 injection ordering against deferred scripts, chunked and gzipped documents, CSP stripping, path
 traversal, the byte-level socket relay, runtime device changes, and the shutdown path. That last
 one pins a hang rather than a wrong value. An upgraded socket is invisible to the HTTP server's

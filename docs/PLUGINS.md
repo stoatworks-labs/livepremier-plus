@@ -23,7 +23,9 @@ and read [Adding your own](#adding-your-own) below.
 from the manifests in [`src/core/plugins.js`](../src/core/plugins.js), so it cannot drift from the
 app the way the hand-written one did.
 
-- **Every built-in is on unless you switch it off**, so nobody upgrading loses anything.
+- **Every built-in is on unless you switch it off**, bar five that start off (Preview lock, and the
+  Dante, Thumbnail relay, Multiviewer thumbnails and Background Slicer previews), so nobody
+  upgrading loses anything.
 - **Off means absent**: no sidebar entry or tab, no page decoration, no routes (they answer 404 and
   name the plugin), no background service (an OSC listener is closed, router and Companion
   connections are hung up).
@@ -405,8 +407,8 @@ Phase 1 is where the shape was set, and the shape is the expensive thing to chan
 written elsewhere depend on it. These are the calls made, for review before Phase 2 builds on them:
 
 User plugins shipped (phase 4) before this review happened, so these are also what a plugin written
-today depends on. Nothing has been released with them yet; changing any of them now costs a rewrite of
-the example and the built-ins, not of anybody else's plugin.
+today depends on. They've been in every release since 0.13.0, so changing any of them now could
+break somebody else's plugin as well as the example and the built-ins.
 
 1. **Settings live in `plugins.<id>.settings`, with legacy keys lifted.** The alternative was to
    leave built-ins' settings at the top level for ever and namespace only user plugins — two models

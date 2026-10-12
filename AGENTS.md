@@ -1517,15 +1517,15 @@ no benefit. Read `wru` as "the panels".
 
 ## Testing
 
-`npm test` — 270 tests, no network, no browser. Seven run against a real Aquilon
-C capture (`aquilon-c-live-resources.json`, read 2026-08-21) and are the only
+`npm test` — about 1,000 tests, no network, no browser. Seven run against a real
+Aquilon C capture (`aquilon-c-live-resources.json`, read 2026-08-21) and are the only
 coverage of fitted mixers, output links and Optimized mode, none of which a
 simulator produces. `test/dialect.test.js` runs both object models against real
 stores — the Aquilon's memories capture and `midra-3.2.29-pulse4k.json`, cut
 from the Midra 4K simulator after the writes it asserts had been made through
 the mng dialect's own paths, so every mng path in it is one a switcher accepted.
 
-Twenty-two cover the proxy, against a stand-in Web RCS on a **real socket**
+Forty-six cover the proxy, against a stand-in Web RCS on a **real socket**
 rather than a mock — deliberately, because every bug worth catching there lives
 in the plumbing (headers, encodings, streaming, the upgrade handshake) and a
 mocked `http.request` would simply agree with whatever the code did. Both
@@ -1540,10 +1540,12 @@ live, both panels render, the setup flow works, and a cue stack survives a
 reload. **Cue persistence had never once executed before that** — the
 extension's `chrome.storage` broker was never exercised.
 
-Still not covered: **no panel has been driven live against physical hardware in
-a browser**, and the launcher has never been run as a real native tray window
-(its bundled chain was verified headlessly — embedded Node, staged app, proxying
-with injection).
+Still not covered: **no panel has written to a physical LivePremier from a
+browser** (the panels were opened against a live Aquilon C on 2026-09-10, and
+the Console's lines typed at a live Pulse 4K on 2026-09-13 are the only panel
+writes to real hardware; see the README's Status), and the launcher has never
+been run as a real native tray window (its bundled chain was verified headlessly
+— embedded Node, staged app, proxying with injection).
 
 ## Related work
 
