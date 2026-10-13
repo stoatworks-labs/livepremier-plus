@@ -1466,11 +1466,14 @@ no benefit. Read `wru` as "the panels".
 
 ## Traps that cost time here
 
-- **A simulator has no VPU at all**, so the VPU panel cannot be developed
-  against one. It reports a `vpuLayerList` that is present and permanently empty
-  and no `vpuMixerList` (`$vpuLayer` answers `E12` on hardware). Use
-  `tools/harness.html` with the live capture instead. The panel names this case
-  explicitly rather than drawing an empty chassis.
+- **The simulator the fixtures came from has no VPU at all.** It reports a
+  `vpuLayerList` that is present and permanently empty and no `vpuMixerList`
+  (`$vpuLayer` answers `E12` on hardware). Use `tools/harness.html` with the live
+  capture instead. The panel names this case explicitly rather than drawing an
+  empty chassis. **Not every simulator:** the rack's 6.2.73 under Wine
+  (2026-10-13) reports a fully fitted C MAX — 64 mixers, all available, two
+  enabled for S1/NATIVE — and `test/sim/screen.sim.test.js` checks `readSide`
+  against it mixer by mixer. Neither case is evidence about hardware.
 - **The Browser pane blocks cross-origin requests when the tab is on the LAN.**
   Injecting the modules from a local dev server works against a page on
   localhost and fails with `ERR_BLOCKED_BY_CLIENT` against a real device, with
@@ -1530,6 +1533,48 @@ rather than a mock — deliberately, because every bug worth catching there live
 in the plumbing (headers, encodings, streaming, the upgrade handshake) and a
 mocked `http.request` would simply agree with whatever the code did. Both
 framing bugs above were found this way.
+
+`LPP_SIM=<host>:<port> npm run test:sim` — the live suite in `test/sim/`, against
+a running LivePremier simulator. It boots the real app (`createProxy`, as
+`server/index.js` does) on a loopback port with a throwaway data directory and
+drives it the way the outside world does; `test/sim/harness.js` is the whole of
+the plumbing. The rules it keeps, which a new file must keep too:
+
+- **It refuses anything that is not a simulator.** `startApp` asks the device
+  over AWJ (`deviceList/items/1/pp/isSimulated`) before the app is pointed at
+  it. There is no override. Every test passes `{ skip: SKIP }`, so an unset
+  `LPP_SIM` is a skip with a reason, which is what CI sees.
+- **The witness is AWJ, not the app.** `Link` mirrors the vendor socket through
+  the proxy (inbound frames only, tagged `dir` as `page-socket.js` tags them);
+  `awjGet` asks the switcher on 10606, a path the app's own code is not on.
+  Check a write there, not only in the mirror.
+- **Put back what you change.** `guardScreen` snapshots a screen's side, fade
+  times and every buffer and restores them with the app's own `bufferWrites`;
+  `Journal` records-then-writes per path; memories go in empty slots at the top
+  of the bank (`spareSlots`) and are deleted after. Never save a **master**
+  memory: it rewrites each screen's `bankSlot`, default slot 1.
+- **The simulator is shared and has one screen in use** (S1, one fitted layer),
+  so files run one at a time (`--test-concurrency=1`).
+- **What the simulator cannot show, skip with a reason; never pass on it.** It
+  reports no state while a take is in flight (`transition` holds, then lands;
+  `tbarPosition` jumps), so nothing gated on "mid-take" can be reached; it does
+  nothing with `xStepBack`; and it echoes in about 5 ms, far quicker than
+  hardware. The memory import and export hand the device a path on *its*
+  filesystem, so against a simulator on another machine they answer the
+  device's own `ERROR_INVALID_FILE` / `ERROR_INVALID_PATH` — the suite asserts
+  that refusal, and the success only when the simulator is on loopback.
+- **Triggers latch, and the suite re-arms them.** An `x…` property reads true
+  once fired; `Link.rearm()` (called by `guardScreen`'s restore) writes back
+  false every trigger that read false before, which does nothing else. A recall
+  also leaves the buffer flagged as an unmodified memory; `guardScreen` clears
+  that by nudging one property and putting it back.
+- **The vendor's EDID save goes through the EDID editor** (`system/edid/edit`)
+  and leaves its EDID there; `io.sim.test.js` journals the editor and restores
+  its derived status too (docs/NOTES.md has the recipe).
+- **A write the switcher already holds is never echoed**, and it confirms a
+  layer's source twice (`source/pp` then `source/status/pp`, not always
+  together). `Link.waitFor` checks the current value first; `previewLook` waits
+  for both, or the trailing echo lands in the next test's window.
 
 For the panels themselves, `tools/harness.html` — see the README. It proxies the
 vendor stylesheet from a named device so the panels are judged in the real

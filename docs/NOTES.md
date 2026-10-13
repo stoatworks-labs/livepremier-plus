@@ -9,6 +9,58 @@ Cross-cutting notes that are not specific to this repo live in
 
 *LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, injecting a VPU map and a theatre cue stack into a real LivePremier Web RCS session in the vendor's own CSS; PRIVATE + pushed; verified through the proxy against the simulator; no panel ever driven live on hardware in a browser*
 
+## The live suite, against the rack simulator (2026-10-13)
+
+`test/sim/`, run with `LPP_SIM=<host>:<port> npm run test:sim`: 168 tests in 12 files, about 95 s,
+against the rack's LivePremier Simulator 6.2.73 (Aquilon C MAX, under Wine). The real app boots
+on loopback and is driven through the proxied socket, OSC over UDP, the Console panel typed at,
+the cue engine with timecode pushed over HTTP, every plugin route, a MIDI profile and a Speed
+Editor (a fake panel in the real device host); each effect is checked over AWJ. AGENTS.md
+"Testing" has the rules it keeps. The simulator came back matching a full store snapshot taken
+before the first run, but for three status words nothing can write (below).
+
+What the simulator showed that the notes did not say, or said wrongly:
+
+- **The rack simulator has a VPU.** 64 mixers, all available, two enabled for S1/NATIVE, and
+  `readSide`, the panel and AWJ agree mixer for mixer. The "a simulator has no VPU" rule came
+  from the simulator the fixtures were cut from; it is a property of that one, not of simulators.
+- **No state while a take is in flight.** `transition` holds its old value and then lands, and
+  `tbarPosition` jumps straight to the end, so anything gated on "mid-take" (save via preview's
+  refusal, a variable read mid-take) cannot be reached. Preview lock still works, because it
+  arms on the outbound `xTake`. `xStepBack` produces no frame at all. Echoes take about 5 ms.
+- **All 66 writable layer properties round-trip** — written to preview layer 1, echoed, read
+  back over AWJ. The `map` ones are sets of flag names (`[]`, `["FORCE_TRANSITION"]`).
+- **Triggers latch.** An `x…` property reads true once it has fired, for good. Writing false is
+  the arm half of a pulse and does nothing else, so the suite writes every trigger it fired back
+  to false (`Link.rearm`).
+- **A recall marks the buffer unmodified** (`presetBank/status/presetId/…/isNotModified`), and it
+  stays so once every property is back. Changing anything clears it; `guardScreen` nudges one
+  property and puts it straight back.
+- **The vendor's EDID save goes through the switcher's EDID editor** (`system/edid/edit`) and
+  leaves the EDID there. The editor's extension fields are only worked out when a *valid* EDID is
+  checked — checking the empty buffer leaves them as the last valid one had them — so restoring
+  it means checking a valid EDID with the original's block count first, then the original. Its
+  `isValid` reads UNKNOWN until the first check ever, and cannot be got back to that.
+- **The bank import and export answer a remote simulator in its own words**: the path is on the
+  device's filesystem, so `ERROR_NO_FILE` and `ERROR_INVALID_PATH`, and those status words stay
+  on the device afterwards. With the editor's `isValid` above, they are all a run leaves.
+- **No input thumbnails.** `inputs/<n>` and the rest answer 404 on this simulator; only
+  `timers/1–4` serve PNGs, 256 × 144 and a kilobyte or two, so at default settings the relay
+  rightly hands the PNG on.
+- **Pitch:** a ratio does nothing until `xUpdate`; the pitched size rounds down (1234 → 2369 ×
+  1332); an out-of-range ratio is discarded, not clamped.
+- **OSC refusals go to the activity stream**, with their reason; `lastError` is the socket's.
+
+Found, and left as `todo` tests rather than fixed:
+
+- `plugins/snapshot-relay/relay.js` adds a frame to `bytesOut` in `get()`, before `server.js`
+  decides to answer 304 with no body, so a revalidated frame counts as sent in full.
+- `plugins/edid-mosaic/core.js` `mosaicTargets` offers a grouped input as the start of another
+  mosaic: with IN_17 + IN_18 grouped 2×1 it offers IN_18 + IN_19. It checks the rest of a run for
+  grouped inputs, never the first. Not applied, so what the switcher would do is unknown.
+- With Timeline off, `/__lpp/timecode` answers "the timecode plugin is switched off" although
+  its own switch is on; `/plugins` says "needs Timeline", correctly.
+
 ## The Edit page on Midra 4K / Alta 4K — it had never worked there (2026-10-06)
 
 The page is offered wherever `layerProperties` is, which includes mng-platform, and it spoke

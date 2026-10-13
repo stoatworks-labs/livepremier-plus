@@ -1419,10 +1419,13 @@ store the page already has. That also gets the per-screen resource status (the d
 would be a *second source of truth for the same VPU state*. A faster first paint isn't worth two
 sources that can disagree about what's on air.
 
-**A simulator has no VPU at all.** It carries a `vpuLayerList` that's there and permanently
-empty, and no `vpuMixerList`; `$vpuLayer` answers `E12` on real hardware. That's a quirk of the
-simulator rather than a second generation of firmware, and the panel just says so, instead of
-drawing an empty chassis or claiming the firmware isn't supported.
+**The simulator the fixtures came from has no VPU at all.** It carries a `vpuLayerList` that's
+there and permanently empty, and no `vpuMixerList`; `$vpuLayer` answers `E12` on real hardware.
+That's a quirk of the simulator rather than a second generation of firmware, and the panel just
+says so, instead of drawing an empty chassis or claiming the firmware isn't supported. Not every
+simulator does it, mind: another 6.2.73, running under Wine, reports a fully fitted C MAX (64
+mixers, two of them carrying S1's NATIVE layer), and the live suite checks the panel's reading of
+that one mixer by mixer.
 
 ## Platforms
 
@@ -1532,6 +1535,24 @@ Seven run against `aquilon-c-live-resources.json` (the resource subtree of a rea
 read from the device on 2026-08-21) and cover ground no simulator can reach: fitted mixers,
 interleaved output links, Optimized mode, and a staged preconfig where every difference is a
 link move.
+
+### Against a simulator
+
+```bash
+LPP_SIM=<simulator>:3000 npm run test:sim
+```
+
+The suite in `test/sim/` boots the real app, points it at a running LivePremier Simulator and
+drives it through the doors the outside world uses: the proxied Web RCS socket, the OSC
+listener, the Console, the cue engine with timecode pushed at it, the plugin routes, and a
+Speed Editor (a fake one on USB; everything after the USB is the shipping code). Every effect is
+checked by asking the switcher over AWJ, which is a path none of the app's own code is on, so the
+app never gets to mark its own homework.
+
+It writes to the switcher, so it refuses to run against anything that doesn't say it's a
+simulator, and it puts back everything it changed, memories included. With `LPP_SIM` unset every
+test skips, which is what CI sees. Files run one at a time, because there's one switcher and every
+file wants it.
 
 There's also a bench for the panels on their own:
 
