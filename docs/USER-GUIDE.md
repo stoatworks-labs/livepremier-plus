@@ -104,6 +104,10 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.17.2 fixes three things the live test suite found.** Mosaic inputs no longer offers an
+> input that already belongs to a mosaic as the start of another, the Thumbnail relay no longer
+> counts a revalidated frame as sent, and a plugin that's off because one it needs is off says so.
+>
 > **0.17.1 fixes the Background Slicer's LivePremier apply**, which took its own write as the
 > switcher's answer, so a refused write read as landed. It now waits for the switcher's echo.
 >

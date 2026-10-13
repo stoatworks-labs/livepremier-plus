@@ -166,7 +166,7 @@ command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or
 well for the Edit page, Timeline, Console, Memories, Layer, Pitch Compensation, HyperDecks and
 the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 
-> **Status: field testing, v0.17.1.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.17.2.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -263,6 +263,15 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.2 (2026-10-13).** Three fixes, all found by the new live test suite against the rack's
+> simulator. **Mosaic inputs** offered an input that already belonged to a mosaic as the start of
+> another one (with IN_17 + IN_18 grouped, it offered IN_18 + IN_19); it doesn't any more. The
+> **Thumbnail relay** counted a frame answered 304, with no body, as sent in full, so its card
+> overstated the traffic to the pages and understated what it saved; it now counts only what it
+> sends. And a plugin that's off because a plugin it needs is off (Timecode, with Timeline
+> switched off) says so on its routes, instead of claiming its own switch is off. Proven on
+> LivePremier Simulator 6.2.73 only.
 >
 > **0.17.1 (2026-10-11).** The **Background Slicer**'s LivePremier apply now waits for the
 > switcher's own echo. It had been taking its own outgoing write as the answer, so a write the
