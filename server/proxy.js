@@ -38,7 +38,7 @@ import {
   normalise as normaliseSettings, DEFAULT_SETTINGS,
   liftLegacy, mergeSettings,
 } from '../src/core/settings.js';
-import { API_VERSION, isEnabled as pluginOn, routeOwner } from '../src/core/plugins.js';
+import { API_VERSION, status as pluginStatus, offError, routeOwner } from '../src/core/plugins.js';
 import { createPluginHost } from './plugin-host.js';
 import { absentDevices } from './device-host.js';
 import { oscAddressFor } from '../src/core/contributions.js';
@@ -222,13 +222,13 @@ export async function createProxy({
     storage && storage.loadSettings ? await storage.loadSettings() : {}, host.schemas);
 
   /*
-   * Whether a plugin is switched on — see `src/core/plugins.js`. Read per call,
-   * never captured, so switching one off in the settings page is seen by the
-   * next request and the next apply. The platform half of the question lives in
-   * the page (it needs the device store); here it is the switch and the
-   * dependencies.
+   * Whether a plugin is on, and if not why — see `src/core/plugins.js`. Read
+   * per call, never captured, so switching one off in the settings page is
+   * seen by the next request and the next apply. The platform half of the
+   * question lives in the page (it needs the device store); here it is the
+   * switch and the dependencies.
    */
-  const on = (id) => pluginOn(settings.plugins, id);
+  const pluginState = (id) => pluginStatus(settings.plugins, id);
 
   /**
    * Apply a settings patch: merged onto what is already held, so a panel may
@@ -341,8 +341,9 @@ export async function createProxy({
     const rest = url.pathname.slice(NS.length) || '/';
 
     const owner = routeOwner(rest);
-    if (owner && !on(owner)) {
-      return sendJson(res, 404, { error: `the ${owner} plugin is switched off`, plugin: owner });
+    const ownerState = owner && pluginState(owner);
+    if (owner && !ownerState.on) {
+      return sendJson(res, 404, { error: offError(owner, ownerState.reason), plugin: owner });
     }
 
     /*

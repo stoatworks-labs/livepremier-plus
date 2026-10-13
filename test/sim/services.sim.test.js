@@ -149,7 +149,10 @@ test('switching a built-in off takes its routes and addresses away at once, and 
   const tc = await plugin(app, 'timecode');
   assert.deepEqual([tc.on, tc.reason], [false, 'needs Timeline']);
   assert.equal((await app.api('/stack')).status, 404);
-  assert.equal((await app.api('/timecode')).status, 404);
+  const needs = await app.api('/timecode');
+  assert.equal(needs.status, 404);
+  assert.deepEqual(needs.json, { error: 'the timecode plugin is switched on, but it needs Timeline', plugin: 'timecode' },
+    'its own switch is on, so the route says what it needs');
   await app.configure({ plugins: { timeline: { enabled: true } } });
   assert.equal((await plugin(app, 'timecode')).on, true);
   assert.equal((await app.api('/timecode')).status, 200);
@@ -602,16 +605,14 @@ test('the thumbnail relay re-encodes what it can shrink, answers 304 for a frame
 });
 
 /*
- * `relay.get` counts the frame into `bytesOut` before `server.js` decides the
- * page already has it and answers 304 with no body, so the settings card's
- * "To the pages" rate and its "saved" share count a revalidated frame as sent
- * in full. Nothing in the app sends `If-None-Match` today (the relay answers
- * `no-store`), so only an outside caller sees it.
+ * `relay.get` used to count the frame into `bytesOut` before `server.js`
+ * decided the page already had it and answered 304 with no body, so the
+ * settings card's "To the pages" rate and its "saved" share counted a
+ * revalidated frame as sent in full. `server.js` now counts a body as it sends
+ * one. Nothing in the app sends `If-None-Match` today (the relay answers
+ * `no-store`), so only an outside caller saw it.
  */
-test('a 304 is not counted as a frame sent to the pages', {
-  skip: SKIP,
-  todo: 'relay.js counts bytesOut in get() before server.js answers 304 with no body'
-}, async (t) => {
+test('a 304 is not counted as a frame sent to the pages', { skip: SKIP }, async (t) => {
   const was = (await settingsOf(app)).plugins['snapshot-relay'];
   t.after(() => app.configure({ plugins: { 'snapshot-relay': { enabled: false, settings: was.settings } } }));
   const sim = `http://${target.host}:${target.port}`;

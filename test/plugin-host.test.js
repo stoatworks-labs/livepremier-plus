@@ -259,16 +259,23 @@ test('dependants stop before what they need, and start after it', async () => {
     export default function activate(ctx) {
       globalThis.__order.push('start ${id}');
       ctx.onDispose(() => globalThis.__order.push('stop ${id}'));
+      ctx.route('GET', '/hi', (req, res, h) => h.json(200, { hi: '${id}' }));
     }`;
   const tree = { base: { 'server.js': body('base') }, top: { 'server.js': body('top') } };
   /* Listed dependant-first on purpose: the order comes from `requires`. */
   const manifests = [manifest({ id: 'top', requires: { plugins: ['base'] } }), manifest({ id: 'base' })];
-  await withHost({ tree, manifests }, async ({ host, schemas }) => {
+  await withHost({ tree, manifests }, async ({ host, base, schemas }) => {
     assert.deepEqual(globalThis.__order, ['start base', 'start top']);
     globalThis.__order = [];
     await host.sync(normaliseSettings({ plugins: { base: { enabled: false } } }, schemas));
     assert.deepEqual(globalThis.__order, ['stop top', 'stop base'], 'switching off what it needs takes the dependant too');
     assert.match(host.list().find((p) => p.id === 'top').reason, /needs base/);
+    /* Its routes give the same reason: its own switch is still on. */
+    let res = await fetch(base + '/__lpp/top/hi');
+    assert.equal(res.status, 404);
+    assert.equal((await res.json()).error, 'the top plugin is switched on, but it needs base');
+    res = await fetch(base + '/__lpp/base/hi');
+    assert.equal((await res.json()).error, 'the base plugin is switched off');
   });
 });
 

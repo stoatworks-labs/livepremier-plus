@@ -91,7 +91,10 @@ export function mosaicTargets(store, cols, rows) {
     if (members.some((m) => !m.sizes.includes(String(TILE_BYTES)))) why.push('a plug cannot take a 384-byte EDID');
     const taken = members.slice(1).find((m) => m.pre.global === 'GROUPED' || (m.pre.group && m.pre.group !== '1X1'));
     const regroup = first.pre.group && first.pre.group !== '1X1' && first.pre.group !== group;
-    if (regroup) why.push(`${first.id} is already grouped ${first.pre.group}`);
+    /* The input a run starts at can be a member of a group itself — IN_18 of
+       an IN_17 2X1 — and GROUPED is what says so. */
+    if (first.pre.global === 'GROUPED') why.push(`${first.id} already belongs to another group`);
+    else if (regroup) why.push(`${first.id} is already grouped ${first.pre.group}`);
     else if (taken && !(first.pre.group === group)) why.push(`${taken.id} already belongs to another group`);
     out.push({
       id: first.id,

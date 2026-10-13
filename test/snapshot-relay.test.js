@@ -260,6 +260,20 @@ test('pages asking within maxAgeMs share one fetch; after it, the switcher is as
   assert.equal(s.sources[0].changeMs, 1100);
 });
 
+test('bytes to the pages are counted as a body is sent, not as a frame is looked up', async () => {
+  const dev = scripted();
+  dev.frames['/api/device/snapshots/inputs/1'] = devicePng(1);
+  const relay = createRelay({ fetch: dev.fetch, transcode: fakeTranscode, settings: () => ({ maxAgeMs: 300 }) });
+  const a = await relay.get('/api/device/snapshots/inputs/1');
+  await relay.get('/api/device/snapshots/inputs/1');
+  /* Two frames looked up, and nobody has said either went out: the second
+     could have been answered 304 to a page that held it already. */
+  assert.equal(relay.stats().bytesOut, 0);
+  relay.sent(a.body.length);
+  assert.equal(relay.stats().bytesOut, a.body.length);
+  assert.equal(relay.stats().bytesIn, devicePng(1).length);
+});
+
 test('requests that overlap a fetch in flight wait for it rather than starting another', async () => {
   const dev = scripted();
   dev.frames['/api/device/snapshots/inputs/2'] = devicePng();
@@ -383,9 +397,14 @@ test('through the proxy: off, the switcher’s PNG; on, a JPEG; off again, the P
     await res.arrayBuffer();
     assert.equal(sw.seen.length, before, 'the switcher was not asked');
 
-    /* An If-None-Match for the frame it has is a 304. */
+    /* An If-None-Match for the frame it has is a 304, and a 304 sends no body,
+       so it counts none: two JPEGs have gone to the pages, not three. */
+    const sentBefore = (await (await fetch(`${base}/__lpp/snapshot-relay/state`)).json()).bytesOut;
+    assert.equal(sentBefore, jpeg.length * 2);
     res = await fetch(`${base}/api/device/snapshots/inputs/1?3`, { headers: { 'if-none-match': etag } });
     assert.equal(res.status, 304);
+    assert.equal((await res.arrayBuffer()).byteLength, 0);
+    assert.equal((await (await fetch(`${base}/__lpp/snapshot-relay/state`)).json()).bytesOut, sentBefore);
 
     /* What it will not take goes to the switcher as before: a 404 stays a 404,
        and nothing outside the snapshot routes is touched. */

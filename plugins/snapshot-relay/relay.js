@@ -65,7 +65,7 @@ export function createRelay({ fetch, transcode, settings, isHot = () => false, n
     passthrough: 0,     /* served as the switcher sent it */
     errors: 0,
     bytesIn: 0,         /* from the switcher */
-    bytesOut: 0         /* to the pages */
+    bytesOut: 0         /* to the pages: counted by `sent`, as a body goes out */
   };
   const started = now();
 
@@ -146,19 +146,19 @@ export function createRelay({ fetch, transcode, settings, isHot = () => false, n
     if (e.out && t - e.at <= limit) {
       const idle = t - e.at > share;
       if (idle) totals.idle++; else totals.shared++;
-      return count({ ...e.out, via: idle ? 'idle' : 'shared' });
+      return answer({ ...e.out, via: idle ? 'idle' : 'shared' });
     }
     if (e.inflight) {
       totals.shared++;
       const r = await e.inflight;
-      return count({ ...r, via: 'shared' });
+      return answer({ ...r, via: 'shared' });
     }
     const before = e.seq;
     e.inflight = refresh(e, headers);
     try {
       const r = await e.inflight;
       const via = !r.kept ? 'passthrough' : (e.seq === before ? 'unchanged' : 'fresh');
-      return count({ ...r, via });
+      return answer({ ...r, via });
     } catch (err) {
       totals.errors++;
       throw err;
@@ -167,10 +167,19 @@ export function createRelay({ fetch, transcode, settings, isHot = () => false, n
     }
   }
 
-  function count(r) {
-    totals.bytesOut += r.body.length;
+  function answer(r) {
     const { kept, ...out } = r;
     return out;
+  }
+
+  /*
+   * Bytes that actually went to a page. Counted by whoever writes the body,
+   * not in `get`: a page that already holds the frame is answered 304 with no
+   * body, and counting the frame there made a revalidation look like a frame
+   * sent in full (found by the live suite, 2026-10-13).
+   */
+  function sent(bytes) {
+    totals.bytesOut += bytes;
   }
 
   const median = (list) => {
@@ -202,7 +211,7 @@ export function createRelay({ fetch, transcode, settings, isHot = () => false, n
     };
   }
 
-  return { get, stats, size: () => entries.size };
+  return { get, sent, stats, size: () => entries.size };
 }
 
 /**

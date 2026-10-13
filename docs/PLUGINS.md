@@ -26,9 +26,9 @@ app the way the hand-written one did.
 - **Every built-in is on unless you switch it off**, bar five that start off (Preview lock, and the
   Dante, Thumbnail relay, Multiviewer thumbnails and Background Slicer previews), so nobody
   upgrading loses anything.
-- **Off means absent**: no sidebar entry or tab, no page decoration, no routes (they answer 404 and
-  name the plugin), no background service (an OSC listener is closed, router and Companion
-  connections are hung up).
+- **Off means absent**: no sidebar entry or tab, no page decoration, no routes (they answer 404,
+  name the plugin, and say why: its own switch, or a plugin it needs), no background service (an
+  OSC listener is closed, router and Companion connections are hung up).
 - **The server half applies at once; the page applies on the next load**, and the card says so. A
   page that grew and lost entries under an operator's pointer would be worse than a reload.
 - **Dependencies are honoured.** Send-to needs Layer Groups; switch Groups off and Send-to goes too,

@@ -17,8 +17,8 @@
  * is back. And a plug's EDID reset writes the stock EDID into the plug's
  * staging (`edid/cmd`), which on a factory plug holds zeros.
  *
- * Found here, and marked todo rather than fixed: `mosaicTargets` offers a
- * GROUPED member of a mosaic as the start of another one.
+ * Found here, and since fixed: `mosaicTargets` offered a GROUPED member of a
+ * mosaic as the start of another one.
  */
 
 import test, { before, after } from 'node:test';
@@ -535,16 +535,13 @@ test('a 2 × 1 mosaic groups two plugs and loads their tiles, and clearing it pu
     assert.equal(mosaicTargets(link.store, 2, 1).find((x) => x.id === first).ok, true, 're-applying is still offered');
 
     /*
-     * The partner is GROUPED into the first input, yet it is offered as the
-     * start of a mosaic of its own: `mosaicTargets` checks the rest of a run
+     * The partner is GROUPED into the first input, and was offered as the
+     * start of a mosaic of its own: `mosaicTargets` checked the rest of a run
      * for GROUPED members but never the input the run starts at. The unit
-     * test's "partner cannot start a group" looks at the input BEFORE the pair,
-     * because its fixture has nothing after it. Not applied here, so what the
-     * switcher would make of it is not known.
+     * test's "partner cannot start a group" looked at the input BEFORE the
+     * pair, because its fixture has nothing after it.
      */
-    await t.test('the partner of a grouped pair is not offered as the start of another', {
-      todo: 'core.js mosaicTargets: a GROUPED first input is not refused (live, 6.2.73)'
-    }, async () => {
+    await t.test('the partner of a grouped pair is not offered as the start of another', async () => {
       const offered = mosaicTargets(link.store, 2, 1).find((x) => x.id === second);
       assert.equal(await awjGet(pre(second, 'global')), 'GROUPED', `${second} is a member of ${first}'s group`);
       assert.equal(offered?.ok ?? false, false, `${second} is offered: ${offered && offered.label}`);

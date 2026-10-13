@@ -51,15 +51,21 @@ What the simulator showed that the notes did not say, or said wrongly:
   1332); an out-of-range ratio is discarded, not clamped.
 - **OSC refusals go to the activity stream**, with their reason; `lastError` is the socket's.
 
-Found, and left as `todo` tests rather than fixed:
+Found, left as `todo` tests on the day, and fixed the same day. Each has an offline test now,
+and the two `todo`s are ordinary tests: the live suite's next run was 166 passed and 2 skipped
+(mid-take state, no Companion), with nothing `todo`.
 
-- `plugins/snapshot-relay/relay.js` adds a frame to `bytesOut` in `get()`, before `server.js`
-  decides to answer 304 with no body, so a revalidated frame counts as sent in full.
-- `plugins/edid-mosaic/core.js` `mosaicTargets` offers a grouped input as the start of another
-  mosaic: with IN_17 + IN_18 grouped 2×1 it offers IN_18 + IN_19. It checks the rest of a run for
-  grouped inputs, never the first. Not applied, so what the switcher would do is unknown.
-- With Timeline off, `/__lpp/timecode` answers "the timecode plugin is switched off" although
-  its own switch is on; `/plugins` says "needs Timeline", correctly.
+- `plugins/snapshot-relay/relay.js` added a frame to `bytesOut` in `get()`, before `server.js`
+  decided to answer 304 with no body, so a revalidated frame counted as sent in full. `server.js`
+  now counts a body as it sends one (`relay.sent`).
+- `plugins/edid-mosaic/core.js` `mosaicTargets` offered a grouped input as the start of another
+  mosaic: with IN_17 + IN_18 grouped 2×1 it offered IN_18 + IN_19. It checked the rest of a run
+  for grouped inputs, never the first; a GROUPED first input is refused now. Never applied, so
+  what the switcher would have made of it is still unknown.
+- With Timeline off, `/__lpp/timecode` answered "the timecode plugin is switched off" although
+  its own switch was on; `/plugins` said "needs Timeline", correctly. A route now gives the same
+  reason (`offError` in `src/core/plugins.js`): "the timecode plugin is switched on, but it needs
+  Timeline". The host says the same of a user plugin whose dependency is off.
 
 ## The Edit page on Midra 4K / Alta 4K — it had never worked there (2026-10-06)
 

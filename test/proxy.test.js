@@ -859,6 +859,36 @@ test('a switched-off plugin answers 404 on every route it owns, and comes back w
   });
 });
 
+/*
+ * Timecode's own switch is on, but it needs Timeline. Its routes said
+ * "switched off" while /plugins said "needs Timeline" (found by the live
+ * suite, 2026-10-13); the refusal now gives the dependency too.
+ */
+test('a plugin that is off because it needs another says so, not that it is switched off', async () => {
+  let saved = { plugins: { timeline: { enabled: false } } };
+  const storage = {
+    loadSettings: async () => saved,
+    saveSettings: async (s) => { saved = s; }
+  };
+  await withProxy({ storage }, async ({ base }) => {
+    const listed = (await (await fetch(base + '/__lpp/plugins')).json()).plugins.find((p) => p.id === 'timecode');
+    assert.deepEqual([listed.on, listed.reason], [false, 'needs Timeline']);
+
+    let res = await fetch(base + '/__lpp/timecode');
+    assert.equal(res.status, 404);
+    assert.deepEqual(await res.json(), { error: 'the timecode plugin is switched on, but it needs Timeline', plugin: 'timecode' });
+    res = await fetch(base + '/__lpp/stack');
+    assert.equal(res.status, 404);
+    assert.deepEqual(await res.json(), { error: 'the timeline plugin is switched off', plugin: 'timeline' });
+
+    await fetch(base + '/__lpp/settings', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plugins: { timeline: { enabled: true } } })
+    });
+    assert.equal((await fetch(base + '/__lpp/timecode')).status, 200, 'back with Timeline, no restart');
+  });
+});
+
 test('a Companion press is refused, saying why, until there is a Companion to press', async () => {
   await withProxy({}, async ({ base }) => {
     const press = (body) => fetch(base + '/__lpp/companion/press', {

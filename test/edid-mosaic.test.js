@@ -166,6 +166,23 @@ test('apply 2 x 1: groups, places, loads both plugs, and inspects clean', async 
   assert.equal(mosaicTargets(store, 2, 1).find((t) => t.id === 'IN_22').ok, false);
 });
 
+// IN_24 above has nothing after it, so only the input before the pair was ever
+// asked. The live suite grouped IN_17 + IN_18 on the rack simulator and was
+// offered IN_18 + IN_19 (2026-10-13): IN_18 is GROUPED, IN_19 free, and 2X1 is
+// in IN_18's groupValidity, so nothing else refuses it.
+test('targets: a member of a group cannot start another, with free inputs after it', async () => {
+  const store = freshStore();
+  const sw = new FakeSwitcher(store);
+  const session = { store, send: (c) => sw.send(c) };
+  const result = await applyMosaic(session, 'IN_17', tiles('3840x1080-2x1'), { timeout: 2000 });
+  assert.deepEqual(result.problems, []);
+  const byId = Object.fromEntries(mosaicTargets(store, 2, 1).map((t) => [t.id, t]));
+  assert.equal(byId.IN_17.ok, true, 're-applying is still offered');
+  assert.equal(byId.IN_18.ok, false);
+  assert.equal(byId.IN_18.why, 'IN_18 already belongs to another group');
+  assert.equal(byId.IN_19.ok, true, 'the inputs after the group are free');
+});
+
 test('apply 2 x 2: tiles follow the switcher\'s placement, not input order', async () => {
   const store = freshStore();
   const sw = new FakeSwitcher(store);

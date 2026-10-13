@@ -57,7 +57,7 @@ import { mkdir, readFile, readdir } from 'node:fs/promises';
 import { join, extname, relative, isAbsolute, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { API_VERSION, BUILTINS, createRegistry, routeBase, validateManifest } from '../src/core/plugins.js';
+import { API_VERSION, BUILTINS, createRegistry, offError, routeBase, validateManifest } from '../src/core/plugins.js';
 import { changedPluginSettings } from '../src/core/settings.js';
 import { APP, POINTS, createContributions, createServices } from '../src/core/contributions.js';
 import { safeDeviceKey, writeJsonAtomic } from './storage.js';
@@ -648,7 +648,7 @@ export async function createPluginHost({
     if (!r.scope) {
       const why = r.loadError || r.startError;
       if (why) sendJson(res, 503, { error: `the ${r.id} plugin ${why}`, plugin: r.id });
-      else if (!r.on) sendJson(res, 404, { error: `the ${r.id} plugin is switched off`, plugin: r.id });
+      else if (!r.on) sendJson(res, 404, { error: offError(r.id, registry.status(settings.plugins, r.id).reason), plugin: r.id });
       else sendJson(res, 404, { error: `the ${r.id} plugin has no server routes`, plugin: r.id });
       return true;
     }

@@ -473,6 +473,18 @@ export const status = builtins.status;
 export const isEnabled = builtins.isEnabled;
 
 /**
+ * What a route answers for a plugin that is not on, from `status`'s reason.
+ * Its own switch may be on and something it needs off — Timecode with Timeline
+ * switched off — and "switched off" would send somebody to a switch that is
+ * already on.
+ */
+export function offError(id, reason) {
+  return reason && reason !== 'switched off'
+    ? `the ${id} plugin is switched on, but it ${reason}`
+    : `the ${id} plugin is switched off`;
+}
+
+/**
  * Which plugin owns an `/__lpp/…` route, or null for the core's own.
  *
  * Longest prefix first, so `/timecode/stream` is timecode's and not a

@@ -101,6 +101,7 @@ export default function activate(ctx) {
     }
     res.writeHead(r.status, headers);
     res.end(r.body);
+    relay.sent(r.body.length);
     return true;
   }
 
