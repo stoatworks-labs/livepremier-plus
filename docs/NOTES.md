@@ -1837,4 +1837,4 @@ AWJ `get` through the field kit's `AwjClient` and one `GET /api/stores/device`.
   only where some screen has the figure, so the trimmed Aquilon C capture
   draws as before. Rendered against the 17:59 live store (S1 4K ×2, S3 DUAL,
   room 19 DUAL · 9 4K · 4 5K) and in the panel bench with the RS4's own
-  stylesheet. Not released: the installed app stays on 0.17.2 until it is.
+  stylesheet. Released in 0.17.3 the same evening.

@@ -166,7 +166,7 @@ command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or
 well for the Edit page, Timeline, Console, Memories, Layer, Pitch Compensation, HyperDecks and
 the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 
-> **Status: field testing, v0.17.2.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.17.3.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -263,6 +263,17 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.3 (2026-10-16).** Fixes from an Aquilon RS4 on firmware 6.1.60, and one found retaking
+> the screenshots. The **Screens / Aux. strip** puts the plugin tabs behind a ⋯ instead of running
+> them off both sides of its panel. The **VPU map** no longer calls a live box a simulator, and on
+> 6.1.60, which reports no mixer map at all, it shows each screen's layer sizes and the room left
+> in the staged configuration instead of an empty panel. The **Layer tab** and the Edit page offer
+> only the sources the switcher has, and only the kinds the layer can take. **Arithmetic** works in
+> 6.1.x number fields. And **two saves of one file at once** no longer lose one, which renaming
+> layers quickly could do. The strip was measured on the RS4, and the source list and the VPU
+> sizes were drawn from read-only pulls of its store; arithmetic and the VPU wording were run on
+> Analog Way's 6.1.60 simulator, whose page is the RS4's own, and nothing was typed into the box.
 >
 > **0.17.2 (2026-10-13).** Three fixes, all found by the new live test suite against the rack's
 > simulator. **Mosaic inputs** offered an input that already belonged to a mosaic as the start of
