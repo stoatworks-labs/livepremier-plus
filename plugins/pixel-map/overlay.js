@@ -119,7 +119,7 @@ export function installPixelMaps({ plan, roles, enabled = () => true, doc = docu
       for (const [id, entry] of wanted) if (entry.image && !seen.has(id)) report.notDrawn.push(id);
     }
 
-    for (const node of doc.querySelectorAll(`[${MARK}]`)) if (!keep.has(node)) node.remove();
+    for (const node of doc.querySelectorAll(`[${MARK}][${OVERLAY}]`)) if (!keep.has(node)) node.remove();
     last = report;
   }
 
@@ -137,7 +137,7 @@ export function installPixelMaps({ plan, roles, enabled = () => true, doc = docu
     describe: () => ({ ...last, notDrawn: [...last.notDrawn] }),
     stop() {
       sweeps.stop();
-      for (const node of doc.querySelectorAll(`[${MARK}]`)) node.remove();
+      for (const node of doc.querySelectorAll(`[${MARK}][${OVERLAY}]`)) node.remove();
     }
   };
 }

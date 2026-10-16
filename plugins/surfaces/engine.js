@@ -55,6 +55,13 @@ export const FIGHT_LIMIT = 3;
 export const FIGHT_WINDOW_MS = 5000;
 /** An intent outlives its task only by this much, in case the vendor sends from a promise. */
 export const INTENT_MS = 250;
+/**
+ * When a rewritten value is told back to the page. The vendor's store
+ * applies its own write about 4 ms AFTER sending it (6.2.73 simulator,
+ * 2026-10-16), so an echo told at once is overwritten by the very value it
+ * corrects; told later, it lands on top. Twice, for a busy machine.
+ */
+export const TELL_MS = Object.freeze([60, 300]);
 
 const RECENT = 6;
 
@@ -65,14 +72,18 @@ const RECENT = 6;
  * @param {() => object} o.doc                         the normalised document
  * @param {(id: string, layer: string) => boolean} [o.exempt]  Layer Lock's
  * @param {(entry: object) => void} [o.onActivity]
+ * @param {(raw: string) => boolean} [o.tellPage]       the hook's: a frame handed to the page as an echo
  * @param {object} [o.clock]                            `{ now, setTimeout, clearTimeout }`
  */
-export function createSurfaceEngine({ store, send, doc, exempt = () => false, onActivity = () => {}, clock = globalThis }) {
+export function createSurfaceEngine({
+  store, send, doc, exempt = () => false, onActivity = () => {}, tellPage = null, clock = globalThis
+}) {
   const now = () => (clock.now ? clock.now() : Date.now());
   const sent = new Map();        // path key -> {value, at}: what this page last sent
   const timers = new Map();      // `${id}/${layer}` -> follow debounce
   const fights = new Map();      // `${id}/${layer}` -> correction times
   const letGo = new Set();       // `${id}/${layer}` the follower has given up on
+  const telling = new Map();     // path key -> timers telling the page a rewritten value
   const recent = [];
   let intent = null;             // {op, at}
 
@@ -150,7 +161,9 @@ export function createSurfaceEngine({ store, send, doc, exempt = () => false, on
     const out = shaped.map((cmd) => {
       if (parseGeometry(cmd.path)) sent.set(pathKey(cmd.path), { value: cmd.value, at: now() });
       if (cmd.shaped && !first) first = cmd;
-      return back.has(cmd) ? back.get(cmd) : JSON.stringify({ channel: 'DEVICE', data: { path: cmd.path, value: cmd.value } });
+      const raw = back.has(cmd) ? back.get(cmd) : JSON.stringify({ channel: 'DEVICE', data: { path: cmd.path, value: cmd.value } });
+      if (cmd.shaped) tell(cmd, raw);
+      return raw;
     });
     if (first) {
       const g = parseGeometry(first.path);
@@ -158,6 +171,21 @@ export function createSurfaceEngine({ store, send, doc, exempt = () => false, on
       note({ kind: 'kept', id: g.id, layer: g.layer, buffer: g.buffer, surface: surface && surface.name, op: Boolean(currentOp()) });
     }
     return out;
+  }
+
+  /**
+   * Tell the page a value it did not ask for, once its own optimistic write
+   * has landed — and only while the mirror still says the switcher holds it,
+   * so a newer value from anywhere is never talked over. A newer rewrite of
+   * the same property replaces the pending tells.
+   */
+  function tell(cmd, raw) {
+    if (!tellPage) return;
+    const k = pathKey(cmd.path);
+    for (const t of telling.get(k) || []) clock.clearTimeout(t);
+    telling.set(k, TELL_MS.map((ms) => clock.setTimeout(() => {
+      if (store.get(cmd.path) === cmd.value) tellPage(raw);
+    }, ms)));
   }
 
   /* -------------------------------------------------------------- follower */

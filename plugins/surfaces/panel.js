@@ -67,7 +67,7 @@ export function createSurfacesPanel(o) {
       if (k !== 'name' && !Number.isFinite(value)) return;
       set(updateSurface(d(), id, s.id, { [k]: value }));
     };
-    return h('div', { class: 'aw-flex-col aw-gap-row-mini', dataset: { lppSurface: `${id}/${s.id}` } },
+    return h('div', { class: 'aw-flex-col aw-gap-row-mini', dataset: { lppSurfaceRow: `${id}/${s.id}` } },
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
         field('Name', s.name, patch('name'), { type: 'text', flex: '1 1 auto', aria: `${id} surface ${s.id} name` }),
         h('div', { style: { alignSelf: 'flex-end' } },
@@ -102,7 +102,7 @@ export function createSurfacesPanel(o) {
     const size = dest.canvas && dest.canvas.width ? `${dest.canvas.width}×${dest.canvas.height}` : '';
     const fromOutputs = o.outputs(dest.id);
     const layers = o.layers(dest.id);
-    return h('div', { class: 'aw-flex-col aw-gap-row-small', dataset: { lppSurfaces: dest.id } },
+    return h('div', { class: 'aw-flex-col aw-gap-row-small', dataset: { lppSurfaceDest: dest.id } },
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-flex-wrap' },
         h('div', { class: 'aw-font-body-1-bold', text: dest.id }),
         h('div', { class: 'aw-font-caption aw-text-tertiary', text: [dest.label, size].filter(Boolean).join(' · ') }),

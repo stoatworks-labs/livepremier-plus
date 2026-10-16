@@ -86,7 +86,8 @@ export default function activate(ctx) {
     send: (cmd) => ctx.session.send(cmd),
     doc: () => doc,
     exempt: locked,
-    onActivity: () => ctx.refresh()
+    onActivity: () => ctx.refresh(),
+    tellPage: hook && typeof hook.tellPage === 'function' ? hook.tellPage : null
   });
 
   /** Destination → what to outline, and which surfaces have a bound layer out, per buffer. */

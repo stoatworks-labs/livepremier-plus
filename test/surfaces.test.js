@@ -39,7 +39,7 @@ import {
   normalise, addSurface, updateSurface, removeSurface, bind, boundSurface, fromOutputs,
   constrain, shapeWrites, parseGeometry, rectFromWire, OPS, EMPTY
 } from '../plugins/surfaces/core.js';
-import { createSurfaceEngine, FIGHT_LIMIT, FOLLOW_DEBOUNCE_MS } from '../plugins/surfaces/engine.js';
+import { createSurfaceEngine, FIGHT_LIMIT, FOLLOW_DEBOUNCE_MS, TELL_MS } from '../plugins/surfaces/engine.js';
 import { install } from './helpers/fake-dom.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -256,13 +256,15 @@ function rig({ bindings, exempt } = {}) {
   const store = simStore();
   const clock = fakeClock();
   const sent = [];
+  const told = [];
   let d = doc(bindings);
   const engine = createSurfaceEngine({
     store, doc: () => d, exempt, clock,
-    send: (cmd) => { sent.push(cmd); store.set(cmd.path, cmd.value); return true; }
+    send: (cmd) => { sent.push(cmd); store.set(cmd.path, cmd.value); return true; },
+    tellPage: (raw) => { told.push(JSON.parse(raw).data); return true; }
   });
   const arrive = (cmd) => { store.set(cmd.path, cmd.value); engine.onFrame({ ...cmd, dir: 'in' }); };
-  return { store, clock, sent, engine, arrive, setDoc: (x) => { d = x; } };
+  return { store, clock, sent, told, engine, arrive, setDoc: (x) => { d = x; } };
 }
 
 test('the hook is asked only about geometry of a bound layer', () => {
@@ -284,6 +286,23 @@ test('a frame the shaper leaves alone goes out byte for byte; a changed one is r
   assert.notEqual(out[1], raws[1]);
   assert.equal(JSON.parse(out[1]).data.value, 480, 'a 960-wide layer can only sit at 480 in LED left');
   assert.equal(engine.recent()[0].kind, 'kept');
+});
+
+test('a rewritten value is told back to the page after its own write lands, while the switcher still holds it', () => {
+  const { engine, clock, told, store } = rig();
+  const out = engine.shape([frame(w('A', 'posH', 1500)), frame(w('A', 'posV', 540))]);
+  const kept = JSON.parse(out[0]).data;
+  store.set(kept.path, kept.value);           // the mirror takes what went out
+  assert.equal(told.length, 0, 'not at once: the vendor applies its own write a few ms after sending it');
+  clock.tick(TELL_MS[0]);
+  assert.deepEqual(told.map((t) => [t.path[12], t.value]), [['posH', 480]], 'only the value the shaper changed');
+  clock.tick(TELL_MS[1]);
+  assert.equal(told.length, 2, 'and once more, for a busy machine');
+
+  engine.shape([frame(w('A', 'posH', 1500))]);
+  store.set([...base('A'), 'posH'], 200);     // something newer arrived meanwhile
+  clock.tick(TELL_MS[1]);
+  assert.equal(told.length, 2, 'never talks over a newer value');
 });
 
 test('a toolbar alignment pressed just now is redone against the surface', () => {
@@ -418,6 +437,31 @@ test('a shaper that throws, or drops a frame, has the run sent as it came', asyn
   } finally { console.error = quiet; }
 });
 
+test('the hook can hand the page a frame as if the switcher had sent it, and sends nothing', () => {
+  const code = readFileSync(join(here, '..', 'src', 'hook', 'ws-hook.js'), 'utf8');
+  const sent = [];
+  const heard = [];
+  class FakeSocket {
+    constructor() { this.readyState = 1; this.listeners = {}; }
+    addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
+    dispatchEvent(ev) { for (const fn of this.listeners[ev.type] || []) fn(ev); return true; }
+    send(data) { sent.push(data); }
+  }
+  class MessageEvent { constructor(type, init) { this.type = type; this.data = init.data; } }
+  const window = { WebSocket: FakeSocket, dispatchEvent() {} };
+  vm.runInContext(code, vm.createContext({ window, MessageEvent, CustomEvent: class { constructor(t) { this.type = t; } }, console, setTimeout, clearTimeout }));
+  const hook = window.__WRU_HOOK;
+  const socket = new window.WebSocket('ws://x');
+  assert.equal(hook.tellPage(plainFrame(1)), false, 'no app socket yet');
+  socket.addEventListener('message', (ev) => heard.push(ev.data));
+  socket.send(plainFrame(0));
+  assert.equal(hook.tellPage(plainFrame(7)), true);
+  assert.deepEqual(heard, [plainFrame(7)], 'the page’s own listeners hear it');
+  assert.equal(hook.ring.at(-1).dir, 'in', 'and so does the mirror, as an echo');
+  assert.equal(sent.length, 1, 'nothing more went to the switcher');
+  assert.equal(hook.tellPage('not a frame'), false);
+});
+
 test('shaped frames still pass the take gate', async () => {
   const { hook, socket, sent } = loadHook();
   const seen = [];
@@ -487,6 +531,11 @@ test('the outlines sit over a Pixel Map and under the handles, take no pointer, 
     const { installSurfaceOutlines, MARK } = await import('../plugins/surfaces/overlay.js');
     const { installPixelMaps, MARK: MAP } = await import('../plugins/pixel-map/overlay.js');
     dom.doc.body.append(card(dom.doc, 'S1', { selected: true }));
+    /* The panel's own section for S1, which once carried the overlay's mark
+       as a data attribute and was swept away as a stray outline. */
+    const section = dom.doc.createElement('div');
+    section.setAttribute(MARK, 'S1');
+    dom.doc.body.append(section);
     const outside = { PGM: new Map([['1', 'L1 outside']]), PRW: new Map() };
     const outlines = installSurfaceOutlines({
       plan: () => new Map([['S1', { canvas: CANVAS, surfaces: [LEFT, RIGHT], outside }]]),
@@ -521,9 +570,10 @@ test('the outlines sit over a Pixel Map and under the handles, take no pointer, 
     outlines.sweepNow(); map.sweepNow(); outlines.sweepNow();
     assert.deepEqual(stack.children, before);
     assert.deepEqual(outlines.describe(), { cards: 1, blocks: 2, rasters: 2, drawn: 2, between: 2, top: 0 });
+    assert.ok(section.parentNode, 'a node of somebody else’s with the same attribute is not an outline');
     outlines.stop();
     map.stop();
-    assert.equal(dom.doc.querySelectorAll(`[${MARK}]`).length, 0);
+    assert.equal(dom.doc.querySelectorAll(`[${MARK}]`).length, 1, 'only the panel’s section is left');
   } finally {
     dom.uninstall();
   }

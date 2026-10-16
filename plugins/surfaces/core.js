@@ -39,7 +39,8 @@
  * - **A resize** keeps the edge or corner the operator was not dragging
  *   where it was, and stops the dragged one at the surface's edge.
  * - **The whole canvas** (the vendor's full screen, a memory saved full
- *   screen, a Console `Full`) becomes the whole surface.
+ *   screen, any write that asks for exactly the canvas) becomes the whole
+ *   surface.
  * - **An alignment** pressed on the vendor's toolbar is redone against the
  *   surface (`OPS`): "align centre" means the surface's centre. Without that,
  *   a centred layer would be pushed to the surface's nearest edge — inside,

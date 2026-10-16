@@ -110,7 +110,7 @@ export function installSurfaceOutlines({ plan, enabled = () => true, doc = docum
       }
     }
 
-    for (const node of doc.querySelectorAll(`[${MARK}]`)) if (!keep.has(node)) node.remove();
+    for (const node of doc.querySelectorAll(`[${MARK}][${OVERLAY}]`)) if (!keep.has(node)) node.remove();
     last = report;
   }
 
@@ -123,7 +123,7 @@ export function installSurfaceOutlines({ plan, enabled = () => true, doc = docum
     describe: () => ({ ...last }),
     stop() {
       sweeps.stop();
-      for (const node of doc.querySelectorAll(`[${MARK}]`)) node.remove();
+      for (const node of doc.querySelectorAll(`[${MARK}][${OVERLAY}]`)) node.remove();
     }
   };
 }

@@ -194,6 +194,22 @@
     }
   }
 
+  /**
+   * Hand the page a frame as if the switcher had sent it.
+   *
+   * For a shaper whose rewrite the page must hear about: the vendor's store
+   * applies its own write a few milliseconds AFTER sending it, and the
+   * switcher does not echo a value it already had, so a write held at a
+   * surface's edge would leave the vendor's card drawing the layer where the
+   * pointer let go. The caller decides when, and only ever tells the page
+   * what the switcher now holds. Nothing is sent anywhere.
+   */
+  hook.tellPage = (raw) => {
+    const s = hook.appSocket;
+    if (!s || typeof MessageEvent !== 'function' || !looksAW(raw)) return false;
+    try { s.dispatchEvent(new MessageEvent('message', { data: raw })); return true; } catch (_) { return false; }
+  };
+
   /** Every frame at or after `fromSeq`, for catching up after a snapshot fetch. */
   hook.since = (fromSeq) => hook.ring.filter((f) => f.seq >= fromSeq);
 
