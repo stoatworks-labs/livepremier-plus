@@ -107,6 +107,9 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.17.4 says a 6.1.60 box's spare room once.** The VPU map's Screens table gave the same room
+> figure on every row; it's the whole box's, so it's now given once under the table.
+>
 > **0.17.3 is for firmware 6.1.x and a crowded tab strip.** The plugin tabs on Screens / Aux. sit
 > behind a ⋯, arithmetic works in 6.1.x number fields, the Layer tab offers only the sources the
 > switcher has, the VPU map shows a 6.1.60 box's layer sizes per screen instead of calling it a

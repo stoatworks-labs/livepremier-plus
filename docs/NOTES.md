@@ -1840,7 +1840,7 @@ AWJ `get` through the field kit's `AwjClient` and one `GET /api/stores/device`.
   draws as before. Rendered against the 17:59 live store (S1 4K ×2, S3 DUAL,
   room 19 DUAL · 9 4K · 4 5K) and in the panel bench with the RS4's own
   stylesheet. Released in 0.17.3 the same evening.
-- **Room is said once** (folded into 0.17.3 before its build): a Room for
+- **Room is said once** (released in 0.17.4; 0.17.3 had shipped): a Room for
   column repeating the same figure on every row invited adding it up.
   `sharedRoom` returns the room every screen in service agrees on, and the
   panel puts it under the table as the box's, mask figures included. The

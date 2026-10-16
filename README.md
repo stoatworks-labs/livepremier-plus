@@ -166,7 +166,7 @@ command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or
 well for the Edit page, Timeline, Console, Memories, Layer, Pitch Compensation, HyperDecks and
 the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 
-> **Status: field testing, v0.17.3.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.17.4.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -266,6 +266,12 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.4 (2026-10-16).** One change to the **VPU map** on a box with no mixer map. Every screen in
+> service on the RS4 reports the same spare room, so the Screens table's Room for column repeated
+> one figure down every row and invited adding it up. The room is now said once, under the table,
+> as the box's, with the mask figures; screens that ever report different figures keep a column of
+> their own. Drawn from a fresh read-only pull of the RS4's store: 19 DUAL · 9 4K · 4 5K, said once.
 >
 > **0.17.3 (2026-10-16).** Fixes from an Aquilon RS4 on firmware 6.1.60, and one found retaking
 > the screenshots. The **Screens / Aux. strip** puts the plugin tabs behind a ⋯ instead of running
