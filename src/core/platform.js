@@ -264,6 +264,22 @@ export const CAPABILITIES = [
     absent: 'This switcher has no background sets this app knows how to write.'
   },
   {
+    id: 'imageLibrary',
+    label: 'Image library',
+    /* Two hundred slots under `stillList/library/bankList`, each with the
+       file's name and pixel size, and the original file served back at
+       `/api/device/images/download/<slot>` — the vendor's own Download button
+       on the Image Library page. Read off a LivePremier Simulator 6.2.73.
+       No mng probe: a Midra keeps a library too (`stillLibrary/bankList`), but
+       the pixel map is drawn into LivePremier's screen cards, and the Midra
+       page draws its cards differently (`ui/preset-lock.js`). */
+    probes: {
+      nlc: [ROOT, 'stillList', 'library', 'bankList', 'items']
+    },
+    needs: 'the image library',
+    absent: 'Pixel maps are drawn into LivePremier’s screen cards; this switcher’s page is laid out differently.'
+  },
+  {
     id: 'edidBank',
     label: 'EDID bank',
     /* A hundred custom EDID slots under `system/edid/bankList`, read off a

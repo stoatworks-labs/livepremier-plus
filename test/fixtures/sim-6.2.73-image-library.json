@@ -1,0 +1,57 @@
+{
+  "_note": "Cut from GET /api/stores/device on a running LivePremier Simulator 6.2.73 (2026-10-16): the image library's slots 1 and 2 of 200, after a 1920x1080 PNG was uploaded into slot 1 with POST /api/device/images/upload. GET /api/device/images/download/1 answered that PNG byte for byte (image/png, 56377 bytes); GET /api/device/snapshots/images_library/1 a 256x144 PNG of it.",
+  "device": {
+    "stillList": {
+      "library": {
+        "bankList": {
+          "itemKeys": [
+            "1",
+            "2"
+          ],
+          "items": {
+            "1": {
+              "control": {
+                "pp": {
+                  "xDelete": false
+                }
+              },
+              "status": {
+                "pp": {
+                  "isValid": true,
+                  "isUsed": false,
+                  "fileName": "pixelmap-1920x1080.png",
+                  "hashName": "e24de612-ef32-4e84-95b6-6c625f15d307",
+                  "fileSize": 56377,
+                  "width": 1920,
+                  "height": 1080,
+                  "capability": "DUAL",
+                  "newSnaphot": 2
+                }
+              }
+            },
+            "2": {
+              "control": {
+                "pp": {
+                  "xDelete": false
+                }
+              },
+              "status": {
+                "pp": {
+                  "isValid": false,
+                  "isUsed": false,
+                  "fileName": "",
+                  "hashName": "",
+                  "fileSize": 0,
+                  "width": 0,
+                  "height": 0,
+                  "capability": "OFF",
+                  "newSnaphot": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

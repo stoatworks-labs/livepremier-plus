@@ -724,6 +724,38 @@ export const NLC = {
   },
 
   /**
+   * The image library's loaded slots — the files themselves, not the stills
+   * that show them. A still is a frame store a layer can take as a source; a
+   * library slot is the uploaded picture, at the size it was uploaded, and is
+   * what the Image Library page lists. 200 slots on the 6.2.73 simulator.
+   *
+   * `file` is the original, as the vendor's Download button fetches it:
+   * `/api/device/images/download/<slot>` answered the uploaded PNG byte for
+   * byte, `image/png`, on the simulator. `thumb` is a 256×144 snapshot of it.
+   * `hashName` changes when a slot is uploaded again, so it goes on the file's
+   * address as a query the switcher ignores — the same file at the same
+   * address would otherwise be the old picture out of the browser's cache.
+   */
+  libraryImages(store) {
+    const list = store.get([ROOT, 'stillList', 'library', 'bankList']);
+    const out = [];
+    for (const key of keysOf(list)) {
+      const status = pp(list.items[key] && list.items[key].status);
+      if (!status.isValid) continue;
+      const version = text(status.hashName) || String(num(status.newSnaphot) ?? '');
+      out.push({
+        slot: Number(key), key,
+        fileName: text(status.fileName) || '',
+        width: num(status.width), height: num(status.height),
+        version,
+        file: `/api/device/images/download/${key}` + (version ? `?v=${encodeURIComponent(version)}` : ''),
+        thumb: `/api/device/snapshots/images_library/${key}` + (version ? `?v=${encodeURIComponent(version)}` : '')
+      });
+    }
+    return out;
+  },
+
+  /**
    * The timers. `value` is the device's own number, passed through: on the
    * 6.2.73 simulator a time-of-day clock read 4222087 at 01:10:22, which is
    * milliseconds since midnight — one observation, so it is not converted.

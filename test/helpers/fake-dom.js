@@ -60,6 +60,9 @@ class FakeNode {
   prepend(...nodes) { this._insertAt(0, nodes); }
   appendChild(node) { this.append(node); return node; }
   insertBefore(node, ref) {
+    /* Moving a node already in this list: take it out first, as the DOM does,
+       or the index of `ref` is counted with it still in place. */
+    if (node instanceof FakeNode && node.parentNode) node.remove();
     const i = ref ? this.childNodes.indexOf(ref) : this.childNodes.length;
     this._insertAt(i < 0 ? this.childNodes.length : i, [node]);
     return node;

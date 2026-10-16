@@ -25,6 +25,9 @@ than something bolted on.
   group) on its own. The switcher can't do either by itself.
 - **Preview lock during takes:** the vendor's own PRW padlock shut while a screen transitions,
   so a memory recalled straight after TAKE is refused instead of riding the take onto program.
+- **Pixel Map:** an image from the switcher's own library laid over a screen's preview as a
+  mask, so you see what the LED wall will show of each layer. No layer spent, nothing written,
+  and it never takes a click.
 - **Send to:** a `…` on every source card that routes it to a screen and layer, or to a whole
   group, in preview or program, without a drag.
 - **Matrix Routing:** patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
@@ -575,6 +578,56 @@ buttons, so with this switched on the app holds its own recalls back itself:
 > opened on landing, a recall from the Memories panel waited and went into the new preview the
 > moment the take landed, and with the T-bar parked half way the recall gave up and wasn't sent.
 > Not yet run on a real frame or a real Midra 4K / Alta 4K.
+
+---
+
+## Pixel Map
+
+**Screens / Aux. ▸ ⋯ ▸ Pixel Map.** A pixel map is a picture of what a screen's canvas really
+lands on: which bits of the raster are LED, where the gaps between panels are, the hole in the
+middle where the set piece goes. Pick one from the switcher's image library for a screen and it's
+drawn over that screen's PRW canvas, on its own card, while you build the look.
+
+1. **Put the map in the image library.** Image Library in the vendor's sidebar, any PNG or JPEG.
+   Draw it at the screen's canvas size if you can: white where there's LED, black where there
+   isn't.
+2. **Pick it for the screen.** Each screen and aux in service has a row: **Image** is the list of
+   what's in the library, by slot, file name and size.
+3. **Choose how it's drawn.**
+   - **Mask**: black in the map hides what's under it and white leaves it alone. What's left is
+     what the wall will show of each layer. Over an empty preview that's black, correctly.
+   - **Over**: the map as it is, at the opacity, for panel numbers and outlines.
+   - **Lines**: only the light parts show, for a white grid of panel edges over dark content.
+
+   **Opacity** sets how strongly, and moves the map as you drag it.
+4. **1:1 or Stretch.** 1:1 puts each map pixel on one canvas pixel, from the top left, which is
+   the only way a pixel map tells the truth. Stretch fits the whole map to the canvas, for a map
+   drawn at another size. A map that isn't its screen's size says so under its row.
+
+**On** at the top of the tab draws the maps on PRW (the default), PGM or both, and **Show**
+hides every map at once without forgetting them.
+
+**It never gets in the way.** The map sits between the layers and their selection handles, so a
+selected layer's handles are drawn on top of it, and it takes no pointer at all: clicking a layer,
+dragging it, dropping a source on it and zooming the card all work as if the map weren't there.
+
+**The switcher never knows.** No layer is spent and nothing is written to the switcher. Which
+image goes on which screen is kept per switcher by this app, and goes into the setup file under
+*Pixel maps*. The picture is the library's original file, the one the Image Library page's
+Download button fetches, not its thumbnail, so one-pixel panel edges stay sharp as you zoom.
+
+If a map's library slot is emptied, the map stops being drawn and its row says *Library slot 3 is
+empty now*; it's kept, so loading the file back into that slot brings it back. The line at the
+bottom of the tab says how many buffers it's drawn on, and says so if it can't find the cards.
+
+> **LivePremier only.** A Midra 4K or Alta 4K has an image library too, but its Screens page lays
+> the cards out differently, so the tab isn't offered there.
+
+> Proven on LivePremier Simulator 6.2.73: drawn over S1 and S2 in every mode, on PRW, PGM and both;
+> a click through a map selected the layer under it; the map followed the card's zoom, came back
+> after leaving the page and went when its slot was deleted. On 6.1.60, the RS4's firmware, the
+> library and the image routes answer the same and the card is drawn by the same code, but no card
+> was drawn there. Not yet run on a real frame.
 
 ---
 

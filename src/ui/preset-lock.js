@@ -151,6 +151,30 @@ export function cardPadlock(id, role, root = document) {
   return null;
 }
 
+/**
+ * Every LivePremier screen card's buffer blocks: `[{id, role, block}]`.
+ *
+ * The anatomy the padlocks are read from, for a caller that draws into a
+ * buffer rather than reading its lock — `plugins/pixel-map` lays a picture
+ * over each block's canvas. Only blocks the hashed fragment splits out and
+ * whose role is written on them: with no way to tell PGM from PRW, a card
+ * gives nothing, because a map over the wrong buffer is worse than none.
+ * LivePremier only; the Midra 4K page has no `.aw-preset-view`.
+ */
+export function presetBlocks(root = document) {
+  const out = [];
+  for (const card of root.querySelectorAll('.aw-preset-view')) {
+    const heading = card.querySelector('h2');
+    const id = heading && (heading.textContent || '').trim().toUpperCase();
+    if (!id || !/^[SA]\d+$/.test(id)) continue;
+    for (const block of card.querySelectorAll(PRESET_BLOCK)) {
+      const role = blockRole(block);
+      if (role) out.push({ id, role, block });
+    }
+  }
+  return out;
+}
+
 /** Every named card's padlocks: `[[id, {PGM: {button, shut}, PRW: {…}}]]`. */
 function cardPadlocks(root) {
   const out = [];

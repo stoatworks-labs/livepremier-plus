@@ -165,6 +165,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'pixel-map',
+    name: 'Pixel Map',
+    where: 'Screens / Aux., beside Properties, and over each screen card',
+    description: 'An image from the switcher’s library laid over a screen’s preview as a mask, so you see what the LED wall will show of each layer. Uses no layer, writes nothing, and never takes a click.',
+    requires: { capabilities: ['screens', 'imageLibrary'] },
+    /* On by default: it draws nothing until an image is picked, and it only
+       ever reads — the switcher never learns the map is there. */
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'send-to',
     name: 'Send to',
     where: 'The … on every source card',

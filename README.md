@@ -57,6 +57,12 @@ bolted on afterwards:
   This app's own recalls (Timeline cues, the Memories panel, the Console) wait instead: a recall
   into a preview that's mid-take goes the moment the take lands, and cues fire in the order GO
   was pressed. Companion, OSC and the front panel aren't held back.
+- **Pixel Map:** pick an image from the switcher's own library and it's laid over a screen's
+  preview on the Screens / Aux. page: the LED wall's outline, the gaps between its panels, the
+  set piece cut out of the middle of the raster. In Mask mode black in the map hides what's under
+  it, so while you're building a look you can see what the wall will actually show of it. It costs
+  no layer, writes nothing to the switcher, and every click goes straight through it to the layers
+  underneath.
 - **Send to:** a `…` on every source card that routes it without dragging: preview or program,
   then a screen and layer or a whole group. It respects the vendor's own PGM padlock and asks
   before it steps past one.
@@ -1321,6 +1327,38 @@ afterwards.
 > The front panel, a T-bar, an OSC take or another operator's browser go straight to the
 > switcher, and the panel says so at the top every time.
 
+## Pixel Map
+
+Screens / Aux. ▸ ⋯ ▸ Pixel Map. Pick an image from the switcher's image library for a screen and
+it's drawn over that screen's PRW canvas, on its card, in one of three ways:
+
+- **Mask**: black in the map hides what's under it and white leaves it alone, so what's left is
+  what the LED will show of each layer. Over an empty preview that's black, which is correct and
+  not much help.
+- **Over**: the map as it is, at the opacity. Panel numbers and outlines.
+- **Lines**: only the light parts of the map show. What you want from a white grid of panel
+  edges over dark content.
+
+**1:1** puts one map pixel on one canvas pixel from the top left, which is where a pixel map is
+true. **Stretch** fits the whole map to the canvas, whatever its size. A map that isn't the size of
+its screen's canvas says so. **On** at the top picks PRW, PGM or both, and **Show** hides the lot.
+
+The switcher never knows. No layer is spent and nothing is written: the map lives in the browser
+tab, and which image goes on which screen is kept per switcher in the app and in the setup file.
+It sits between the layers and their selection handles and takes no pointer at all, so a click, a
+drag, a dropped source or a zoom lands on the layers as if it weren't there. The picture is the
+library's original file, the one the Image Library page's Download button fetches, so a map drawn
+with one-pixel panel edges stays sharp when you zoom the card.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-16: a 1920×1080 map uploaded to the library
+> and drawn over S1 and S2 in PRW, PGM and both; Mask showed an input only inside the wall; a click
+> through S2's map selected S2's layer, with the handles drawn over the map; the map followed the
+> card's zoom exactly, came back after leaving the page, and went when its library slot was
+> deleted; a 960×540 map drew at half size 1:1 and full size stretched. On **6.1.60**, the RS4's
+> firmware, the library and both image routes answer the same, and the Web RCS modules that draw
+> the card are the same source as 6.2.73's, but that simulator had no screen in service, so no
+> card was drawn there. LivePremier only. Not yet run on a real frame.
+
 ## Gallery
 
 The panels from the list above that don't have a section of their own, and the windows that pop
@@ -1509,6 +1547,7 @@ device's store rather than by the model name:
 | HyperDecks | yes | **yes** — a deck plays into an `INPUT_<n>` and records an output or `MTVW`; the rules are tested against a Pulse 4K's store |
 | Background Slicer | yes — a background per output, from a still or from an input | **yes** — one picture per screen through an Auto Crop set, or a Custom set with an input per output |
 | Matrix routing | yes | not yet — the sockets are read, but the Router tab and box are written into LivePremier's own pages |
+| Pixel Map | yes | not yet — a Midra keeps an image library too, but its Screens page lays the cards out differently |
 | Arithmetic in fields, Settings | yes | yes |
 
 Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step onto the wire

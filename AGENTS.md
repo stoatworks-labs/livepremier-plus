@@ -924,6 +924,44 @@ Timeline plugin with `session.send` caught: recall, TAKE, nothing through a
 simulated take, then the second recall and TAKE once it landed. Not run on a
 frame, a Midra or an Alta.
 
+### Pixel Map (`plugins/pixel-map/`, `ui/preset-lock.js`)
+
+An image from the switcher's library drawn into the vendor's own screen
+cards, over the canvas, as a mask. It writes into the middle of Web RCS's
+markup, like the layer names, and four things about it are load-bearing:
+
+- **Between the layers and the handles, never on top.** Inside the raster
+  (`.aw-background-black` in the card's `.react-transform-component`) the
+  stack is `.aw-relative > .aw-absolute > [layers, handles]`, and the handles
+  group is only mounted while a layer is selected — React appends it, so it
+  lands after the map. On top of the handles, a mask blacks out the very
+  thing the operator needs to grab. A stack of another shape gets the map on
+  top and `describe().top` counts it.
+- **`pointer-events: none` on the box and the picture**, `aria-hidden`, not
+  draggable. Hit-testing is what proves it: `document.elementFromPoint`
+  through a map lands on the vendor's `canvas-item`, and a real click through
+  S2's map selected S2's layer (6.2.73 sim, 2026-10-16).
+- **The picture is `/api/device/images/download/<slot>`, never a snapshot.**
+  That is the original file (the 256×144 `snapshots/images_library/<slot>` is
+  only the TIFF fallback), and the Thumbnail relay rewrites every
+  `/api/device/snapshots/` `<img>` inside a `.aw-preset-view`. `?v=<hashName>`
+  busts the browser's cache on a re-upload; the switcher ignores the query.
+- **The panel's `busy()` is "pointer down", not "focus inside".** A `<select>`
+  keeps focus after a pick, which held off every repaint until a click
+  elsewhere: an upload never reached the list, and the next pick was made
+  from a stale one and cleared the map. A native dropdown can swallow the
+  release, so a `change` ends it too.
+
+Library slots are not stills: `stillList/library/bankList` holds the files
+(200 on the 6.2.73 sim; `fileName`, `width`, `height`, `hashName`), and a still
+is a frame store a layer takes as a source. Using a still would spend what the
+feature exists to save. On 6.1.60 the library and both routes answer the same,
+and `preset-overview-container`, `screen-overview-container`, `canvas-item`
+and `pan-zoom` are the same source as 6.2.73's (only `preset-layers.jsx`
+differs, by 6.2.73's Shift-to-keep-ratio); no 6.1.60 card was drawn, since
+that sim session has no screen in service. LivePremier only (`imageLibrary`
+has no mng probe).
+
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 
 There are four — the Console's, the Timeline's cue editor, Memories' and
