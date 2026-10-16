@@ -21,7 +21,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName,
-  stepLayer, companionLocation, TRANSPORT_ACTIONS,
+  stepLayer, companionLocation, backupRequest, TRANSPORT_ACTIONS,
   COMMAND, CONSOLE_MODELS, layerIdFor, layerKeyOf,
   MIDI_BINDINGS, readMidi, midiWrite, ENCODER_STEP,
 } from '../plugins/pixelhue/core.js';
@@ -425,6 +425,23 @@ test('FTB and freeze stay unmapped on Midra, which has no verified path', () => 
     assert.equal(writes.length, 0);
     assert.match(note, /not mapped/);
   }
+});
+
+test('SOURCE BACKUP asks for an input’s backup menu only where inputs have a backup', () => {
+  assert.deepEqual(backupRequest({ dialect: NLC, input: 3 }),
+    { payload: { type: 'inputBackup', input: 3 }, what: 'open the backup menu of input 3' });
+  /* A Midra input's ⋮ is a menu too — plug, Setup, Freeze, Capture — and
+     opening it would say a backup menu was opened when none was. */
+  const midra = backupRequest({ dialect: MNG, input: 3 });
+  assert.equal(midra.payload, undefined);
+  assert.match(midra.note, /refused — a Midra 4K \/ Alta 4K input has no backup/);
+  assert.match(backupRequest({ dialect: NLC, input: null }).note, /press an input on the panel first/);
+  assert.match(backupRequest({ dialect: null, input: 3 }).note, /not been read/);
+  /* The Midra simulator's own inputs, as its store has them: none has a backup. */
+  const inputs = JSON.parse(readFileSync(new URL('./fixtures/midra-3.2.29-inputs.json', import.meta.url)))
+    .device.inputList.items;
+  assert.ok(Object.keys(inputs).length >= 16);
+  for (const [key, node] of Object.entries(inputs)) assert.ok(!('backup' in node), `${key} has a backup`);
 });
 
 test('the T-bar maps stroke progress from wherever each screen rests', () => {

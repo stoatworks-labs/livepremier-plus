@@ -44,6 +44,7 @@ import {
   fittedLayers, layerSections, paramPath, readValue, writeCmd, valuesFor, catalogueFor, bankLetter
 } from '../src/core/properties.js';
 import { detectPlatform, supports, whyNot } from '../src/core/platform.js';
+import { status as pluginStatus } from '../src/core/plugins.js';
 import { screenOutputs, outputPitch, outputPitchCommit, pitchWrites } from '../src/core/pitch.js';
 import * as lang from '../src/vendor/mynah-lang.mjs';
 
@@ -342,6 +343,37 @@ test('a real Pulse 4K store gets everything but the VPU map', () => {
   for (const cap of ['vpuMap']) {
     assert.equal(supports(p, cap), false, cap);
     assert.ok(whyNot(p, cap), 'and says why: ' + cap);
+  }
+});
+
+/*
+ * MIDI Mapping and the Speed Editor hang under Virtual RC400T, which a
+ * Midra's sidebar does not have, and the shell drops an anchored entry with
+ * nowhere to go. They asked only for `console`, which a Midra has, so the
+ * Plugins card called them on and they simply never appeared. Driving a
+ * Pixelhue console is dialect-aware and stays on; its Mapping page asks
+ * `controlSurfaces` only to choose between Virtual RC400T and the PLUS
+ * section (`test/panel-render.test.js`).
+ */
+test('on a Pulse 4K, MIDI Mapping and the Speed Editor are withheld and say why; the Pixelhue console is not', () => {
+  const p = detectPlatform(pulse);
+  const can = (cap) => supports(p, cap);
+  assert.equal(supports(p, 'controlSurfaces'), false);
+  for (const id of ['midi', 'speed-editor']) {
+    const verdict = pluginStatus({}, id, can);
+    assert.equal(verdict.on, false, id);
+    assert.equal(verdict.reason, 'not on this switcher', id);
+    assert.equal(verdict.capability, 'controlSurfaces', id);
+    assert.match(whyNot(p, verdict.capability), /under Virtual RC400T, which this switcher’s sidebar does not have/);
+    assert.match(whyNot(p, verdict.capability), /speaks only LivePremier’s paths/);
+  }
+  assert.equal(pluginStatus({}, 'pixelhue', can).on, true, 'driving a console is offered on a Midra');
+
+  /* On a LivePremier all three are where they always were. */
+  const lp = detectPlatform(aquilon);
+  assert.equal(supports(lp, 'controlSurfaces'), true);
+  for (const id of ['midi', 'speed-editor', 'pixelhue']) {
+    assert.equal(pluginStatus({}, id, (cap) => supports(lp, cap)).on, true, id);
   }
 });
 

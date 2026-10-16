@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 
 import {
   KEY_CONTROLS, MOTION_CONTROLS, KEY_ACTIONS, controlForCode, controlForKeyMode, mappedIntent,
-  normaliseMap, actionOf, resolvedMap, intentOf, validAction, legendOf,
+  normaliseMap, actionOf, resolvedMap, intentOf, validAction, legendOf, LIVE_MULTIVIEWER_PATHS,
 } from '../plugins/pixelhue/mapping.js';
 import { readIntent, midiWrite, ENCODER_STEP, COMMAND, SILENT_KEY_MODES, normalisePixelhue } from '../plugins/pixelhue/core.js';
 import { U5 } from '../plugins/pixelhue/layout.js';
@@ -79,6 +79,21 @@ test('a held key repeats only into an action that repeats', () => {
   assert.equal(once.repeat, true);
   /* A click is not a repeat. */
   assert.equal(mappedIntent({ time: 'take' }, COMMAND.layerEffectTimeAdd).repeat, undefined);
+});
+
+test('MVR names the live multiviewer page in both platforms’ spellings, and no setup page', () => {
+  const intent = intentOf(actionOf({}, 'mvr'));
+  assert.equal(intent.kind, 'page');
+  assert.equal(intent.type, 'navigate');
+  /* LivePremier 6.2.73 `HOME__MULTIVIEWERS`; Midra 4K 3.2.29 and Alta 4K 1.3.7 `HOME__MULTIVIEWER`. */
+  assert.deepEqual(intent.paths, ['/live/multiviewers', '/live/multiviewer']);
+  assert.equal(intent.paths, LIVE_MULTIVIEWER_PATHS);
+  assert.ok(Object.isFrozen(intent.paths), 'an intent is copied shallowly, so its list must not be changeable');
+  /* Each platform's sidebar also links its multiviewer setup pages; the page
+     matches a link whole, so none of these may be a candidate. */
+  for (const setup of ['/multiviewers', '/multiviewer', '/preconfig/multiviewers']) {
+    assert.ok(!intent.paths.includes(setup), setup);
+  }
 });
 
 test('the stored map keeps only real overrides', () => {

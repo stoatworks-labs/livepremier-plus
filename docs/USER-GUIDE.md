@@ -33,7 +33,7 @@ than something bolted on.
 - **Surfaces:** the LED elements a screen lands on, as rectangles on its canvas, with layers
   bound to them. A bound layer stays inside its surface however it's moved, and full screen
   fills the surface. Off until you switch it on.
-- **UMD Generator** *(preview)*: ATEM-style borders and source names for an aux laid out as a
+- **UMD Generator** *(preview)*: thin borders and dark name tabs for an aux laid out as a
   multiviewer, drawn as one transparent PNG from where each layer is and what it shows, and put on
   the aux's top layer, with 1, 3, 5 and 7-box layouts to start from. Off until you switch it on.
 - **Send to:** a `…` on every source card that routes it to a screen and layer, or to a whole
@@ -104,8 +104,9 @@ connection of their own when they act, which is worth knowing, because the switc
 > 0.17.0 for the Edit page, HyperDecks and the Background Slicer too; Preview lock is proven on
 > the Midra 4K simulator, and the UMD Generator gives a Midra its PNG. There's no VPU to map on
 > those, and Matrix Routing, Audio Matrix, Mosaic inputs, Pixel Map and Surfaces are LivePremier
-> only. MIDI Mapping, the Speed Editor and Pixelhue Mapping hang under Virtual RC400T, which a
-> Midra's sidebar doesn't have, so they don't appear. The port was proven on a **live Pulse 4K**:
+> only. MIDI Mapping and the Speed Editor hang under Virtual RC400T, which a Midra's sidebar
+> doesn't have, so they don't appear, and the Plugins card says so on their rows; Pixelhue
+> Mapping goes at the foot of the PLUS section instead. The port was proven on a **live Pulse 4K**:
 > every write over the device protocol by a test harness, and the Console panel's own lines typed
 > by the operator, which were the first writes this app's panels have made to real hardware. On
 > LivePremier the one write to a physical device so far is a preview opacity the Layer tab set on
@@ -129,8 +130,8 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
-> **0.17.7 adds the UMD Generator**, a preview: ATEM-style borders and source names drawn as a transparent
-> PNG from where each layer is and what it shows, put on an aux's top layer or handed to the
+> **0.17.7 adds the UMD Generator**, a preview: a thin border round each box and a dark tab with
+> its source's name, drawn as a transparent PNG from where each layer is and what it shows, put on an aux's top layer or handed to the
 > Background Slicer for a screen, with 1, 3, 5 and 7-box layouts for an aux. Off until you switch
 > it on. Proven on LivePremier Simulator 6.2.73 only, and not on a real frame yet.
 >
@@ -802,8 +803,8 @@ The surfaces and bindings are kept per switcher by this app and go into the setu
 Plugins**. It's off to start with because it uploads into the image library and writes a still
 and an aux's layers, and it hasn't met a real frame yet.
 
-It draws what an ATEM multiviewer draws over its windows (a thin line round each box and a dark
-tab with the source's name) as one transparent PNG the size of the screen or aux, from where its
+It draws a multiviewer's furniture (a thin line round each box and a dark tab with the source's
+name) as one transparent PNG the size of the screen or aux, from where its
 layers really are and what they're really showing.
 
 ![Screens / Aux. with only A1's PRW showing and the UMD tab open: A1 laid out as Three and four, IN1 to IN7 on L1 to L7 and L8 carrying the UMD still; the tab shows the look, a preview of the borders and the CAM 1, CAM 2, Lectern, Wide shot, Audience, Graphics and Playback tabs, Update UMD, and the four steps that put it on L8](screenshots/umd.png)
@@ -821,7 +822,7 @@ layers really are and what they're really showing.
    source: the input's or still's label, or `IN5` if it hasn't got one. Type a name and it wins.
    **Name from ▸ Layer name** uses the names from Layer names instead. A layer with nothing on it
    isn't drawn, unless you've named it.
-4. **Set the look.** Labels inside the bottom of each box (the ATEM way), inside the top, under
+4. **Set the look.** Labels in a dark tab inside the bottom of each box, inside the top, under
    the box, or none; the border, its width (blank is 2 px at 1080, in proportion above) and its
    colour; the text size; CAPITALS; and how dark the tab is. The preview shows the boxes as grey
    stand-ins with the UMD over them, and lists anything wrong: a name too long for its box (it's
@@ -1407,7 +1408,8 @@ meant: *select screen S2*, *put input 2 on the selected layer*, *take*. So there
 when a firmware moves a key.
 
 Everything else is mapped on **Pixelhue Mapping**, in the sidebar under Virtual RC400T, next to
-MIDI Mapping. It draws the console in the Virtual RC400T's look, with the buses showing what the
+MIDI Mapping — or at the foot of the PLUS section on a Midra 4K or Alta 4K, which has no Virtual
+RC400T. It draws the console in the Virtual RC400T's look, with the buses showing what the
 console shows and every function key, fader and encoder labelled with what it does. Click one to
 change it. Any key can take, cut, fade to black, step the layer, run the cue stack, **recall a
 memory to preview** or **press a Companion button**, among others; a fader can follow its own layer
@@ -1428,7 +1430,8 @@ dot, and **Reset** puts everything back.
 > ⚠️ **This hasn't been run against a real console yet.** It was built from the consoles' firmware
 > and proved against the vendor's own control service running with no panel attached. Treat the
 > first show with one as a rehearsal. Fade-to-black and freeze are sent on LivePremier, not yet on
-> a Midra 4K. docs/PIXELHUE.md lists what each key does, and has a test suite to run the day a
+> a Midra 4K. SOURCE BACKUP is LivePremier's only: a Midra 4K or Alta 4K input has no backup, so
+> the key says so instead. docs/PIXELHUE.md lists what each key does, and has a test suite to run the day a
 > console turns up ("Testing it on a console").
 
 ---
@@ -1846,5 +1849,5 @@ contain it.
 | **The VPU panel says there is nothing to draw** | This simulator has no VPU (not every one does), or it's LivePremier firmware 6.1.60, which does not report its VPU allocation. The panel says which, and on 6.1.60 shows each screen's layers and the room left instead. Either way it is correct, not a failure. |
 | **The demo refuses to start** | It only runs against loopback, on purpose. Or it found no simulator (start one, or set `LPP_DEMO_DEVICE`), or port 8535 is the app's and the app is running (quit it, or set `LPP_DEMO_PORT`). |
 | **The Console, Timeline or Layer tab has gone** | On LivePremier they sit behind the **⋯** at the end of the Screens / Aux. tab strip, because the strip has room for one more tab and no more. |
-| **I switched a plugin on and it isn't there** | Reload the page; the page picks up a change on its next load. If its row says *not on this switcher* or *needs* another plugin, that's the reason. MIDI Mapping, the Speed Editor and Pixelhue Mapping never appear on a Midra 4K or Alta 4K, which has no Virtual RC400T to hang them under. |
+| **I switched a plugin on and it isn't there** | Reload the page; the page picks up a change on its next load. If its row says *not on this switcher* or *needs* another plugin, that's the reason, and a *not on this switcher* row says why underneath. MIDI Mapping and the Speed Editor never appear on a Midra 4K or Alta 4K, which has no Virtual RC400T to hang them under, and their rows say so. Pixelhue Mapping is there, at the foot of the PLUS section rather than under Virtual RC400T. |
 | **I restored a setup and the old cue stack came back** | A page that was open during the restore saved what it had loaded. Reload every open page after a restore, then restore again. |

@@ -1,7 +1,7 @@
 /*
  * UMD Generator — the part with no DOM and no I/O.
  *
- * A UMD here is what an ATEM multiviewer draws over its windows: a thin line
+ * A UMD here is a multiviewer's furniture over its windows: a thin line
  * round each picture and a dark tab with the source's name along its bottom
  * edge. A switcher's aux laid out as a multiviewer has the pictures and none
  * of the furniture, so this draws the furniture as one transparent PNG the
@@ -61,7 +61,7 @@ import { same } from '../../src/core/wire.js';
 /* ================================================================ options */
 
 export const LABEL_MODES = [
-  { id: 'bottom', label: 'Inside, bottom', what: 'A dark tab along the bottom edge of each box, as an ATEM multiviewer draws it.' },
+  { id: 'bottom', label: 'Inside, bottom', what: 'A dark tab along the bottom edge of each box, the usual multiviewer look.' },
   { id: 'top', label: 'Inside, top', what: 'The same tab along the top edge.' },
   { id: 'below', label: 'Under the box', what: 'Under-monitor: the tab sits in the gap under the box. The only labels a screen background can show, since the layers cover their own boxes.' },
   { id: 'none', label: 'No labels', what: 'Borders only.' }
@@ -125,7 +125,7 @@ export const TEMPLATES = [
     cells: [[sixth, 0, 2 * third], [0, 17 / 24, 0.25], [0.25, 17 / 24, 0.25], [0.5, 17 / 24, 0.25], [0.75, 17 / 24, 0.25]]
   },
   {
-    id: 'seven-quad', boxes: 7, label: 'Three and four', what: 'Three quadrants, the fourth split in four — an ATEM layout.',
+    id: 'seven-quad', boxes: 7, label: 'Three and four', what: 'Three quadrants, the fourth split in four again.',
     cells: [[0, 0, 0.5], [0.5, 0, 0.5], [0, 0.5, 0.5], [0.5, 0.5, 0.25], [0.75, 0.5, 0.25], [0.5, 0.75, 0.25], [0.75, 0.75, 0.25]]
   },
   {
@@ -354,7 +354,7 @@ export const autoBorder = (canvas) => Math.max(1, Math.round(canvas.height / 540
 /**
  * The bands of one box's border, as filled rects so every edge lands on whole
  * pixels. Over the pictures (`layer`) the line is centred on the box's edge,
- * so two boxes that touch share one line, as on an ATEM; under them
+ * so two boxes that touch share one line, as a multiviewer draws it; under them
  * (`background`) it is wholly outside, or the layer would cover it.
  */
 export function borderBands(rect, bw, target, canvas) {

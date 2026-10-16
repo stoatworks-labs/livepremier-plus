@@ -191,7 +191,7 @@ export const BUILTINS = [
     id: 'umd',
     name: 'UMD Generator',
     where: 'A tab on Screens / Aux., behind ⋯ when the strip is full (preview)',
-    description: 'ATEM-style borders and source names drawn as one transparent PNG from where each layer is and what it shows, put on an aux’s top layer or handed to the Background Slicer for a screen — with 1, 3, 5 and 7-box layouts for an aux. Never yet run against a real frame.',
+    description: 'Thin borders and dark name tabs drawn as one transparent PNG from where each layer is and what it shows, put on an aux’s top layer or handed to the Background Slicer for a screen — with 1, 3, 5 and 7-box layouts for an aux. Never yet run against a real frame.',
     requires: { capabilities: ['screens'] },
     /* Off until it has been: it uploads into the image library and writes a
        still and an aux's layers. */
@@ -288,7 +288,7 @@ export const BUILTINS = [
     name: 'MIDI Mapping',
     where: 'Sidebar, under Virtual RC400T',
     description: 'A MIDI control surface driving the switcher from this page.',
-    requires: { capabilities: ['console'] },
+    requires: { capabilities: ['controlSurfaces'] },
     client: 'client.js'
   },
   {
@@ -304,15 +304,20 @@ export const BUILTINS = [
     name: 'Speed Editor',
     where: 'Sidebar, under Virtual RC400T',
     description: 'A DaVinci Resolve Speed Editor, plugged into this machine, driving the switcher from an open page.',
-    requires: { capabilities: ['console'] },
+    requires: { capabilities: ['controlSurfaces'] },
     server: 'server.js',
     client: 'client.js'
   },
   {
     id: 'pixelhue',
     name: 'Pixelhue panel',
-    where: 'Settings (preview), and Pixelhue Mapping under Virtual RC400T',
+    where: 'Settings (preview), and Pixelhue Mapping under Virtual RC400T — in PLUS on a Midra or Alta',
     description: 'A Pixelhue U5, U5 Pro or U5 mini driving the switcher. Never yet run against a console.',
+    /* Nothing in `requires`: driving a console is dialect-aware and offered on
+       both platforms, and so is its Mapping page. That page asks
+       `controlSurfaces` itself, only to choose where it goes: under Virtual
+       RC400T on a LivePremier, in PLUS on a Midra or Alta, which has no
+       Virtual RC400T (`client.js`). */
     server: 'server.js',
     client: 'client.js'
   },
@@ -467,8 +472,11 @@ export function createRegistry(manifests) {
    * `can` answers platform capabilities; leave it out and capabilities are not
    * checked (the server gates on the switch and the dependencies alone — the
    * device store it would need to answer capabilities lives in the page).
+   * When that is the reason, `capability` names the one that is missing, so
+   * the settings page can say why in the capability's own words
+   * (`core/platform.js`'s `whyNot`) rather than only that it is not here.
    *
-   * @returns {{on: boolean, reason: string|null}}
+   * @returns {{on: boolean, reason: string|null, capability?: string}}
    */
   function status(plugins, id, can = null, seen = new Set()) {
     const manifest = manifestOf(id);
@@ -476,7 +484,7 @@ export function createRegistry(manifests) {
     if (!isSwitchedOn(plugins, id)) return { on: false, reason: 'switched off' };
     if (can) {
       const missing = manifest.requires.capabilities.find((cap) => !can(cap));
-      if (missing) return { on: false, reason: 'not on this switcher' };
+      if (missing) return { on: false, reason: 'not on this switcher', capability: missing };
     }
     /* A cycle would be a mistake in a manifest; treat it as "off" rather than
        recursing until the stack gives out. */

@@ -186,6 +186,142 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
 }
 
 /*
+ * On a Midra 4K the pages under Virtual RC400T have nowhere to hang, and
+ * until 2026-10-16 the Plugins card still called MIDI Mapping and the Speed
+ * Editor on. Now their rows carry the capability's own sentence. The Pixelhue
+ * plugin keeps its card — driving a console works there — and its Mapping
+ * page moves to the PLUS section rather than going missing: the entry under
+ * Virtual RC400T declines, its PLUS twin is mounted and draws the page, and
+ * the card says where it is. On a LivePremier, the other way round.
+ */
+test('on a Midra the Plugins card says why MIDI Mapping is missing, and Pixelhue Mapping is in PLUS', async () => {
+  await withDom(async () => {
+    const { supports, whyNot } = await import('../src/core/platform.js');
+    const { manifestOf } = await import('../src/core/plugins.js');
+    const { createSettingsPanel } = await import('../src/ui/settings-panel.js');
+    const { KIT } = await import('../src/ui/plugin-host.js');
+    const { default: activatePixelhue } = await import('../plugins/pixelhue/client.js');
+
+    const pixelhueOn = async (store) => {
+      const platform = () => detectPlatform(store);
+      const registered = [];
+      await activatePixelhue({
+        id: 'pixelhue', session: sessionOver(store), platform, can: (cap) => supports(platform(), cap),
+        refresh() {}, kit: KIT, url: (p = '/') => `/__lpp/pixelhue${p === '/' ? '' : p}`,
+        /* On, so the card says where the Mapping page is. */
+        settings: { get: () => ({ pixelhueEnabled: true }), set: async () => ({}) },
+        contribute() {}, contributions: () => [], provide() {}, use: () => null, share() {},
+        log: { info() {}, warn() {} },
+        ui: { sidebar: (e) => registered.push(e), tab: (e) => registered.push(e), settingsSection: (e) => registered.push(e) }
+      });
+      const entries = registered.filter((e) => e.label === 'Pixelhue Mapping');
+      const anchored = registered.find((e) => e.id === 'pixelhue-map');
+      const plus = registered.find((e) => e.id === 'pixelhue-map-plus');
+      const card = registered.find((e) => e.id === 'pixelhue');
+      return { entries, anchored, plus, text: renders('pixelhue card', card).textContent };
+    };
+    const missing = /not on this switcher/;
+    const inPlus = /on the Pixelhue Mapping page, in the PLUS section of the sidebar/;
+    const underRc400t = /on the Pixelhue Mapping page, under Virtual RC400T/;
+
+    const midra = new DeviceStore();
+    midra.hydrate(fixture('midra-3.2.29-pulse4k.json'));
+    const platform = () => detectPlatform(midra);
+    const why = whyNot(platform(), 'controlSurfaces');
+    assert.ok(why, 'a Midra has no control surfaces to offer');
+    const text = renders('settings', createSettingsPanel({
+      session: sessionOver(midra), platform, onRefresh() {}, sections: () => []
+    })).textContent;
+    for (const id of ['midi', 'speed-editor']) {
+      const m = manifestOf(id);
+      assert.ok(text.includes(`${m.name}not on this switcher${m.description}${why}`),
+        `${m.name}’s row says it is not here, and why`);
+    }
+    const ph = manifestOf('pixelhue');
+    assert.ok(text.includes(`${ph.name}${ph.description}${ph.where}`), 'the Pixelhue panel is on, with no reason against it');
+
+    const onMidra = await pixelhueOn(midra);
+    assert.equal(onMidra.entries.length, 2, 'one page, two places to put it');
+    assert.equal(onMidra.anchored.after, 'Virtual RC400T');
+    assert.equal(onMidra.anchored.enabled(), false, 'the entry under Virtual RC400T declines');
+    assert.equal(onMidra.plus.enabled(), true, 'its PLUS twin is mounted instead');
+    assert.ok(!onMidra.plus.after && !onMidra.plus.submenuOf, 'in the PLUS section, anchored to nothing');
+    assert.equal(onMidra.entries.filter((e) => e.enabled()).length, 1, 'exactly one of them');
+    assert.match(renders('Pixelhue Mapping on a Midra', onMidra.plus).textContent, /Pick a control/);
+    assert.doesNotMatch(onMidra.text, missing);
+    assert.match(onMidra.text, inPlus);
+    assert.doesNotMatch(onMidra.text, underRc400t);
+
+    const onLivePremier = await pixelhueOn(STORES.simulator());
+    assert.equal(onLivePremier.anchored.enabled(), true);
+    assert.equal(onLivePremier.plus.enabled(), false);
+    assert.match(onLivePremier.text, underRc400t);
+    assert.doesNotMatch(onLivePremier.text, inPlus);
+  });
+});
+
+/*
+ * Every sidebar entry and tab draws a glyph, out of the sprite of each
+ * switcher it is offered on. A `<use>` of an id the sprite lacks draws
+ * nothing and says nothing, and the two families' sprites differ: until
+ * 2026-10-16 Edit, Layer Groups and the Groups tab were blank on a Midra 4K.
+ *
+ * `sprite-ids.json` is the `<symbol>` ids in each simulator's web client,
+ * read off its bundle; the Midra's matched `#__SVG_SPRITE_NODE__` on the
+ * running page id for id. What is offered on a Midra is what the Pulse 4K's
+ * store offers, and the Alta, the same platform with no store here, is held
+ * to the same list. A LivePremier is offered everything.
+ */
+test('every sidebar entry and tab has a glyph in the sprite of each switcher it is offered on', async () => {
+  await withDom(async () => {
+    const { supports } = await import('../src/core/platform.js');
+    const { BUILTINS, status } = await import('../src/core/plugins.js');
+    const { KIT } = await import('../src/ui/plugin-host.js');
+    const { spriteId } = await import('../src/ui/dom.js');
+
+    const allOn = Object.fromEntries(BUILTINS.map((b) => [b.id, { enabled: true }]));
+    const entriesOn = async (store, can) => {
+      const entries = [];
+      for (const b of BUILTINS.filter((m) => m.client && status(allOn, m.id, can).on)) {
+        const { default: activate } = await import(`../plugins/${b.id}/client.js`);
+        await activate({
+          id: b.id, session: sessionOver(store), platform: () => detectPlatform(store), can, refresh() {}, kit: KIT,
+          url: (p = '/') => `/__lpp/${b.id}${p === '/' ? '' : p}`,
+          settings: { get: () => ({}), set: async () => ({}) },
+          contribute() {}, contributions: () => [], provide() {}, use: () => null, share() {},
+          log: { info() {}, warn() {} },
+          ui: {
+            sidebar: (e) => entries.push({ plugin: b.id, ...e }), tab: (e) => entries.push({ plugin: b.id, ...e }),
+            settingsSection() {}
+          }
+        });
+      }
+      /* A flyout item carries no icon, and an entry that declines is not drawn. */
+      return entries.filter((e) => !e.submenuOf && (!e.enabled || e.enabled()));
+    };
+
+    const midra = new DeviceStore();
+    midra.hydrate(fixture('midra-3.2.29-pulse4k.json'));
+    const onMng = await entriesOn(midra, (cap) => supports(detectPlatform(midra), cap));
+    const onNlc = await entriesOn(STORES.simulator(), () => true);
+    assert.ok(onMng.some((e) => e.id === 'edit') && onMng.some((e) => e.id === 'groups'), 'Edit and Layer Groups are offered on a Midra');
+
+    const offered = {
+      'livepremier-6.1.60': onNlc, 'livepremier-6.2.73': onNlc,
+      'midra-3.2.29': onMng, 'alta-1.3.7': onMng
+    };
+    for (const [sprite, { ids }] of Object.entries(fixture('sprite-ids.json'))) {
+      const has = new Set(ids);
+      document.getElementById = (id) => (has.has(id) ? {} : null);
+      const blank = offered[sprite]
+        .filter((e) => !e.icon || !has.has(spriteId(e.icon)))
+        .map((e) => `${e.plugin}: ${e.label} [${[].concat(e.icon || []).join(', ')}]`);
+      assert.deepEqual(blank, [], `drawn blank on ${sprite}`);
+    }
+  });
+});
+
+/*
  * The Variables panel with something in it: the user's own — one that
  * evaluates, one over a system variable, two in a cycle — over the
  * simulator's catalogue, and a search. The page-half pass above draws it

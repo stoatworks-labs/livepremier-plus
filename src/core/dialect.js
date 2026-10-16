@@ -451,6 +451,13 @@ export const NLC = {
   memoryFile: true,
 
   /**
+   * Whether an input carries a backup: a source the switcher falls back to,
+   * set from the input card's ⋮ menu on Screens / Aux. LivePremier keeps it
+   * under `inputList/items/IN_<n>/backup` (the bundle's `$input/_item/backup`).
+   */
+  inputBackup: true,
+
+  /**
    * Pitch compensation: the node under an output's `canvas` that holds the
    * ratios and their commit, and which screen an output belongs to. On
    * LivePremier both are on the output itself.
@@ -1117,6 +1124,15 @@ export const MNG = {
 
   /** No bank here has an import or an export; saving goes through preview. */
   memoryFile: false,
+
+  /**
+   * No input has a backup here. The bundles' input object is plugs,
+   * `control`, `snapshot` and `status` and nothing else (Midra 4K 3.2.29,
+   * Alta 4K 1.3.7; `INPUT_BACKUP_MODE` is an enum nothing uses), and the
+   * input card's ⋮ on the 3.2.29 simulator's Screens / Aux. holds the plug,
+   * Setup, Freeze and Capture.
+   */
+  inputBackup: false,
 
   /**
    * The ratios live under `canvas/pitch` here (`canvas/cmd` on LivePremier),

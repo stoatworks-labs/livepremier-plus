@@ -72,8 +72,8 @@ bolted on afterwards:
   Console, a cue. Full screen fills the surface rather than the canvas, and the align buttons
   align to it. The outlines are drawn on the screen cards so you can see the edge coming.
 - **UMD Generator** *(preview, off by default)*: an aux laid out as a multiviewer has the
-  pictures and none of the furniture. This draws the furniture, ATEM-style: a hairline round each
-  box and a dark tab with the source's name, as one transparent PNG worked out from where each
+  pictures and none of the furniture. This draws the furniture: a hairline round each box and a
+  dark tab with the source's name, as one transparent PNG worked out from where each
   layer actually is and what it's showing. It goes on an aux's top layer through a still, or to the
   Background Slicer for a screen's background, and there are 1, 3, 5 and 7-box layouts to start an
   aux from.
@@ -294,9 +294,9 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
 >
 > **0.17.7 (2026-10-16).** Adds the **UMD Generator**, off until you switch it on. An aux laid out
-> as a multiviewer has the pictures and none of the furniture; this draws the furniture, ATEM-style
-> (a hairline round each box and a dark tab with the source's name), as one transparent PNG worked
-> out from where each layer is and what it shows. It goes on an aux's top layer through a library
+> as a multiviewer has the pictures and none of the furniture; this draws the furniture (a hairline
+> round each box and a dark tab with the source's name) as one transparent PNG worked out from where
+> each layer is and what it shows. It goes on an aux's top layer through a library
 > slot and a still, updates by uploading again, and asks first when that's on air. For a screen it
 > hands the PNG to the Background Slicer, which cuts backgrounds per output. Templates of 1, 3, 5
 > and 7 boxes start an aux, because its layers come in pairs with its capability and the top one
@@ -1160,10 +1160,11 @@ key.
 > the simulator; fade-to-black and freeze are sent on LivePremier, not yet on a Midra 4K.
 
 You can change what each key, fader and encoder does on **Pixelhue Mapping**, under Virtual
-RC400T. It draws the console in the Virtual RC400T's look, with the buses showing what the
-console shows. Click a control to change it (take, cut, fade to black, layer stepping, the cue
-stack, a memory to preview, a Companion button), or press it on the console and it lights up
-here. A changed control gets a blue dot, and **Reset** puts everything back.
+RC400T (in the **PLUS** section on a Midra 4K or Alta 4K, which has no Virtual RC400T). It draws
+the console in the Virtual RC400T's look, with the buses showing what the console shows. Click a
+control to change it (take, cut, fade to black, layer stepping, the cue stack, a memory to
+preview, a Companion button), or press it on the console and it lights up here. A changed
+control gets a blue dot, and **Reset** puts everything back.
 
 ![Pixelhue Mapping: a U5 drawn as a Virtual RC400T, with its source and preset buses, function keys, faders, encoders and T-bar, and the "Pick a control" panel beside it](docs/screenshots/pixelhue-mapping.png)
 
@@ -1312,9 +1313,11 @@ monitor that turns out to be better anyway, because the window stays pointed whe
 
 MIDI Mapping, Speed Editor and Pixelhue Mapping sit **under Virtual RC400T** in the vendor's own
 LIVE section. They're all about control surfaces, and putting them in a section of my own would
-file them by who wrote them rather than by what they do. Pitch Compensation and this app's own
-settings sit in the **Preconfig** flyout, next to the device settings they belong with. The
-whole-device views get a section of their own:
+file them by who wrote them rather than by what they do. A Midra 4K or Alta 4K has no Virtual
+RC400T, so MIDI Mapping and the Speed Editor aren't offered there, and Pixelhue Mapping goes at
+the foot of PLUS instead. Pitch Compensation and this app's own settings sit in the
+**Preconfig** flyout, next to the device settings they belong with. The whole-device views get a
+section of their own:
 
 ```
 LIVE
@@ -1511,7 +1514,7 @@ Screens / Aux. ▸ ⋯ ▸ UMD. Off until you switch it on in Preconfig ▸ Live
 because it uploads into the image library and writes a still and an aux's layers.
 
 Pick a screen or aux and the tab reads every layer that's showing something: where it is, and
-what it's showing. From that it draws what an ATEM multiviewer draws over its windows: a thin
+what it's showing. From that it draws the furniture a multiviewer wears over its windows: a thin
 line round each box, shared where two boxes touch, and a dark tab along the bottom with the
 source's name. It's one PNG at the canvas's size, transparent everywhere else.
 
@@ -1538,8 +1541,8 @@ source's name. It's one PNG at the canvas's size, transparent everywhere else.
 - **Templates** lay an aux out first. Its layers come with its capability, two at a time (an
   advanced aux gets 2 at 4K, 4 at 5K, 6 at "6" and 8 at 8K), and with the top one spent on the
   UMD that leaves 1, 3, 5 or 7 boxes: *Full* or *Inset*; *Two over one*, *One over two* or *One
-  and two*; *Two over three* or *One over four*; *Three and four* (the ATEM quad split) or *Three
-  over four*. Every box keeps the canvas's shape, so a 16:9 camera isn't squashed into it, and a
+  and two*; *Two over three* or *One over four*; *Three and four* (three quarters, the fourth split in
+  four again) or *Three over four*. Every box keeps the canvas's shape, so a 16:9 camera isn't squashed into it, and a
   gap can stand them apart. **Lay out** writes the box layers' positions in the buffer you're on
   and empties the ones the template doesn't use; sources are left alone.
 - **Download PNG** needs nothing from the switcher's library, so a Midra gets that much (drawn
@@ -1754,7 +1757,8 @@ device's store rather than by the model name:
 | VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
 | Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |
 | OSC input | yes — 173 addresses, widened by the device's own catalogue | **yes** — 44 addresses, mynah's vouched-for table; the Midra catalogue is vendored for the Layer tab but not yet merged into the dictionary |
-| MIDI Mapping, Speed Editor, Pixelhue Mapping | yes | not shown — all three pages hang under Virtual RC400T, which a Midra's sidebar doesn't have, and the surface engine still spells LivePremier |
+| MIDI Mapping, Speed Editor | yes | no — both pages hang under Virtual RC400T, which a Midra's sidebar doesn't have, and the surface engine still spells LivePremier. The Plugins card says so on their rows |
+| Pixelhue Mapping | yes, under Virtual RC400T | **yes, in PLUS** — there's no Virtual RC400T to hang it under, so it sits after Companion; the same page, drawn and edited on the Midra 4K simulator 3.2.29. What a mapped key does there is the Pixelhue panel's row |
 | Pixelhue panel | yes | untried — the dialect spells takes, recalls and sources there; fade to black, freeze, swap, time, stills and screens are LivePremier only |
 | EDID builder | yes — the 100-slot bank and M1–M16, read off the simulator | not yet seen — it lights up by itself if the store has the same `system/edid/bankList` |
 | HyperDecks | yes | **yes** — a deck plays into an `INPUT_<n>` and records an output or `MTVW`; the rules are tested against a Pulse 4K's store |
@@ -1773,8 +1777,9 @@ Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step o
 differs, so a cue stack reads the same on either. Which screens and auxes are offered comes from
 the switcher's *applied* preconfig, which is also where the models differ: a QuickVu has one
 screen, a Zenith 200 has four screens and four auxes, and the app lists whatever the box says is
-in service. Anything a panel holds back is listed with its reason on the Settings page, apart
-from the three pages under Virtual RC400T, which just don't appear.
+in service. Anything a panel holds back is listed with its reason on the Settings page: on the
+Plugins card beside the plugin, and under Compatibility beside the part of the switcher it needs.
+The three pages under Virtual RC400T are no exception; they're held back as *Control surfaces*.
 
 ## Safety
 

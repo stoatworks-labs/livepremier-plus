@@ -497,7 +497,7 @@ test('MVR opens the multiviewers page in the open page', { skip: SKIP }, async (
   while (!stream.events.some((e) => e.event === 'page') && Date.now() - t0 < 2000) await sleep(50);
   const ev = stream.events.find((e) => e.event === 'page');
   assert.ok(ev, 'no page event');
-  assert.equal(ev.data.path, '/live/multiviewers');
+  assert.deepEqual(ev.data.paths, ['/live/multiviewers', '/live/multiviewer']);
   assert.equal(ev.data.runner, 'console-suite');
 });
 

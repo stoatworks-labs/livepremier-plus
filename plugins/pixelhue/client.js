@@ -78,11 +78,19 @@ export default function activate(ctx) {
     } catch { /* the next beat tries again */ }
   }
 
-  /** Open one of the vendor's pages by its path, as its own sidebar link does. */
-  function openPath(path) {
-    const link = document.querySelector(`a[href="${path}"]`);
-    if (link) { link.click(); return true; }
-    ctx.log.warn(`no link to ${path} on this page`);
+  /**
+   * Open one of the vendor's pages, as its own sidebar link does. `paths` is
+   * one path or the page's spellings across platforms (`mapping.js`'s
+   * `LIVE_MULTIVIEWER_PATHS`); the first this page links to, matched whole,
+   * is the one clicked.
+   */
+  function openPath(paths) {
+    const list = [].concat(paths || []);
+    for (const path of list) {
+      const link = document.querySelector(`a[href="${path}"]`);
+      if (link) { link.click(); return true; }
+    }
+    ctx.log.warn(`no link to ${list.join(' or ')} on this page`);
     return false;
   }
 
@@ -91,7 +99,10 @@ export default function activate(ctx) {
   /**
    * An input's own menu on Screens / Aux. — the one its card's ⋮ opens, with
    * the input's backup in it. Found by the card's number and the ⋮'s icon,
-   * because every class on that page is hashed.
+   * because every class on that page is hashed. LivePremier's only: a Midra
+   * 4K's card numbers itself in its footer, not an `.aw-header`, and its ⋮
+   * has no backup in it, so the supervisor never asks there
+   * (`backupRequest`, `dialect.inputBackup`).
    */
   async function openInputBackup(input) {
     if (location.pathname !== '/live/screens') openPath('/live/screens');
@@ -141,7 +152,7 @@ export default function activate(ctx) {
 
   async function act(msg) {
     if (msg.type === 'transport') transport(msg.action);
-    else if (msg.type === 'navigate') openPath(msg.path);
+    else if (msg.type === 'navigate') openPath(msg.paths || msg.path);
     else if (msg.type === 'inputBackup') await openInputBackup(msg.input);
   }
 
@@ -181,6 +192,10 @@ export default function activate(ctx) {
     const on = settings.pixelhueEnabled;
     const link = live && live.link;
     const model = CONSOLE_MODELS.find((m) => m.id === settings.pixelhueModel);
+    /* Where the Mapping page is, asked at every render: the answer arrives
+       with the device store. Under Virtual RC400T where there is one, in
+       PLUS where there is not — see the two entries at the foot. */
+    const mapAt = ctx.can('controlSurfaces') ? 'under Virtual RC400T' : 'in the PLUS section of the sidebar';
 
     const toggle = h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { cursor: 'pointer' } },
       h('input', {
@@ -231,12 +246,13 @@ export default function activate(ctx) {
       notes.push(note('info',
         'The console is handed a model of this switcher — its screens, inputs and memories — '
         + 'and labels, lights and pages its own keys from it, so the buses need no mapping. '
-        + 'What the function keys, faders and encoders do is on the Pixelhue Mapping page, '
-        + 'under Virtual RC400T. docs/PIXELHUE.md has the rest.'));
+        + `What the function keys, faders and encoders do is on the Pixelhue Mapping page, ${mapAt}. `
+        + 'docs/PIXELHUE.md has the rest.'));
       notes.push(note('info',
         'A recall from the panel always lands in preview, whatever PGM EDIT is doing, for the '
         + 'same reason every other recall in this app does. Fade to black and freeze are '
-        + 'sent on a LivePremier; a Midra 4K or Alta 4K has no proven path for them yet.'));
+        + 'sent on a LivePremier; a Midra 4K or Alta 4K has no proven path for them yet, and '
+        + 'no input backup for SOURCE BACKUP to open.'));
       notes.push(note('info',
         'Tally is read when the panel connects and after each change it makes. A take fired '
         + 'from the Web RCS or the front panel does not relight the console’s keys until then.'));
@@ -286,7 +302,16 @@ export default function activate(ctx) {
   ctx.ui.settingsSection({ id: 'pixelhue', order: 10, render });
 
   /* The console drawn, and what every control does on it — beside MIDI
-     Mapping under Virtual RC400T, for the reason MIDI Mapping is there. */
+     Mapping under Virtual RC400T, for the reason MIDI Mapping is there.
+     A Midra 4K or Alta 4K sidebar has no Virtual RC400T, and an anchored
+     entry with no anchor is dropped, so there the same page goes in the
+     PLUS section instead: two entries, one page, and `controlSurfaces` —
+     the capability that says the anchor is there — picks which is mounted.
+     Placement is read once per mount (`ui/shell.js`) and the plugin host
+     copies an entry when it is registered, so one entry whose `after`
+     changed with the platform would keep the first answer it gave. The
+     plugin's own `requires` stays empty, because driving the console and
+     the mapping it applies are offered on both platforms. */
   const mapping = createMapPage({
     ctx,
     settings: () => settings,
@@ -296,16 +321,26 @@ export default function activate(ctx) {
       await load();
     },
   });
-  ctx.ui.sidebar({
-    id: 'pixelhue-map',
+  const mapEntry = {
     label: 'Pixelhue Mapping',
     icon: ['rc400t-18', 'desktop-18'],
-    after: 'Virtual RC400T',
-    order: 68,   // anchored entries stack upwards: below MIDI Mapping (70) and the Speed Editor (69)
     render: () => {
       if (!asked) { asked = true; void load(); }
       listen();
       return mapping.render();
     },
+  };
+  ctx.ui.sidebar({
+    ...mapEntry,
+    id: 'pixelhue-map',
+    after: 'Virtual RC400T',
+    order: 68,   // anchored entries stack upwards: below MIDI Mapping (70) and the Speed Editor (69)
+    enabled: () => ctx.can('controlSurfaces'),
+  });
+  ctx.ui.sidebar({
+    ...mapEntry,
+    id: 'pixelhue-map-plus',
+    order: 68,   // in PLUS, after Companion (60)
+    enabled: () => !ctx.can('controlSurfaces'),
   });
 }

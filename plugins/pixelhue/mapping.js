@@ -28,9 +28,21 @@
  */
 
 /**
+ * The Web RCS's live multiviewer page, as each platform spells its route.
+ * Read off the bundles' own route tables: LivePremier 6.2.73 has
+ * `HOME__MULTIVIEWERS: 'live/multiviewers'`, Midra 4K 3.2.29 and Alta 4K
+ * 1.3.7 `HOME__MULTIVIEWER: "live/multiviewer"`. The page clicks the first
+ * one its sidebar links to, matched whole, so neither platform's other
+ * multiviewer pages — setup's `/multiviewers` or `/multiviewer`, Preconfig's
+ * `/preconfig/multiviewers` — can be taken for it.
+ */
+export const LIVE_MULTIVIEWER_PATHS = Object.freeze(['/live/multiviewers', '/live/multiviewer']);
+
+/**
  * The actions a KEY can be given. `intent` is what the supervisor acts on —
  * the same shapes `readIntent` produces, plus `none`, `page`, `inputBackup` and
- * `companion`, which only this table can produce.
+ * `companion`, which only this table can produce. A `page` intent names the
+ * page by its candidate `paths`, one per spelling.
  */
 export const KEY_ACTIONS = Object.freeze([
   { id: 'none', legend: '—', label: 'Nothing', group: 'Off', intent: { kind: 'none' } },
@@ -53,7 +65,7 @@ export const KEY_ACTIONS = Object.freeze([
   { id: 'cueStop', legend: 'CUE ■', label: 'Cue: stop', group: 'Cue transport', intent: { kind: 'transport', action: 'stop' } },
   { id: 'cuePrevious', legend: 'CUE ◀', label: 'Cue: previous', group: 'Cue transport', intent: { kind: 'transport', action: 'previous' } },
   { id: 'cueNext', legend: 'CUE ▶', label: 'Cue: next', group: 'Cue transport', intent: { kind: 'transport', action: 'next' } },
-  { id: 'mvr', legend: 'MVR', label: 'Open the Multiviewers page', group: 'Pages', intent: { kind: 'page', type: 'navigate', path: '/live/multiviewers', what: 'open the multiviewers page' } },
+  { id: 'mvr', legend: 'MVR', label: 'Open the Multiviewers page', group: 'Pages', intent: { kind: 'page', type: 'navigate', paths: LIVE_MULTIVIEWER_PATHS, what: 'open the multiviewers page' } },
   { id: 'sourceBackup', legend: 'BACKUP', label: 'Open the last input’s backup menu', group: 'Pages', intent: { kind: 'inputBackup' } },
   { id: 'lock', legend: 'LOCK', label: 'Lock the panel (toggle)', group: 'Panel', intent: { kind: 'lock' } },
 ]);

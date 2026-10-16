@@ -16,7 +16,7 @@
  * opens before the show rather than during it.
  */
 
-import { createEditPanel } from './panel.js';
+import { createEditPanel, ICON } from './panel.js';
 import { createPropertiesPanel } from '../../src/ui/properties-panel.js';
 import { createProgrammer, EDIT } from '../../src/core/programmer.js';
 import { composeMemory, saveViaPreview, applyLook, lookFromMemory } from '../../src/core/save-look.js';
@@ -141,7 +141,7 @@ export default function activate(ctx) {
   ctx.ui.sidebar({
     id: 'edit',
     label: 'Edit',
-    icon: ['properties-18', 'layer-stacked-18'],
+    icon: ICON,
     order: 10,
     render: () => edit.render(),
     /* Holds repaints off while a property is being typed. */
