@@ -32,7 +32,7 @@ import { panel } from './shell.js';
 import { listDestinations, sourceLabel } from '../core/screens.js';
 import { dialectFor, dialectOrDefault } from '../core/dialect.js';
 import {
-  layerSections, valuesFor, readValue, writeCmd, coerce, fittedLayers, bankLetter
+  layerSections, valuesFor, offersValue, offeredValues, readValue, writeCmd, coerce, fittedLayers, bankLetter
 } from '../core/properties.js';
 import { label as paramLabel } from '../vendor/surface/catalogue.js';
 import { layerLabel, nameOf, MAX_NAME } from '../core/layer-names.js';
@@ -397,13 +397,19 @@ export function createPropertiesPanel({
     }),
     h('span', { class: 'aw-font-body-2', text: value === true ? 'On' : 'Off' }));
 
+  /*
+   * A source list is the sources this switcher has, not the catalogue's —
+   * 256 inputs on a frame with 24 fitted was the old list. What the layer
+   * holds stays in it whatever it is, marked when it is not on offer, so
+   * the field never shows a value the layer does not have.
+   */
   function enumControl(spec, value) {
-    const values = valuesFor(spec, store());
+    const offered = offersValue(spec, store());
     return h('select', {
       class: 'wru-select', onChange: (ev) => write(spec, ev.target.value)
-    }, ...values.map((v) => h('option', {
+    }, ...offeredValues(spec, store(), value).map((v) => h('option', {
       value: v, selected: v === value ? 'selected' : null
-    }, prettyEnum(v))));
+    }, offered(v) ? prettyEnum(v) : `${prettyEnum(v)} (not available)`)));
   }
 
   /*

@@ -1623,5 +1623,34 @@ writes stopped at one.
   for an empty value on a live preview was not worth finding out.
 - **The Layer tab offers every source the catalogue knows** (LIVE 1 to 256)
   on a box with 24 inputs available. `valuesFor` returns the enum whole.
+  *Fixed the same day* — see "The source list" below.
 - Not run, deliberately: anything that takes, writes program, outputs, EDIDs
   or audio. The Console step was refused by the session's own guard.
+
+**The source list.** The Layer tab's and the Edit page's source dropdown now
+offers what the vendor's own picker offers, read off the 6.2.73 client bundle
+(`allAvailableLayerSourcesSelector`): NONE and COLOR; an input or still whose
+device-list status is `isAvailable` and `isEnabled` and whose `global` in the
+*applied preconfig* is `USED`; a screen whose `mode` is `FREESTYLE`; and the
+eight background sets. `NLC.sourceOffered` / `MNG.sourceOffered` in
+`core/dialect.js`; `offeredValues` in `core/properties.js`.
+
+- RS4 store (from the field kit, not committed): 24 of 256 inputs, 48 of 192
+  stills (allocated; one holds a picture), 3 of 24 screens — 85 entries where
+  there were 482.
+- The 6.2.73 simulator through the app: 92 entries (32 inputs, 48 stills, 2
+  screens, 8 sets, NONE, COLOR), and the vendor's Sources panel's four tabs
+  hold 32, 48, 8 and 2 cards. Read only; nothing written.
+- ⚠️ The still list's own `global` is not the preconfig's: the simulator reads
+  `DISABLE` on the device list for five allocated, empty stills that the
+  preconfig calls `USED`, and the vendor offers them. On the RS4 the two agreed.
+- What the layer holds is always in the list, marked "(not available)" when
+  it is not on offer, so the field never shows NONE for a layer on an input
+  that has gone.
+- Writes are not narrowed: `valuesFor` is still the whole enum, so a cue, a
+  group's fan-out or the Console can still send a source that is not on offer.
+  Send-to takes its source off the vendor's own cards (already this rule) and
+  a ganged group copies what a member was set to, so neither offers a list.
+- Not done: the vendor also narrows by the kind of layer — a NATIVE layer takes
+  only background sets, an aux layer no colour, a screen layer other screens
+  only in split mode. The dropdown still offers all kinds on every layer.

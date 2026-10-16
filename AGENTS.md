@@ -710,6 +710,15 @@ So the banks and the properties are read from the mirror instead:
   MIDI mapper already generated from a device's own bundle — 67 layer
   parameters in twelve groups. Regenerate the catalogue and the panel grows the
   new properties on its own.
+  ⚠️ **Except the source list, which is the switcher's, not the enum's.** The
+  enum is every source the platform could have — 482 on LivePremier — and an
+  Aquilon RS4 with 24 inputs was offered all 256. `offeredValues` narrows a
+  *picker* by the dialect's `sourceOffered`, the vendor picker's own rule
+  (inputs and stills available, enabled and `USED` in the **applied
+  preconfig**, screens in `FREESTYLE`; on Midra, `isAvailable`), and always
+  keeps what the layer holds. `valuesFor` — what a write is checked against —
+  stays the whole enum, so a cue, a group or the Console naming a source that
+  has gone is still sent and the device judges it. Do not narrow the write.
 
 ⚠️ **Layer selection is not device state.** There is no `isSelected` anywhere in
 the store and nothing in the catalogue; the vendor's Properties tab follows a
