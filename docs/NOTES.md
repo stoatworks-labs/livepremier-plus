@@ -1652,9 +1652,23 @@ eight background sets. `NLC.sourceOffered` / `MNG.sourceOffered` in
   group's fan-out or the Console can still send a source that is not on offer.
   Send-to takes its source off the vendor's own cards (already this rule) and
   a ganged group copies what a member was set to, so neither offers a list.
-- Not done: the vendor also narrows by the kind of layer — a NATIVE layer takes
-  only background sets, an aux layer no colour, a screen layer other screens
-  only in split mode. The dropdown still offers all kinds on every layer.
+- **And by the kind of layer**, as the vendor's own dropdown does
+  (`getAllowedLayerSourceTypes`, read by `useAcceptableLayerSources`): a
+  screen's NATIVE layer takes NONE and the eight background sets only, an aux's
+  NATIVE layer only NONE, an aux layer no COLOR, and a screen layer other
+  screens only in split mode — the vendor's `!isMixerModeEnabled` on the
+  screen's own `layerList/items/<k>/status/pp`. `LAYER_SOURCE_TYPES` in
+  `core/dialect.js`; the panel passes its layer. Not the cut-and-fill source,
+  which keeps availability only. Midra has nothing to narrow: its only layers
+  are a screen's live layers, and each takes the whole list.
+- On the simulator through the app (read only; the vendor socket's `send` was
+  swapped for a recorder that swallowed everything, and recorded nothing):
+  S1 L1 in mixer mode, 82 entries and no screens; S1 L2 and S2 L1 in split
+  mode, 84 with SCREEN_1 and SCREEN_2; no background sets on any. S1's preview
+  L2 held LIVE_44 on a 32-input frame, and showed as "LIVE 44 (not available)",
+  selected. The vendor's own Properties tab draws a layer's source as a picture
+  card, not a list, so the two lists were not compared side by side. No NATIVE
+  or aux layer is fitted on that simulator, so those two are fixture-tested only.
 
 **A second pass, the same day, read-only on the box.** The Console's
 `AWJ {"op":"get",…}` answered `NLC_RS4` through the server's own AWJ path.

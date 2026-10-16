@@ -137,12 +137,19 @@ export const valuesFor = (spec, store = null) =>
  * 4K with ten. It is recognised as the enum the dialect's `sourceParam` uses,
  * so a cut-and-fill source picks from the same list without being named here.
  * The rule is the dialect's `sourceOffered`, the vendor picker's own.
+ *
+ * `target` (`{id, layer}`) narrows the layer's own source by the kind of
+ * layer as well — a screen's NATIVE layer takes only background sets, an aux
+ * layer no colour. Not the cut-and-fill source: the vendor's rule by layer
+ * kind is for what a layer shows, and its cut source has no such rule.
  */
-export function offersValue(spec, store) {
+export function offersValue(spec, store, target = null) {
   const dialect = dialectFor(store);
   const source = dialect && layerSpec(store, 'source');
   const isSource = source && spec && (spec === source || (source.enum && spec.enum === source.enum));
-  return isSource && dialect.sourceOffered ? dialect.sourceOffered(store) : () => true;
+  if (!isSource || !dialect.sourceOffered) return () => true;
+  const own = target && spec.id === dialect.sourceParam ? { id: target.id, layer: target.layer } : {};
+  return dialect.sourceOffered(store, own);
 }
 
 /**
@@ -152,8 +159,8 @@ export function offersValue(spec, store) {
  * must still say so; a dropdown that drops it would show the first option
  * instead, which reads as the layer being on NONE.
  */
-export function offeredValues(spec, store = null, current) {
-  const offered = offersValue(spec, store);
+export function offeredValues(spec, store = null, { current, target = null } = {}) {
+  const offered = offersValue(spec, store, target);
   return valuesFor(spec, store).filter((v) => v === current || offered(v));
 }
 

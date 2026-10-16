@@ -723,7 +723,9 @@ So the banks and the properties are read from the mirror instead:
   Aquilon RS4 with 24 inputs was offered all 256. `offeredValues` narrows a
   *picker* by the dialect's `sourceOffered`, the vendor picker's own rule
   (inputs and stills available, enabled and `USED` in the **applied
-  preconfig**, screens in `FREESTYLE`; on Midra, `isAvailable`), and always
+  preconfig**, screens in `FREESTYLE`; on Midra, `isAvailable`), then by the
+  kind of layer (`LAYER_SOURCE_TYPES`: NATIVE takes background sets only, an
+  aux layer no colour, screens only on a split-mode layer), and always
   keeps what the layer holds. `valuesFor` — what a write is checked against —
   stays the whole enum, so a cue, a group or the Console naming a source that
   has gone is still sent and the device judges it. Do not narrow the write.

@@ -6,7 +6,8 @@
  * dropdown offered LIVE 1 to LIVE 256 on a frame with 24 inputs, because
  * `valuesFor` hands back the enum whole. The rule now is the vendor picker's
  * own, read off the 6.2.73 client bundle — see `sourceOffered` in
- * `core/dialect.js` — and only the picker narrows: a write is still checked
+ * `core/dialect.js`: what the switcher has, then what this kind of layer can
+ * take (`LAYER_SOURCE_TYPES`) — and only the picker narrows: a write is still checked
  * against the whole enum, so a cue or a group naming a source that has gone
  * is the device's to judge, as before.
  *
@@ -117,6 +118,9 @@ test('the Aquilon RS4 on 6.1.60: 256 inputs in the store, 24 offered', () => {
   assert.equal(count('STILL_'), 48, 'allocated slots, not only the one holding a picture');
   assert.deepEqual(offered.filter((v) => v.startsWith('SCREEN_')), ['SCREEN_1', 'SCREEN_2', 'SCREEN_3']);
   assert.equal(offered.length, 1 + 24 + 48 + 3 + 8 + 1);
+  /* And on a layer: S1 L1 is in mixer mode, so no screens and no sets. */
+  assert.equal(offeredValues(layerSpec(store, 'source'), store, { target: { id: 'S1', layer: '1' } }).length,
+    1 + 24 + 48 + 1);
 });
 
 test('what a layer holds stays in its list, even when the switcher no longer offers it', () => {
@@ -130,7 +134,7 @@ test('what a layer holds stays in its list, even when the switcher no longer off
   const held = readValue(store, target, spec);
   assert.equal(held, 'LIVE_30');
   assert.equal(offersValue(spec, store)(held), false);
-  const values = offeredValues(spec, store, held);
+  const values = offeredValues(spec, store, { current: held });
   assert.ok(values.includes('LIVE_30'), 'kept, so the field shows what the layer is on');
   assert.deepEqual(values.slice(0, 6), ['NONE', 'LIVE_1', 'LIVE_2', 'LIVE_3', 'LIVE_4', 'LIVE_30'], 'in catalogue order');
   /* And it is still writable — the picker narrows, the write check does not. */
@@ -162,6 +166,61 @@ test('a store that does not carry a list decides nothing about it', () => {
   assert.deepEqual(offeredValues(layerSpec(store, 'source'), null), valuesFor(layerSpec(store, 'source'), null));
 });
 
+/* --------------------------------------------------- by kind of layer */
+
+/*
+ * The vendor's own dropdown also asks what kind of layer it is filling
+ * (`getAllowedLayerSourceTypes`, 6.2.73): a NATIVE layer is the background
+ * layer, an aux layer takes no colour, and a screen layer takes another
+ * screen only in split mode (`!isMixerModeEnabled`). The Aquilon capture's
+ * S1 has layers 1 and 2 in mixer mode, as every fitted screen layer on the
+ * RS4 is.
+ */
+const kinds = () => {
+  const store = aquilon();
+  const spec = layerSpec(store, 'source');
+  return { store, spec, on: (id, layer, current) => offeredValues(spec, store, { current, target: { id, layer } }) };
+};
+
+test('a screen layer in mixer mode takes colour, inputs and stills — no screens, no sets', () => {
+  const { on } = kinds();
+  assert.deepEqual(on('S1', '1'), ['NONE', ...range('LIVE_', 1, 4), ...range('STILL_', 1, 5), 'COLOR']);
+});
+
+test('a screen layer in split mode takes the screens as well', () => {
+  const { store, on } = kinds();
+  store.set(['device', 'screenList', 'items', 'S1', 'layerList', 'items', '2', 'status', 'pp', 'isMixerModeEnabled'], false);
+  assert.deepEqual(on('S1', '2'), ['NONE', ...range('LIVE_', 1, 4), ...range('STILL_', 1, 5), 'SCREEN_1', 'COLOR']);
+  assert.deepEqual(on('S1', '1').includes('SCREEN_1'), false, 'and only that layer');
+});
+
+test('a screen’s NATIVE layer takes the background sets and nothing else', () => {
+  const { on } = kinds();
+  assert.deepEqual(on('S1', 'NATIVE'), ['NONE', ...NATIVE]);
+});
+
+test('an aux layer takes inputs, stills and screens but no colour; its NATIVE layer nothing', () => {
+  const { on } = kinds();
+  assert.deepEqual(on('A1', '1'), ['NONE', ...range('LIVE_', 1, 4), ...range('STILL_', 1, 5), 'SCREEN_1']);
+  assert.deepEqual(on('A1', 'NATIVE'), ['NONE']);
+});
+
+test('what a layer holds stays in its list even when its kind of layer cannot take it', () => {
+  const { store, spec, on } = kinds();
+  const target = { id: 'S1', bank: 'A', layer: 'NATIVE' };
+  store.set(writeCmd(target, spec, 'LIVE_2', store).path, 'LIVE_2');
+  assert.deepEqual(on('S1', 'NATIVE', readValue(store, target, spec)), ['NONE', 'LIVE_2', ...NATIVE]);
+  assert.equal(offersValue(spec, store, target)('LIVE_2'), false, 'and is marked as not on offer');
+  assert.equal(offersValue(spec, store)('LIVE_2'), true, 'though the switcher has it');
+});
+
+test('the layer kind narrows the layer’s own source, not its cut-and-fill source', () => {
+  const { store, spec } = kinds();
+  const cut = layerSections(store).flatMap((s) => s.params).find((p) => p.id === 'cutNFill.cut.inputNum');
+  const target = { id: 'S1', layer: '1' };
+  assert.deepEqual(offeredValues(cut, store, { target }), offeredValues(spec, store), 'availability only');
+});
+
 /* ------------------------------------------------------- Midra / Alta */
 
 /* The Pulse 4K fixture last, so its transition state wins over the inputs
@@ -176,6 +235,8 @@ test('a Midra offers its available inputs and a colour — the same list as its 
   assert.deepEqual(offered, ['NONE', ...range('INPUT_', 1, 10), 'COLOR']);
   assert.deepEqual(offered, listSources(store).map((s) => s.value), 'one rule on this platform');
   assert.equal(valuesFor(spec, store).length, 18, 'the write check keeps all sixteen');
+  /* Every Midra layer is a screen's live layer, and each takes the lot. */
+  assert.deepEqual(offeredValues(spec, store, { target: { id: 'S1', layer: '1' } }), offered);
 });
 
 test('a Midra layer on an input that has gone keeps it in its list', () => {
@@ -185,7 +246,7 @@ test('a Midra layer on an input that has gone keeps it in its list', () => {
   assert.equal(readValue(store, target, spec), 'INPUT_7');
   store.set(['device', 'inputList', 'items', 'INPUT_7', 'status', 'pp', 'isAvailable'], false);
   assert.equal(offersValue(spec, store)('INPUT_7'), false);
-  assert.ok(offeredValues(spec, store, 'INPUT_7').includes('INPUT_7'));
+  assert.ok(offeredValues(spec, store, { current: 'INPUT_7' }).includes('INPUT_7'));
   assert.equal(offeredValues(spec, store).includes('INPUT_7'), false);
 });
 
@@ -224,7 +285,10 @@ test('the Layer panel draws the offered list and marks a held source', async () 
     const sourceSelect = () => panel.render().querySelectorAll('select')
       .find((s) => s.querySelectorAll('option').some((o) => o.getAttribute('value') === 'LIVE_1'));
     const options = () => sourceSelect().querySelectorAll('option');
-    assert.deepEqual(options().map((o) => o.getAttribute('value')), offeredValues(layerSpec(store, 'source'), store));
+    assert.deepEqual(options().map((o) => o.getAttribute('value')),
+      offeredValues(layerSpec(store, 'source'), store, { target: { id: 'S1', layer: '1' } }));
+    assert.deepEqual(options().map((o) => o.getAttribute('value')),
+      ['NONE', ...range('LIVE_', 1, 4), ...range('STILL_', 1, 5), 'COLOR'], 'a mixer layer: no screens, no sets');
     assert.equal(options().find((o) => o.getAttribute('selected')).getAttribute('value'), 'LIVE_2');
 
     store.set(['device', 'screenList', 'items', 'S1', 'presetList', 'items', 'A', 'layerList', 'items', '1', 'source', 'pp', 'inputNum'], 'LIVE_30');
@@ -233,6 +297,14 @@ test('the Layer panel draws the offered list and marks a held source', async () 
     assert.equal(held.getAttribute('selected'), 'selected');
     assert.equal(held.textContent, 'LIVE 30 (not available)');
     assert.equal(options().find((o) => o.getAttribute('value') === 'LIVE_1').textContent, 'LIVE 1');
+
+    /* The NATIVE layer, given a scaler so the panel will pick it: the
+       background sets and nothing else. */
+    store.set(['device', 'screenList', 'items', 'S1', 'layerList', 'items', 'NATIVE', 'status', 'pp', 'capability'], '4K');
+    panel.view.layer = 'NATIVE';
+    const native = panel.render().querySelectorAll('select')
+      .find((s) => s.querySelectorAll('option').some((o) => o.getAttribute('value') === 'NATIVE_1'));
+    assert.deepEqual(native.querySelectorAll('option').map((o) => o.getAttribute('value')), ['NONE', ...NATIVE]);
   } finally {
     dom.uninstall();
   }

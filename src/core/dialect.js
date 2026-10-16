@@ -112,6 +112,38 @@ const endsDown = (transition) => String(transition ?? 'AT_DOWN').endsWith('DOWN'
 /* ================================================================== nlc */
 
 /**
+ * What each kind of LivePremier layer can be given, by the source's prefix —
+ * `getAllowedLayerSourceTypes` in the 6.2.73 client bundle, with its
+ * `NATIVESET` spelt `NATIVE` and `SCREEN_AUX` spelt `SCREEN`, as the
+ * `INPUTLAYER_LOGIC` enum spells them.
+ *
+ * - A layer keyed `NATIVE` is the background layer, on a screen or an aux:
+ *   a screen's takes only the background sets, an aux's nothing at all.
+ * - An aux layer takes no colour; a screen layer does.
+ * - A screen layer takes another screen only in split mode, which the vendor
+ *   reads as `!isMixerModeEnabled` on the screen's own
+ *   `layerList/items/<k>/status/pp`. Every fitted screen layer on the RS4
+ *   (6.1.60) reads `true` and offers none; the 6.2.73 simulator had one of
+ *   each on S1 (2026-10-16). An aux layer has no such flag and always may.
+ */
+const LAYER_SOURCE_TYPES = {
+  screenBackground: ['NONE', 'NATIVE'],
+  auxBackground: ['NONE'],
+  screen: ['NONE', 'COLOR', 'LIVE', 'STILL'],
+  screenSplit: ['NONE', 'COLOR', 'LIVE', 'STILL', 'SCREEN'],
+  aux: ['NONE', 'LIVE', 'STILL', 'SCREEN']
+};
+const SOURCE_TYPES = new Set(Object.values(LAYER_SOURCE_TYPES).flat());
+
+function layerSourceTypes(store, id, layer) {
+  const aux = String(id).startsWith('A');
+  if (String(layer) === 'NATIVE') return LAYER_SOURCE_TYPES[aux ? 'auxBackground' : 'screenBackground'];
+  if (aux) return LAYER_SOURCE_TYPES.aux;
+  const status = pp(store.get([ROOT, 'screenList', 'items', id, 'layerList', 'items', String(layer), 'status']));
+  return LAYER_SOURCE_TYPES[status.isMixerModeEnabled ? 'screen' : 'screenSplit'];
+}
+
+/**
  * LivePremier. Every path here is byte-identical to what `core/paths.js` and
  * `core/memories.js` have always produced — the tests pin that — so the
  * existing verification on the Aquilon C carries over unchanged.
@@ -542,16 +574,19 @@ export const NLC = {
    *   fact — the 6.2.73 simulator reads `DISABLE` there for five allocated,
    *   empty stills its preconfig calls `USED`. The vendor asks the preconfig.
    * - `SCREEN_<n>`: `screenList/items/S<n>/status/pp/mode` is `FREESTYLE`.
-   * - `NONE`, `COLOR` and the background sets (`NATIVE_<n>`) are always
-   *   offered, and so is anything this file has not met.
+   * - `NONE`, `COLOR` and the background sets (`NATIVE_<n>`) are not read
+   *   off the device, and nor is anything this file has not met.
+   *
+   * Given `{id, layer}`, the kind of layer narrows it as well — the bundle's
+   * `getAllowedLayerSourceTypes`, which its own source dropdown applies
+   * (`useAcceptableLayerSources`); see `LAYER_SOURCE_TYPES` above. Without
+   * one, every kind is offered.
    *
    * A list the store does not carry at all decides nothing, so a partial store
-   * offers the whole enum rather than an empty one. The vendor also narrows by
-   * the kind of layer (a NATIVE layer takes only background sets, an aux layer
-   * no colour, a screen's layer other screens only in split mode); this does
-   * not — it is about what the switcher has, not what one layer accepts.
+   * offers the whole enum rather than an empty one.
    */
-  sourceOffered(store) {
+  sourceOffered(store, { id, layer } = {}) {
+    const types = id && layer != null ? layerSourceTypes(store, id, layer) : null;
     const list = (...path) => store.get([ROOT, ...path, 'items']);
     const inputs = list('inputList');
     const stills = list('stillList');
@@ -567,8 +602,10 @@ export const NLC = {
       return global === undefined || global === 'USED';
     };
     return (value) => {
-      const m = /^(LIVE|STILL|SCREEN)_(\d+)$/.exec(String(value));
-      if (!m) return true;
+      const m = /^(LIVE|STILL|SCREEN|NATIVE)_(\d+)$/.exec(String(value));
+      const type = m ? m[1] : String(value);
+      if (types && SOURCE_TYPES.has(type) && !types.includes(type)) return false;
+      if (!m || m[1] === 'NATIVE') return true;
       if (m[1] === 'LIVE') return !inputs || usable(inputs['IN_' + m[2]], applied.inputs['IN_' + m[2]]);
       if (m[1] === 'STILL') return !stills || usable(stills[m[2]], applied.stills[m[2]]);
       return !screens || pp(screens['S' + m[2]] && screens['S' + m[2]].status).mode === 'FREESTYLE';
@@ -1149,6 +1186,11 @@ export const MNG = {
    * and the grid are one list: an `INPUT_<n>` whose `status/pp/isAvailable`
    * is true, and `NONE` and `COLOR` always. Ten of a Pulse 4K's sixteen. An
    * input list the store does not carry decides nothing.
+   *
+   * The layer, which nlc reads for its kind, changes nothing here: the only
+   * layers this platform has are a screen's live layers (`liveLayerList`; an
+   * aux has none and the background is not a layer), and every one of them
+   * takes the whole `LAYER_CONTENT` list.
    */
   sourceOffered(store) {
     const inputs = store.get([ROOT, 'inputList', 'items']);

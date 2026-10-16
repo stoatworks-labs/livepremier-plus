@@ -384,7 +384,7 @@ export function createPropertiesPanel({
     }
     switch (spec.type) {
       case 'bool': return boolControl(spec, value);
-      case 'enum': return enumControl(spec, value);
+      case 'enum': return enumControl(spec, target, value);
       case 'map': return mapControl(spec, value);
       default: return numberControl(spec, value);
     }
@@ -398,16 +398,17 @@ export function createPropertiesPanel({
     h('span', { class: 'aw-font-body-2', text: value === true ? 'On' : 'Off' }));
 
   /*
-   * A source list is the sources this switcher has, not the catalogue's —
-   * 256 inputs on a frame with 24 fitted was the old list. What the layer
-   * holds stays in it whatever it is, marked when it is not on offer, so
-   * the field never shows a value the layer does not have.
+   * A source list is the sources this switcher has that this layer can take,
+   * not the catalogue's — 256 inputs on a frame with 24 fitted was the old
+   * list, and the NATIVE layer offered inputs. What the layer holds stays in
+   * it whatever it is, marked when it is not on offer, so the field never
+   * shows a value the layer does not have.
    */
-  function enumControl(spec, value) {
-    const offered = offersValue(spec, store());
+  function enumControl(spec, target, value) {
+    const offered = offersValue(spec, store(), target);
     return h('select', {
       class: 'wru-select', onChange: (ev) => write(spec, ev.target.value)
-    }, ...offeredValues(spec, store(), value).map((v) => h('option', {
+    }, ...offeredValues(spec, store(), { current: value, target }).map((v) => h('option', {
       value: v, selected: v === value ? 'selected' : null
     }, offered(v) ? prettyEnum(v) : `${prettyEnum(v)} (not available)`)));
   }
