@@ -234,6 +234,10 @@ them on.
 - **ZeroTier:** `http://<zerotier address>:<port>/` on every network this host is authorised on.
   `zerotier-cli` has to be able to read the service's auth token.
 
+![The Remote access card: Tailscale serving HTTPS on the tailnet name at https://show-laptop.tail-example.ts.net/ on port 443, ZeroTier on with the venue-control network authorised at 10.147.17.25, and the warning that neither network is a login](screenshots/remote-access.png)
+
+The names in that picture are made up, from stand-ins for the two command-line tools.
+
 Switching Tailscale off, or stopping the app, removes the `tailscale serve` entry it made. Joining
 and leaving networks from the card is only offered when the app was started with `--appliance`,
 because on a laptop the networks belong to whoever owns the laptop.
@@ -635,6 +639,8 @@ presses it for you:
 It's careful with your own padlocks: one you'd shut before the take stays shut, and one you open
 mid-take is left open. The card lists the screens it looks after (untick one to leave it alone),
 what's mid-take now, and the last few things it did.
+
+![The Preview lock card after a take on S1 and S2: both screens ticked, nothing mid-take now, and each screen's PRW locked as the take was sent and unlocked when it landed](screenshots/preview-lock.png)
 
 **This app's own recalls wait rather than being refused.** The padlock only stops Web RCS's own
 buttons, so with this switched on the app holds its own recalls back itself:
@@ -1062,6 +1068,8 @@ open transmitter, each cell is one subscription, coloured by what the receiver r
 connected, orange while it's being set up, red for unresolved or failed. Hover over a cell or a
 channel for the device's own words.
 
+![PLUS ▸ Dante on the simulated network: five devices in the grid, FOH-Desk opened into its sixteen channels with Mic 1 to 8 from Stagebox-A on the first eight, the switcher's own card marked, and the device list underneath](screenshots/dante.png)
+
 1. **Unlock** the grid (it opens **Locked**: clicks only open and close devices).
 2. Click a cell to subscribe that receive channel to that transmit channel, or to clear it when it
    is already lit. Click a block to lay the transmitter across the receiver channel for channel, or
@@ -1359,6 +1367,10 @@ panel.
 3. Open **Speed Editor**. It says *found* once it sees the panel.
 4. Press **Start**. The app opens the panel, answers its handshake, and the JOG lamp lights.
 
+![The Speed Editor page, running: the panel connected with its battery at 86 %, driving screen 1, layer 1, preview, one write sent, and the activity list with the handshake and three keys](screenshots/speed-editor.png)
+
+(The panel in that picture is the tests' stand-in, which plays the real handshake.)
+
 Only one page drives the panel at a time. Another page with it started says *Another page is
 driving it*, with **Take over** to move it there. Press **Stop**, or close the page, and the app
 lets the panel go within a few seconds.
@@ -1447,6 +1459,11 @@ Its card in Preconfig ▸ LivePremier Plus has the five settings and what the re
 | **Hot refresh** | how often the edited sources refresh, 0.5–10 a second; 0 leaves them to the vendor |
 | **Idle hold** | how old any other source may get while somebody edits; 0 turns holding off |
 
+![The Thumbnail relay card: its five settings, the traffic from the switcher and to the pages, inputs 1 and 4 hot because a Screens / Aux. page has them on S1 and S2, and each input with what the switcher sent and what was served](screenshots/thumbnail-relay.png)
+
+That's the simulator, whose thumbnails are a few KB of flat colour, so there's hardly anything to
+save. A real frame's are tens of times the size.
+
 > ⚠️ **Proven on the simulator only.** A hot refresh faster than the switcher redraws its
 > thumbnails just fetches the same picture again. `node tools/snapshot-probe.mjs --device <address>`,
 > run from a checkout of the repo, measures how fast that is, so run it against a moving source before raising **Hot refresh**. The
@@ -1475,6 +1492,11 @@ itself, so there's nothing to line up.
 Then check the picture on the card: every green box should sit exactly on a source's picture,
 clear of its label. If they don't, change **Picture in a widget**, **Sits** or **Trim** until they
 do.
+
+![The Multiviewer thumbnails card on the test pattern: multiviewer 1 as six by four widgets, IN_1 to IN_20 and the four PGM and PRW widgets, each widget dashed and each cut boxed in green, with the settings beneath](screenshots/multiviewer-thumbnails.png)
+
+**Replacing** counts the thumbnails on the page you're looking at, so it reads nought on the
+settings page, which has none.
 
 | Setting | |
 |---|---|
@@ -1536,6 +1558,8 @@ is a lot less fiddly than doing it by hand.
    Tick **Load each set into its screen's preview** if you want it ready to take. **Write to the
    switcher…** says what it'll do and asks. Each step then shows as it lands. If one fails it stops
    there, and **Undo what was written** takes everything it wrote back off.
+
+![PLUS ▸ Background Slicer: a 3840 × 1080 picture spanned across S1 and S2, drawn over both canvases with each output marked, and the plan with nothing written yet, giving each output of S1 its background set, library slot, still and a pixel-copy cut](screenshots/background-slicer.png)
 
 Good to know:
 
@@ -1649,6 +1673,8 @@ vendor's numeric fields, in an OSC argument. There are two kinds:
 - **`@`, yours.** Press **Add**, name it, and give it a definition: `@gap` = `40`,
   `@half` = `$S1.width / 2`. The Value column shows what it comes to now, and says why when it
   comes to nothing. It's kept for this switcher, and in the setup file.
+
+![PLUS ▸ Variables: six of your own, from @gap = 40 to @pip.x = $S1.PGM.L2.x + @gap, each with its definition and what it comes to now, over the switcher's own $ names with their values and what each one is](screenshots/variables.png)
 
 ```
 Set Screen 1 Layer 2 Size ($S1.width / 2) $S1.height       at the Console

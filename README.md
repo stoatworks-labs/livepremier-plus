@@ -582,6 +582,12 @@ network without binding it to the venue LAN. Both are off until you switch them 
 | **Tailscale — plain http on the tailnet address** | `http://100.x.y.z:<port>/`, a listener on this host's tailnet addresses only. | Any tailnet. Not a secure context: no MIDI or audio input from there. |
 | **ZeroTier** | `http://<zerotier address>:<port>/` on every network this host is authorised on, opened as the controller authorises it and closed when it leaves. | `zerotier-cli` able to read the service's auth token — root, or a copy at `~/.zeroTierOneAuthToken` for the account the app runs as. Same secure-context limit. |
 
+![The Remote access card: Tailscale serving HTTPS on the tailnet name at https://show-laptop.tail-example.ts.net/ on port 443, ZeroTier on with the venue-control network authorised at 10.147.17.25, and the warning that neither network is a login](docs/screenshots/remote-access.png)
+
+The machine and network names in that picture are made up. It was taken with stand-ins answering
+for `tailscale` and `zerotier-cli`, because the real ones would have put my own tailnet in the
+README.
+
 Switching Tailscale serving off, or stopping the app, removes the `tailscale serve` entry, and
 only ever one that still points at this app.
 
@@ -853,6 +859,8 @@ for channel. The grid **opens locked**, because it reaches every device on the a
 not just the switcher, and the sound department will want a word if you start clicking about in
 theirs. It's off by default; turn it on in Preconfig ▸ LivePremier Plus.
 
+![PLUS ▸ Dante on the simulated network: five devices in the grid, FOH-Desk opened into its sixteen channels with Mic 1 to 8 from Stagebox-A on the first eight, the switcher's own card marked, and the device list with each one's model, address, ARC version and when it was last read](docs/screenshots/dante.png)
+
 Dante Controller doesn't have a remote-control interface, so this is two things rather than one
 pretend one:
 
@@ -965,6 +973,11 @@ It's under Virtual RC400T, next to MIDI Mapping: a DaVinci Resolve Speed Editor 
 panel, plugged into the machine LivePremier Plus runs on, over USB or paired over Bluetooth. The
 page tells you when it's found the panel; then press **Start**.
 
+![The Speed Editor page, running: the panel connected with its battery at 86 %, driving screen 1, layer 1, preview, one write sent, and the activity log with the handshake and the SOURCE, SMART INSRT and CAM 2 keys](docs/screenshots/speed-editor.png)
+
+The panel in that picture is the tests' stand-in, playing the real handshake through the real
+device host, as I didn't have the hardware plugged in at the time.
+
 ![The stock Speed Editor profile grouped by job: layer select, screen and preset, transitions, sources on CAM 1–9, and what the wheel moves in each mode](docs/diagrams/speed-editor.svg)
 
 It's MIDI Mapping's sibling and has no engine of its own. The panel's handshake and reports are
@@ -1024,6 +1037,12 @@ often. The traffic from here to the browsers shrinks the most, which matters for
 another machine, like a tablet on the show Wi-Fi. Its card on the settings page shows the bytes
 in and out, which sources are hot, and how often each source's picture actually changed.
 
+![The Thumbnail relay card: JPEG quality 70, hot refresh 2 Hz and idle hold 4 s, the traffic from the switcher and to the pages, inputs 1 and 4 hot because a Screens / Aux. page has them on S1 and S2, and each of the 32 inputs with what the switcher sent and what was served](docs/screenshots/thumbnail-relay.png)
+
+That's against the simulator, whose thumbnails are a few KB of flat colour, so there's next to
+nothing to save and the card says so. A real frame's are tens of times the size, which is where
+the saving is.
+
 > ⚠️ **Preview: not yet run against a real frame.** Proved against the LivePremier Simulator,
 > with a stand-in serving hardware-shaped thumbnails. `node tools/snapshot-probe.mjs --device <ip>`,
 > run from a checkout of this repo (the desktop app and the image don't carry `tools/`), measures
@@ -1066,6 +1085,12 @@ Only inputs (and, on a LivePremier, stills) have thumbnails to replace, and a so
 on the multiviewer keeps the switcher's picture. Three seconds without a new frame and every
 thumbnail goes back to the switcher.
 
+![The Multiviewer thumbnails card on the test pattern: multiviewer 1 drawn from the store as six by four widgets, IN_1 to IN_20 and the four PGM and PRW widgets, each widget dashed and each cut boxed in green, with the 16:9, centre, trim and frame-rate settings beneath](docs/screenshots/multiviewer-thumbnails.png)
+
+That's the test pattern on the simulator, with multiviewer 1 given twenty inputs for the
+occasion. **Replacing** reads nought because the settings page has no thumbnails of its own; on
+Screens / Aux. it's every input in the Sources column.
+
 > ⚠️ **Preview: not yet tried against a real multiviewer or a real streamer.** Proven against
 > the LivePremier Simulator with the test pattern (the vendor's own source cards drawing the cut
 > pictures, and a source leaving the layout and a dead capture both handing back), and the Midra
@@ -1089,6 +1114,8 @@ them through the switcher's own image route, sets the stills, raises a capacity 
 preconfig only when the switcher's own check says nothing in use gets displaced, fills the set
 and, if you ask, loads it into preview. Each step is confirmed by the switcher's echo, and
 **Undo** takes back exactly what was written.
+
+![PLUS ▸ Background Slicer: a 3840 × 1080 picture spanned across S1 and S2, drawn over both canvases with each output marked, and the plan with nothing written yet, giving each output of S1 its background set, library slot, still and a pixel-copy cut](docs/screenshots/background-slicer.png)
 
 The **live-input mode** gives each output an input instead. The set takes `LIVE_n`, each input's
 plug is loaded with the switcher's own EDID for that output's format, and the map that the media
@@ -1550,11 +1577,15 @@ one.
 <td><a href="docs/screenshots/edid-mosaic.png"><img src="docs/screenshots/edid-mosaic.png" alt="The EDID builder in Mosaic mode, two tiles for a 6144x2160 canvas"></a><br><sub><b>Mosaic</b>: one tiled EDID per plug, saved and applied to a 2 × 1 input group.</sub></td>
 <td><a href="docs/screenshots/preconfig-layer-names.png"><img src="docs/screenshots/preconfig-layer-names.png" alt="The vendor's Preconfig ▸ Screens page showing layer names Presenter and Lower third"></a><br><sub><b>Layer names in the vendor's own pages</b>, here Preconfig ▸ Screens.</sub></td>
 </tr>
+<tr>
+<td><a href="docs/screenshots/variables.png"><img src="docs/screenshots/variables.png" alt="PLUS ▸ Variables: six @ variables with their definitions and values, over the switcher's own $ names"></a><br><sub><b>Variables</b>: your own <code>@</code> names over the switcher's <code>$</code> ones, each with what it comes to now. The names are in <a href="docs/VARIABLES.md">VARIABLES.md</a>.</sub></td>
+<td><a href="docs/screenshots/preview-lock.png"><img src="docs/screenshots/preview-lock.png" alt="The Preview lock card after a take on S1 and S2: each PRW padlock locked as the take went out and unlocked when it landed"></a><br><sub><b>Preview lock during takes</b>: the card after a take on S1 and S2, each PRW padlock shut as the take went out and opened when it landed.</sub></td>
+</tr>
 </table>
 
 ## How it works
 
-![The browser loads the vendor's Web RCS through LivePremier Plus, which relays its socket to the switcher unchanged and adds the panels; the app also speaks AWJ briefly, drives routers, decks, Companion and Pixelhue consoles, and listens for OSC](docs/diagrams/architecture.svg)
+![The browser loads the vendor's Web RCS through LivePremier Plus, which relays its socket to the switcher unchanged and adds the panels; the app also speaks AWJ briefly, drives routers, decks, Dante devices, Companion and Pixelhue consoles, takes a multiviewer feed from a capture card or MediaMTX, can be reached over Tailscale or ZeroTier, and listens for OSC; MIDI controllers, a Speed Editor and timecode come in on this machine](docs/diagrams/architecture.svg)
 
 Everything the browser asks for goes through this process to the switcher and back. On the way
 past, the document picks up two script tags:
