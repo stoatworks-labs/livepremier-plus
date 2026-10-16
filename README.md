@@ -1446,8 +1446,10 @@ sources that can disagree about what's on air.
 
 **The simulator the fixtures came from has no VPU at all.** It carries a `vpuLayerList` that's
 there and permanently empty, and no `vpuMixerList`; `$vpuLayer` answers `E12` on real hardware.
-That's a quirk of the simulator rather than a second generation of firmware, and the panel just
-says so, instead of drawing an empty chassis or claiming the firmware isn't supported. Not every
+It isn't only a simulator's quirk, though: an Aquilon RS4 on firmware 6.1.60 reports exactly the
+same shape with its screens on air. So the panel asks the device whether it's a simulator
+(`isSimulated`) and says so, or says that this firmware doesn't report its VPU allocation, instead
+of drawing an empty chassis or blaming a simulator that isn't there. Not every
 simulator does it, mind: another 6.2.73, running under Wine, reports a fully fitted C MAX (64
 mixers, two of them carrying S1's NATIVE layer), and the live suite checks the panel's reading of
 that one mixer by mixer.

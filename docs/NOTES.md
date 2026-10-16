@@ -1607,10 +1607,15 @@ writes stopped at one.
   `presetId` status (0, modified) unchanged.
 - **The VPU map is wrong about what it is looking at.** 6.1.60 has the
   simulator's shape — `pipeList` (64) and `vpuLayerList` (32
-  `PROC_1_SCALER_n`, every one `capability: OFF`, nothing enabled), no
+  `PROC_<1-4>_SCALER_<1-8>`, every one `capability: OFF`, nothing enabled), no
   `vpuMixerList` — while its screens are plainly on air. Nothing to draw is
   right; "the simulator simply has no VPU" is not. Firmware, not simulator,
-  needs saying.
+  needs saying. **Fixed the same day:** `inspectMapping` calls the shape
+  `unreported` (and only while every scaler is off), and the panel picks
+  its words from `isSimulated`: the simulator's own, "this firmware does not
+  report its VPU allocation" naming the model and firmware, or a neutral
+  sentence when there is no identity. The fixture
+  `aquilon-rs4-6.1.60-resources.json` is cut from that store read.
 - **Arithmetic does nothing on 6.1.60.** The geometry fields are
   `input[type=number]` with `step`/`min`/`max` (X -960..2880, width 0..8192);
   `isNumericField` wants `type=text`, so it never engages. Not typed into on

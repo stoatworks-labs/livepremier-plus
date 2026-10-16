@@ -161,11 +161,15 @@ export function readOutputs(store) {
 /**
  * Is there a VPU mapping to draw at all, and if not, why not.
  *
- * Worth distinguishing carefully. A simulator carries a `vpuLayerList`
- * collection that is present and permanently empty, and no `vpuMixerList` —
- * `$vpuLayer` answers E12 on real hardware, so that collection is an artefact
- * of the simulator rather than a second firmware generation. Reporting it as
- * "no VPU support" or drawing it as an empty chassis would both be misleading.
+ * Worth distinguishing carefully. `unreported` is a `vpuLayerList` of scalers,
+ * every one unavailable and switched off, and no `vpuMixerList`: a mapping
+ * that is there and says nothing. Two boxes have answered that way — the
+ * LivePremier Simulator 6.2.73, which allocates nothing, and an Aquilon RS4 on
+ * firmware 6.1.60 with its screens on air (2026-10-16). So the shape is not a
+ * simulator's signature, and only the device's own `isSimulated` can tell the
+ * two apart; the panel asks it. A `vpuLayerList` with anything switched on is
+ * an allocation reported in a form this does not read, which is the
+ * `no-mixer-collection` case and not this one.
  */
 export function inspectMapping(store, which = 'current') {
   const mapping = store.get(resourceMapping(which));
@@ -175,7 +179,11 @@ export function inspectMapping(store, which = 'current') {
   const withMixers = keys.filter((k) => store.get([...mixerCollection(which, k), 'items']));
   if (!withMixers.length) {
     const first = (mapping.deviceList.items || {})[keys[0]] || {};
-    if (first.vpuLayerList) return { present: false, reason: 'simulator', devices: keys };
+    const scalers = Object.values((first.vpuLayerList || {}).items || {});
+    const silent = scalers.every((n) => !(n && n.pp && (n.pp.isAvailable || n.pp.isEnabled)));
+    if (first.vpuLayerList && silent) {
+      return { present: false, reason: 'unreported', devices: keys, scalers: scalers.length };
+    }
     return { present: false, reason: 'no-mixer-collection', devices: keys };
   }
 

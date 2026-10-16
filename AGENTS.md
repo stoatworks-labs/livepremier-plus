@@ -1474,6 +1474,10 @@ no benefit. Read `wru` as "the panels".
   (2026-10-13) reports a fully fitted C MAX — 64 mixers, all available, two
   enabled for S1/NATIVE — and `test/sim/screen.sim.test.js` checks `readSide`
   against it mixer by mixer. Neither case is evidence about hardware.
+  ⚠️ **Nor is the empty shape only a simulator's:** an Aquilon RS4 on 6.1.60
+  (2026-10-16), screens on air, reports it exactly. `inspectMapping` calls it
+  `unreported` and the panel words it from the device's own `isSimulated` —
+  never from the shape, or a live switcher gets called a simulator.
 - **The Browser pane blocks cross-origin requests when the tab is on the LAN.**
   Injecting the modules from a local dev server works against a page on
   localhost and fails with `ERR_BLOCKED_BY_CLIENT` against a real device, with

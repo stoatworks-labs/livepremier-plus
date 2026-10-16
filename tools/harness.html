@@ -63,10 +63,12 @@ import { DeviceStore } from '/src/core/device-store.js';
 import { installStyles } from '/src/ui/theme.js';
 import { createVpuPanel } from '/plugins/vpu-map/panel.js';
 import { inspectMapping } from '/src/core/vpu.js';
+import { detectPlatform } from '/src/core/platform.js';
 
 const FIXTURES = [
   ['aquilon-c-live-resources.json', 'Aquilon C — live capture'],
   ['sim-6.2.73-resources.json', 'Simulator 6.2.73 — no VPU'],
+  ['aquilon-rs4-6.1.60-resources.json', 'Aquilon RS4 6.1.60 — allocation unreported'],
   ['mixer-model.json', 'Synthetic mixer model']
 ];
 
@@ -99,7 +101,10 @@ async function load() {
   store = new DeviceStore();
   store.hydrate(await (await fetch('/test/fixtures/' + els.fixture.value)).json());
   const session = { store, state: 'live', send: () => false };
-  panel = createVpuPanel({ session, onRefresh: paint });
+  /* The empty state's wording turns on the device's identity, so the bench
+     hands the panel what the page does. A fixture without one gets the
+     neutral sentence. */
+  panel = createVpuPanel({ session, platform: () => detectPlatform(store), onRefresh: paint });
   panel.view.which = els.which.value;
   paint();
 }

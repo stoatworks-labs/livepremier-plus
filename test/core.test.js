@@ -291,15 +291,39 @@ test('an unchanged preconfig produces an empty diff', () => {
   assert.deepEqual(diffSides(storeWithMixers(capture.current)), []);
 });
 
-test('a simulator is reported as having no VPU, not as an empty chassis', () => {
+test('a simulator’s silent mapping is reported as unreported, not as an empty chassis', () => {
   const store = storeFrom(fixture('sim-6.2.73-resources.json'));
   const info = inspectMapping(store, 'current');
   assert.equal(info.present, false);
-  /* vpuLayerList present, vpuMixerList absent: $vpuLayer answers E12 on real
-     hardware, so this collection is a simulator artefact rather than a second
-     firmware generation, and the panel has to say so. */
-  assert.equal(info.reason, 'simulator');
+  /* vpuLayerList present with every scaler off, vpuMixerList absent. */
+  assert.equal(info.reason, 'unreported');
+  assert.equal(info.scalers, 32);
   assert.equal(readSide(store, 'current'), null);
+});
+
+test('an Aquilon RS4 on 6.1.60 has the simulator’s shape, on both sides', () => {
+  /* Cut from the field kit's store read of 2026-10-16 (frame slots 2-4 were
+     identical to slot 1 and are left out): 64 pipes, 32 PROC_n_SCALER_m all
+     unavailable and OFF, no vpuMixerList — with three screens on air. The
+     shape alone cannot say simulator; the panel test checks it does not. */
+  const store = storeFrom(fixture('aquilon-rs4-6.1.60-resources.json'));
+  for (const which of ['current', 'new']) {
+    const info = inspectMapping(store, which);
+    assert.equal(info.present, false, which);
+    assert.equal(info.reason, 'unreported', which);
+    assert.equal(info.scalers, 32, which);
+    assert.equal(readSide(store, which), null, which);
+  }
+});
+
+test('a vpuLayerList with a scaler switched on is not called unreported', () => {
+  /* An allocation in a form this build does not draw is a different
+     statement from a mapping that says nothing. */
+  const capture = fixture('aquilon-rs4-6.1.60-resources.json');
+  const item = capture.device.preconfig.resources.current.status.mapping.deviceList.items['1'];
+  item.vpuLayerList.items.PROC_1_SCALER_1.pp.isEnabled = true;
+  const info = inspectMapping(storeFrom(capture), 'current');
+  assert.equal(info.reason, 'no-mixer-collection');
 });
 
 test('NATIVE is named as a layer, never as the background', () => {

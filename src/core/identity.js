@@ -20,7 +20,8 @@
  * - **`label`** is the product family as the vendor writes it. Human-facing.
  * - **`isSimulated`** is the simulator telling on itself, and it matters:
  *   a simulator has no VPU, so a panel that finds none on a simulated device
- *   is correct rather than broken.
+ *   is correct rather than broken. It is also the only thing that can say
+ *   so: an Aquilon RS4 on 6.1.60 reports the same empty VPU mapping.
  *
  * Nothing here guesses. An absent field comes back as `null` and the caller
  * decides what to do about it, because "unknown model" and "a model with no

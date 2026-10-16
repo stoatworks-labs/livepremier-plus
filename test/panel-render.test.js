@@ -224,6 +224,47 @@ test('the Variables panel draws definitions, a cycle and the catalogue', async (
 });
 
 /*
+ * The VPU Map with nothing to draw says what the device is.
+ *
+ * Found 2026-10-16: an Aquilon RS4 on 6.1.60, screens on air, reports the
+ * simulator's mapping exactly — 32 scalers all off, no vpuMixerList — and the
+ * panel told its operator the box was a simulator. The shape cannot tell
+ * them apart; the device's own `isSimulated` can.
+ */
+test('the VPU Map’s empty state names a simulator as one and hardware as hardware', async () => {
+  await withDom(async () => {
+    const { createVpuPanel } = await import('../plugins/vpu-map/panel.js');
+    const draw = (store, { platform = () => detectPlatform(store), which = 'current' } = {}) => {
+      const panel = createVpuPanel({ session: sessionOver(store), platform, onRefresh() {} });
+      panel.view.which = which;
+      return renders('vpu-map', panel).textContent;
+    };
+
+    const sim = draw(STORES.simulator());
+    assert.match(sim, /No VPU on this simulator/);
+    assert.match(sim, /says it is a simulator.*32 scalers/);
+    assert.match(sim, /AQUILON · NLC_CMAX · 6\.2\.73 · simulator/);
+
+    const rs4 = () => {
+      const s = new DeviceStore();
+      s.hydrate(fixture('aquilon-rs4-6.1.60-resources.json'));
+      return s;
+    };
+    for (const which of ['current', 'new']) {
+      const hw = draw(rs4(), { which });
+      assert.match(hw, /This firmware does not report its VPU allocation/, which);
+      assert.match(hw, /AQUILON NLC_RS4 on firmware 6\.1\.60 reports 32 scalers/, which);
+      assert.doesNotMatch(hw, /simulator/i, `${which}: hardware is never called a simulator`);
+    }
+
+    /* No identity to go on: say what the mapping holds, and accuse nobody. */
+    const unknown = draw(rs4(), { platform: null });
+    assert.match(unknown, /No VPU allocation reported/);
+    assert.doesNotMatch(unknown, /is a simulator|this simulator/i);
+  });
+});
+
+/*
  * Renaming a memory opens its field without a repaint.
  *
  * Found 2026-09-30: clicking a name set `editing` and asked for a repaint, but
