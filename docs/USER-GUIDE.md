@@ -285,6 +285,13 @@ entry isn't there.
 
 ## Console
 
+**Screens / Aux. ▸ ⋯ ▸ Console.** The Console, Timeline, Layer and Groups live in the vendor's
+own tab strip on Screens / Aux., but on LivePremier there's only room in it for one more thing
+after Properties and Memories. So they sit behind a **⋯** at the end: click it and pick one. While
+one is open the ⋯ stays lit and shows that tab's icon; click Properties or Memories to go back. If
+the strip has room (on a Midra 4K, say, or with some of these plugins switched off) they show as
+ordinary tabs instead.
+
 Verb first, then objects, innermost scope last. Every keyword abbreviates to any unambiguous
 prefix, and **nothing is sent until you press Enter.**
 
@@ -317,7 +324,7 @@ right, and it only stays true while nobody re-types the grammar here.
 
 ## Timeline
 
-**Screens / Aux. ▸ Timeline.** A lighting desk's cue stack, driving a switcher: a numbered list
+**Screens / Aux. ▸ ⋯ ▸ Timeline.** A lighting desk's cue stack, driving a switcher: a numbered list
 that steps on with one **GO**, where each cue recalls memories onto screens and takes them.
 
 Each cue can carry:
@@ -382,7 +389,7 @@ Click a name to rename it; **Enter** saves, **Esc** backs out.
 
 ## Layer
 
-**Screens / Aux. ▸ Layer.** Every one of a layer's 67 properties (source, position, size,
+**Screens / Aux. ▸ ⋯ ▸ Layer.** Every one of a layer's 67 properties (source, position, size,
 opacity, cropping, border, transitions, effects, masks and keying), generated from the switcher's
 own parameter catalogue, so a firmware that adds a property grows a field for it.
 

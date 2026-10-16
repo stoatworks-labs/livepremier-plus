@@ -74,20 +74,32 @@ function stubDom() {
      * the widest rung that fits — to be worth pinning.
      */
     get offsetWidth() {
-      if (this.tagName === 'I') return this.style.display === 'none' ? 0 : 24;
-      if (this.tagName === 'H5' || this.tagName === 'SPAN') return this.style.display === 'none' ? 0 : this.textContent.length * 8;
+      if (this.style.display === 'none') return 0;
+      if (this.tagName === 'I') return 24;
+      if (this.tagName === 'H5' || this.tagName === 'SPAN') return this.textContent.length * 8;
       if (this.tagName === 'A') return 16 + this.children.reduce((n, c) => n + c.offsetWidth, 0);
       return 0;
     }
     get childNodes() { return this.children.slice(); }
-    /* The strip is a nowrap flex row: its content width is its children plus a
-       1px gap between them, whatever its own box has been squeezed to. */
     /* Set by a test to say how much room the panel has. */
     get clientWidth() { return this._clientWidth || 0; }
     set clientWidth(v) { this._clientWidth = v; }
+    /* The strip is a nowrap flex row: its content width is its shown children
+       plus a 1px gap between them, whatever its own box has been squeezed to. */
     get scrollWidth() {
-      const kids = this.children.filter((c) => c.tagName === 'A');
+      const kids = this.children.filter((c) => c.tagName === 'A' && c.style.display !== 'none');
       return kids.reduce((n, c) => n + c.offsetWidth, 0) + Math.max(0, kids.length - 1);
+    }
+    /* Where an element is: `_rect` where `stubDom` lays one out, a tab level
+       with the strip's row, and nothing for the rest. */
+    getBoundingClientRect() {
+      if (this._rect) return this._rect();
+      if (this.tagName === 'A') return { left: 0, right: this.offsetWidth, top: 8, bottom: 48, width: this.offsetWidth, height: 40 };
+      return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
+    }
+    contains(node) {
+      for (let n = node; n; n = n.parentElement) if (n === this) return true;
+      return false;
     }
     get textContent() {
       return this._text || this.children.map((c) => c.textContent).join('');
@@ -134,13 +146,14 @@ function stubDom() {
     if (sel === 'i.icon') return el.tagName === 'I' && el.classList.contains('icon');
     if (sel.startsWith('[') && sel.endsWith(']')) return el.hasAttribute(sel.slice(1, -1));
     if (sel.startsWith('.')) return sel.slice(1).split('.').every((c) => el.classList.contains(c));
+    if (/^[a-z0-9]+$/.test(sel)) return el.tagName === sel.toUpperCase();
     return false;
   }
 
   const doc = new El('document');
   doc.createElement = (t) => new El(t);
   doc.createTextNode = (t) => new Text(String(t));
-  doc.createElementNS = () => new El('svg');
+  doc.createElementNS = (_ns, t) => new El(t);
   doc.addEventListener = (t, fn) => (listeners.set(t, [...(listeners.get(t) || []), fn]));
   doc.removeEventListener = () => {};
 
@@ -160,16 +173,52 @@ function stubDom() {
   pane.className = 'ui bottom attached segment active tab aw-full-height';
   pane.append(Object.assign(new El('span'), { _text: 'vendor content' }));
   container.append(strip, pane);
-  doc.append(container);
-  return { doc, strip, pane, container, El, Text };
+
+  /*
+   * The panel around them, laid out as Web RCS 6.2.73 lays it out (measured
+   * 2026-10-16): the strip is lifted into the panel's header row and centred
+   * over the container — `left: 50%`, `translateX(-50%)` — so whatever its
+   * width it spills off both sides equally. The header's collapse button is
+   * left out unless a test adds it with `addCollapse`.
+   */
+  const panel = new El('div');
+  panel.className = 'aw-panel';
+  const header = new El('div');
+  header.className = 'aw-panel__header';
+  panel.append(header, container);
+  container._rect = () => ({ left: 0, right: container.clientWidth, top: 40, bottom: 600, width: container.clientWidth, height: 560 });
+  strip._rect = () => {
+    const width = strip.scrollWidth;
+    const left = (container.clientWidth - width) / 2;
+    return { left, right: left + width, top: 0, bottom: 48, width, height: 48 };
+  };
+  strip.offsetParent = panel;
+  doc.append(panel);
+  doc.body = new El('body');
+  doc.append(doc.body);
+  return { doc, strip, pane, container, header, El, Text };
+}
+
+/* The panel's own `»`, 24px at the right of the header, level with the tabs. */
+function addCollapse({ header, container, El }) {
+  const button = new El('button');
+  button._rect = () => {
+    const right = container.clientWidth;
+    return { left: right - 24, right, top: 8, bottom: 32, width: 24, height: 24 };
+  };
+  header.append(button);
+  return button;
 }
 
 async function withDom(fn) {
   const stub = stubDom();
   const g = globalThis;
   const prevDoc = g.document;
+  const prevNode = g.Node;
   g.document = stub.doc;
-  try { return await fn(stub); } finally { g.document = prevDoc; }
+  /* `h()` asks `instanceof Node` of each child, which the ⋯ menu's rows are. */
+  g.Node = { [Symbol.hasInstance]: (x) => Boolean(x) && typeof x.nodeType === 'number' };
+  try { return await fn(stub); } finally { g.document = prevDoc; g.Node = prevNode; }
 }
 
 const tabsOf = (strip) =>
@@ -425,9 +474,9 @@ test('a strip whose labels are bare text nodes is a pane switcher too', async ()
     assert.equal(label.textContent, 'Timeline');
     assert.equal(ours[0].textContent, 'Timeline', 'and the cloned vendor text is gone');
     /* The fit ladder finds the same label element. */
-    host._applyMode('short');
+    host._applyMode(strip, 'short');
     assert.equal(label.textContent, 'Cues');
-    host._applyMode('icon');
+    host._applyMode(strip, 'icon');
     assert.equal(label.style.display, 'none');
   });
 });
@@ -481,13 +530,16 @@ const labelsOf = (strip) =>
     };
   });
 
-async function fitAt(room) {
+async function fitAt(room, { tabs = fitTabs, collapse = false, then } = {}) {
   return withDom(async (stub) => {
     stub.container.clientWidth = room;
+    if (collapse) addCollapse(stub);
     const { TabHost } = await import('../src/ui/tabs.js');
-    const host = new TabHost({ tabs: fitTabs(stub.doc) });
+    const host = new TabHost({ tabs: tabs(stub.doc) });
     host._mount();
-    return { host, labels: labelsOf(stub.strip), strip: stub.strip };
+    const out = { host, labels: labelsOf(stub.strip), strip: stub.strip, stub };
+    if (then) await then(out);
+    return out;
   });
 }
 
@@ -531,12 +583,124 @@ test('narrower still leaves the icons alone, with the name on hover', async () =
   assert.equal(strip.querySelectorAll('[data-lpp-tab]')[0].getAttribute('title'), 'Console');
 });
 
-/* Squeezed past every rung, the tabs stay. A panel that is hard to read is
-   recoverable; a panel that has silently removed the cue stack is not. */
+/* Squeezed past every rung, the tabs stay — behind ⋯, which stays too. A panel
+   that is hard to reach is recoverable; a panel that has silently removed the
+   cue stack is not. */
 test('a panel too narrow for any rung keeps the tabs rather than dropping them', async () => {
   const { host, strip } = await fitAt(80);
+  assert.equal(host.mode, 'more');
+  assert.deepEqual(host.overflow, ['console', 'timeline']);
+  assert.equal(strip.querySelectorAll('[data-lpp-more]').length, 1);
+});
+
+/*
+ * The strip is centred over the panel, and the panel's own collapse button
+ * sits in the same row at the right, so a strip narrower than the panel can
+ * still run under it. Without the button 360px takes the short names (above);
+ * with it, they would end 1.5px into the button, so the icons it is.
+ */
+test("the strip is kept clear of the panel's own collapse button", async () => {
+  const { host, strip } = await fitAt(360, { collapse: true });
   assert.equal(host.mode, 'icon');
-  assert.equal(strip.querySelectorAll('[data-lpp-tab]').length, 2);
+  assert.ok(strip.getBoundingClientRect().right <= 336, 'clear of the button: ' + strip.getBoundingClientRect().right);
+});
+
+/* What LivePremier actually has: four plugins with a tab apiece. */
+const fourTabs = (doc) => [
+  ...fitTabs(doc),
+  { id: 'layer', label: 'Layer', short: 'Layer', icon: 'properties-14', render: () => doc.createElement('div') },
+  { id: 'groups', label: 'Groups', short: 'Grps', icon: 'group-14', render: () => doc.createElement('div') }
+];
+const moreOf = (strip) => strip.querySelector('[data-lpp-more]');
+const shownOurs = (strip) =>
+  strip.querySelectorAll('[data-lpp-tab]').filter((a) => !a.hasAttribute('data-lpp-more') && a.style.display !== 'none');
+
+test('tabs that will not fit as icons go behind ⋯, as many staying out as fit', async () => {
+  const { host, strip } = await fitAt(360, { tabs: fourTabs, collapse: true });
+  assert.equal(host.mode, 'more');
+  assert.deepEqual(shownOurs(strip).map((a) => a.getAttribute('title')), ['Console']);
+  assert.deepEqual(host.overflow, ['timeline', 'layer', 'groups']);
+  assert.equal(moreOf(strip).getAttribute('title'), 'More: Timeline, Layer, Groups');
+  assert.ok(strip.getBoundingClientRect().right <= 336);
+});
+
+/* LivePremier's case: its vendor tabs are wider than the stub's, and leave
+   room for ⋯ alone. */
+test('a panel with room for nothing else puts every tab behind ⋯', async () => {
+  const { host, strip } = await fitAt(330, { tabs: fourTabs, collapse: true });
+  assert.deepEqual(host.overflow, ['console', 'timeline', 'layer', 'groups']);
+  assert.equal(shownOurs(strip).length, 0);
+  const r = strip.getBoundingClientRect();
+  assert.ok(r.left >= 0 && r.right <= 306, `inside the panel and clear of the button: ${r.left}..${r.right}`);
+});
+
+test('the open tab behind ⋯ lights it and lends it its icon, and lets go when closed', async () => {
+  await fitAt(330, {
+    tabs: fourTabs, collapse: true,
+    then: ({ host, strip }) => {
+      const glyph = () => moreOf(strip).querySelector('use').getAttribute('href');
+      assert.equal(glyph(), '#more-horizontal-14');
+      host.show('timeline');
+      assert.ok(moreOf(strip).classList.contains('active'));
+      assert.equal(glyph(), '#timer-14');
+      assert.deepEqual(tabsOf(strip).filter((t) => t.active && !t.ours), [], 'no vendor tab lit');
+      host.hide();
+      assert.equal(moreOf(strip).classList.contains('active'), false);
+      assert.equal(glyph(), '#more-horizontal-14');
+    }
+  });
+});
+
+test('⋯ opens a menu of the tabs behind it, and picking one opens that tab', async () => {
+  await fitAt(330, {
+    tabs: fourTabs, collapse: true,
+    then: ({ host, strip, stub }) => {
+      host.show('console');
+      moreOf(strip).click();
+      const menu = stub.doc.body.querySelector('.wru-tabmenu');
+      assert.ok(menu, 'menu open');
+      const rows = menu.querySelectorAll('button');
+      assert.deepEqual(rows.map((r) => r.textContent), ['Console', 'Timeline', 'Layer', 'Groups']);
+      assert.deepEqual(rows.map((r) => r.classList.contains('wru-tabmenu-row--on')), [true, false, false, false]);
+      rows[2].click();
+      assert.equal(host.active, 'layer');
+      assert.equal(stub.doc.body.querySelector('.wru-tabmenu'), null, 'and the menu closes');
+      /* Picking the open one keeps it open: a menu that closed the panel you
+         picked would be a strange menu. */
+      moreOf(strip).click();
+      stub.doc.body.querySelector('.wru-tabmenu').querySelectorAll('button')[2].click();
+      assert.equal(host.active, 'layer');
+    }
+  });
+});
+
+test('clicking ⋯ again closes its menu, and so does a re-render', async () => {
+  await fitAt(330, {
+    tabs: fourTabs, collapse: true,
+    then: ({ host, strip, stub }) => {
+      moreOf(strip).click();
+      moreOf(strip).click();
+      assert.equal(stub.doc.body.querySelector('.wru-tabmenu'), null);
+      moreOf(strip).click();
+      host.remount();
+      assert.equal(stub.doc.body.querySelector('.wru-tabmenu'), null);
+      assert.equal(strip.querySelectorAll('[data-lpp-more]').length, 1, 'one ⋯, not two');
+    }
+  });
+});
+
+test('a panel that widens again takes ⋯ away and puts the tabs back', async () => {
+  await fitAt(330, {
+    tabs: fourTabs, collapse: true,
+    then: ({ host, strip, stub }) => {
+      stub.container.clientWidth = 900;
+      host._fit();
+      assert.equal(host.mode, 'full');
+      assert.equal(moreOf(strip), null);
+      assert.deepEqual(host.overflow, []);
+      assert.equal(shownOurs(strip).length, 4);
+    }
+  });
 });
 
 test("the vendor's own tabs are never shortened", async () => {

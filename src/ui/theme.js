@@ -669,6 +669,23 @@ body > .lpp-banner { position: absolute; top: 0; left: 0; right: 0; z-index: 50;
 .wru-sendto-result--ok { color: #00FF7F; }
 .wru-sendto-result--warn { color: #F39910; }
 
+/* The tabs behind ⋯ on the Screens / Aux. strip (ui/tabs.js). The Send to
+   menu's surface, for the same reason it is fixed and on <body>. The open one
+   is marked the way the vendor marks an active tab: in the blue. */
+.wru-tabmenu {
+  position: fixed; z-index: 9999; min-width: 12rem;
+  display: flex; flex-direction: column; padding: 0.333333rem 0;
+  background: #1B272F; border: 0.1rem solid #49535B; border-radius: 0.333333rem;
+  box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.5);
+}
+.wru-tabmenu-row {
+  display: flex; align-items: center; gap: 0.666667rem;
+  width: 100%; background: none; border: 0; color: inherit; font: inherit; text-align: left;
+  cursor: pointer; padding: 0.5rem 1rem; white-space: nowrap;
+}
+.wru-tabmenu-row:hover { background: rgba(255,255,255,0.06); }
+.wru-tabmenu-row--on { color: #54C8FF; }
+
 /* A layer name written into one of the vendor's own rows. Deliberately quiet:
    it is an annotation beside the slot, not a control and not the identifier,
    so it takes the tertiary colour and sits a size down from the row it joins. */

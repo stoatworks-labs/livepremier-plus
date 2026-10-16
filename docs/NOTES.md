@@ -1577,3 +1577,46 @@ its mng half on purpose, because `connectorForPage` turns LivePremier URLs and
 headings into LivePremier keys (`In3` → `IN_3`) and Midra's pages have not been
 read for it. Lighting it is a separate job: read those pages on the simulator,
 teach `connectorForPage` the dialect, then add the probe back.
+
+## The tab strip behind ⋯, and an Aquilon RS4 on 6.1.60 (2026-10-16)
+
+**The strip.** Web RCS 6.2.73 lifts the per-screen strip into the setup panel's
+header — `position: absolute`, `left: 50%`, `translateX(-50%)` — over a panel
+that is a fixed 360px at any window width, with the panel's collapse button
+(`arrows-right-10`, 24px) at the header's right. Properties and Memories take
+244px of the ~312 that leaves, so four plugin tabs never fitted: the old
+ladder bottomed out at icon-only, 426px wide, spilling 33px off *both* sides
+and under the `»`. It measured `scrollWidth` against the parent's
+`clientWidth`, which saw neither the centring nor the button. `ui/tabs.js` now
+measures the strip's rect against the panel, short of any header button level
+with the tabs, and its last rung keeps as many icons as fit and puts the rest
+behind ⋯ (a fixed menu on `<body>`). On LivePremier that is ⋯ alone. Same
+numbers on the simulator at 1280 and 1920, and on the RS4 below.
+
+**The box.** 192.168.2.140 now answers as `NLC_RS4`, label `AQUILON`, serial
+GB0709, firmware **6.1.60** (it was an Aquilon C on 2026-09-09). The field kit's
+read-only phases ran clean bar the VPU (below); its record and the 124 MB store
+are in `~/dev/aquilon-field-test/results/` under 2026-10-16. It is set up as a
+show (LED 1, LED 2, Prompt; six auxes; six named memories) and was being
+operated while I looked — S1 went from memory 3 to 5 between two reads — so
+writes stopped at one.
+
+- **The Layer tab's first write to LivePremier hardware.** S3 Prompt, PRW
+  (buffer B), layer 1, opacity 256 → 240 → 256 through the tab's own field;
+  AWJ read 240 with program (A) untouched, then 256, and the buffer's
+  `presetId` status (0, modified) unchanged.
+- **The VPU map is wrong about what it is looking at.** 6.1.60 has the
+  simulator's shape — `pipeList` (64) and `vpuLayerList` (32
+  `PROC_1_SCALER_n`, every one `capability: OFF`, nothing enabled), no
+  `vpuMixerList` — while its screens are plainly on air. Nothing to draw is
+  right; "the simulator simply has no VPU" is not. Firmware, not simulator,
+  needs saying.
+- **Arithmetic does nothing on 6.1.60.** The geometry fields are
+  `input[type=number]` with `step`/`min`/`max` (X -960..2880, width 0..8192);
+  `isNumericField` wants `type=text`, so it never engages. Not typed into on
+  the box: a number input discards an expression, and what the vendor commits
+  for an empty value on a live preview was not worth finding out.
+- **The Layer tab offers every source the catalogue knows** (LIVE 1 to 256)
+  on a box with 24 inputs available. `valuesFor` returns the enum whole.
+- Not run, deliberately: anything that takes, writes program, outputs, EDIDs
+  or audio. The Console step was refused by the session's own guard.

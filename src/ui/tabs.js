@@ -55,11 +55,26 @@ const LABEL = 'data-lpp-label';
  *   label  full label, no icon    Console         77px
  *   short  short label, no icon   Cmd             51px
  *   icon   icon only, tooltip     ▤               40px
+ *   more   as many icons as fit,  ▤ ⋯
+ *          the rest behind ⋯
+ *
+ * The last rung is the one LivePremier actually lands on. Four plugins have a
+ * tab here now (Console, Timeline, Layer, Groups), and on Web RCS 6.2.73 the
+ * strip has about 312px: the panel is a fixed 360px whatever the window, the
+ * vendor centres the strip in it, and its own collapse button `»` takes the
+ * right-hand 24px — so 24px is lost at each side. Properties and Memories
+ * spend 244 of that, which leaves room for one icon, and the icon rung ran
+ * 426px wide: off both sides of the panel and under the `»` (measured
+ * 2026-10-16 at 1280×800). Behind ⋯ every tab stays one click away.
  *
  * The vendor's tabs are never touched. They are the operator's landmarks and
  * they are not the reason the strip overflows.
  */
-const MODES = ['full', 'label', 'short', 'icon'];
+const MODES = ['full', 'label', 'short', 'icon', 'more'];
+/* Marks the ⋯ tab, which is ours (it carries OURS too) but is not a tab. */
+const MORE = 'data-lpp-more';
+/* The sprite's horizontal ellipsis, as Send to uses on the source cards. */
+const MORE_ICON = ['more-horizontal-14', 'more-horizontal-12', 'more-vertical-18'];
 
 export class TabHost {
   /**
@@ -78,6 +93,11 @@ export class TabHost {
     /* Which rung of MODES is currently showing, for tests and for anyone
        wondering why the labels went away. */
     this.mode = MODES[0];
+    /* The ⋯ tab, while the strip needs one, and the ids it holds. */
+    this._more = null;
+    this._moreGlyph = null;
+    this.overflow = [];
+    this._menu = null;
     this._resize = null;
     this._resizeHost = null;
     this._lastRoom = null;
@@ -97,6 +117,7 @@ export class TabHost {
   }
 
   stop() {
+    this._closeMenu();
     if (this._observer) { this._observer.disconnect(); this._observer = null; }
     if (this._resize) { this._resize.disconnect(); this._resize = null; this._resizeHost = null; }
   }
@@ -171,18 +192,27 @@ export class TabHost {
     ) || null;
   }
 
+  /* Prefer an inactive tab as the template — an active one would drag its
+     own state classes in, and stripping them is guesswork we can skip. */
+  _template(strip) {
+    const anchors = this._switchers(strip);
+    return anchors.find((a) => !a.classList.contains('active')) || anchors[0] || null;
+  }
+
   _mount() {
     const strip = this._strip();
     if (!strip) return false;
     if (strip.querySelector(`[${OURS}]`)) return true;
 
-    /* Prefer an inactive tab as the template — an active one would drag its
-       own state classes in, and stripping them is guesswork we can skip. */
-    const anchors = this._switchers(strip);
-    const template = anchors.find((a) => !a.classList.contains('active')) || anchors[0];
+    const template = this._template(strip);
     if (!template) return false;
 
     this.nodes.clear();
+    /* A re-render took the ⋯ tab with the rest, and any menu it had open
+       now points at nothing. */
+    this._more = null;
+    this.overflow = [];
+    this._closeMenu();
     /* A tab can decline to be mounted, the same way a sidebar entry can: a
        panel written against paths this switcher does not have belongs off the
        strip rather than on it and broken. See `core/platform.js`. */
@@ -206,45 +236,213 @@ export class TabHost {
    * Show as much of each tab as the strip has room for.
    *
    * Measured, not guessed: each rung of `MODES` is applied and the strip is
-   * asked how wide it came out. The first that fits inside the panel wins; if
-   * none do, the narrowest stands, because a tab that is hard to read is still
-   * better than one that has been taken away.
+   * asked where it came out. The first that sits inside `_bounds` wins. The
+   * last rung keeps as many icons as fit, in order, and puts the rest behind
+   * ⋯; if not even ⋯ alone fits, it stands anyway, because a tab that is hard
+   * to reach is still better than one that has been taken away.
    *
-   * `scrollWidth` rather than a bounding rect, because it reports the content
-   * width whether or not anything is clipping it — and today nothing is.
+   * A bounding rect rather than `scrollWidth`, because the overflow is not
+   * only a matter of width: the strip is centred, so it spills off the left
+   * of the panel as well as the right, and it can be narrower than the panel
+   * and still run under the vendor's `»`.
    */
   _fit(strip = this._strip()) {
     if (!strip || !this.nodes.size) return;
     const host = strip.parentElement;
     const room = host && host.clientWidth;
     /* Not laid out yet — a zero-width panel would send every tab straight to
-       icon-only and leave it there. Wait to be asked again. */
+       the last rung and leave it there. Wait to be asked again. */
     if (!room) return;
     this._lastRoom = room;
 
-    for (const mode of MODES) {
-      this._applyMode(mode);
-      if (strip.scrollWidth <= room) { this.mode = mode; return; }
+    const bounds = this._bounds(strip);
+    const fits = () => {
+      const r = strip.getBoundingClientRect();
+      return r.left >= bounds.left - 0.5 && r.right <= bounds.right + 0.5;
+    };
+
+    for (const mode of MODES.slice(0, -1)) {
+      this._applyMode(strip, mode);
+      if (fits()) { this.mode = mode; return; }
     }
-    this.mode = MODES[MODES.length - 1];
+    const ids = [...this.nodes.keys()];
+    for (let keep = ids.length - 1; keep >= 0; keep--) {
+      this._applyMode(strip, 'more', ids.slice(keep));
+      if (fits()) break;
+    }
+    this.mode = 'more';
   }
 
-  /** Put every one of our tabs into one rung. */
-  _applyMode(mode) {
+  /**
+   * Where the strip may sit, in viewport pixels: its panel, short of any
+   * vendor control in the same row.
+   *
+   * On LivePremier the strip is not laid out inside its parent at all. Web
+   * RCS lifts it into the panel header — `position: absolute`, centred with
+   * `left: 50%` and `translateX(-50%)` — where the panel's collapse button
+   * sits at the right. Measured from rects rather than assumed, so a build
+   * that left-aligns the strip, moves the button or adds another still fits:
+   * a button right of the panel's middle bounds the strip's right edge, one
+   * left of it the left edge. Only buttons level with our tabs count; the
+   * pane underneath is full of them.
+   */
+  _bounds(strip) {
+    const host = strip.parentElement;
+    const box = host.getBoundingClientRect();
+    const band = (this._template(strip) || strip).getBoundingClientRect();
+    const middle = (box.left + box.right) / 2;
+    let left = box.left;
+    let right = box.right;
+    const scope = strip.offsetParent || host.parentElement || host;
+    for (const control of scope.querySelectorAll('button')) {
+      if (strip.contains(control)) continue;
+      const r = control.getBoundingClientRect();
+      if (!r.width || r.bottom <= band.top || r.top >= band.bottom) continue;
+      if ((r.left + r.right) / 2 >= middle) right = Math.min(right, r.left);
+      else left = Math.max(left, r.right);
+    }
+    return { left, right };
+  }
+
+  /**
+   * Put every one of our tabs into one rung.
+   *
+   * `overflow` is for the `more` rung only: those tabs leave the strip and
+   * the ⋯ tab holds them. The ones that stay are icons.
+   */
+  _applyMode(strip, mode, overflow = []) {
+    const rung = mode === 'more' ? 'icon' : mode;
     for (const tab of this.tabs) {
       const node = this.nodes.get(tab.id);
       if (!node) continue;
+      node.style.display = overflow.includes(tab.id) ? 'none' : '';
       const glyph = node.querySelector('i.icon');
       const label = this._labelOf(node);
-      if (glyph) glyph.style.display = mode === 'full' || mode === 'icon' ? '' : 'none';
+      if (glyph) glyph.style.display = rung === 'full' || rung === 'icon' ? '' : 'none';
       if (label) {
-        label.style.display = mode === 'icon' ? 'none' : '';
-        label.textContent = mode === 'short' ? (tab.short || tab.label) : tab.label;
+        label.style.display = rung === 'icon' ? 'none' : '';
+        label.textContent = rung === 'short' ? (tab.short || tab.label) : tab.label;
       }
       /* The full name is always one hover away, which is what makes the
          icon-only rung honest rather than a guessing game. */
       node.setAttribute('title', tab.label);
     }
+    this.overflow = overflow;
+    this._placeMore(strip, overflow.length > 0);
+    this._syncMore();
+  }
+
+  /** Put the ⋯ tab on the end of the strip, or take it off. */
+  _placeMore(strip, wanted) {
+    if (!wanted) {
+      this._closeMenu();
+      if (this._more) { this._more.remove(); this._more = null; }
+      return;
+    }
+    if (this._more && this._more.parentElement === strip) return;
+    const template = this._template(strip);
+    if (!template) return;
+    const node = this._cloneTab(template, { id: '', label: 'More', icon: MORE_ICON }, () => this._toggleMenu());
+    node.setAttribute(MORE, '');
+    const label = this._labelOf(node);
+    if (label) label.style.display = 'none';
+    this._moreGlyph = null;
+    strip.append(node);
+    this._more = node;
+  }
+
+  /**
+   * The ⋯ tab stands in for whichever of its tabs is open: lit, and wearing
+   * that tab's icon, so the strip still says what the pane is showing.
+   */
+  _syncMore() {
+    const node = this._more;
+    if (!node) return;
+    const open = this.overflow.includes(this.active) ? this.tabs.find((t) => t.id === this.active) : null;
+    node.classList.toggle('active', Boolean(open));
+    const names = this.overflow.map((id) => (this.tabs.find((t) => t.id === id) || {}).label).filter(Boolean);
+    node.setAttribute('title', 'More: ' + names.join(', '));
+
+    const glyph = open ? open.icon : MORE_ICON;
+    const old = node.querySelector('i.icon');
+    if (!old || this._moreGlyph === glyph) return;
+    const fresh = icon(glyph, old.className);
+    fresh.className = old.className;
+    old.replaceWith(fresh);
+    this._moreGlyph = glyph;
+  }
+
+  /* ------------------------------------------------------- the ⋯ menu */
+
+  _toggleMenu() { this._menu ? this._closeMenu() : this._openMenu(); }
+
+  /**
+   * The tabs behind ⋯, as a menu under it.
+   *
+   * Parented to `body` and fixed, like Send to's: the panel header is not a
+   * place a menu can hang out of. Picking a tab opens it — it does not
+   * toggle, the way clicking a tab does, because a menu that closed the
+   * panel you picked would be a strange menu. The vendor's own tabs are how
+   * an operator goes back, as they are for every tab of ours.
+   */
+  _openMenu() {
+    const anchor = this._more;
+    if (!anchor) return;
+    const doc = document;
+    const rows = this.overflow
+      .map((id) => this.tabs.find((t) => t.id === id))
+      .filter(Boolean)
+      .map((tab) => h('button', {
+        class: 'wru-tabmenu-row' + (tab.id === this.active ? ' wru-tabmenu-row--on' : ''),
+        type: 'button',
+        role: 'menuitem',
+        onClick: (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          this._closeMenu();
+          this.show(tab.id);
+        }
+      }, icon(tab.icon, 'aw-block-medium'), h('span', { text: tab.label })));
+    const el = h('div', { class: 'wru-tabmenu', role: 'menu', 'aria-label': 'More tabs' }, ...rows);
+    (doc.body || doc.documentElement).append(el);
+
+    /* Under the ⋯, right edges level, and inside the window. */
+    const r = anchor.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    const margin = 8;
+    const width = typeof window !== 'undefined' ? window.innerWidth : 0;
+    let left = r.right - box.width;
+    if (width) left = Math.min(left, width - box.width - margin);
+    el.style.left = Math.round(Math.max(margin, left)) + 'px';
+    el.style.top = Math.round(r.bottom + 4) + 'px';
+
+    /* A press on the ⋯ itself is left to its click, which closes the menu —
+       closing here as well would let that click open it straight back up. */
+    const onOutside = (ev) => {
+      if (el.contains(ev.target) || anchor.contains(ev.target)) return;
+      this._closeMenu();
+    };
+    const onKey = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); this._closeMenu(); } };
+    const onResize = () => this._closeMenu();
+    doc.addEventListener('mousedown', onOutside, true);
+    doc.addEventListener('keydown', onKey, true);
+    if (typeof window !== 'undefined') window.addEventListener('resize', onResize);
+    this._menu = {
+      el,
+      close: () => {
+        el.remove();
+        doc.removeEventListener('mousedown', onOutside, true);
+        doc.removeEventListener('keydown', onKey, true);
+        if (typeof window !== 'undefined') window.removeEventListener('resize', onResize);
+      }
+    };
+  }
+
+  _closeMenu() {
+    if (!this._menu) return;
+    const menu = this._menu;
+    this._menu = null;
+    menu.close();
   }
 
   /**
@@ -271,7 +469,7 @@ export class TabHost {
     this._resize.observe(host);
   }
 
-  _cloneTab(template, tab) {
+  _cloneTab(template, tab, onClick = () => this.toggle(tab.id)) {
     const node = template.cloneNode(true);
     node.setAttribute(OURS, tab.id);
     node.classList.remove('active');
@@ -309,7 +507,7 @@ export class TabHost {
     node.addEventListener('click', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
-      this.toggle(tab.id);
+      onClick();
     });
     return node;
   }
@@ -418,6 +616,7 @@ export class TabHost {
     for (const [id, node] of this.nodes) {
       node.classList.toggle('active', this.active === id);
     }
+    this._syncMore();
     for (const a of strip.querySelectorAll('a')) {
       if (a.hasAttribute(OURS)) continue;
       if (this.active) a.classList.remove('active');

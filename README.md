@@ -418,10 +418,18 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > right next to a live connection. The panel is now tested by typing at it, over both platforms'
 > store captures.
 >
+> **An Aquilon RS4 on firmware 6.1.60 (2026-10-16).** The Screens / Aux. strip, which ran off
+> both sides of its panel with four plugin tabs on it, now puts them behind a ⋯; checked on the
+> simulator and on the RS4. The Layer tab wrote a preview opacity to the RS4 and put it back,
+> both read over AWJ. Two things that box showed aren't fixed yet: arithmetic in vendor fields
+> doesn't engage on 6.1.60, whose geometry fields are number inputs, and the VPU map calls the
+> box a simulator. `docs/NOTES.md` has the rest.
+>
 > **Still untested on hardware:** on LivePremier the panels have written only to the simulator
-> and, with the socket stubbed, proven their paths against an Aquilon. On Midra, the Timeline's
-> GO, the Layer tab's edits and the Memories panel's own buttons have written to the simulators
-> only. The Console is the one panel to have written to a real box.
+> and, with the socket stubbed, proven their paths against an Aquilon, apart from the Layer tab's
+> one opacity above. On Midra, the Timeline's GO, the Layer tab's edits and the Memories panel's
+> own buttons have written to the simulators only. The Console is the one panel to have written
+> to a real box.
 
 [![A tour of LivePremier Plus: the Edit page, Companion, layer groups, matrix routing, the VPU map, the Console and the Timeline](docs/video-thumb.png)](https://www.youtube.com/watch?v=gYI1xJLEYXE)
 
@@ -1144,16 +1152,24 @@ panels are drawn by Web RCS's own CSS, and there's no skin to fall out of date.
 
 Console, Timeline, Layer and Groups are **tabs in the vendor's own strip** on Screens / Aux.,
 beside Properties and Memories, because that's where an operator already looks for per-screen
-tools:
+tools. On LivePremier that panel is a fixed 360px whatever the window, and the vendor's two tabs
+and its own collapse button leave room for one more, so mine sit behind a **⋯** at the end of
+the strip:
 
 ```
-Properties | Memories | Console | Timeline | Layer | Groups
+Properties | Memories | ⋯ ─┬─ Console
+                          ├─ Timeline
+                          ├─ Layer
+                          └─ Groups
 ```
+
+While one of them is open the ⋯ is lit and wears that tab's icon. A strip with more room (or
+fewer of these plugins switched on) shows them as tabs, with icons or names as the width allows.
 
 ![The Layer tab: S1, layer 1, named "Presenter", its PRW buffer resolved, source, position and size, and opacity](docs/screenshots/screens-layer.png)
 
 Layer is a properties editor. It's called Layer rather than Properties because the vendor's own
-Properties tab is two along in the same strip, and two tabs with one name would be worse than a
+Properties tab is in the same strip, and two tabs with one name would be worse than a
 name that's only mostly accurate. That's also the actual difference between them: the vendor's
 tab follows the layer you've *clicked*, which is React state inside their bundle and can't be
 read from here, so mine makes you name a destination, a buffer and a layer outright. On a second
