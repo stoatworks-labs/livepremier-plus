@@ -10,8 +10,8 @@
 
 A Pixelhue U5, U5 Pro or U5 mini is an **event controller**: a console built
 for Pixelhue's own switchers. This makes one drive an Analog Way LivePremier
-instead. It is off until you turn it on, in Preconfig → Settings → Pixelhue
-panel.
+instead. It is off until you turn it on: tick **Drive a Pixelhue console** on
+the Pixelhue panel card in Preconfig ▸ LivePremier Plus.
 
 ---
 
@@ -83,8 +83,8 @@ faders and encoders — and it is by **function**, not by key: TAKE reports
 | encoders 1–4 | tag `0x0010031c` | the selected layer's X, Y, width, height, 8 px per detent — *a first answer* |
 | page up/down | none | nothing; the console pages itself |
 
-Everything else a console reports — PTZ, media, timecode, cue transport — is
-ignored on purpose. Those are about a Pixelhue show, not this switcher.
+Everything else a console reports — PTZ, media, timecode — is ignored on
+purpose. Those are about a Pixelhue show, not this switcher.
 
 ⚠️ **A recall always lands in preview**, whatever PGM EDIT is doing. The panel
 has a modifier that would make "recall to program" easy to offer; a memory
@@ -268,11 +268,13 @@ LPP_CONSOLE=192.168.0.50 LPP_CONSOLE_GUIDED=1 LPP_SIM=127.0.0.1:3000 npm run tes
 ```
 
 `LPP_CONSOLE` is the console's address with no port — the app takes the port
-from the model, so the suite does too. `LPP_CONSOLE_MODEL` is `u5mini` unless
-told otherwise; a U5 or U5 Pro means running the suite on the console itself,
-with `LPP_CONSOLE=127.0.0.1`. The hands-on file asks its questions on the
-terminal and waits for the console rather than for Enter; `s` and Enter skips
-a step.
+from the model, so the suite does too. `LPP_CONSOLE_MODEL` is `u5mini`,
+`u5pro` or `u5`, and `u5mini` unless told otherwise; a U5 or U5 Pro means
+running the suite on the console itself, with `LPP_CONSOLE=127.0.0.1`. With
+`LPP_CONSOLE` unset every test skips, and without `LPP_CONSOLE_GUIDED=1` so
+does `3-hands`, which needs a person. The hands-on file asks its questions on
+the terminal and waits for the console rather than for Enter; `s` and Enter
+skips a step.
 
 ⚠️ **Nothing else may be listening to the console.** Every client of a UCenter
 acts on every press, so an injected TAKE goes to everything connected. Before
@@ -287,8 +289,9 @@ reports. Some of that has never been seen, and the useful parts belong in
 `test/fixtures/` and this page afterwards.
 
 **What the suite expects of a U5 mini**, from its own key_mini.xml (firmware
-V1.0.3) and not yet from one under a thumb — `1-link` compares what the
-console serves with it and says what differs:
+V1.0.3, kept as `test/fixtures/pixelhue-u5mini-keys.json`) and not yet from one
+under a thumb — `1-link` compares what the console serves with it and says what
+differs, and a newer firmware's map goes into that file:
 
 - four buses of eight keys, each with its own page keys and an **area-switch**
   key nobody has pressed yet;
@@ -304,8 +307,9 @@ console serves with it and says what differs:
 
 **Without a console**, `LPP_CONSOLE=stand-in` swaps in
 `test/helpers/fake-ucenter.js`, a U5 mini's UCenter in a few hundred lines,
-on 127.0.0.1:8088. A pass against it proves the suite runs and nothing about
-a console: it is built from what has been seen of UCenter, and where nobody has
+on 127.0.0.1:8088, serving that same key map. It runs `3-hands` too, doing
+what each step asks with nobody at the desk. A pass against it proves the suite
+runs and nothing about a console: it is built from what has been seen of UCenter, and where nobody has
 seen what a key does, it does nothing.
 
 ---

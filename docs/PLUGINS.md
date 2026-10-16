@@ -133,7 +133,7 @@ page half of every plugin that is on, and calls `activate(ctx)`.
 | `contribute(point, spec)` / `contributions(point)` | Add to one of the page's [contribution points](#contribution-points) — `cueAction` — or list what is there. |
 | `provide(name, api)` / `use(name)` | Offer an object to the other plugins in the page, or find one — the app's cue stack is `use('stack')`. [Services](#services). |
 | `share(api)` | Hand this plugin's own popped-out windows what they need — the whole of an object, where a service is the narrow face for everybody else. See the popout note above. |
-| `url(path)`, `log`, `id`, `manifest` | |
+| `url(path)`, `log`, `id`, `manifest` | `log` here is `{ info, warn }`, two functions; the server's `ctx.log` is one function, so `ctx.log('…')` copied from a server half throws in a page half. |
 
 The page halves start in dependency order: a plugin that lists another in `requires.plugins`
 activates after it, so what that one provides is there to `use`.
@@ -143,12 +143,31 @@ store arrives, and the store fires `ready` when it does. A panel copes by drawin
 anything that needs the screen list to set itself up waits for the event — Send to does, because
 its menu has nothing to offer without one.
 
-**`order`** places an entry among the app's own, which are numbered in tens: in PLUS, Edit 10, VPU Map
-20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix Routing 50, Audio Matrix 55, Variables 57, Dante 58, Background Slicer 59 — and Companion asks for 60. On the strip,
-Console 10, Timeline 20, Layer 30, Groups 40, Pixel Map 50, Surfaces 55, UMD 60.
+**`order`** places an entry among the app's own, which started out in tens and have been filling the
+gaps since: in PLUS, Edit 10, VPU Map 20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix
+Routing 50, Audio Matrix and HyperDecks 55, Variables 57, Dante 58, Background Slicer 59 — and
+Companion asks for 60. On the strip, Console 10, Timeline 20, Layer 30, Groups 40, Pixel Map 50,
+Surfaces 55, UMD 60. An entry with **`after`** is hung under the vendor's own item of that label
+instead of in PLUS, and is left out where the switcher's sidebar has no such item (a Midra has no
+Virtual RC400T, so MIDI Mapping, the Speed Editor and Pixelhue Mapping don't appear there).
+Anchored entries stack upwards, so the highest `order` sits nearest the anchor: MIDI Mapping 70,
+Speed Editor 69, Pixelhue Mapping 68. **`submenuOf`** puts an entry in a vendor flyout (Pitch
+Compensation is 80 in Preconfig, this app's settings 90).
 
-**`busy()`** holds every repaint off while it returns true — for a panel with a text field that
-somebody is typing in, since a repaint rebuilds the field and takes the caret with it.
+**The strip runs out of room, and then the tabs go behind ⋯.** It tries each tab in turn as icon
+and label, label alone, `short`, then `icon` alone, and when even the icons don't fit it shows as
+many as do, lowest `order` first, and puts the rest in a ⋯ menu. On LivePremier the panel is a fixed
+360px and the vendor's two tabs leave room for about one more, so in practice every plugin tab
+lands behind ⋯ there. Give a tab an `icon` (a sprite id from the vendor's page, or a list of them to
+try in order) and a `label` that reads well as a menu row and a tooltip; `short` only shows on the
+short rung.
+
+**Typing survives a repaint without your help.** The app keeps the focused field's caret, selection
+and uncommitted text across every repaint, and holds the repaint while one of your dropdowns is
+open (`ui/keep-focus.js`). It finds "the same field" in the new DOM by its `data-lpp-key` if it has
+one, and by its shape and position otherwise, so give a field a `data-lpp-key` when two of the same
+shape can swap places. **`busy()`** is for the rest: return true to hold every repaint off outright,
+while something is mid-gesture that a rebuild would break, such as the Background Slicer's drag.
 
 **A panel may redraw in place.** The app repaints on every frame the switcher sends, about once a
 second. A panel whose `render()` returns **the element already on screen** is left where it is —
@@ -156,6 +175,15 @@ second. A panel whose `render()` returns **the element already on screen** is le
 anything stateful in it — above all an **iframe**, which reloads the moment it is detached — must
 build its frame once and refill the parts that change. Companion's panel is the example; before this
 rule its embedded editor reloaded every second it was open.
+
+**Two things are the built-ins' and not part of the API.** The page hook (`window.__WRU_HOOK`) has
+one **gate**, which Layer Lock holds, and one **shaper**, which Surfaces holds, with `tellPage`
+beside it; each is a single slot, so a plugin that sets one quietly replaces the built-in's.
+[TRANSPORT.md](TRANSPORT.md#what-the-page-hook-does-to-that-socket) says what they do. And
+anything drawn over a screen card on Screens / Aux. has to go through `ui/canvas-overlay.js`, as
+Pixel Map and Surfaces do: it marks the node `data-lpp-overlay` and seats it under the vendor's
+handles, and a node that skips it is taken for the vendor's own, so the two built-ins keep moving
+it and each other. Its set of marks is closed; ask before adding to it.
 
 ## A plugin's settings
 
@@ -203,7 +231,7 @@ A **contribution point** is a place in the app that takes additions from any plu
 | Point | Half | A contribution is |
 |---|---|---|
 | `cueAction` | page | `{ kind, label, run(action, { cue }), describe?(action), field? }` — a new thing a cue can do |
-| `oscAddress` | server | `{ prefix, describe?, handle(address, args) }` — a subtree of OSC addresses |
+| `oscAddress` | server | `{ prefix, describe?, entries?, handle(address, args) }` — a subtree of OSC addresses |
 | `configSection` | server | `{ key, group, label, perDevice?, byDefault?, export(device), import(data, device) }` — a section of the setup file |
 
 **`cueAction`.** `kind` is the name a cue stores its action under — start it with your plugin's id
@@ -233,7 +261,10 @@ a cue file (Timeline ▸ Export / Import).
 **`oscAddress`.** `prefix` is an address ending in `/` — `/hello/` — and `handle(address, args)` is
 called for any address at or below it, whether it arrived over UDP or was typed in the Console. It
 answers `{ ok: true, summary?, count? }`, `{ ok: false, error }`, or **null to decline**, in which
-case the address goes on to the switcher's own. `describe` is one line for a listing. The longest
+case the address goes on to the switcher's own. `describe` is one line for a listing, and
+`entries` is the listing itself: rows of `{ group, address, args, summary }`, with `{placeholders}`
+in the address, which `GET /__lpp/addresses` serves. All three built-in contributors give one, and
+theirs are what [OSC.md](OSC.md) is generated from. The longest
 prefix wins, so a plugin can answer `/a/` and — itself — `/a/b/` differently.
 
 The rules, each one there to stop a plugin quietly taking something over:
@@ -313,8 +344,17 @@ never asks. The Thumbnail relay is the one there is.
 `{ 'S1/2': 'IMAG' }` map, `rename(id, layer, value)`, `describe()` for what the vendor-page labels
 found; **`groups`**, from Layer Groups — `list()`, `recent()`, `remember(target)`, `load()`, and
 `expect(cmds)` to tell the gang a whole group was just written so it lets the echoes pass;
-**`locks`**, from Layer Lock — `list()` the locked `S1/2` keys and `takeOnly([{ id, layer }])`,
+**`locks`**, from Layer Lock — `list()` the locked `S1/2` keys and `takeOnly([{ id, layer }], opts?)`,
 which takes those layers alone and answers `{ ok, message }`;
+**`preview-lock`**, from Preview lock — `guarded()` the destinations mid-take, `isGuarded(id)`,
+`holdFor(ids)` and `holdWrites(cmds)`, each answering null for "send now" or a promise of `{ ok,
+message? }` that resolves when the takes have landed (`ok: false` means don't send) — the Console,
+Memories and the Timeline hold their recalls with it;
+**`surfaces`**, from Surfaces — `surfaceFor(id, layer)`, `surfaces(id)`, `constrain(id, layer,
+rect)` and `shape(cmds, read)`, which make a rectangle or a run of writes keep a bound layer inside
+its surface — the Edit page uses it;
+**`edid-mosaic`**, from Mosaic inputs — `targets(cols, rows)`, `apply(firstId, tiles)`,
+`inspect(firstId)` and `clear(firstId)` — the EDID editor's Apply to inputs;
 **`timecode`**, from Timecode — `{ source, chase }`, the clock and the chase the Timeline draws;
 **`matrix`**, from Matrix Routing — `describeSurfaces()`, what its Router tabs found on the vendor's
 pages; **`variables`**, from Variables — `list()`, `resolve('$S1.width')`, `resolver()` (the
@@ -370,6 +410,9 @@ when one does not appear.
   "requires": { "capabilities": [], "plugins": [] }
 }
 ```
+
+`requires` is optional (the example leaves it out). The rest is not: `id`, `name`, `version`,
+`apiVersion`, `description`, `where`, and at least one of `server` or `client`.
 
 - **`id`** — lower-case letters, digits and dashes, and **the same as the folder's name**. It is the
   base of the plugin's routes, `/__lpp/<id>/…`, so the app's own route names and every built-in's id

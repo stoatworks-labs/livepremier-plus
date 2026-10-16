@@ -58,8 +58,9 @@ const LABEL = 'data-lpp-label';
  *   more   as many icons as fit,  ▤ ⋯
  *          the rest behind ⋯
  *
- * The last rung is the one LivePremier actually lands on. Four plugins have a
- * tab here now (Console, Timeline, Layer, Groups), and on Web RCS 6.2.73 the
+ * The last rung is the one LivePremier actually lands on. Up to seven plugins
+ * have a tab here now (Console, Timeline, Layer, Groups, Pixel Map, Surfaces,
+ * UMD), and on Web RCS 6.2.73 the
  * strip has about 312px: the panel is a fixed 360px whatever the window, the
  * vendor centres the strip in it, and its own collapse button `»` takes the
  * right-hand 24px — so 24px is lost at each side. Properties and Memories

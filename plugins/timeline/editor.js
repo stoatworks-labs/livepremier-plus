@@ -21,8 +21,8 @@
  *
  * ## Keyboard first
  *
- * ↑/↓ move the selection, Space fires the selected cue, ⏎ opens the name for
- * editing, ⌫ deletes. An operator writing a stack has one hand on the keyboard
+ * ↑/↓ move the selection, Space fires the selected cue, a double-click makes a
+ * cue the standby. An operator writing a stack has one hand on the keyboard
  * and is not going to reach for a mouse to move between forty cues.
  */
 

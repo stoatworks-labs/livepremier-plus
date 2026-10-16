@@ -15,8 +15,8 @@ README lists. You point it at a switcher and browse to it instead of to the
 device. It does not replace the vendor UI and does not ship a theme — it borrows
 the vendor's stylesheet — and **everything it shows comes off the vendor's own
 socket**. The server opens AWJ itself only for one-shot exchanges (OSC input,
-the Pixelhue panel, a typed AWJ line, the memory import) and never to mirror
-state; "Why a proxy" below says why that line is the one that matters.
+the Pixelhue panel, a typed AWJ line, the memory import and export) and never
+to mirror state; "Why a proxy" below says why that line is the one that matters.
 
 **It was a Chrome extension until 0.2.0.** The panels, the store mirror and the
 cue engine are unchanged; what went away was `manifest.json`, the isolated-world
@@ -138,7 +138,8 @@ The things about it that break quietly:
   `server/storage.js` — the same function `StackStore` uses — so moving a
   feature into a plugin moves nothing on disk, an older build still reads it,
   and `server/config-file.js` finds it where it always did. The per-switcher
-  `{ data }` route three features share is `server/documents.js`. A user plugin's
+  `{ data }` route every per-switcher document shares (layer names, groups,
+  locks, pixel maps, surfaces, UMDs) is `server/documents.js`. A user plugin's
   documents go in `<data dir>/plugin-data/<id>/`, never its code folder, which
   the page is served from.
 - **`examples/plugins/hello-switcher` is tested as a user plugin**, unchanged,
@@ -579,20 +580,21 @@ Load-bearing, each read off the 6.2.73 bundle and proved on the simulator:
 - ⚠️ **The page mirror is not the switcher's echo.** `page-socket.js` applies
   this page's outbound writes to the store, so a refused write reads back as
   landed within a millisecond. Every apply and Undo write waits for the
-  inbound frame with its path and value (`wire.js`, `inbound`) — on both
-  platforms. LivePremier Simulator 6.2.73: every write the apply sends echoed
+  inbound frame with its path and value (`sendAndEcho` in `core/wire.js`, with
+  `inbound: true`) — on both platforms. LivePremier Simulator 6.2.73: every write the apply sends echoed
   exact in value and type in 0.3–20 ms (pulses: both edges, each twice); a
   refused enum never. The only store waits left are statuses the page never
   writes (library `isValid`, `preconfig/stills/new/status`, `current`).
 - ⚠️ **A write of the value the switcher already holds is never echoed** — so
-  waiting for it fails a write that landed. `wire.changedPaths` skips the wait
+  waiting for it fails a write that landed. `changedPaths` (`core/wire.js`) skips the wait
   for any path the write list does not change (walked from the mirror, so a
   pulse from `true` still counts). It bites on LivePremier constantly: every
   simulator still holds `source` 1, and the first free library slot is 1. The
   Midra lists drop such writes up front (`withBefore`). Not covered: a path
   whose mirror holds a write this page sent and the switcher refused — an
   Undo of it waits 6 s for an echo that never comes and reports it.
-- **The upload is HTTP, single-flight.** `POST /api/device/images/upload`
+- **The upload is HTTP, single-flight** (`uploadImage` in `core/stills.js`,
+  shared with the UMD Generator). `POST /api/device/images/upload`
   (`FILES`, `librarySlot` 1-based) answers 503 while another runs; `FINISH` in
   the body is the only success, and the library's `isValid` echo is the proof.
 - **A picture is decoded with `colorSpaceConversion: 'none'`.** Without it an
@@ -648,9 +650,9 @@ adds sixty-seven read off a real device. Regenerating that catalogue against
 different firmware changes the document with nobody editing prose, which is the
 point of the ids being structural.
 
-- **Console and Timeline are tabs in the vendor's strip** on Screens / Aux.
-  (`ui/tabs.js`), cloned from a real tab exactly as `Shell` clones a sidebar
-  entry. The strip's container carries a CSS-modules hash, so it is found by
+- **Console, Timeline, Layer, Groups, Pixel Map, Surfaces and UMD are tabs in
+  the vendor's strip** on Screens / Aux. (`ui/tabs.js`), cloned from a real tab
+  exactly as `Shell` clones a sidebar entry. The strip's container carries a CSS-modules hash, so it is found by
   **structure** — the parent of `.ui.tabular.menu` — never by name. React
   re-renders that subtree on every selection change; a MutationObserver puts
   the tabs back, and `_mount()` is idempotent because it runs constantly.
@@ -664,6 +666,20 @@ point of the ids being structural.
   "these links go somewhere else", and it needs no class, route or label. The
   label is an `h5` on LivePremier and a bare text node on Midra — see the
   platform section.
+
+  ⚠️ **The strip runs out of room, and on LivePremier it always has.** Each
+  tab tries icon and label, label, `short`, then icon alone; when even the
+  icons don't fit, as many as do are shown in `order` and the rest go behind a
+  ⋯, which is ours (it carries `data-lpp-more`) and opens a menu of its own over
+  the page.
+  On Web RCS 6.2.73 the panel is a fixed 360px whatever the window, the vendor
+  centres the strip in it and its collapse button `»` takes the right-hand
+  24px, so about 312px is usable and Properties and Memories spend 244 of it:
+  the result is ⋯ alone (66ae17b, measured on the simulator and the RS4). So
+  the fit is measured as **the strip's rect against the panel's, short of the
+  `»`**, never `scrollWidth` against `clientWidth`: the strip is centred, so it
+  spills off the left as well as the right, and it can be narrower than the
+  panel and still run under the `»`. The icon rung ran 426px, off both sides.
 - **Settings are in the Preconfig flyout** (`ui/settings-panel.js`), beneath the
   device's own System page, because Preconfig is where Web RCS files things
   about the installation as a whole. Two groups of them are real settings now —
@@ -751,9 +767,12 @@ A group is several layers — one screen or many — driven as one, kept per
 device beside the cue stack. Two halves, and only one of them writes on its
 own: `sourceCommands()` fans a source out when a caller asks, and
 `createGang()` *follows*, writing the rest of a group into line when any
-member changes by any route. The gang is **the only thing in this app that
-puts a write on the wire without an operator having asked for that write
-specifically**, so read `core/groups.js`'s head before changing it.
+member changes by any route. The gang was **the first thing in this app to
+put a write on the wire without an operator having asked for that write
+specifically**, so read `core/groups.js`'s head before changing it. It has
+company now — Layer Lock's follower, Surfaces' follower, Preview lock's padlock
+and the EDID builder's auto-fill — and the README's Safety section lists each
+with its fence.
 
 ⚠️ **You gang a ROLE, not a letter.** Two screens are routinely on opposite
 letters — S1 at `AT_UP` has program B while S2 at `AT_DOWN` has program A — so
@@ -819,8 +838,8 @@ has been asked about a locked layer with a live source.** Which of up/down is
 
 Four things are load-bearing:
 
-- ⚠️ **The hook now has an outbound gate, and it is the only thing in this app
-  between the vendor's UI and its socket.** `hook.setGate(fn)`: `fn(raw,
+- ⚠️ **The hook now has an outbound gate, one of the two things in this app
+  between the vendor's UI and its socket** (Surfaces' shaper is the other). `hook.setGate(fn)`: `fn(raw,
   release)` returning true holds the frame; the hook sends it itself after
   750 ms whatever the gate does, sends at most once, and a throwing gate lets
   the frame straight through. That cap lives in `ws-hook.js`, not the plugin,
@@ -979,7 +998,12 @@ A surface is a rectangle on a screen's canvas — one LED element — and a laye
 slot bound to one is kept inside it however it is moved. `core.js`'s
 `constrain` is the only rule; the shaper, the Edit page's drag, the
 programmer and the follower all call it. (Nothing to do with
-`src/vendor/surface/`, the MIDI mapper's control surface.)
+`src/vendor/surface/`, the MIDI mapper's control surface, nor with
+`test/sim/surfaces.sim.test.js`, which drives MIDI and Speed Editor control
+surfaces. Pixel Map, Surfaces and the UMD Generator have no live-suite file;
+each was proven through the demo against a simulator.) **Off until tested on a
+frame** (`OFF_UNTIL_TESTED` in `test/plugins.test.js`): it rewrites the vendor's
+own geometry writes and writes preview by itself.
 
 What decides its shape, each read off the vendor's bundle or the 6.2.73
 simulator on 2026-10-16:
@@ -1121,8 +1145,10 @@ offers Download only there).
 
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 
-There are four — the Console's, the Timeline's cue editor, Memories' and
-Layer's — each `popout.html` in its plugin's folder
+There are nine — the Console's, the Timeline's cue editor, Memories', Layer's,
+Companion's, Audio Matrix's, Dante's, the EDID editor's and the Background
+Slicer's — each `popout.html` in its plugin's folder (`test/proxy.test.js`
+still pins only the first four)
 (`/__lpp/plugins/<id>/popout.html`, served by the plugin host while the plugin
 is on). A popout that needs more of its plugin than a service offers gets it
 through `ctx.share`: the cue editor rewrites the stack, so the Timeline shares
@@ -1447,11 +1473,21 @@ banks), **Pitch Compensation** and, at the Console, **audio routing** — mynah'
 @props/source`), `Follow …` the mode of a point, mutes where the device keeps
 them; the vendored mynah's `docs/PATHS.md` has the table. The **Background Slicer**
 too, on the platform's own model (one canvas picture per screen through a
-Background Image, Auto Crop; or Custom) — see its section. Withheld, with its
-reason in the table: **VPU Map** (no VPU) and **Matrix Routing** (its Router
-tab and box are written into LivePremier's pages). The MIDI Mapping entry anchors after a `Virtual RC400T`
-label the mng sidebar does not have, so it does not mount there either — and
-its engine (`vendor/surface/`) is still LivePremier's, so that is right for now.
+Background Image, Auto Crop; or Custom) — see its section. Offered there
+too, because the `layerGroups` probe has an mng spelling: **Layer names**, **Layer
+Groups** (and its Groups tab), **Send to** and **Layer Lock**, dialect-aware but
+never driven on a Midra simulator; **Preview lock**, proven on the Midra 4K
+simulator; and the **UMD Generator**, which offers Download PNG only there.
+**Surfaces**' tab is offered but inert ("works on a LivePremier for now").
+Withheld, with its reason in the table: **VPU Map** (no VPU), **Matrix Routing**
+(its Router tab and box are written into LivePremier's pages), **Audio Matrix**
+and **Mosaic inputs** (no mng probe for the channel matrix or input groups) and
+**Pixel Map** (`imageLibrary` has no mng probe). The MIDI Mapping, Speed Editor
+and Pixelhue Mapping entries anchor after a `Virtual RC400T` label the mng
+sidebar does not have, so they do not mount there — and they are not listed as
+withheld, because their manifests only ask for `console`, which mng has. The
+surface engine (`vendor/surface/`) is still LivePremier's, so that is right for
+now, but the Plugins card says nothing about it.
 
 **The Layer tab renders a second catalogue.** `vendor/surface/catalogue-mng.json`
 was generated by awj-surface's `tools/gen-catalogue.mjs` from the live Pulse
@@ -1550,7 +1586,10 @@ packet. `docs/OSC.md` publishes it and is **generated**; see below.
 
 `npm run demo` (`tools/demo.mjs`) runs the app against a simulator and splices
 the recorded Aquilon C resource subtree into the store after hydration, because
-**a simulator has no VPU** and the VPU map is the headline panel. It refuses any
+**the simulator the fixtures came from has no VPU** and the VPU map is the
+headline panel. It replaces the whole of `preconfig/resources` unconditionally,
+so on a simulator that does have one (the rack's C MAX, the simulator app's
+Cmax session) the demo still shows the capture, not that simulator's own. It refuses any
 non-loopback address — it seeds a cue stack and rewrites part of the store, and
 neither belongs near a production frame.
 
@@ -1674,8 +1713,10 @@ no benefit. Read `wru` as "the panels".
   cost no mixer at all. Calling `NATIVE` a background in the UI was wrong and is
   the confusion to avoid — there is a test pinning the wording.
 - **Auxiliaries do not use the VPU.** `usedInScreen` draws on an S1–S24 enum
-  with no `A*` entries, and `preconfig/resources` has no aux module. Do not add
-  an aux column to the VPU panel.
+  with no `A*` entries, and `preconfig/resources` has no aux list (an aux's
+  `mode` and `auxCapability` are staged under `preconfig/resources/new/outputList`,
+  which the UMD section uses, but they take no mixers). Do not add an aux column
+  to the VPU panel.
 - **Optimized mode belongs to the whole VPU**, not to the screen that triggered
   it, and it removes the four-link scaling-engine boundary. Drawing that
   boundary on an optimized VPU shows a constraint the device is not applying.
@@ -1683,11 +1724,13 @@ no benefit. Read `wru` as "the panels".
 ## Traps that cost time here
 
 - **The simulator the fixtures came from has no VPU at all.** It reports a
-  `vpuLayerList` that is present and permanently empty and no `vpuMixerList`
-  (`$vpuLayer` answers `E12` on hardware). Use `tools/harness.html` with the live
+  `vpuLayerList` of 32 scalers, every one OFF, and no `vpuMixerList`
+  (`$vpuLayer` answers `E12` on 6.2 hardware; on 6.1.60 it exists, every scaler
+  at its defaults). Use `tools/harness.html` with the live
   capture instead. The panel names this case explicitly rather than drawing an
   empty chassis. **Not every simulator:** the rack's 6.2.73 under Wine
-  (2026-10-13) reports a fully fitted C MAX — 64 mixers, all available, two
+  (2026-10-13), and the simulator app's own Session 1 (Cmax), report a fully
+  fitted C MAX — 64 mixers, all available, two
   enabled for S1/NATIVE — and `test/sim/screen.sim.test.js` checks `readSide`
   against it mixer by mixer. Neither case is evidence about hardware.
   ⚠️ **Nor is the empty shape only a simulator's:** an Aquilon RS4 on 6.1.60
@@ -1697,7 +1740,9 @@ no benefit. Read `wru` as "the panels".
   not the store's doing: over AWJ `$vpuMixer` answers E12 and every scaler
   reads its enum defaults, and the 6.1.60 page never reads `vpuLayerList`
   itself. What 6.1.x reports is per screen (`readScreenLayers`: layer sizes,
-  staged room), and the panel shows that table under the explanation.
+  staged room), and the panel shows that table under the explanation. The room
+  is the box's pool, so `sharedRoom` says it once under the table when every
+  screen agrees, and a column appears only if they ever don't (d450ed7).
 - **There is a 6.1.x simulator, and it is the RS4's page.** The AW LivePremier
   Simulator's package manager (the version button on a session) installs
   older firmware beside 6.2.73; 6.1.60 is installed on Allan's Mac as Session 2
@@ -1753,15 +1798,18 @@ no benefit. Read `wru` as "the panels".
 
 ## Testing
 
-`npm test` — about 1,000 tests, no network, no browser. Seven run against a real
-Aquilon C capture (`aquilon-c-live-resources.json`, read 2026-08-21) and are the only
-coverage of fitted mixers, output links and Optimized mode, none of which a
-simulator produces. `test/dialect.test.js` runs both object models against real
+`npm test` — about 1,100 tests, no network, no browser. Nine run against a real
+Aquilon C capture (`aquilon-c-live-resources.json`, read 2026-08-21: seven in
+`live.test.js`, two in `core.test.js`) and are the only coverage of fitted
+mixers, output links and Optimized mode, none of which the fixtures' simulator
+produces. Five more run against an RS4's (`aquilon-rs4-6.1.60-resources.json`,
+2026-10-16): the shape of a box that reports no mixer map, and its per-screen
+sizes and pool. `test/dialect.test.js` runs both object models against real
 stores — the Aquilon's memories capture and `midra-3.2.29-pulse4k.json`, cut
 from the Midra 4K simulator after the writes it asserts had been made through
 the mng dialect's own paths, so every mng path in it is one a switcher accepted.
 
-Forty-six cover the proxy, against a stand-in Web RCS on a **real socket**
+Forty-seven cover the proxy, against a stand-in Web RCS on a **real socket**
 rather than a mock — deliberately, because every bug worth catching there lives
 in the plumbing (headers, encodings, streaming, the upgrade handshake) and a
 mocked `http.request` would simply agree with whatever the code did. Both
@@ -1771,7 +1819,8 @@ framing bugs above were found this way.
 a running LivePremier simulator. It boots the real app (`createProxy`, as
 `server/index.js` does) on a loopback port with a throwaway data directory and
 drives it the way the outside world does; `test/sim/harness.js` is the whole of
-the plumbing. The rules it keeps, which a new file must keep too:
+the plumbing. AWJ is asked at the simulator's own address on 10606, or on
+`LPP_SIM_AWJ_PORT`. The rules it keeps, which a new file must keep too:
 
 - **It refuses anything that is not a simulator.** `startApp` asks the device
   over AWJ (`deviceList/items/1/pp/isSimulated`) before the app is pointed at
@@ -1786,8 +1835,9 @@ the plumbing. The rules it keeps, which a new file must keep too:
   `Journal` records-then-writes per path; memories go in empty slots at the top
   of the bank (`spareSlots`) and are deleted after. Never save a **master**
   memory: it rewrites each screen's `bankSlot`, default slot 1.
-- **The simulator is shared and has one screen in use** (S1, one fitted layer),
-  so files run one at a time (`--test-concurrency=1`).
+- **The simulator is shared**, so files run one at a time
+  (`--test-concurrency=1`). The rack's has one screen in use (S1, one fitted
+  layer); the simulator app's Session 1 has S1 and S2.
 - **What the simulator cannot show, skip with a reason; never pass on it.** It
   reports no state while a take is in flight (`transition` holds, then lands;
   `tbarPosition` jumps), so nothing gated on "mid-take" can be reached; it does
@@ -1812,12 +1862,17 @@ the plumbing. The rules it keeps, which a new file must keep too:
 `LPP_CONSOLE=<console> LPP_SIM=<sim> npm run test:console` — the console suite
 in `test/console/`, for a Pixelhue console on the desk (`docs/PIXELHUE.md`,
 "Testing it on a console", has the run and what a U5 mini is expected to
-have). It is `test/sim/`'s harness with a console in the loop, and keeps every
-rule above, plus four:
+have). `LPP_CONSOLE_MODEL` is `u5mini` (the default), `u5pro` or `u5`; a U5 or
+U5 Pro serves UCenter on loopback only, so the suite runs on the console. Each
+run writes what it saw to `test/console/results/` (gitignored) for folding into
+fixtures afterwards. It is `test/sim/`'s harness with a console in the loop, and
+keeps every rule above, plus four:
 
 - **Nothing else may listen to the console.** Every UCenter client acts on
-  every press. `assertNoOtherDriver` asks each LivePremier Plus on this
-  machine what it drives and refuses if one shares the console; `assertQuiet`
+  every press. `assertNoOtherDriver` asks the LivePremier Plus on :8535 and
+  :8536, and any in `LPP_CONSOLE_PEERS`, what it drives and refuses if one
+  shares the console (an instance on any other port, the demo's :8545 say, is
+  not asked); `assertQuiet`
   refuses if anything republishes over the model. On 2026-10-16 the tray app
   on :8536 was holding the Mac's own UCenter with its panel on and pointed at
   a frame in use — an injected TAKE there would have taken on that frame.
@@ -1842,25 +1897,27 @@ live, both panels render, the setup flow works, and a cue stack survives a
 reload. **Cue persistence had never once executed before that** — the
 extension's `chrome.storage` broker was never exercised.
 
-Still not covered: **no panel has written to a physical LivePremier from a
-browser** (the panels were opened against a live Aquilon C on 2026-09-10, and
-the Console's lines typed at a live Pulse 4K on 2026-09-13 are the only panel
-writes to real hardware; see the README's Status), and the launcher has never
-been run as a real native tray window (its bundled chain was verified headlessly
+Still barely covered: **one panel write has reached a physical LivePremier**,
+a preview opacity the Layer tab set on an Aquilon RS4 (6.1.60) on 2026-10-16
+and put back, both read over AWJ. The panels were opened against a live
+Aquilon C on 2026-09-10, and the Console's lines typed at a live Pulse 4K on
+2026-09-13 are the only other panel writes to real hardware; see the README's
+Status. The launcher has never been run as a real native tray window (its bundled chain was verified headlessly
 — embedded Node, staged app, proxying with injection).
 
 ## Related work
 
-`~/projects/video/aquilon-vpu-map` reads the same VPU mapping over AWJ from a
+`~/Projects/video/aquilon-vpu-map` reads the same VPU mapping over AWJ from a
 server. Same problem, opposite end: it reaches the device directly and runs
 headless; this has the whole device store for free but only inside a tab.
 Since 20e09f1 the two share one model: `src/vendor/vpu-model.js` is that
 project's `public/vpu.js`, refreshed by `npm run sync:vpu-model` and checked by
 `test/vendor.test.js`. There is no record adapter any more (`toMixerRecords()`
 went in that commit), so captures do not cross over; offline captures stay
-aquilon-vpu-map's job. This app still has no AWJ path — see the argument above.
+aquilon-vpu-map's job. This app's AWJ path (`server/awj.js`) is one-shot and
+never feeds the mirror — see the argument above.
 
-`~/projects/video/webrcs-timeline` is a Rust workspace covering the same cue
+`~/Projects/video/webrcs-timeline` is a Rust workspace covering the same cue
 ground — `awj-proto`, `awj-link` (both transports) and `awj-cue`, 58 tests,
 verified against the simulator. It is the headless, show-critical path; this is
 the in-browser one. **The two cue engines are currently independent
@@ -1874,7 +1931,7 @@ research repo, not here, and that separation is deliberate now that this one is
 public. Keep it: nothing describing how the device model was arrived at belongs
 in this repository.
 
-`launcher/` is the fleet's standard Tauri shell (see `~/projects/tooling/av-launcher`),
+`launcher/` is the fleet's standard Tauri shell (see `~/Projects/tooling/av-launcher`),
 retargeted via `src-tauri/launcher.toml` alone. No Rust was changed and none
 should need to be.
 

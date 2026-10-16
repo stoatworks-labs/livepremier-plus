@@ -62,8 +62,9 @@ device appears.
 ## Setting it up
 
 1. Switch it on: **Preconfig ▸ LivePremier Plus → Plugins → Dante (preview)**, then reload.
-2. **Settings ▸ Dante**:
-   - **Find Dante devices on the network** — on by default. Asks over mDNS every 30 seconds.
+2. The **Dante** card in Preconfig ▸ LivePremier Plus:
+   - **Find Dante devices on the network** — on by default. Asks over mDNS every 30 seconds unless
+     told otherwise (below).
    - **Interface** — every interface, or one. A laptop with Wi-Fi and a Dante NIC asks on both
      unless told which.
    - **Devices by address** — `192.168.1.20`, or `192.168.1.20:4440` for a control port other than
@@ -71,6 +72,7 @@ device appears.
      directly.
    - **Read every** — how often each device's receive channels are read again (5 s by default),
      which is how a change made in Dante Controller shows here.
+   - **Ask the network every** — how often discovery asks again, 5 to 300 seconds (30 by default).
    - **This switcher's Dante card** — normally found on its own; see below.
    - **Discovery target** — for testing only: `127.0.0.1:<port>` sends every question to the
      simulator instead of the network.
@@ -179,7 +181,7 @@ The operating system already runs an mDNS responder on UDP 5353, and Dante Contr
 Virtual Soundcard depend on it. **This never binds port 5353.** Every question goes out from a port
 the OS picked, which makes it a *legacy unicast* query (RFC 6762 §6.7): each responder answers it
 directly, by unicast, so nothing shares the port and nothing joins the group. The cost is that
-nothing is pushed — the network is asked again every 30 seconds, and a device silent for three of
+nothing is pushed — the network is asked again every 30 seconds by default, and a device silent for three of
 those is dropped. A device configured by address is asked by a unicast question to its port 5353
 (RFC 6762 §5.5), which crosses a router where multicast does not.
 

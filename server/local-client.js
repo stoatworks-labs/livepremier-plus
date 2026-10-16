@@ -16,7 +16,8 @@
  * switcher's own address", which the operator had already done.
  *
  * For a browser on *another* machine there is no plain-http answer; that
- * needs HTTPS, which this app does not serve (yet). For a browser on *this*
+ * needs HTTPS, which this app does not serve itself (Remote access can, over
+ * `tailscale serve`). For a browser on *this*
  * machine there is: the loopback address, which index.js now listens on
  * alongside whatever interface the launcher chose. The question is how the
  * server tells the two apart, and the answer is the TCP source address. A

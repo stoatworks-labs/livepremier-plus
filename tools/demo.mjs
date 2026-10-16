@@ -17,8 +17,10 @@
  * the genuine vendor UI without a device — and no vendor asset is copied into
  * this repo to achieve it.
  *
- * What the simulator cannot provide is a VPU: it has no `vpuMixerList` at all.
- * `tools/demo/seed.js` supplies that from the recorded capture. Everything
+ * What a simulator may not provide is a VPU: the one the fixtures were cut
+ * from has no `vpuMixerList` at all (the rack's C MAX and the simulator app's
+ * Cmax session do). `tools/demo/seed.js` replaces whatever it has with the
+ * recorded capture, so the demo always shows the same box. Everything
  * else stays the simulator's own live state, so cues fired from the timeline
  * really do go on the wire.
  *
@@ -195,7 +197,7 @@ ${bold('Things worth trying')}
     ${dim('move with no property changed, which a properties-only diff calls "no change".')}
     ${dim('S1 is Optimized, so its 4-link boundary is correctly not drawn.')}
 
-  ${bold('PLUS ▸ Timeline')}
+  ${bold('Screens / Aux. ▸ ⋯ ▸ Timeline')}
     GO runs the stack. Cue 3 auto-follows into 4 after 3s.
     ${dim('These are real writes — the simulator receives genuine preset recalls and takes.')}
 

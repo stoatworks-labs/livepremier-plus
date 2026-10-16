@@ -325,7 +325,7 @@ the top of each file for exactly that reason.
 | `plugins/matrix-routing/client.js` | The page half: the sidebar entry, the Router tabs and boxes, and the two cue actions. |
 | `plugins/matrix-routing/panel.js` | The panel. |
 | `plugins/matrix-routing/router-box.js` | The Router tab and box on the vendor's own input and output pages. |
-| `test/matrix.test.js` | 60 tests. What they can and cannot prove is in their header. |
+| `test/matrix.test.js` | 64 tests. What they can and cannot prove is in their header. |
 
 `core/` knows nothing about browsers or sockets and runs under plain Node,
 which is how the patch arithmetic is testable without a rack.

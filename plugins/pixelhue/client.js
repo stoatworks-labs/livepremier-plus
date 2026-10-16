@@ -236,7 +236,7 @@ export default function activate(ctx) {
       notes.push(note('info',
         'A recall from the panel always lands in preview, whatever PGM EDIT is doing, for the '
         + 'same reason every other recall in this app does. Fade to black and freeze are '
-        + 'reported by the console and not yet sent anywhere.'));
+        + 'sent on a LivePremier; a Midra 4K or Alta 4K has no proven path for them yet.'));
       notes.push(note('info',
         'Tally is read when the panel connects and after each change it makes. A take fired '
         + 'from the Web RCS or the front panel does not relight the console’s keys until then.'));

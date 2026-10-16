@@ -82,7 +82,7 @@ export const BUILTINS = [
   {
     id: 'console',
     name: 'Console',
-    where: 'Screens / Aux., beside Properties',
+    where: 'A tab on Screens / Aux., behind ⋯ when the strip is full',
     description: 'A command line over the device — takes, preset recalls, layer moves.',
     requires: { capabilities: ['console'] },
     client: 'client.js'
@@ -90,7 +90,7 @@ export const BUILTINS = [
   {
     id: 'timeline',
     name: 'Timeline',
-    where: 'Screens / Aux., beside Properties',
+    where: 'A tab on Screens / Aux., behind ⋯ when the strip is full',
     description: 'A theatre cue stack with GO, fades and a standby cue.',
     requires: { capabilities: ['cueStack'] },
     /* Its stack is where it always was. */
@@ -118,7 +118,7 @@ export const BUILTINS = [
   {
     id: 'layer',
     name: 'Layer',
-    where: 'Screens / Aux., beside Properties',
+    where: 'A tab on Screens / Aux., behind ⋯ when the strip is full',
     description: 'Every property of a named layer, generated from the device’s own parameter catalogue.',
     requires: { capabilities: ['layerProperties'] },
     client: 'client.js'
@@ -167,7 +167,7 @@ export const BUILTINS = [
   {
     id: 'pixel-map',
     name: 'Pixel Map',
-    where: 'Screens / Aux., beside Properties, and over each screen card',
+    where: 'A tab on Screens / Aux., behind ⋯ when the strip is full, and over each screen card',
     description: 'An image from the switcher’s library laid over a screen’s preview as a mask, so you see what the LED wall will show of each layer. Uses no layer, writes nothing, and never takes a click.',
     requires: { capabilities: ['screens', 'imageLibrary'] },
     /* On by default: it draws nothing until an image is picked, and it only
@@ -178,7 +178,7 @@ export const BUILTINS = [
   {
     id: 'surfaces',
     name: 'Surfaces',
-    where: 'Screens / Aux., beside Pixel Map, and over each screen card',
+    where: 'A tab on Screens / Aux., behind ⋯ when the strip is full, and over each screen card',
     description: 'Mark out the LED elements a screen lands on and bind layers to them: a bound layer stays inside its surface however it is dragged, nudged or typed, and full screen fills the surface instead of the canvas.',
     requires: { capabilities: ['screens'] },
     /* Off until tested on a frame: it rewrites the vendor's own geometry
@@ -190,7 +190,7 @@ export const BUILTINS = [
   {
     id: 'umd',
     name: 'UMD Generator',
-    where: 'Screens / Aux., beside Surfaces',
+    where: 'A tab on Screens / Aux., behind ⋯ when the strip is full (preview)',
     description: 'ATEM-style borders and source names drawn as one transparent PNG from where each layer is and what it shows, put on an aux’s top layer or handed to the Background Slicer for a screen — with 1, 3, 5 and 7-box layouts for an aux. Never yet run against a real frame.',
     requires: { capabilities: ['screens'] },
     /* Off until it has been: it uploads into the image library and writes a
@@ -353,7 +353,7 @@ export const BUILTINS = [
     id: 'setup-file',
     name: 'Setup file',
     where: '/__lpp/config',
-    description: 'Cue stack, groups, layer names, router patch and settings as one JSON file, and back.',
+    description: 'Everything this app holds as one JSON file, and back: the show (cue stack, groups, names, locks, variables, pixel maps, surfaces, UMDs, Companion triggers), the router patch, and this installation (routers, HyperDecks, Dante snapshots, settings).',
     /* Where it always was. */
     routeBase: '/config',
     server: 'server.js'

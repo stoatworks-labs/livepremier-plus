@@ -101,9 +101,10 @@
    *
    * ⚠️ A held frame is never lost. `release` sends it at most once, and this
    * file sends it itself after GATE_MAX_MS whatever the gate did — a bug in a
-   * plugin may delay a take, never swallow one. It is the only place in this
-   * app that stands between the vendor's own UI and its socket, so the cap
-   * lives here rather than in the plugin that asked for it.
+   * plugin may delay a take, never swallow one. It is one of the two places in
+   * this app that stand between the vendor's own UI and its socket (the shaper
+   * below is the other), so the cap lives here rather than in the plugin that
+   * asked for it.
    */
   const GATE_MAX_MS = 750;
   hook.gate = null;

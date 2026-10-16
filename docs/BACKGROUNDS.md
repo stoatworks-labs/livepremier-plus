@@ -17,7 +17,9 @@ needs to feed them, as files it can import.
 ## Doing it
 
 1. **Picture.** Choose an image or drop one; its pixel size is shown. In the live mode a content
-   size stands in when there is none (the media server's canvas).
+   size stands in when there is none (the media server's canvas). The UMD Generator hands a
+   screen's UMD over through the `backgrounds` service: stills mode, *On each screen*, its screens
+   picked, and a note saying where it came from.
 2. **Screens.** Any in-service screens. With more than one, **On each screen** places the picture
    on each separately; **Span selected screens** lays them side by side in order under one picture
    (each screen's place in the strip is editable — a gap, a step down).
@@ -45,7 +47,9 @@ needs to feed them, as files it can import.
 ## What it writes, and in what order
 
 Every path and sequence was read off the Web RCS 6.2.73 bundle (the code its own pages run) and
-proved against the simulator. Nothing is written until **Write** is confirmed, and only free things
+proved against the simulator. The library and still readers, the still writes and the upload live
+in `src/core/stills.js`, and the echo wait in `src/core/wire.js`, because the UMD Generator puts
+its PNG on the switcher the same way. Nothing is written until **Write** is confirmed, and only free things
 are taken: a library slot whose `isValid` is false, and a still that is fitted, enabled in the
 applied preconfig, holds nothing (`mode` NONE, no valid image), is named by no background set and
 claimed by no output. Re-checked just before writing — minutes may have passed.
@@ -66,18 +70,24 @@ pulsing `stillList/library/bankList/items/<slot>/control/pp/xDelete`.
 ⚠️ **Each step waits for the switcher's own echo, not the mirror.** The page transport applies this
 page's outbound writes to the store (`transports/page-socket.js`, so the panels follow the vendor UI
 in the same tab), so a value written from the page reads back at once whether the switcher took it
-or not. So every write above waits for the inbound frame with its path and its value (`wire.js`,
-`inbound`) — on the simulator each came back exact in value and type (`source` a number, labels
+or not. So every write above waits for the inbound frame with its path and its value
+(`sendAndEcho` in `src/core/wire.js`, with `inbound: true`) — on the simulator each came back exact in value and type (`source` a number, labels
 with accents and a trailing space as sent) in 0.3–20 ms, and a refused one (a `mode` not in the
 enum) never, while the mirror showed it. Two kinds of wait stay on the store, each for a reason:
 
 - **A write of the value the switcher already holds is never echoed.** Such a path — judged from the
   mirror before sending, walking the write list in order, so a pulse from `true` still counts — is
-  sent and not waited for (`wire.changedPaths`). The usual one is a still's `source`: every still
+  sent and not waited for (`changedPaths` in `src/core/wire.js`). The usual one is a still's `source`: every still
   on the simulator holds 1, and the first free library slot is 1.
 - **What the switcher reports back** — a library slot's `isValid` after an upload or a delete, the
   capacity check's verdict in `new/status` and `new/…/status`, `current` after `xApply` — are values
   the page never writes, so the mirror only has them from the switcher.
+
+One exception to "inbound means the switcher": with **Surfaces** on, the hook's `tellPage` hands
+the vendor's page a synthetic frame for a layer's geometry, as if the switcher had sent it, and the
+hook records it as inbound. It only ever repeats what the switcher now holds, and the slicer writes
+no layer geometry, so none of the waits above can be answered by one; a future wait on geometry
+should bear it in mind.
 
 After `xApply` the switcher reports `current` a moment before it clears `new/status/pp/hasChanged`;
 the capacity step waits for both, or an Undo pressed straight away would refuse it as "changes
@@ -142,7 +152,7 @@ the plan says **resampled**.
 | | |
 |---|---|
 | **Proven** — manual and bundle | 1:1 in the raster; one background per output group, at its leader; NATIVE_n is set n; set writes immediate; the claim bookkeeping; stills `mode` then `source`; `rescale` NO_RESCALE is "No rescale" (the other is "Downscale to capacity"); library sizes in KiB (950 MB = 972800); the upload route |
-| **Proven** — simulator | every write above in the stills mode, end to end, and its undo (the run below); each one's inbound echo, exact in value and type, and silence for a refused write and for a write of the value already held |
+| **Proven** — simulator | every write above in the stills mode, end to end, and its undo (the run below); each one's inbound echo, exact in value and type, and silence for a refused write and for a write of the value already held; an upload into a library slot that already holds a file replaces it, and a still showing that slot follows with nothing written (6.2.73, 2026-10-16, found for the UMD Generator) |
 | **Assumed** — shown on the output | more than one slice (only one full slice has been seen on a device); a pitch other than 1.000; **rotation — whether the switcher turns a background as well as its layers is not established: if it does, a rotated output's image comes out turned twice**; an output group's raster as its leader reports it |
 | **Not handled** | DPH104 (DP box) slicing beyond what the slices report; clones and duplicates (skipped: they show their reference's picture); auxiliaries (a background set is a screen's) |
 
@@ -290,7 +300,8 @@ page's outbound writes to the store (`transports/page-socket.js`, so the panels 
 in the same tab), so a value written from the page reads back at once whether the switcher took it
 or not. On the simulator an accepted write came back inbound in about a millisecond, and a refused
 one (a `mode` that is not in the enum) came back not at all while the mirror showed it. So every
-Midra write waits for the inbound frame with its path and value (`wire.js`, `inbound`), and the
+Midra write waits for the inbound frame with its path and value (`sendAndEcho`, `inbound: true`),
+and the
 status checks — the library slot, the frame's size, the preview's content size — are values only
 the switcher writes. The LivePremier apply now does the same, proved on its own simulator (above).
 The Midra write lists already leave out a write of the value a path holds (`withBefore` in

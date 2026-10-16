@@ -52,6 +52,29 @@ This app ignores it.
 
 Client telemetry, sent once at startup. Ignored.
 
+## What the page hook does to that socket
+
+The hook (`src/hook/ws-hook.js`) wraps the page's `WebSocket` before the vendor
+bundle makes one, records every frame both ways, and lets the panels send on
+the same connection. Normally that is all. Two plugins ask for more, each
+through one slot in the hook, never a list:
+
+- **A gate** (Layer Lock's) may hold an outbound frame, a TAKE or a CUT, while
+  it lines a locked layer up. The hook sends the held frame itself after
+  **750 ms** whatever the gate did, so a bug can delay a take and never lose
+  one.
+- **A shaper** (Surfaces') may rewrite outbound frames it wants (a bound
+  layer's geometry) before they leave. A run of them waits one microtask at
+  most, a frame it does not want flushes the run first, and it may change or
+  add frames but never drop one.
+
+And one goes the other way: **`tellPage`** hands the vendor's page a frame as
+if the switcher had sent it, so its card draws a layer where the shaper put it
+rather than where the pointer let go. It only repeats what the switcher now
+holds and sends nothing, but the hook records it as inbound, so with Surfaces
+on, "inbound" no longer always means "from the switcher". A wait on a layer's
+geometry has to allow for that.
+
 ## The snapshot is HTTP, not WebSocket
 
 The socket carries changes, not state. The full object model comes from:

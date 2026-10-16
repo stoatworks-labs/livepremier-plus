@@ -7,7 +7,42 @@ person and dated by when each thing was learned — that date is usually the use
 Cross-cutting notes that are not specific to this repo live in
 [fleet-notes](https://github.com/stoatworks-labs/fleet-notes).
 
-*LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, injecting a VPU map and a theatre cue stack into a real LivePremier Web RCS session in the vendor's own CSS; PRIVATE + pushed; verified through the proxy against the simulator; no panel ever driven live on hardware in a browser*
+*LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, adding 35 built-in plugins to a real LivePremier (and, for most of them, Midra 4K / Alta 4K) Web RCS session in the vendor's own CSS; PUBLIC; verified through the proxy against simulators; the panels have written to real hardware twice (below)*
+
+## Where it stands (2026-10-16, v0.17.7)
+
+The dated entries below are a log, newest mostly at the top and the 10-16 ones at the end. This is
+the summary, kept current by hand.
+
+**Releases since the last summary:** 0.17.2 (10-13, the live suite's three fixes), 0.17.3 (10-16,
+the RS4 fixes: tabs behind ⋯, arithmetic in 6.1.x number fields, the Layer tab's source list, the
+VPU map on 6.1.60, the save race), 0.17.4 (the VPU map's pool said once), 0.17.5 (**Pixel Map**),
+0.17.6 (**Surfaces**), 0.17.7 (**UMD Generator**, and the Pixelhue console suite in
+`test/console/`).
+
+**Off by default:** Preview lock, Surfaces, and the UMD Generator, Dante, Thumbnail relay,
+Multiviewer thumbnails and Background Slicer previews. Surfaces and the UMD Generator are in
+`OFF_UNTIL_TESTED` (`test/plugins.test.js`) until a real frame has seen them.
+
+**What real hardware has seen**, all of it:
+
+- **Aquilon C** (`NLC_C`, 6.2.73, 2026-09-09/10/15): every path the app sends resolved, the store
+  pulled whole, the VPU map read, and the panels opened and navigated in a browser. Read only.
+- **Pulse 4K** (3.3.10, 2026-09-12/13): the Midra port's whole write vocabulary by a harness, 39
+  checks, then the **Console's own lines typed by the operator**, the first panel writes to a real
+  device.
+- **Speed Editor** (2026-09-25): a real panel over USB through the device host.
+- **Aquilon RS4** (`NLC_RS4`, 6.1.60, 2026-10-16): read-only pulls of the store, and **one preview
+  opacity written by the Layer tab** and put back, both read over AWJ. Hardware is ask-first.
+
+Everything else, Pixel Map, Surfaces, the UMD Generator, the timeline's GO on LivePremier, Dante,
+both thumbnail previews and the Background Slicer included, has run on simulators only. The
+Pixelhue panel has never met a console; the console suite has only run against its stand-in
+(`LPP_CONSOLE=stand-in`, 31 pass, 3 skip).
+
+**Open:** the aux-background test for the UMD Generator waits for Allan to say a frame is free
+(recipe under "The UMD Generator" below); MIDI Mapping, the Speed Editor and Pixelhue Mapping are
+offered on a Midra by their manifests but never mount there, and the Plugins card doesn't say why.
 
 ## The live suite, against the rack simulator (2026-10-13)
 
@@ -276,7 +311,7 @@ this build knows and an older export predates is not reset to its default.
 
 12 tests in `test/config-file.test.js`.
 
-## RENAMED + RE-ARCHITECTED 2026-08-21 — read this first
+## RENAMED + RE-ARCHITECTED 2026-08-21 (history; AGENTS.md "Why a proxy" is the current account)
 
 **It is `livepremier-plus` now, and it is NOT an extension.** Both the repo and
 the local dir were renamed (`~/projects/video/livepremier-plus`,

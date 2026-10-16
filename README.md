@@ -4,8 +4,9 @@
 > through this proxy against **LivePremier Simulator 6.2.73**. **In field testing:** every path this
 > app sends has been checked against a physical **Aquilon C** and, since 0.6.0, a physical
 > **Pulse 4K**. On the Pulse the Midra port's writes were proven over AWJ, and **the Console panel
-> made this app's first writes to a real device**, typed in by the operator. The timeline has still
-> only ever fired at a simulator. The Status note below says which is which.
+> made this app's first writes to a real device**, typed in by the operator. An **Aquilon RS4** on
+> firmware 6.1.60 has since been read from, and has taken one preview opacity from the Layer tab.
+> The timeline has still only ever fired at a simulator. The Status note below says which is which.
 
 # LivePremier Plus
 
@@ -19,7 +20,9 @@ bolted on afterwards:
   Then it goes straight into a real memory slot, with no preset buffer written and no take
   fired.
 - **VPU Map:** the device's mixing-resource allocation, drawn as a budget. It shows which units
-  are fitted, who's holding them, what's spare, and what a staged preconfig would change.
+  are fitted, who's holding them, what's spare, and what a staged preconfig would change. On
+  firmware that reports no mixer map (6.1.60 doesn't) it shows each screen's layer sizes and the
+  room left on the box instead.
 - **Console:** Mynah's command line, which is a lighting-desk grammar for a video switcher:
   `Recall Screen 1 Memory 5`, `R Sc 1 Th 4 Me 5 Pre`, `Take Screen 1`. It takes raw AWJ, raw
   Web RCS store writes and OSC addresses too, tells you what a line will do before you press
@@ -68,7 +71,7 @@ bolted on afterwards:
   however it's moved: the vendor's own drag, nudge, fields and toolbar, the Layer tab, the
   Console, a cue. Full screen fills the surface rather than the canvas, and the align buttons
   align to it. The outlines are drawn on the screen cards so you can see the edge coming.
-- **UMD Generator** (off until you switch it on): an aux laid out as a multiviewer has the
+- **UMD Generator** *(preview, off by default)*: an aux laid out as a multiviewer has the
   pictures and none of the furniture. This draws the furniture, ATEM-style: a hairline round each
   box and a dark tab with the source's name, as one transparent PNG worked out from where each
   layer actually is and what it's showing. It goes on an aux's top layer through a still, or to the
@@ -143,9 +146,13 @@ bolted on afterwards:
   for everything else. On a Midra 4K or Alta 4K it cuts one picture per screen instead (the
   canvas, through a Background Image shown 1:1, which an Auto Crop set has the switcher crop for
   each output), or fills a Custom set with an input per output. Only proven on simulators.
-- **Your setup in one file:** the cue stack, layer groups, layer names, your variables, router
-  patch and settings, written as one plain JSON file and read back the same way, so a rig comes
-  back whole alongside its `.awc`, not just the half the `.awc` holds.
+- **Your setup in one file:** the cue stack, layer groups, names and locks, your variables,
+  pixel maps, surfaces, UMDs and Companion triggers, the routers and the patch to them,
+  HyperDecks, Dante snapshots and settings, written as one plain JSON file and read back the same
+  way, so a rig comes back whole alongside its `.awc`, not just the half the `.awc` holds.
+- **Remote access:** reach the app from somewhere else over Tailscale or ZeroTier, with HTTPS on
+  the tailnet name if you want MIDI and LTC to work from the far end too. The card lists every
+  door that's open, because an address that works from home also drives the switcher from home.
 - **Arithmetic in the vendor's own numeric fields:** type `1080-80` into a layer width and get
   1000, the way you can in every other tool on the desk.
 - **Variables:** `$S1.width`, `$IN3.rate` and `$S1.PGM.L2.x` for what the switcher reports,
@@ -175,13 +182,15 @@ you switch them on. [docs/PLUGINS.md](docs/PLUGINS.md) is the guide, and
 Point it at a switcher, open the address it prints, and you get the vendor's own Web RCS with
 the extra panels already in it. The panels ride the vendor app's own WebSocket, so there's no
 second Web RCS connection to the device, no replacement UI and nothing to install in the
-browser. (OSC input, the Pixelhue panel and the Edit page's direct save each open a brief AWJ
-connection of their own when they act, and the switcher has a budget of five AWJ clients.)
+browser. (OSC input, the Pixelhue panel, the Console's `AWJ get` and the Edit page's direct save
+and memory export each open a brief AWJ connection of their own when they act, and the switcher
+has a budget of five AWJ clients.)
 
 It runs as a desktop tray app for macOS, Windows and Linux, as a Docker image, or from the
-command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or Alta 4K** as
-well for the Edit page, Timeline, Console, Memories, Layer, Pitch Compensation, HyperDecks and
-the Background Slicer. [Platforms](#platforms) says which panels each one gets.
+command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or Alta 4K** for
+most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inputs, Pixel Map
+and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
+Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
 > **Status: field testing, v0.17.7.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
@@ -485,18 +494,12 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > right next to a live connection. The panel is now tested by typing at it, over both platforms'
 > store captures.
 >
-> **An Aquilon RS4 on firmware 6.1.60 (2026-10-16).** The Screens / Aux. strip, which ran off
-> both sides of its panel with four plugin tabs on it, now puts them behind a ⋯; checked on the
-> simulator and on the RS4. The Layer tab wrote a preview opacity to the RS4 and put it back,
-> both read over AWJ. Arithmetic in vendor fields didn't engage on 6.1.60, whose geometry fields
-> are number inputs; it does now, proven on Analog Way's 6.1.60 simulator, whose web client is
-> byte for byte the one the RS4 serves (not yet typed into on the box). The VPU map no longer calls the box a simulator, and the Layer tab offers only the sources
-> it has. `docs/NOTES.md` has the rest.
->
 > **Still untested on hardware:** on LivePremier the panels have written only to the simulator
-> and, with the socket stubbed, proven their paths against an Aquilon, apart from the Layer tab's
-> one opacity above. On Midra, the Timeline's GO, the Layer tab's edits and the Memories panel's
-> own buttons have written to the simulators only. The Console is the one panel to have written
+> and, with the socket stubbed, proven their paths against an Aquilon, apart from one preview
+> opacity the Layer tab wrote to an **Aquilon RS4** on 6.1.60 on 2026-10-16 and put back, both
+> read over AWJ (0.17.3 above has what else that box taught me). On Midra, the Timeline's GO, the
+> Layer tab's edits and the Memories panel's own buttons have written to the simulators only.
+> The Console, on the Pulse 4K, and the Layer tab, on the RS4, are the only panels to have written
 > to a real box.
 
 [![A tour of LivePremier Plus: the Edit page, Companion, layer groups, matrix routing, the VPU map, the Console and the Timeline](docs/video-thumb.png)](https://www.youtube.com/watch?v=gYI1xJLEYXE)
@@ -533,8 +536,12 @@ npm start -- --device 192.168.2.142
 | `--device <host[:port]>` | the switcher. Port defaults to 80 (a simulator is usually `:3000`). |
 | `--port <n>` | local port to listen on (default 8535) |
 | `--host <addr>` | local address to bind (default `127.0.0.1`). Bind a LAN address or `0.0.0.0` to reach it from other machines; this machine should still open it at `127.0.0.1` — see [secure contexts](#why-this-needs-no-offscreen-document) — and a local browser that arrives by the LAN address is sent there. |
-| `--data <dir>` | where cue stacks are kept (default `~/.livepremier-plus`) |
+| `--data <dir>` | where it keeps everything: settings, the last switcher, cue stacks, every plugin's per-switcher documents, and your own plugins in `plugins/` (default `~/.livepremier-plus`) |
 | `--appliance` | this host exists to run the app: [Remote access](#remote-access-over-tailscale-or-zerotier) may join and leave Tailscale and ZeroTier networks for it. Also `LPP_APPLIANCE=1`. |
+| `--no-devices` | don't start the device host for USB panels (the Speed Editor), even when it's installed. Also `LPP_DEVICES=0`. |
+
+`--device`, `--port`, `--host` and `--data` can also come from `LPP_DEVICE`, `LPP_PORT`,
+`LPP_HOST` and `LPP_DATA`, which is how the Docker image sets them.
 
 There's a desktop app too: a tray launcher with an interface and port picker, the same shape as
 the rest of the fleet. See [launcher/](launcher/).
@@ -677,7 +684,7 @@ anything reaches the device. Tab completes, and ↑ brings back history.
 before you press Enter. Arithmetic goes in brackets, because outside them `+` and `-` are still
 the range operators. See [docs/VARIABLES.md](docs/VARIABLES.md).
 
-![The Console tab with a line typed and not yet run: the Mynah badge and "Recall 1 → Screen 1 Preview" under it](docs/screenshots/screens-console.png)
+![The Console tab with a line typed and not yet run: the Mynah badge and "Recall 4 → Screen 1 Preview" under it](docs/screenshots/screens-console.png)
 
 **This panel has no grammar of its own.** Every token, rule and device path comes from
 `src/vendor/mynah-lang.mjs`, which is [mynah](https://github.com/stoatworks-labs/mynah)'s own
@@ -709,8 +716,8 @@ translating one by hand is a good way to put a typo on a live frame.
 Each line is read as whichever language it looks like, and the verdict shows beside the
 feedback before you press Enter. That matters, because a line read as the wrong language
 complains about a character rather than a command, which looks just like your own typo. A
-leading `MYNAH`, `AWJ`, `JSON` or `OSC` says which outright, and **Settings → Console
-language** can turn detection off altogether.
+leading `MYNAH`, `AWJ`, `JSON` or `OSC` says which outright, and the **Console language** card
+in Preconfig ▸ LivePremier Plus can turn detection off altogether.
 
 ### Reading a value back
 
@@ -721,8 +728,8 @@ the console log.
 
 Everything else rides the vendor's own connection, whichever language it was typed in. A path
 is held once and rendered for either transport, so an AWJ message turns into a store write and
-lands at the same node. **Settings → AWJ via** changes that for when you want the message on the
-wire exactly as typed. The device allows five AWJ clients, and this uses one of them for the
+lands at the same node. **AWJ via**, on the same card, changes that for when you want the message
+on the wire exactly as typed. The device allows five AWJ clients, and this uses one of them for the
 length of each exchange.
 
 ## OSC input
@@ -940,15 +947,17 @@ page just asks.
 
 The flip side: **a plain-http page on any address but loopback has no Web MIDI and no audio
 input.** That's the switcher's own address, and just as much this app's own when the launcher
-binds it to a LAN interface and opens `http://192.168.2.69:8534/`. Until 0.7.0 the note on the
+binds it to a LAN interface and opens `http://192.168.2.69:8535/`. Until 0.7.0 the note on the
 Settings page only knew about the first case, and helpfully told an operator who was already
 inside LivePremier Plus to open LivePremier Plus. Now a LAN-bound server always answers on
 `127.0.0.1` as well, and a browser on the same machine that arrives by the LAN address is
 redirected there. (The server can tell: a connection whose source address is the very address
 it connected to was made on this host, and nothing else qualifies, not even a VM behind a NAT
 bridge.) The note names the page that's actually open, the loopback door with its port, and the
-fact that another machine would need HTTPS, which this app doesn't serve yet. Only top-level
-navigations are redirected; the vendor app's fetches and its socket stay where they are.
+fact that another machine needs HTTPS. The app doesn't serve that itself, but
+[Remote access](#remote-access-over-tailscale-or-zerotier) can put it on a tailnet name with a real
+certificate, and a browser there gets MIDI and audio input too. Only top-level navigations are
+redirected; the vendor app's fetches and its socket stay where they are.
 
 ## Speed Editor — preview
 
@@ -1016,14 +1025,16 @@ another machine, like a tablet on the show Wi-Fi. Its card on the settings page 
 in and out, which sources are hot, and how often each source's picture actually changed.
 
 > ⚠️ **Preview: not yet run against a real frame.** Proved against the LivePremier Simulator,
-> with a stand-in serving hardware-shaped thumbnails. `node tools/snapshot-probe.mjs --device <ip>`
-> measures how often a real switcher rewrites a thumbnail, which is the number that decides what
-> happens next.
+> with a stand-in serving hardware-shaped thumbnails. `node tools/snapshot-probe.mjs --device <ip>`,
+> run from a checkout of this repo (the desktop app and the image don't carry `tools/`), measures
+> how often a real switcher rewrites a thumbnail, which is the number that decides what happens
+> next.
 
 ## Multiviewer thumbnails — preview
 
-The switcher already draws every source, live, on its multiviewer, and the device store says to
-the pixel where each one sits. An Aquilon C's multiviewer 1 was a 5×4 grid of 384×270 widgets
+Off until you switch it on in Preconfig ▸ LivePremier Plus → Plugins. The switcher already draws
+every source, live, on its multiviewer, and the device store says to the pixel where each one
+sits. An Aquilon C's multiviewer 1 was a 5×4 grid of 384×270 widgets
 carrying `IN_1`…`IN_20`. Get that multiviewer into a browser and this plugin cuts each source out
 and puts it into the page's thumbnails (the vendor's source cards, the screen and aux canvases,
 and this app's own) at up to 25 frames a second instead of one.
@@ -1063,11 +1074,14 @@ thumbnail goes back to the switcher.
 
 ## Background Slicer — preview
 
-**PLUS ▸ Background Slicer.** A background set gives each output of a screen its own still or
+**PLUS ▸ Background Slicer**, once it's switched on in Preconfig ▸ LivePremier Plus → Plugins
+(it starts off, because it uploads into the image library and writes stills, still capacities
+and background sets). A background set gives each output of a screen its own still or
 input, shown 1:1 in the output's raster, so a picture that spans a wall has to be cut into the
 exact piece each output shows. This does the cutting. Choose a picture and the screens, and each
 screen's canvas is drawn with its outputs on it and the picture over them, for you to drag or
-type into place (Fit, Fill, Stretch, 1:1, Centre, or one picture spanning several screens).
+type into place (Fit, Fill, Stretch, 1:1, Centre, or one picture spanning several screens). The
+UMD Generator can hand a screen's UMD over as the picture, with the screens already chosen.
 Before anything's written, the plan says which background set, free library slot and free still
 each output takes, the still capacity it needs, what it replaces, and whether its cut is a
 straight copy of pixels or resampled. **Generate** cuts the PNGs in the page. **Write** uploads
@@ -1102,8 +1116,9 @@ Undo, with each write confirmed by the switcher's own echo; see
 
 ## Pixelhue panel — preview
 
-A Pixelhue U5, U5 Pro or U5 mini event controller, driving the switcher. It's off by default;
-turn it on in Preconfig ▸ LivePremier Plus.
+A Pixelhue U5, U5 Pro or U5 mini event controller, driving the switcher. The plugin is on, but
+the panel itself starts off: tick **Drive a Pixelhue console** on its card in Preconfig ▸
+LivePremier Plus and give it the console's address.
 
 It doesn't map keys. The console is handed a **model** of this switcher (its screens, its
 inputs, its memories) and labels, lights and pages its own keys from that. What comes back is
@@ -1128,7 +1143,12 @@ here. A changed control gets a blue dot, and **Reset** puts everything back.
 A **U5 mini** answers on the LAN, so it's driven from wherever this app already runs. A **U5 or
 U5 Pro** only serves its control port on loopback, so this app has to run on the console itself.
 Luckily that's a Windows mini-PC with a touch screen, and it runs the proxied Web RCS perfectly
-well.
+well. A mini also has less on it: no faders, no encoders, and no TIME, MVR, SIGNAL SOURCE or
+lower-left cluster, so take time, layer stepping and the cue keys have nowhere to live, and
+Pixelhue Mapping draws it as a U5 until its own layout is added.
+
+There's a test suite for the day a console turns up, which drives one key by key against a
+simulator and checks each press three ways; [Testing](#against-a-pixelhue-console) has it.
 
 ## The demo environment
 
@@ -1146,10 +1166,12 @@ own utility classes and ride its own socket, so a demo that stubbed all of that 
 demo of some other product. The simulator is Analog Way's and runs locally, and it's the proper
 way to get the vendor's own UI with no device, and with no vendor asset copied into this repo.
 
-What the simulator can't give you is a **VPU**. It has no `vpuMixerList` at all, so against a
-bare simulator the panel correctly reports there's nothing to draw. `tools/demo/seed.js` fills
-that in from the recorded capture: 32 of 64 mixers fitted, 26 allocated, S1 in Optimized mode,
-and a staged preconfig that differs from the running one in 26 mixers. Everything outside
+What a simulator may not give you is a **VPU**. The one this repo's fixtures were cut from has no
+`vpuMixerList` at all, so against it the panel correctly reports there's nothing to draw; the
+rack's C MAX and the Cmax session of the simulator app do have one. Either way
+`tools/demo/seed.js` replaces it with the recorded capture, so the demo always shows the same
+box: 32 of 64 mixers fitted, 26 allocated, S1 in Optimized mode, and a staged preconfig that
+differs from the running one in 26 mixers. Everything outside
 `preconfig/resources` stays the simulator's own live state, so cues fired from the timeline
 really do go out on the wire.
 
@@ -1157,11 +1179,15 @@ It **refuses to run against anything that isn't loopback.** The demo splices a s
 seeds a cue stack, and "I thought it was the simulator" is not a sentence anyone wants to say at
 a production meeting. To drive a real switcher, use `npm start -- --device <address>`.
 
-If the simulator is on another port:
+It looks for a simulator on `127.0.0.1:3000`, `127.0.0.1:3001` and `localhost:3000`. If yours is
+somewhere else:
 
 ```bash
-LPP_DEMO_DEVICE=127.0.0.1:3001 npm run demo
+LPP_DEMO_DEVICE=127.0.0.1:3002 npm run demo
 ```
+
+It serves on 8535, the app's own port, so quit the app first or give it another with
+`LPP_DEMO_PORT=8545`.
 
 The demo's cue stack lives in a temporary directory and is deleted on exit, and
 `~/.livepremier-plus` is never touched.
@@ -1229,17 +1255,20 @@ spacing scale, the typography), and the sidebar entries are cloned from the vend
 runtime, so they pick up whatever per-build class hashes the firmware happens to use. So the
 panels are drawn by Web RCS's own CSS, and there's no skin to fall out of date.
 
-Console, Timeline, Layer and Groups are **tabs in the vendor's own strip** on Screens / Aux.,
-beside Properties and Memories, because that's where an operator already looks for per-screen
-tools. On LivePremier that panel is a fixed 360px whatever the window, and the vendor's two tabs
-and its own collapse button leave room for one more, so mine sit behind a **⋯** at the end of
-the strip:
+Console, Timeline, Layer, Groups and Pixel Map, plus Surfaces and UMD when they're switched on,
+are **tabs in the vendor's own strip** on Screens / Aux., beside Properties and Memories, because
+that's where an operator already looks for per-screen tools. On LivePremier that panel is a fixed
+360px whatever the window, and the vendor's two tabs and its own collapse button leave room for
+one more, so mine sit behind a **⋯** at the end of the strip:
 
 ```
 Properties | Memories | ⋯ ─┬─ Console
                           ├─ Timeline
                           ├─ Layer
-                          └─ Groups
+                          ├─ Groups
+                          ├─ Pixel Map
+                          ├─ Surfaces
+                          └─ UMD
 ```
 
 While one of them is open the ⋯ is lit and wears that tab's icon. A strip with more room (or
@@ -1294,9 +1323,9 @@ A switched-off plugin takes its entry with it, so your sidebar may well be short
 
 The memory banks are in the sidebar rather than on the strip for two reasons. They aren't
 per-screen (master memories cover every screen at once, and the screen bank is one flat list of
-1000 slots any screen can recall from), and the strip is about 360px wide, where five tabs
-already fall back to icons. Layer Groups is there for the same reason, only more so: a group
-exists *because* it crosses screens.
+1000 slots any screen can recall from), and the strip is about 360px wide, which is already
+full. Layer Groups is there for the same reason, only more so: a group exists *because* it
+crosses screens.
 
 ## Layer groups, and sending a source to one
 
@@ -1342,10 +1371,10 @@ transition's in flight, and the refusal is the same one the Layer panel already 
 
 ### Popping a panel out
 
-Console, Timeline, Memories and Layer each have a **Pop out** button that opens them in a window
-of their own, for a second monitor. A popped-out panel makes **no connection of its own**. It
-drives the session already running in the Web RCS tab, so the switcher still sees one client
-per tab. Close that tab and the popout tells you in a banner rather than just going quiet.
+Console, Timeline, Memories, Layer, Companion, Audio Matrix, Dante, the EDID editor and the
+Background Slicer each have a **Pop out** button that opens them in a window of their own, for a
+second monitor. A popped-out panel makes **no connection of its own**. It drives the session
+already running in the Web RCS tab, so the switcher still sees one client per tab. Close that tab and the popout tells you in a banner rather than just going quiet.
 
 Popping out is the reason Memories and Layer exist as panels of mine at all. The vendor's
 equivalents are React panes whose event listeners are bound to the app's root container, so a
@@ -1404,7 +1433,7 @@ with one-pixel panel edges stays sharp when you zoom the card.
 
 ## Surfaces
 
-Screens / Aux. ▸ ⋯ ▸ Surfaces. Off until you switch it on in Preconfig ▸ LivePremier Plus ▸
+Screens / Aux. ▸ ⋯ ▸ Surfaces. Off until you switch it on in Preconfig ▸ LivePremier Plus →
 Plugins, because it rewrites the vendor's own geometry writes on their way out, and that's the
 sort of thing you should choose rather than discover.
 
@@ -1449,9 +1478,9 @@ fits are flagged until they're next moved.
 > the Edit page's drag stopped at the edge as it moved, and nothing reached the switcher. 6.1.60's
 > bundle has the same toolbar and the same drag code. LivePremier only. Not yet run on a real frame.
 
-## UMD Generator
+## UMD Generator — preview
 
-Screens / Aux. ▸ ⋯ ▸ UMD. Off until you switch it on in Preconfig ▸ LivePremier Plus ▸ Plugins,
+Screens / Aux. ▸ ⋯ ▸ UMD. Off until you switch it on in Preconfig ▸ LivePremier Plus → Plugins,
 because it uploads into the image library and writes a still and an aux's layers.
 
 Pick a screen or aux and the tab reads every layer that's showing something: where it is, and
@@ -1588,31 +1617,44 @@ server/
   config-file.js the one-file setup's format
   osc.js         the UDP listener the OSC input plugin runs
   awj.js         one-shot AWJ exchanges with the switcher
+  ws-client.js   a small WebSocket client, for Companion's link and the Pixelhue console's
+  device-host.js runs devices/ (USB panels) in a process of its own
+  local-client.js  sends a browser on this machine to the loopback door
   setup.html     shown until a switcher is chosen
 src/
   core/          no DOM, no transport - importable anywhere
     paths.js       store paths, the AWJ spelling of them, and the command set
+    platform.js    which family a switcher is, and what each capability needs
+    dialect.js     one interface, LivePremier's and Midra's spellings behind it
     device-store.js  the local mirror of the device object model
     vpu.js         the VPU allocation map, adapted from the device store
     cuestack.js    the cue engine: GO, follow chains, delays, fade times
     session.js     snapshot + stream, folded into a store
+    stills.js      the image library, stills and uploads (Background Slicer, UMD)
+    wire.js        send a write and wait for the switcher's own echo
     plugins.js     every feature as a plugin: what it is, and whether it is on
     contributions.js  how plugins extend each other: contribution points, services
   transports/
     page-socket.js the vendor page's own WebSocket
   ui/            the shell, the tab strip, the settings page, shared panels
     plugin-host.js loads each plugin's page half into the sidebar and tabs
+    canvas-overlay.js  where Pixel Map and Surfaces draw on a screen card
   hook/          the WebSocket hook, inlined into the document by the proxy
+  vendor/        the seven vendored engines (below), never edited by hand
 plugins/         every feature, one folder each - a server half, a page half,
   console/       or both: console, timeline, matrix-routing, companion, edit,
-  …              memories, layer, layer-groups, osc-input and the rest
+  …              memories, layer, layer-groups, umd, surfaces and the rest
+devices/         the device host: USB and HID panels, its own package
 examples/plugins/hello-switcher/   the template for a plugin of your own
+tools/           the demo, the panel bench, the sync scripts, stand-in devices
+test/            the offline suite; sim/ and console/ for the live ones
 launcher/        the desktop app - the fleet's standard Tauri tray shell
 ```
 
 `core/` has nothing browser-shaped in it, on purpose: it imports and runs under plain Node, which
-is what the test suite does. The browser panels are one front end over it. A standalone client
-talking AWJ over TCP 10606 is meant to be another, and only needs a second `transports/` module.
+is what the test suite does. (`stills.js` uploads with `fetch`, which Node has too.) The browser
+panels are one front end over it. A standalone client talking AWJ over TCP 10606 is meant to be
+another, and only needs a second `transports/` module.
 
 ## Seven things are vendored, not reimplemented
 
@@ -1628,8 +1670,9 @@ talking AWJ over TCP 10606 is meant to be another, and only needs a second `tran
 
 Each one is copied rather than re-derived, for one reason: two implementations of one grammar,
 one device model or one decode table will disagree sooner or later, and both will look right.
-`npm run sync:*` re-copies each and rewrites its provenance, and `test/vendor.test.js` fails on
-drift and skips when there's no upstream checkout to compare against. Edits go upstream.
+`npm run sync:*` re-copies each and rewrites its provenance, and `test/vendor.test.js` (Otter's
+in `test/edid.test.js`) fails on drift and skips when there's no upstream checkout to compare
+against. Edits go upstream.
 
 ## The VPU model is shared, not reimplemented
 
@@ -1680,28 +1723,36 @@ device's store rather than by the model name:
 | VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
 | Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |
 | OSC input | yes — 173 addresses, widened by the device's own catalogue | **yes** — 44 addresses, mynah's vouched-for table; the Midra catalogue is vendored for the Layer tab but not yet merged into the dictionary |
-| MIDI Mapping | yes | not yet — the surface engine still spells LivePremier |
+| MIDI Mapping, Speed Editor, Pixelhue Mapping | yes | not shown — all three pages hang under Virtual RC400T, which a Midra's sidebar doesn't have, and the surface engine still spells LivePremier |
+| Pixelhue panel | yes | untried — the dialect spells takes, recalls and sources there; fade to black, freeze, swap, time, stills and screens are LivePremier only |
 | EDID builder | yes — the 100-slot bank and M1–M16, read off the simulator | not yet seen — it lights up by itself if the store has the same `system/edid/bankList` |
 | HyperDecks | yes | **yes** — a deck plays into an `INPUT_<n>` and records an output or `MTVW`; the rules are tested against a Pulse 4K's store |
 | Background Slicer | yes — a background per output, from a still or from an input | **yes** — one picture per screen through an Auto Crop set, or a Custom set with an input per output |
 | Matrix routing | yes | not yet — the sockets are read, but the Router tab and box are written into LivePremier's own pages |
+| Audio Matrix, Mosaic inputs | yes | no — the channel matrix and input groups are LivePremier's; Midra audio is routed at the Console |
+| Layer names, Layer Groups, Send to, Layer Lock | yes | offered — spelt through the same dialect as the Layer tab, but not yet driven on a Midra simulator |
+| Preview lock | yes | **yes** — proven on the Midra 4K simulator; a shut padlock greys the buffer out there instead of refusing with a warning |
+| Multiviewer thumbnails | yes — a capture card or a stream | **yes** — and the switcher's own H.264 streamer can be the feed |
 | Pixel Map | yes | not yet — a Midra keeps an image library too, but its Screens page lays the cards out differently |
 | Surfaces | yes | not yet — the shaper reads LivePremier's layer paths, and a Midra's Screens page lays the cards out differently |
 | UMD Generator | yes | the PNG only — Download works; putting it on the switcher reads LivePremier's library and stills |
-| Arithmetic in fields, Settings | yes | yes |
+| Arithmetic in fields, Variables, Settings | yes | yes — Variables are generated from whatever the box reports, so a Midra gets Midra's |
 
 Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step onto the wire
 differs, so a cue stack reads the same on either. Which screens and auxes are offered comes from
 the switcher's *applied* preconfig, which is also where the models differ: a QuickVu has one
 screen, a Zenith 200 has four screens and four auxes, and the app lists whatever the box says is
-in service. Anything a panel holds back is listed with its reason on the Settings page.
+in service. Anything a panel holds back is listed with its reason on the Settings page, apart
+from the three pages under Virtual RC400T, which just don't appear.
 
 ## Safety
 
 - **The VPU panel never writes.** Every property it reads is `readOnly` in the device's own
   model.
-- **The timeline writes only what a cue says.** Preset recalls, transition times, TAKE, CUT and
-  STEP BACK, nothing else, and only on GO.
+- **The timeline writes only what a cue says.** Preset recalls, transition times, TAKE and CUT,
+  and whatever a plugin's cue action says (a router route, a HyperDeck transport, a Companion
+  press), nothing else, and only when the cue fires: on GO, on a follow from the cue before, or as
+  its timecode goes past with Chase armed.
 - **A TAKE waits 150 ms behind a recall in the same cue**, so it can't overtake its own preset
   load and put the previous preview on air.
 - **A cue is reported as *sent*, never as *confirmed*.** Recalls and takes return nothing on this
@@ -1716,13 +1767,30 @@ in service. Anything a panel holds back is listed with its reason on the Setting
 - **An OSC address that can't be resolved is refused, not approximated.** An enum value the
   device doesn't have, a parameter that's read-only, a preset that needs a take state this
   process doesn't hold: each is turned away with the reason, and counted in Settings.
-- **A ganged group is the one thing that writes without being asked** (that's what ganging
-  *is*), so it's fenced in accordingly. It only writes a layer's source, and only to members of a
-  group someone made. It resolves program and preview per screen rather than copying a preset
-  letter. It refuses outright while a take is in flight. It only acts on a change made while the
-  page is open, never on state it merely found at startup. And a layer can only belong to one
-  group, so two groups can't pull at the same layer. Turning a group's gang off leaves it a
-  target and nothing more.
+- **A few things write without being asked, and each is fenced in.** That's what they're for,
+  so the fences are the point:
+  - **A ganged group** only writes a layer's source, and only to members of a group someone made.
+    It resolves program and preview per screen rather than copying a preset letter, refuses
+    outright while a take is in flight, and only acts on a change made while the page is open,
+    never on state it merely found at startup. A layer can only belong to one group, so two
+    groups can't pull at the same layer, and turning a group's gang off leaves it a target and
+    nothing more.
+  - **Layer Lock** writes a locked layer's preview copy back to match program, and nothing else.
+  - **Surfaces** (off by default) pulls a bound layer back inside its surface on preview, and
+    only flags it on program. Something that keeps putting a layer back outside is let go after
+    a few rounds rather than fought for ever.
+  - **Preview lock** (off by default) presses the vendor's own PRW padlock during a take, and
+    never opens one you shut yourself.
+  - **The EDID builder's auto-fill**, if you switch it on, saves an EDID per custom format into
+    an empty bank slot, and never overwrites a used one.
+- **Two things sit between the vendor's page and its socket, and both are narrow.** Layer Lock
+  holds a TAKE or CUT sent from this page for at most 750 ms while it lines a locked layer up,
+  then lets it go whatever happened. Surfaces rewrites the vendor's own geometry writes for a
+  bound layer so they arrive inside its surface, and can add a write but never drops one.
+- **The UMD Generator and the Background Slicer write to the image library, and say so first.**
+  Both start off. Before anything goes they say which library slots, stills and layers or
+  background sets they'll take; each write waits for the switcher's echo, and **Undo** puts back
+  what was there. **Pixel Map writes nothing at all**: the switcher never learns the map is there.
 - **The send-to menu respects a padlock it could ignore.** The PGM lock on a screen card is state
   inside the vendor's own bundle (it stops their UI, not the device), so a write from here
   doesn't have to obey it. The menu asks anyway when a target buffer is locked, and treats a
@@ -1740,7 +1808,8 @@ in service. Anything a panel holds back is listed with its reason on the Setting
   system's mDNS responder, Dante Controller and Dante Virtual Soundcard are never disturbed.
 - **Re-pointing drops the old relay.** Moving to a backup frame hangs up the sockets aimed at the
   previous one, so a page can't carry on driving a device the operator thinks they've left. Cue
-  stacks and layer groups are both keyed by device, so neither follows you to another frame.
+  stacks, layer groups, names and locks, pixel maps, surfaces and UMDs are all kept per device, so
+  none of them follows you to another frame.
 
 ## Testing
 
@@ -1748,7 +1817,7 @@ in service. Anything a panel holds back is listed with its reason on the Setting
 npm test
 ```
 
-About 1,000 tests, and no browser. The socket tests bind real ports on loopback.
+About 1,100 tests, and no browser. The socket tests bind real ports on loopback.
 
 Thirty-three cover OSC and AWJ. The framing ones run against a stand-in device on a real TCP
 socket rather than a mock, on purpose, because everything worth catching there lives in the
@@ -1764,17 +1833,18 @@ Twenty-eight cover the expression evaluator, weighted towards what it has to **r
 `2+`, `1920x1080`, `00:01.000`, and anything that looks like code), because the failure that
 matters is a plausible wrong value on air, not a parse error somebody notices.
 
-Forty-six cover the proxy against a stand-in Web RCS on a real socket rather than a mock:
+Forty-seven cover the proxy against a stand-in Web RCS on a real socket rather than a mock:
 injection ordering against deferred scripts, chunked and gzipped documents, CSP stripping, path
 traversal, the byte-level socket relay, runtime device changes, and the shutdown path. That last
 one pins a hang rather than a wrong value. An upgraded socket is invisible to the HTTP server's
 own connection tracking, so unless the relays are hung up explicitly, the launcher's Stop button
 never finishes.
 
-Seven run against `aquilon-c-live-resources.json` (the resource subtree of a real Aquilon C,
+Nine run against `aquilon-c-live-resources.json` (the resource subtree of a real Aquilon C,
 read from the device on 2026-08-21) and cover ground no simulator can reach: fitted mixers,
 interleaved output links, Optimized mode, and a staged preconfig where every difference is a
-link move.
+link move. Another five run against `aquilon-rs4-6.1.60-resources.json`, read off an RS4 on
+2026-10-16, which is how the VPU map knows what a box with no mixer map looks like.
 
 ### Against a simulator
 
@@ -1791,8 +1861,21 @@ app never gets to mark its own homework.
 
 It writes to the switcher, so it refuses to run against anything that doesn't say it's a
 simulator, and it puts back everything it changed, memories included. With `LPP_SIM` unset every
-test skips, which is what CI sees. Files run one at a time, because there's one switcher and every
-file wants it.
+test skips, and CI doesn't run it at all. Files run one at a time, because there's one switcher
+and every file wants it. AWJ is asked on the simulator's own address at 10606, or at
+`LPP_SIM_AWJ_PORT` if you've moved it.
+
+### Against a Pixelhue console
+
+```bash
+LPP_CONSOLE=<console> LPP_SIM=127.0.0.1:3000 npm run test:console
+```
+
+The same idea with one more party in the loop: a real Pixelhue console, the real app, and a
+simulator at the far end, with the console's own service as a second witness. `LPP_CONSOLE=stand-in`
+swaps the console for a fake one, which proves the suite runs and nothing about a console, and the
+hands-on file only runs with `LPP_CONSOLE_GUIDED=1` and somebody at the desk. It has only met the
+stand-in so far. [docs/PIXELHUE.md](docs/PIXELHUE.md#testing-it-on-a-console) has the rest.
 
 There's also a bench for the panels on their own:
 

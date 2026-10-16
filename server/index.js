@@ -46,7 +46,8 @@ if (args.help || args.h) {
                            and the last one used is remembered.
   --port <n>               local port to listen on   (default 8535)
   --host <addr>            local address to bind      (default 127.0.0.1)
-  --data <dir>             where cue stacks are kept  (default ~/.livepremier-plus)
+  --data <dir>             where settings, cue stacks and every plugin's
+                           documents are kept (default ~/.livepremier-plus)
   --appliance              this host is the app's own: Remote access may join
                            and leave Tailscale and ZeroTier networks for it
   --no-devices             do not start the device host (USB panels), even
@@ -71,8 +72,8 @@ const WILDCARD = new Set(['0.0.0.0', '::']);
  * (server/local-client.js). Loopback is the one plain-http origin a browser
  * treats as a secure context, and Web MIDI — the MIDI Mapping panel, the MTC
  * timecode source — and audio input for LTC need one. Other machines still
- * need HTTPS for those, which this app does not serve yet; they get
- * everything else.
+ * need HTTPS for those, which this app does not serve itself; Remote access
+ * can put it behind `tailscale serve`, and otherwise they get everything else.
  *
  * A wildcard bind already includes loopback, so it gets the redirect and no
  * second listener: binding 127.0.0.1:port beside 0.0.0.0:port is refused on

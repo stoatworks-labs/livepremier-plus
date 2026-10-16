@@ -166,7 +166,10 @@ field's range and rounded to its step like any other. A variable that cannot be
 read now is not applied: the field flashes amber and its tooltip says why for a
 few seconds — "Not applied: S1 is mid-take".
 
-Opacity and zoom are still excluded, for the reason the README gives.
+Fields with no range are still left alone (the canvas zoom box is the one
+that matters), as are this app's own fields, for the reasons the README gives.
+On 6.1.x a bounded number field turns into a text field while it's typed into,
+so it takes variables too.
 
 ### OSC over UDP — `@` only, and only without `$`
 
@@ -186,7 +189,7 @@ asymmetry, for the same reason, as `preview` and `program` in
   S1 — not command lines, so there is nothing in one for a variable to stand in.
   A cue action that runs a Mynah line, resolved when the cue fires, is the
   natural next step and is not built.
-- **Opacity and zoom fields**, as above.
+- **The zoom box and other fields with no range**, as above.
 - **Mynah's own app** supplies no variables; it says so when a line uses one.
 
 ---

@@ -127,7 +127,9 @@ VT 1 clip 3; VT 1 play; recorders record Act 1
 ```
 
 — one action per `;`, each a deck and then what to do: `play` (`play loop`), `stop` (`pause`),
-`record [name]` (`rec`), `clip N` (`cue N`, `goto N`), `next`, `prev`, `rewind` (`top`). A deck is
+`record [name]` (`rec`), `clip N` (`cue N`, `goto N`), `next`, `prev` (`previous`), `rewind`
+(`top`), `end`, and `preview`, which shows a recorder's input rather than its disk and is only
+sent to decks that can record. A deck is
 named by its name (spaces allowed), its position in the list, or a group word: `all`, `players`,
 `recorders`. A group is sent only what each member can do, so `all stop` stops everything and
 `all record` starts only the recorders.

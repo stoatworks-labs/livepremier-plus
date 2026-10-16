@@ -8,10 +8,12 @@
  *
  * The panels live inside the vendor's Web RCS, so a demo without Web RCS is a
  * demo of something that is not the product. The LivePremier Simulator gives
- * us the real thing — and the one feature it cannot give us is the headline
- * one: **a simulator has no VPU at all**. It carries a `vpuLayerList` that is
- * present and permanently empty, and no `vpuMixerList`, so the VPU panel
- * against a bare simulator correctly reports that there is nothing to draw.
+ * us the real thing — and the one feature it may not give us is the headline
+ * one: **the simulator the fixtures came from has no VPU at all**. It carries a
+ * `vpuLayerList` of 32 scalers, all OFF, and no `vpuMixerList`, so the VPU
+ * panel against it correctly reports that there is nothing to draw. (The
+ * rack's C MAX and the simulator app's Cmax session do have one; the seed
+ * replaces it all the same.)
  *
  * So the demo folds the recorded Aquilon C resource subtree into the store
  * after hydration. The result is the real vendor UI, driven by a real

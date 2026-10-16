@@ -11,7 +11,8 @@ than something bolted on.
   layer parameters and the same memory bank, and the switcher sees none of it until you save it
   into a memory.
 - **VPU Map:** the device's mixing-resource allocation, drawn as a budget: which units are
-  fitted, who's holding them, what's spare, and what a staged preconfig would change.
+  fitted, who's holding them, what's spare, and what a staged preconfig would change. On firmware
+  with no mixer map (6.1.60), each screen's layer sizes and the room left instead.
 - **Console:** a lighting-desk command grammar for a video switcher. It also takes raw AWJ, store
   writes and OSC addresses, and on a Midra 4K or Alta 4K it routes audio.
 - **Timeline:** a theatre-style cue stack that steps on with one GO, with per-cue fade, delay and
@@ -25,12 +26,16 @@ than something bolted on.
   group) on its own. The switcher can't do either by itself.
 - **Preview lock during takes:** the vendor's own PRW padlock shut while a screen transitions,
   so a memory recalled straight after TAKE is refused instead of riding the take onto program.
+  Off until you switch it on.
 - **Pixel Map:** an image from the switcher's own library laid over a screen's preview as a
   mask, so you see what the LED wall will show of each layer. No layer spent, nothing written,
   and it never takes a click.
 - **Surfaces:** the LED elements a screen lands on, as rectangles on its canvas, with layers
   bound to them. A bound layer stays inside its surface however it's moved, and full screen
   fills the surface. Off until you switch it on.
+- **UMD Generator** *(preview)*: ATEM-style borders and source names for an aux laid out as a
+  multiviewer, drawn as one transparent PNG from where each layer is and what it shows, and put on
+  the aux's top layer, with 1, 3, 5 and 7-box layouts to start from. Off until you switch it on.
 - **Send to:** a `…` on every source card that routes it to a screen and layer, or to a whole
   group, in preview or program, without a drag.
 - **Matrix Routing:** patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
@@ -45,8 +50,13 @@ than something bolted on.
   a Companion trigger on cues and memory recalls, its own editor on the same address as Web RCS,
   and a panel that knows which switcher you're on and offers to add the connections that belong
   in the show.
+- **Dante** *(preview)*: the Dante audio network's routing as a crosspoint grid next to the
+  switcher it feeds, with snapshots and Dante Controller presets in and out. Off until you
+  switch it on.
 - **EDID builder:** EDIDs made beside the EDID bank and saved straight into it: one per custom
   format, automatically if you like, or by hand in the full Otter editor.
+- **Mosaic inputs:** the editor's Mosaic mode carried through to the frame: inputs grouped 2X1
+  or 2X2, each plug loaded with its tile EDID.
 - **Pitch Compensation:** the H and V ratios a screen spanning LED walls of different pitches
   needs, worked out from the pitches you give it.
 - **OSC input:** QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
@@ -64,18 +74,21 @@ than something bolted on.
   live ones cut from a multiviewer. Both are off until you switch them on.
 - **Remote access:** the app served over Tailscale (with a real HTTPS certificate) or ZeroTier,
   without binding it to the venue LAN.
-- **Your setup in one file:** cue stack, groups, layer names, router patch and settings, saved and
-  restored together.
+- **Your setup in one file:** the cue stack, groups, names and locks, variables, pixel maps,
+  surfaces, UMDs and Companion triggers, the routers and the patch to them, HyperDecks, Dante
+  snapshots and settings, saved and restored together.
 - **Arithmetic in the vendor's own numeric fields:** type `1080-80` into a layer width and get
   1000.
+- **Variables:** `$S1.width` and friends for what the switcher reports, and `@names` of your own,
+  wherever a number goes: the Console, a numeric field, an OSC argument.
 
 Every one of these is a plugin, so you can switch any of them off, and you can add your own; see
 [Switching features off](#switching-features-off).
 
 The panels ride the vendor app's own WebSocket, so there's no second Web RCS connection to the
-device, no replacement UI and nothing to install in the browser. OSC input, the Pixelhue panel and
-the Edit page's direct save each open a brief AWJ connection of their own when they act, which is
-worth knowing, because the switcher only allows five AWJ clients at once.
+device, no replacement UI and nothing to install in the browser. OSC input, the Pixelhue panel,
+the Console's `AWJ get` and the Edit page's direct save and memory export each open a brief AWJ
+connection of their own when they act, which is worth knowing, because the switcher only allows five AWJ clients at once.
 
 > **Before you rely on this:** the panels render inside a real Web RCS session and the device
 > store mirrors live. Both are verified through this proxy against **LivePremier Simulator
@@ -88,12 +101,15 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 >
 > **Midra 4K and Alta 4K (QuickVu, Pulse, Eikos, QuickMatrix, Zenith 100/200) have been supported
 > since 0.6.0** for the Timeline, Console, Memories, Layer and Pitch Compensation, and since
-> 0.17.0 for the Edit page, HyperDecks and the Background Slicer too. There's no VPU to map on
-> those, and MIDI Mapping isn't offered there yet. The port was proven on a **live Pulse 4K**:
+> 0.17.0 for the Edit page, HyperDecks and the Background Slicer too; Preview lock is proven on
+> the Midra 4K simulator, and the UMD Generator gives a Midra its PNG. There's no VPU to map on
+> those, and Matrix Routing, Audio Matrix, Mosaic inputs, Pixel Map and Surfaces are LivePremier
+> only. MIDI Mapping, the Speed Editor and Pixelhue Mapping hang under Virtual RC400T, which a
+> Midra's sidebar doesn't have, so they don't appear. The port was proven on a **live Pulse 4K**:
 > every write over the device protocol by a test harness, and the Console panel's own lines typed
 > by the operator, which were the first writes this app's panels have made to real hardware. On
-> LivePremier, nothing has been written to a physical device yet, and the timeline has only ever
-> fired at a simulator.
+> LivePremier the one write to a physical device so far is a preview opacity the Layer tab set on
+> an **Aquilon RS4** and put back, and the timeline has only ever fired at a simulator.
 >
 > **The Edit page and Companion (0.10.0, 0.11.0) have been proven on simulators and a running
 > Companion 5.0.5, not on a physical switcher.** Two of their limits are worth knowing now. The
@@ -113,7 +129,7 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
-> **0.17.7 adds the UMD Generator**: ATEM-style borders and source names drawn as a transparent
+> **0.17.7 adds the UMD Generator**, a preview: ATEM-style borders and source names drawn as a transparent
 > PNG from where each layer is and what it shows, put on an aux's top layer or handed to the
 > Background Slicer for a screen, with 1, 3, 5 and 7-box layouts for an aux. Off until you switch
 > it on. Proven on LivePremier Simulator 6.2.73 only, and not on a real frame yet.
@@ -172,8 +188,13 @@ npm start -- --device 192.168.2.142
 | --- | --- |
 | `--device <host[:port]>` | the switcher. Port defaults to 80 (a simulator is usually `:3000`). |
 | `--port <n>` | local port to listen on (default 8535) |
-| `--host <addr>` | local address to bind (default `127.0.0.1`). Bind a LAN address or `0.0.0.0` to reach it from other machines. On the machine running it, keep using `http://127.0.0.1:<port>/` — that is the address browsers treat as secure, which MIDI Mapping and the timecode sources need; a local browser that arrives by the LAN address is sent there automatically. Other machines get everything except those. |
-| `--data <dir>` | where cue stacks are kept |
+| `--host <addr>` | local address to bind (default `127.0.0.1`). Bind a LAN address or `0.0.0.0` to reach it from other machines. On the machine running it, keep using `http://127.0.0.1:<port>/` — that is the address browsers treat as secure, which MIDI Mapping and the timecode sources need; a local browser that arrives by the LAN address is sent there automatically. Other machines get everything except those, unless they come in over Remote access's HTTPS. |
+| `--data <dir>` | where it keeps everything: settings, the last switcher, cue stacks, every plugin's per-switcher documents, and your own plugins (default `~/.livepremier-plus`) |
+| `--appliance` | this host exists to run the app, so Remote access may join and leave Tailscale and ZeroTier networks for it |
+| `--no-devices` | don't start the device host for USB panels (the Speed Editor) |
+
+Each has an environment variable too, for a service manager or Docker: `LPP_DEVICE`, `LPP_PORT`,
+`LPP_HOST`, `LPP_DATA`, `LPP_APPLIANCE=1` and `LPP_DEVICES=0`.
 
 There's a desktop app too: a tray launcher with an interface and port picker.
 
@@ -225,7 +246,8 @@ because on a laptop the networks belong to whoever owns the laptop.
 
 **If you open the switcher's own address directly, the panels aren't there and MIDI won't
 work.** Web MIDI is a secure-context API, and `http://127.0.0.1:<port>` counts as one where a
-plain-HTTP LAN address doesn't. The panel tells you rather than failing silently.
+plain-HTTP LAN address doesn't (Remote access's HTTPS on a tailnet name does). The panel tells you
+rather than failing silently.
 
 ---
 
@@ -306,7 +328,10 @@ the documentation you've already got:
 
 **Current** and **Staged** switch between the running configuration and the one waiting in
 Preconfig, and a count says how many changes applying it would make, including a layer moving onto
-different links with every other value identical, which still counts as a change.
+different links with every other value identical, which still counts as a change. On linked frames
+a button per frame (MASTER, FOLLOWER 1 and so on) picks which one you're looking at, and **Detail**
+adds a table of every fitted mixer: the screen and layer holding it, its slice, capability, cut and
+fill, and links.
 
 Under the grid, **Screens** lists what each screen spends: outputs, output capabilities, and its
 layers and their sizes (4K, DUAL and so on). On the staged side it also says how many more layers of
@@ -324,9 +349,9 @@ entry isn't there.
 
 ## Console
 
-**Screens / Aux. ▸ ⋯ ▸ Console.** The Console, Timeline, Layer and Groups live in the vendor's
-own tab strip on Screens / Aux., but on LivePremier there's only room in it for one more thing
-after Properties and Memories. So they sit behind a **⋯** at the end: click it and pick one. While
+**Screens / Aux. ▸ ⋯ ▸ Console.** The Console, Timeline, Layer, Groups and Pixel Map (and
+Surfaces and UMD, when they're switched on) live in the vendor's own tab strip on Screens / Aux.,
+but on LivePremier there's only room in it for one more thing after Properties and Memories. So they sit behind a **⋯** at the end: click it and pick one. While
 one is open the ⋯ stays lit and shows that tab's icon; click Properties or Memories to go back. If
 the strip has room (on a Midra 4K, say, or with some of these plugins switched off) they show as
 ordinary tabs instead.
@@ -348,7 +373,7 @@ anything reaches the device. Tab completes, and ↑ brings back history.
 and the feedback names what each one reads before you press Enter. Sums go in brackets. See
 [Variables](#variables).
 
-![The Console tab with a line typed and not yet run: "Recall 1 → Screen 1 Preview" under it](screenshots/screens-console.png)
+![The Console tab with a line typed and not yet run: "Recall 4 → Screen 1 Preview" under it](screenshots/screens-console.png)
 
 **This panel has no grammar of its own.** Every token, rule and device path comes from
 [mynah](https://github.com/stoatworks-labs/mynah)'s own build output, the same file its Companion
@@ -358,6 +383,34 @@ There's a reason for that beyond tidiness. Mynah's compiler and this repo's comm
 written independently, and they produce **byte-identical** store paths for the commands both
 know. Two independent derivations agreeing is about the best evidence you'll get that either is
 right, and it only stays true while nobody re-types the grammar here.
+
+### Raw AWJ, store JSON and OSC
+
+The same line takes three other languages, for when you've been handed a path rather than a
+command: a line out of a packet capture, a frame out of the browser's network panel, an address a
+lighting desk already sends. These are all the same write:
+
+```
+Take Screen 1
+AWJ DeviceObject/$screenAuxGroup/@items/S1/control/@props/xTake = true
+{"path":["device","screenAuxGroupList","items","S1","control","pp","xTake"],"value":true}
+/lp/screen/1/take
+```
+
+Each line is read as whichever language it looks like, and the verdict shows beside the feedback
+before you press Enter. Start a line with `MYNAH`, `AWJ`, `JSON` or `OSC` to say which outright,
+or turn detection off on the **Console language** card in Preconfig ▸ LivePremier Plus. Everything
+rides the vendor's own socket, an AWJ line included, unless **AWJ via** on that card says to send
+AWJ exactly as typed on a socket of its own.
+
+`AWJ get <path>` reads a value back, and it's the one line that always opens its own AWJ
+connection, because the vendor's socket carries a stream of changes rather than answers. The
+reply lands in the console's log.
+
+**Pop out** opens the Console in a window of its own, with three things the tab hasn't room for:
+a command dictionary generated from mynah's own grammar, with every word's shortest abbreviation;
+live previews of the screens and auxes; and a Variables shelf, where a click puts a name on the
+line.
 
 ---
 
@@ -371,7 +424,7 @@ Each cue can carry:
 | | |
 |---|---|
 | **fade** | its own transition time, written to the screen before the take |
-| **delay** | wait this long after GO before firing — a second GO during the wait fires it at once |
+| **pre-wait** | wait this long after GO before firing (the list's DELAY column) — a second GO during the wait fires it at once |
 | **follow** | after this cue fires, fire the next one by itself, after a follow time you set |
 | **timecode** | fire when incoming timecode passes this point (below) |
 | **Companion trigger** | press these Companion buttons as the cue fires — see *Companion* below |
@@ -379,16 +432,23 @@ Each cue can carry:
 A few things behave the way a desk does rather than the way a switcher does:
 
 - **GO fires the standby cue, then advances.** **BACK** moves the pointer only.
-- **The switcher's own STEP BACK is a separate, clearly labelled button**, because it restores the
-  device's previous state rather than replaying a cue, and the two differ as soon as a cue does
-  more than recall and take.
+- **BACK isn't the switcher's STEP BACK.** That one is the vendor's own button in the Transition
+  column, and it restores the device's previous state rather than replaying a cue. The two differ
+  as soon as a cue does more than recall and take, and no cue ever presses it.
 - **A cue is sent, never confirmed.** The switcher answers recalls and takes with silence, so the
   log says what left this app and the device status is shown separately.
+
+**Add cue** opens a short form: what to recall (a screen memory or a master memory), the slot,
+into preview or program, then a take, a cut or nothing, a fade, a label, and which screens and
+auxes it targets (the ones the switcher has in use, all ticked to start with). Each cue in the list
+has a tick box beside it; untick one and it sends nothing when its turn comes. **Export** and **Import** write the
+stack out as a file and read one back.
 
 The editor pops out into a window of its own, which is handy on a second monitor while the stack
 runs. Select a cue there and everything it carries is editable below the list: number, timecode,
 name, fade, pre-wait, follow, notes, the Companion buttons it presses, the HyperDeck commands it
-sends, and its actions.
+sends, and its actions, with **Fire now** to try it on its own. It's keyboard first: ↑ and ↓ move
+the selection, Space fires the selected cue, and a double-click makes a cue the standby.
 
 ![The Timeline popped out, cue 1 selected: its fade, pre-wait, follow and notes, a Companion trigger of 1/0/1, "Mitti clip 2; Mitti play" in the HyperDeck field, and its two actions](screenshots/timeline-popout.png)
 
@@ -401,10 +461,18 @@ Choose a source under **Preconfig ▸ LivePremier Plus → Timecode**:
 - **Pushed to LivePremier Plus**: anything that can POST a timecode to this app, such as a
   generator on another machine, a lighting desk or a script.
 
+Then give the cues a timecode and press **Chase** on the Timeline; it reads **Chasing** while it's
+armed. Nothing fires from timecode until you do, and arming it part-way through doesn't fire the
+cues whose time has already gone: you armed it to catch what's coming.
+
 A cue fires **once per pass**, not on every reading. **Going backwards re-arms** it, so you can
 rehearse the same scene twenty times. **Jumping forward doesn't run everything it skipped.** The
 cues in between are silently marked done and the show carries on from the new position, rather
 than firing a hundred takes in a second.
+
+Cue timecodes are written at 25 frames a second, so the frames run 00 to 24, whatever the source
+runs at; the comparison is made in seconds, so a cue still lands within a frame. LTC doesn't say
+what rate it's running at, so the reader assumes 25 as well.
 
 ---
 
@@ -414,10 +482,11 @@ than firing a hundred takes in a second.
 master, screen and aux on a Midra 4K or Alta 4K. Search by name, rename in place, and see which
 preset buffer is holding each memory right now, and whether it's still unmodified.
 
-- **A recall names its target every time.** Pick **PRW** or **PGM** before you recall. There's no
-  default, and program is coloured like the risk it is.
+- **A recall names its target every time.** The **To** chip says PRW or PGM, starts on PRW and
+  never quietly becomes program, and program is coloured like the risk it is.
 - **Save and erase** do what the vendor's own buttons do, and the page says which save filters the
-  switcher will apply before you press it.
+  switcher will apply before you press it. Saving over a memory that's already there, or erasing
+  one, takes a second click: the button turns into **Overwrite?** or **Erase?** first.
 - **It pops out** onto a second monitor, which the vendor's own Memories tab can't do.
 
 ![PLUS ▸ Memories: the screen bank on S1, eight named memories with Recall, Save and Erase, and a B beside Walk-out because buffer B still holds it unmodified](screenshots/memories.png)
@@ -440,6 +509,12 @@ and on a second monitor a panel that stays where you pointed it turns out to be 
   panel says which letter that is. A buffer that's on air is banded in red.
 - **Mid-take, it refuses to write to PRW or PGM**, because neither reliably names a buffer while a
   transition is running. A literal letter still works.
+- **The source list is the switcher's, not the catalogue's.** It offers the inputs and stills that
+  are available, enabled and in use in the applied preconfig (and screens set to Freestyle), and
+  only the kinds this layer can take: a native layer takes background sets, an aux layer no colour.
+  A source the layer already shows stays in the list, marked *(not available)*, so you can see
+  what it is. The Edit page's picker follows the same rule; a cue, the Console or a group is not
+  narrowed.
 - **It pops out** into its own window.
 
 ![The Layer tab: S1, layer 1, named "Presenter", its PRW buffer resolved, source, position and size, and opacity](screenshots/screens-layer.png)
@@ -510,7 +585,8 @@ transition.**
 - **Lock** keeps the layer's preview copy equal to its program copy. Change it in preview (the
   vendor's properties, a memory recall) and it's put straight back; change it on program and
   preview follows. Every TAKE and CUT sent from this page, the vendor's own buttons included, is
-  held for the few milliseconds it takes to line a locked layer up if it has drifted, then sent.
+  held for the few milliseconds it takes to line a locked layer up if it has drifted (never more
+  than three quarters of a second), then sent.
   Locks are kept per switcher and survive a reload.
 - **Take only** takes that layer (or that group, on each of its screens) on its own: every other
   layer on the screen is set equal to program, the take is sent, and once it has landed the other
@@ -652,7 +728,7 @@ bottom of the tab says how many buffers it's drawn on, and says so if it can't f
 
 ## Surfaces
 
-**Screens / Aux. ▸ ⋯ ▸ Surfaces**, once it's switched on in **Preconfig ▸ LivePremier Plus ▸
+**Screens / Aux. ▸ ⋯ ▸ Surfaces**, once it's switched on in **Preconfig ▸ LivePremier Plus →
 Plugins**. It's off to start with because it rewrites the vendor's own layer moves on their way
 to the switcher, and you should get to decide that.
 
@@ -714,11 +790,11 @@ The surfaces and bindings are kept per switcher by this app and go into the setu
 
 ---
 
-## UMD Generator
+## UMD Generator (preview)
 
-**Screens / Aux. ▸ ⋯ ▸ UMD**, once it's switched on in **Preconfig ▸ LivePremier Plus ▸
+**Screens / Aux. ▸ ⋯ ▸ UMD**, once it's switched on in **Preconfig ▸ LivePremier Plus →
 Plugins**. It's off to start with because it uploads into the image library and writes a still
-and an aux's layers.
+and an aux's layers, and it hasn't met a real frame yet.
 
 It draws what an ATEM multiviewer draws over its windows (a thin line round each box and a dark
 tab with the source's name) as one transparent PNG the size of the screen or aux, from where its
@@ -780,6 +856,8 @@ into the setup file under *UMDs*.
 
 **PLUS ▸ Matrix Routing.** Patch the switcher's own sockets to ports on an external router (a
 **Blackmagic Videohub**, a **Lightware** or a **Turtle AV**) and route through it from here.
+LivePremier only for now: the Router tab and box it adds are written into LivePremier's own
+pages.
 
 You describe the **cable**, and the rest follows. The direction inverts, which looks wrong at
 first glance every single time:
@@ -967,9 +1045,10 @@ devices themselves, beside the switcher it feeds. It's off by default: switch it
 
 ### Finding the devices
 
-Devices are found on their own. The app asks the network every 30 seconds, from a port of its own,
-so Dante Controller and Dante Virtual Soundcard on the same machine aren't disturbed. Under
-**Settings ▸ Dante** you can choose which network interface to ask on, list devices **by
+Devices are found on their own. The app asks the network every 30 seconds by default, from a port
+of its own,
+so Dante Controller and Dante Virtual Soundcard on the same machine aren't disturbed. On the
+**Dante** card in Preconfig ▸ LivePremier Plus you can change how often it asks, choose which network interface to ask on, list devices **by
 address** for a network where multicast doesn't reach this machine, and set how often each device
 is read again (every 5 seconds by default; this is how a change made in Dante Controller shows up
 here).
@@ -997,7 +1076,7 @@ channel counts, and says why one can't be changed, if it can't.
 **This switcher.** The switcher's own Dante card is found by the name in its store and marked
 **this switcher**. Its receive channels show the outputs the **Audio Matrix** sends them to
 (`→ Output 7 ch 1`), and its transmit channels the input they carry. If it isn't found (its Dante
-name was changed, say), choose it under **Settings ▸ Dante ▸ This switcher's Dante card**.
+name was changed, say), choose it on the same card, under **This switcher's Dante card**.
 
 ### Dante Controller presets
 
@@ -1175,6 +1254,21 @@ The save finishes when the switcher reports the new EDID, not when it accepts th
 The window works through the Web RCS tab it came from, like every popped-out panel here. Close that
 tab and it tells you it can't save any more.
 
+### Mosaic inputs
+
+**Apply to inputs** comes from a plugin of its own, **Mosaic inputs**, which is on unless you
+switch it off and only appears in the editor's Mosaic mode (so with the EDID builder off it has
+nowhere to show). It does the two halves a Mac needs to bond several outputs into one display:
+it groups the inputs **2X1** or **2X2** (IN_n and the next inputs in order become its members) and
+loads each member plug with its own tile EDID, because grouping on its own leaves the plugs with
+the stock EDID and the Mac sees separate displays. It's offered only the inputs that can start a
+group.
+
+> ⚠️ **Grouping is a preconfig change.** It copies the running preconfig, sets the group, has the
+> switcher check it and applies it, the same steps Preconfig ▸ Inputs sends, and there's no undo in
+> the window: put an input back to single in Preconfig ▸ Inputs. LivePremier only, and proven on
+> the simulator only; no Aquilon has bonded a Mac's outputs this way yet.
+
 ---
 
 ## Pitch Compensation
@@ -1293,7 +1387,7 @@ and plug it back in and it's found and answered again by itself.
 ## Pixelhue panel (preview)
 
 A Pixelhue **U5**, **U5 Pro** or **U5 mini** event controller, driving the switcher. It's off until
-you turn it on in **Preconfig ▸ LivePremier Plus → Pixelhue panel**.
+you tick **Drive a Pixelhue console** in **Preconfig ▸ LivePremier Plus → Pixelhue panel**.
 
 The buses aren't mapped. The console is handed a model of this switcher (its screens, inputs and
 memories) and labels, lights and pages its own keys from that. What comes back is what the operator
@@ -1311,7 +1405,10 @@ dot, and **Reset** puts everything back.
 
 ![Pixelhue Mapping: a U5 drawn as a Virtual RC400T, with its buses, function keys, faders, encoders and T-bar, and the "Pick a control" panel](screenshots/pixelhue-mapping.png)
 
-- A **U5 mini** answers on the network, so it's driven from wherever this app already runs.
+- A **U5 mini** answers on the network, so it's driven from wherever this app already runs. It has
+  less on it than a U5: no faders or encoders, and no TIME, MVR, SIGNAL SOURCE or lower-left
+  cluster, so take time, layer stepping and the cue keys have no key on it. Pixelhue Mapping draws
+  every model as a U5 for now.
 - A **U5** or **U5 Pro** only serves its control port to itself, so this app has to run on the
   console. Luckily that's a Windows mini-PC with a touch screen, and it runs the proxied Web RCS
   perfectly well.
@@ -1319,7 +1416,8 @@ dot, and **Reset** puts everything back.
 > ⚠️ **This hasn't been run against a real console yet.** It was built from the consoles' firmware
 > and proved against the vendor's own control service running with no panel attached. Treat the
 > first show with one as a rehearsal. Fade-to-black and freeze are sent on LivePremier, not yet on
-> a Midra 4K. docs/PIXELHUE.md lists what each key does.
+> a Midra 4K. docs/PIXELHUE.md lists what each key does, and has a test suite to run the day a
+> console turns up ("Testing it on a console").
 
 ---
 
@@ -1339,7 +1437,7 @@ page refreshes it itself, twice a second by default. While any are hot, every ot
 answered from the frame the relay already has until it's four seconds old. With nothing being
 edited, every source is treated the same.
 
-Its card on this settings page has the five settings and what the relay is doing:
+Its card in Preconfig ▸ LivePremier Plus has the five settings and what the relay is doing:
 
 | Setting | |
 |---|---|
@@ -1350,8 +1448,8 @@ Its card on this settings page has the five settings and what the relay is doing
 | **Idle hold** | how old any other source may get while somebody edits; 0 turns holding off |
 
 > ⚠️ **Proven on the simulator only.** A hot refresh faster than the switcher redraws its
-> thumbnails just fetches the same picture again. `node tools/snapshot-probe.mjs --device <address>`
-> measures how fast that is, so run it against a moving source before raising **Hot refresh**. The
+> thumbnails just fetches the same picture again. `node tools/snapshot-probe.mjs --device <address>`,
+> run from a checkout of the repo, measures how fast that is, so run it against a moving source before raising **Hot refresh**. The
 > switcher still sends each thumbnail it's asked for in full; the saving is largest for a page on
 > another machine.
 
@@ -1365,7 +1463,7 @@ panel, the screen and aux cards, this app's own pages) many times a second, inst
 once-a-second pictures the switcher sends. It knows where each source sits from the switcher
 itself, so there's nothing to line up.
 
-**Choose the picture on each browser**, on the plugin's card on this settings page:
+**Choose the picture on each browser**, on the plugin's card in Preconfig ▸ LivePremier Plus:
 
 | This browser's picture | |
 |---|---|
@@ -1414,7 +1512,8 @@ is a lot less fiddly than doing it by hand.
 
 **Stills: a picture as the background**
 
-1. **Picture:** choose a file, or drop one on the box. Its size is shown.
+1. **Picture:** choose a file, or drop one on the box. Its size is shown. A screen's UMD from the
+   UMD Generator arrives here the same way, with its screens already picked and a note saying so.
 2. **Screens:** click the screens it goes on. With two or more, choose **On each screen** (the
    picture placed on each separately) or **Span selected screens** (the screens side by side, in
    order, under one picture; type where each sits in the strip if they aren't edge to edge).
@@ -1585,10 +1684,14 @@ npm run demo
 
 brings the whole thing up against a **LivePremier Simulator**, with a real Aquilon C's resource map
 folded in and an example cue stack loaded, so every panel has something to show without a switcher
-in the room.
+in the room. Start the simulator first: the demo looks for it on `127.0.0.1:3000`,
+`127.0.0.1:3001` and `localhost:3000`, and stops if there's no Web RCS there. Point it somewhere
+else with `LPP_DEMO_DEVICE=127.0.0.1:3002`. It serves on 8535, the app's own port, so quit the app
+first or move the demo with `LPP_DEMO_PORT=8545`.
 
-The simulator has **no VPU at all**, so against a bare one the panel correctly reports there's
-nothing to draw. The demo fills that in from the recorded capture: 32 of 64 mixers fitted, 26
+A simulator may have **no VPU at all** (the one this app's tests were cut from hasn't), and
+against one like that the panel correctly reports there's nothing to draw. The demo replaces
+whatever it has with the recorded capture: 32 of 64 mixers fitted, 26
 allocated, one screen in Optimized mode, and a staged preconfig that differs in 26 mixers.
 Everything outside that stays the simulator's own live state, so cues fired from the timeline
 really do go out on the wire.
@@ -1605,7 +1708,9 @@ touched.
 ## Switching features off
 
 **Preconfig ▸ LivePremier Plus → Plugins** lists every feature this app adds, each with a switch.
-Everything is on until you switch it off, except Preview lock and the previews that say otherwise.
+Everything is on until you switch it off, except seven that start off: **Preview lock**,
+**Surfaces**, and the **UMD Generator**, **Dante**, **Thumbnail relay**, **Multiviewer thumbnails**
+and **Background Slicer** previews.
 
 ![Preconfig ▸ LivePremier Plus → Plugins: every feature with its switch, what it does and where it lives](screenshots/plugins.png)
 
@@ -1623,8 +1728,8 @@ Everything is on until you switch it off, except Preview lock and the previews t
 ### Adding a plugin of your own
 
 A plugin somebody else wrote, or one you wrote yourself, is a folder you put in the **`plugins`
-folder of the app's data directory**: `~/.livepremier-plus/plugins/` for the desktop app,
-`/config/plugins/` in Docker.
+folder of the app's data directory**: `~/.livepremier-plus/plugins/` for the desktop app and
+`npm start`, `/config/plugins/` in Docker, or `plugins/` in whatever `--data` names.
 
 1. Copy the plugin's folder in, and **restart the app**.
 2. In **Preconfig ▸ LivePremier Plus → Plugins** it's listed under **Added by you**, switched off.
@@ -1640,8 +1745,8 @@ listed with the reason instead. The app's source has an example to start from in
 ## Saving and restoring your setup
 
 A `.awc` from the switcher restores the *processor*: inputs, outputs, screens, memories. It holds
-nothing about this app: your cue stack, your layer groups, the names you gave layers, the patch to
-the external routers. Restore a `.awc` on its own onto a fresh frame and the show comes back with
+nothing about this app: your cue stack, your layer groups, the names you gave layers, the pixel
+maps, surfaces and UMDs, the patch to the external routers. Restore a `.awc` on its own onto a fresh frame and the show comes back with
 no cue list, which is not the surprise anyone wants at load-in.
 
 So this app can write all of that into one file:
@@ -1653,11 +1758,13 @@ curl -o livepremier-plus.json 'http://127.0.0.1:8535/__lpp/config?download=1'
 It's plain JSON, so it's readable, diffable and fine in a git repo. It carries which switcher it
 was written against, and three separate groups:
 
-- **installation:** app settings (console language, OSC port and bind), your external routers,
-  your HyperDecks and your Dante snapshots. Not tied to a switcher.
-- **show:** the cue stack, layer groups, layer names, layer locks, your variables and Companion
-  memory triggers. Tied to the switcher they were built on, because they name screens and layer
-  slots like `S1/2`.
+- **installation:** the app settings (which plugins are on, and each one's own settings: the
+  console language, the OSC port and bind, Remote access, the Companion link, the Pixelhue console,
+  the Dante interface and the rest), your external routers, your HyperDecks and your Dante
+  snapshots. Not tied to a switcher.
+- **show:** the cue stack, layer groups, layer names, layer locks, your variables, Companion memory
+  triggers, pixel maps, surfaces and UMDs. Tied to the switcher they were built on, because they
+  name screens and layer slots like `S1/2`.
 - **rig:** the patch between the frame and the routers.
 
 To restore, POST it back:
@@ -1668,18 +1775,21 @@ curl -X POST -H 'content-type: application/json' \
      http://127.0.0.1:8535/__lpp/config
 ```
 
-By default that restores the show and the rig and your routers, and **leaves the app settings
-alone**, because a restore shouldn't change the OSC port a lighting desk is sending to without
-telling you. Ask for them explicitly if you want them:
+By default that restores everything in the file **except the app settings**, because a restore
+shouldn't change the OSC port a lighting desk is sending to without telling you. Ask for them
+explicitly if you want them. A `sections` list *replaces* the default rather than adding to it, so
+name everything you want back:
 
 ```
-{ "doc": { … }, "sections": ["stack", "groups", "names", "patch", "settings"] }
+{ "doc": { … }, "sections": ["stack", "groups", "names", "locks", "variables",
+  "companion-triggers", "pixel-maps", "surfaces", "umd", "patch", "matrices",
+  "hyperdecks", "danteSnapshots", "settings"] }
 ```
 
 **Reload any open page afterwards.** The restore reaches the running app at once (the routers are
 dialled, and the patch and any settings you asked for are the ones in force), but a Web RCS page
-that was already open still holds the cue stack, groups and names it loaded, and its next save
-would put those back. The answer to the restore says `"reloadPages": true` when that applies.
+that was already open still holds the cue stack, groups, names, locks, pixel maps, surfaces and
+UMDs it loaded, and its next save would put those back. The answer to the restore says `"reloadPages": true` when that applies.
 
 **A feature that's switched off is left out** of both: its section isn't written, and a file that
 has one reports it as skipped rather than restoring it. A plugin of your own can add a section of
@@ -1707,5 +1817,8 @@ contain it.
 | **The Speed Editor does nothing** | DaVinci Resolve is still running, or the panel is plugged into a different machine from the one the app runs on, or another page is driving it (**Take over**), or the device host is not running (see the **Device host** card in Preconfig ▸ LivePremier Plus), or this is the Docker image, which has no USB. |
 | **A console command means the wrong thing** | The grammar is mynah's; the fix is there. |
 | **Arithmetic does not work in a field** | It is not one the vendor marks numeric with a range — the canvas zoom box, for one, has none. |
-| **The VPU panel says there is nothing to draw** | A simulator has no VPU, and LivePremier firmware 6.1.60 does not report its VPU allocation. The panel says which, and on 6.1.60 shows each screen's layers and the room left instead. Either way it is correct, not a failure. |
-| **The demo refuses to start** | It only runs against loopback, on purpose. |
+| **The VPU panel says there is nothing to draw** | This simulator has no VPU (not every one does), or it's LivePremier firmware 6.1.60, which does not report its VPU allocation. The panel says which, and on 6.1.60 shows each screen's layers and the room left instead. Either way it is correct, not a failure. |
+| **The demo refuses to start** | It only runs against loopback, on purpose. Or it found no simulator (start one, or set `LPP_DEMO_DEVICE`), or port 8535 is the app's and the app is running (quit it, or set `LPP_DEMO_PORT`). |
+| **The Console, Timeline or Layer tab has gone** | On LivePremier they sit behind the **⋯** at the end of the Screens / Aux. tab strip, because the strip has room for one more tab and no more. |
+| **I switched a plugin on and it isn't there** | Reload the page; the page picks up a change on its next load. If its row says *not on this switcher* or *needs* another plugin, that's the reason. MIDI Mapping, the Speed Editor and Pixelhue Mapping never appear on a Midra 4K or Alta 4K, which has no Virtual RC400T to hang them under. |
+| **I restored a setup and the old cue stack came back** | A page that was open during the restore saved what it had loaded. Reload every open page after a restore, then restore again. |
