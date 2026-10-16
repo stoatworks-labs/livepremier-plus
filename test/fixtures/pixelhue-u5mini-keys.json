@@ -1,0 +1,98 @@
+{
+  "_": "The U5 mini's key map as its firmware ships it (key_mini.xml, V1.0.3), by way of pixelhue-bridge's core/models/u5mini.json, in the shape UCenter's GET key/active-custom?deviceModel= answers. keyCode is the xml's key id: on a U5 the two agreed for all 87 keys against a live UCenter (2026-10-16); nobody has compared them on a mini. pageIndex -1 is a key's SHIFT layer, the keypad. The stand-in console (test/helpers/fake-ucenter.js) serves this, and test/console/ compares a real mini's answer with it.",
+  "deviceModel": 29711,
+  "areaList": [
+    {"areaFixId": 1, "areaType": 1, "keyList": [
+      {"keyCode": 0, "pageIndex": 0, "keyIndex": 1, "keyMode": 100},
+      {"keyCode": 1, "pageIndex": 0, "keyIndex": 2, "keyMode": 100},
+      {"keyCode": 2, "pageIndex": 0, "keyIndex": 3, "keyMode": 100},
+      {"keyCode": 3, "pageIndex": 0, "keyIndex": 4, "keyMode": 100},
+      {"keyCode": 4, "pageIndex": 0, "keyIndex": 5, "keyMode": 100},
+      {"keyCode": 5, "pageIndex": 0, "keyIndex": 6, "keyMode": 100},
+      {"keyCode": 6, "pageIndex": 0, "keyIndex": 7, "keyMode": 100},
+      {"keyCode": 7, "pageIndex": 0, "keyIndex": 8, "keyMode": 100},
+      {"keyCode": 8, "pageIndex": 0, "keyIndex": 9, "keyMode": 105},
+      {"keyCode": 36, "pageIndex": 0, "keyIndex": 10, "keyMode": 106},
+      {"keyCode": 37, "pageIndex": 0, "keyIndex": 11, "keyMode": 187}
+    ]},
+    {"areaFixId": 2, "areaType": 4, "keyList": [
+      {"keyCode": 9, "pageIndex": 0, "keyIndex": 1, "keyMode": 101},
+      {"keyCode": 10, "pageIndex": 0, "keyIndex": 2, "keyMode": 101},
+      {"keyCode": 11, "pageIndex": 0, "keyIndex": 3, "keyMode": 101},
+      {"keyCode": 12, "pageIndex": 0, "keyIndex": 4, "keyMode": 101},
+      {"keyCode": 13, "pageIndex": 0, "keyIndex": 5, "keyMode": 101},
+      {"keyCode": 14, "pageIndex": 0, "keyIndex": 6, "keyMode": 101},
+      {"keyCode": 15, "pageIndex": 0, "keyIndex": 7, "keyMode": 101},
+      {"keyCode": 16, "pageIndex": 0, "keyIndex": 8, "keyMode": 101},
+      {"keyCode": 17, "pageIndex": 0, "keyIndex": 9, "keyMode": 105},
+      {"keyCode": 39, "pageIndex": 0, "keyIndex": 10, "keyMode": 106},
+      {"keyCode": 38, "pageIndex": 0, "keyIndex": 11, "keyMode": 187}
+    ]},
+    {"areaFixId": 3, "areaType": 3, "keyList": [
+      {"keyCode": 18, "pageIndex": 0, "keyIndex": 1, "keyMode": 102},
+      {"keyCode": 19, "pageIndex": 0, "keyIndex": 2, "keyMode": 102},
+      {"keyCode": 20, "pageIndex": 0, "keyIndex": 3, "keyMode": 102},
+      {"keyCode": 21, "pageIndex": 0, "keyIndex": 4, "keyMode": 102},
+      {"keyCode": 22, "pageIndex": 0, "keyIndex": 5, "keyMode": 102},
+      {"keyCode": 23, "pageIndex": 0, "keyIndex": 6, "keyMode": 102},
+      {"keyCode": 24, "pageIndex": 0, "keyIndex": 7, "keyMode": 102},
+      {"keyCode": 25, "pageIndex": 0, "keyIndex": 8, "keyMode": 102},
+      {"keyCode": 26, "pageIndex": 0, "keyIndex": 9, "keyMode": 105},
+      {"keyCode": 40, "pageIndex": 0, "keyIndex": 10, "keyMode": 106},
+      {"keyCode": 41, "pageIndex": 0, "keyIndex": 11, "keyMode": 187}
+    ]},
+    {"areaFixId": 4, "areaType": 5, "keyList": [
+      {"keyCode": 27, "pageIndex": 0, "keyIndex": 1, "keyMode": 103},
+      {"keyCode": 28, "pageIndex": 0, "keyIndex": 2, "keyMode": 103},
+      {"keyCode": 29, "pageIndex": 0, "keyIndex": 3, "keyMode": 103},
+      {"keyCode": 30, "pageIndex": 0, "keyIndex": 4, "keyMode": 103},
+      {"keyCode": 31, "pageIndex": 0, "keyIndex": 5, "keyMode": 103},
+      {"keyCode": 32, "pageIndex": 0, "keyIndex": 6, "keyMode": 103},
+      {"keyCode": 33, "pageIndex": 0, "keyIndex": 7, "keyMode": 103},
+      {"keyCode": 34, "pageIndex": 0, "keyIndex": 8, "keyMode": 103},
+      {"keyCode": 35, "pageIndex": 0, "keyIndex": 9, "keyMode": 105},
+      {"keyCode": 43, "pageIndex": 0, "keyIndex": 10, "keyMode": 106},
+      {"keyCode": 42, "pageIndex": 0, "keyIndex": 11, "keyMode": 187}
+    ]},
+    {"areaFixId": 6, "areaType": 6, "keyList": [
+      {"keyCode": 56, "pageIndex": 0, "keyIndex": 0, "keyMode": -1},
+      {"keyCode": 57, "pageIndex": 0, "keyIndex": 0, "keyMode": -1},
+      {"keyCode": 58, "pageIndex": 0, "keyIndex": 0, "keyMode": -1},
+      {"keyCode": 59, "pageIndex": 0, "keyIndex": 0, "keyMode": -1},
+      {"keyCode": 60, "pageIndex": 0, "keyIndex": 0, "keyMode": -1},
+      {"keyCode": 61, "pageIndex": 0, "keyIndex": 0, "keyMode": -1},
+      {"keyCode": 62, "pageIndex": 0, "keyIndex": 0, "keyMode": -1},
+      {"keyCode": 63, "pageIndex": 0, "keyIndex": 0, "keyMode": -1}
+    ]},
+    {"areaFixId": 7, "areaType": 6, "keyList": [
+      {"keyCode": 44, "pageIndex": -1, "keyIndex": 0, "keyMode": 136},
+      {"keyCode": 45, "pageIndex": -1, "keyIndex": 0, "keyMode": 137},
+      {"keyCode": 46, "pageIndex": -1, "keyIndex": 0, "keyMode": 138},
+      {"keyCode": 47, "pageIndex": -1, "keyIndex": 0, "keyMode": 139},
+      {"keyCode": 48, "pageIndex": -1, "keyIndex": 0, "keyMode": 140},
+      {"keyCode": 49, "pageIndex": -1, "keyIndex": 0, "keyMode": 141},
+      {"keyCode": 50, "pageIndex": -1, "keyIndex": 0, "keyMode": 142},
+      {"keyCode": 51, "pageIndex": -1, "keyIndex": 0, "keyMode": 143},
+      {"keyCode": 52, "pageIndex": -1, "keyIndex": 0, "keyMode": 144},
+      {"keyCode": 53, "pageIndex": -1, "keyIndex": 0, "keyMode": 135},
+      {"keyCode": 54, "pageIndex": -1, "keyIndex": 0, "keyMode": 146},
+      {"keyCode": 55, "pageIndex": -1, "keyIndex": 0, "keyMode": 149},
+      {"keyCode": 44, "pageIndex": 0, "keyIndex": 1, "keyMode": 123},
+      {"keyCode": 45, "pageIndex": 0, "keyIndex": 2, "keyMode": 184},
+      {"keyCode": 46, "pageIndex": 0, "keyIndex": 3, "keyMode": 110},
+      {"keyCode": 47, "pageIndex": 0, "keyIndex": 4, "keyMode": 109},
+      {"keyCode": 48, "pageIndex": 0, "keyIndex": 5, "keyMode": 122},
+      {"keyCode": 49, "pageIndex": 0, "keyIndex": 6, "keyMode": 107},
+      {"keyCode": 50, "pageIndex": 0, "keyIndex": 7, "keyMode": 108},
+      {"keyCode": 51, "pageIndex": 0, "keyIndex": 8, "keyMode": 185},
+      {"keyCode": 52, "pageIndex": 0, "keyIndex": 9, "keyMode": 186},
+      {"keyCode": 53, "pageIndex": 0, "keyIndex": 10, "keyMode": 121},
+      {"keyCode": 54, "pageIndex": 0, "keyIndex": 11, "keyMode": 120},
+      {"keyCode": 55, "pageIndex": 0, "keyIndex": 12, "keyMode": 150}
+    ]},
+    {"areaFixId": 8, "areaType": 6, "keyList": [
+      {"keyCode": 64, "pageIndex": 0, "keyIndex": 1, "keyMode": 153},
+      {"keyCode": 65, "pageIndex": 0, "keyIndex": 2, "keyMode": 154}
+    ]}
+  ]
+}

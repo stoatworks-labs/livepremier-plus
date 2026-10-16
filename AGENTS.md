@@ -1738,6 +1738,30 @@ the plumbing. The rules it keeps, which a new file must keep too:
   together). `Link.waitFor` checks the current value first; `previewLook` waits
   for both, or the trailing echo lands in the next test's window.
 
+`LPP_CONSOLE=<console> LPP_SIM=<sim> npm run test:console` — the console suite
+in `test/console/`, for a Pixelhue console on the desk (`docs/PIXELHUE.md`,
+"Testing it on a console", has the run and what a U5 mini is expected to
+have). It is `test/sim/`'s harness with a console in the loop, and keeps every
+rule above, plus four:
+
+- **Nothing else may listen to the console.** Every UCenter client acts on
+  every press. `assertNoOtherDriver` asks each LivePremier Plus on this
+  machine what it drives and refuses if one shares the console; `assertQuiet`
+  refuses if anything republishes over the model. On 2026-10-16 the tray app
+  on :8536 was holding the Mac's own UCenter with its panel on and pointed at
+  a frame in use — an injected TAKE there would have taken on that frame.
+- **The console's witness is a socket of the suite's own**, a second
+  `client-type=5` connection (`Witness`), not the app's state. Keys are found
+  by `keyMode` in the console's own key map and bus keys by what they show, so
+  no test spells a key code.
+- **An injected press is not a thumb.** `2-keys` proves UCenter and the app
+  agree; only `3-hands` (`LPP_CONSOLE_GUIDED=1`, a person at the terminal)
+  proves the key under a finger is the key the map says.
+- **The stand-in proves the suite runs, nothing more.**
+  `LPP_CONSOLE=stand-in` is `test/helpers/fake-ucenter.js` on 127.0.0.1:8088.
+  Never quote a pass against it as evidence about a console, and never teach
+  it a behaviour nobody has seen.
+
 For the panels themselves, `tools/harness.html` — see the README. It proxies the
 vendor stylesheet from a named device so the panels are judged in the real
 design system, and no vendor asset is committed here.

@@ -246,6 +246,70 @@ serving script lives with the reverse-engineering notes, in
 
 ---
 
+## Testing it on a console
+
+`test/console/` is a suite for the day a console is on the desk. It boots the
+real app, points its Pixelhue panel at the console, and drives a LivePremier
+**simulator** at the far end — never a frame, for the same reason `test/sim/`
+refuses one. It is three files, run in order:
+
+| file | needs | what it settles |
+|---|---|---|
+| `1-link` | the console | it answers on its port, serves its own key map, takes the model and draws it from position 1 |
+| `2-keys` | the console | every key the app acts on, pressed by injection (`PUT …/key/action`), checked three ways: the console's report on a socket of the suite's own, the app's history, and the switcher over AWJ |
+| `3-hands` | a person | what only a thumb proves: that the key pressed is the key the map says, what each display reads, long presses, LOCK PANEL, paging, SHIFT, the area-switch keys and the T-bar |
+
+```bash
+LPP_CONSOLE=192.168.0.50 LPP_SIM=127.0.0.1:3000 npm run test:console
+```
+
+```bash
+LPP_CONSOLE=192.168.0.50 LPP_CONSOLE_GUIDED=1 LPP_SIM=127.0.0.1:3000 npm run test:console
+```
+
+`LPP_CONSOLE` is the console's address with no port — the app takes the port
+from the model, so the suite does too. `LPP_CONSOLE_MODEL` is `u5mini` unless
+told otherwise; a U5 or U5 Pro means running the suite on the console itself,
+with `LPP_CONSOLE=127.0.0.1`. The hands-on file asks its questions on the
+terminal and waits for the console rather than for Enter; `s` and Enter skips
+a step.
+
+⚠️ **Nothing else may be listening to the console.** Every client of a UCenter
+acts on every press, so an injected TAKE goes to everything connected. Before
+it presses anything the suite asks each LivePremier Plus on this machine (ports
+8535, 8536 and any in `LPP_CONSOLE_PEERS`) what it drives, and refuses if one
+shares the console; then it watches for four seconds for anything republishing
+over its model. It cannot ask PixelFlow or another laptop. Close them.
+
+Every run writes what it saw to `test/console/results/` (ignored by git): the
+key map the console served, every press and what it reported, the T-bar's
+reports. Some of that has never been seen, and the useful parts belong in
+`test/fixtures/` and this page afterwards.
+
+**What the suite expects of a U5 mini**, from its own key_mini.xml (firmware
+V1.0.3) and not yet from one under a thumb — `1-link` compares what the
+console serves with it and says what differs:
+
+- four buses of eight keys, each with its own page keys and an **area-switch**
+  key nobody has pressed yet;
+- TAKE, CUT, MATCH PGM, PGM EDIT, FTB, FRZ, SWAP, SAVE TO, DEL, LOCK PANEL and
+  LOCK T-BAR, as on a U5;
+- **no** TIME, MVR, SIGNAL SOURCE, SWITCH DEVICE, CTRL or lower-left cluster,
+  so the take-time keys, layer steps, cue transport and SOURCE BACKUP have no
+  key on a mini's default layout, and their tests skip;
+- **SHIFT**, which turns the function keys into a keypad, and **LOAD TO PGM**
+  and **TEST PATTERN**, which report nobody knows what — the app acts on none
+  of them, and `2-keys` checks that they write nothing;
+- a T-bar, and no faders or encoders.
+
+**Without a console**, `LPP_CONSOLE=stand-in` swaps in
+`test/helpers/fake-ucenter.js`, a U5 mini's UCenter in a few hundred lines,
+on 127.0.0.1:8088. A pass against it proves the suite runs and nothing about
+a console: it is built from what has been seen of UCenter, and where nobody has
+seen what a key does, it does nothing.
+
+---
+
 ## What it reads from the switcher, and what it does not
 
 The panel needs more than OSC does — screen names, input names, memory names,
