@@ -719,6 +719,8 @@ It draws what an ATEM multiviewer draws over its windows (a thin line round each
 tab with the source's name) as one transparent PNG the size of the screen or aux, from where its
 layers really are and what they're really showing.
 
+![Screens / Aux. with only A1's PRW showing and the UMD tab open: A1 laid out as Three and four, IN1 to IN7 on L1 to L7 and L8 carrying the UMD still; the tab shows the look, a preview of the borders and the CAM 1, CAM 2, Lectern, Wide shot, Audience, Graphics and Playback tabs, Update UMD, and the four steps that put it on L8](screenshots/umd.png)
+
 1. **Pick the destination** at the top of the tab, and the buffer: **PRW** to build it in
    preview and take it, **PGM** to work on what's on air.
 2. **Lay it out (an aux, optionally).** **Template** lists the layouts the aux has layers for.

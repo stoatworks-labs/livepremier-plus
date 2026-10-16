@@ -1449,6 +1449,8 @@ what it's showing. From that it draws what an ATEM multiviewer draws over its wi
 line round each box, shared where two boxes touch, and a dark tab along the bottom with the
 source's name. It's one PNG at the canvas's size, transparent everywhere else.
 
+![Screens / Aux. with only A1's PRW showing and the UMD tab open: A1 laid out as Three and four, IN1 to IN7 on L1 to L7 and L8 carrying the UMD still; the tab shows the look, a preview of the borders and the CAM 1, CAM 2, Lectern, Wide shot, Audience, Graphics and Playback tabs, Update UMD, and the four steps that put it on L8](docs/screenshots/umd.png)
+
 - **Names** come from the switcher: an input's label, a still's label, or the short `IN5` when
   nobody gave it one. Type your own per layer, or take the layer's name from Layer names. A layer
   with no source isn't drawn, unless you've named it, which is how you label a box before its
