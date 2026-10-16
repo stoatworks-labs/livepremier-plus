@@ -1774,3 +1774,32 @@ saves overtake earlier ones (caught by its own test), which is why
 `createDir` is an option rather than a step. `test/storage.test.js` saves
 each kind five times at once and expects the last; through the demo, three
 renames in a row now all land.
+
+## The 6.1.60 simulator (2026-10-16)
+
+Analog Way's LivePremier Simulator installs older firmware from its package
+manager (the version button on a session). 6.1.60 went in beside 6.2.73 as a
+new session, Aquilon C+ (`NLC_CPLUS`, `DEVICE_TYPE=6`; the combo's RS4 entry
+could not be reached from a background click, and the numbering is not the
+list order, so it was not hand-edited). Its web client is
+`app.80837794a672b9e2107f.js` — the bundle the RS4 at 192.168.2.140 served
+that morning, so the vendor page is the hardware's, byte for byte.
+
+- **`AwNumberInput` on 6.1.60, read from that bundle:** `type: "number"` hard
+  coded, no `arithmeticModeEnabled` anywhere (6.2.73 has nine); ArrowUp/Down
+  and the wheel `preventDefault` and step `state.value` in script; Enter blurs;
+  blur runs `checkValue(tryParseNumber(state.value))` and `resetValue()` on
+  NaN. Exactly what 55e02e2 assumed from 6.2.73.
+- **Typed into it, real keystrokes, the Save Master Memory slot box**
+  (`type=number`, 1..500; SAVE never pressed): focus made it `text`; `2*3` +
+  Enter committed 6 ("Save to MM6") and it went back to `number`; ArrowUp
+  while text stepped to 7 and Tab committed it; `6-` + Enter was held (still
+  text, still focused, MM7) and Tab put 7 back; `400+200` clamped to 500. Left
+  on 1. A fresh session has no screens in service, so no geometry field was
+  tried — the slot box is the same component.
+- **The VPU shape is 6.1.60's, not the RS4's alone:** `pipeList` 64 and
+  `vpuLayerList` 32, all `OFF`, no `vpuMixerList`. The panel took the
+  simulator branch — "No VPU on this simulator … 32 scalers in a
+  vpuLayerList, every one switched off, and no vpuMixerList", captioned
+  `AQUILON · NLC_CPLUS · 6.1.60 · simulator` — the wording ae6aa87 could only
+  test offline, because the 6.2.73 simulator reports a fitted C MAX.

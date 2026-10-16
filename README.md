@@ -422,8 +422,8 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > both sides of its panel with four plugin tabs on it, now puts them behind a ⋯; checked on the
 > simulator and on the RS4. The Layer tab wrote a preview opacity to the RS4 and put it back,
 > both read over AWJ. Arithmetic in vendor fields didn't engage on 6.1.60, whose geometry fields
-> are number inputs; it does now (proven on a simulator field of the same kind, not yet on the
-> box). The VPU map no longer calls the box a simulator, and the Layer tab offers only the sources
+> are number inputs; it does now, proven on Analog Way's 6.1.60 simulator, whose web client is
+> byte for byte the one the RS4 serves (not yet typed into on the box). The VPU map no longer calls the box a simulator, and the Layer tab offers only the sources
 > it has. `docs/NOTES.md` has the rest.
 >
 > **Still untested on hardware:** on LivePremier the panels have written only to the simulator
@@ -1137,9 +1137,12 @@ in such a field only goes through if the field holds a number or an expression t
 (otherwise your text stays put and the field flashes amber with the reason), and leaving it with
 anything else empties it first, so Web RCS puts its own value back, exactly as it does when you
 leave a stray `-` in a number field. The canvas zoom box has no range and is left alone, and so
-are this app's own number fields. Proven on a 6.2 simulator's number field of the same kind. **It
-hasn't been typed into on a 6.1.x box yet.** If the arrow keys stop stepping a geometry field there, switch
-**Field arithmetic** off and tell me.
+are this app's own number fields. Proven on a 6.2 simulator's number field of the same kind, and
+then on Analog Way's **6.1.60 simulator**, whose web client is the very file an RS4 on 6.1.60 serves
+(same bundle hash): in the Save Master Memory slot box, `2*3` committed 6, the up arrow stepped it
+while it was text, `6-` was held and put back when I left, and `400+200` clamped to 500. **It hasn't
+been typed into on a 6.1.x box itself.** If the arrow keys stop stepping a geometry field there,
+switch **Field arithmetic** off and tell me.
 
 There's **no `eval`** anywhere in this path. `src/core/expr.js` is a hand-written
 recursive-descent parser over a closed token set. Anything it doesn't fully understand is refused
@@ -1456,7 +1459,8 @@ sources that can disagree about what's on air.
 **The simulator the fixtures came from has no VPU at all.** It carries a `vpuLayerList` that's
 there and permanently empty, and no `vpuMixerList`; `$vpuLayer` answers `E12` on real hardware.
 It isn't only a simulator's quirk, though: an Aquilon RS4 on firmware 6.1.60 reports exactly the
-same shape with its screens on air. So the panel asks the device whether it's a simulator
+same shape with its screens on air (and so does Analog Way's 6.1.60 simulator, where the panel says
+it's a simulator). So the panel asks the device whether it's a simulator
 (`isSimulated`) and says so, or says that this firmware doesn't report its VPU allocation, instead
 of drawing an empty chassis or blaming a simulator that isn't there. Not every
 simulator does it, mind: another 6.2.73, running under Wine, reports a fully fitted C MAX (64

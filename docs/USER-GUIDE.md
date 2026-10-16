@@ -1308,9 +1308,10 @@ anything treating `:` as arithmetic.
 anything they can't parse, so while you type in one that has a range it becomes a text field, and
 it goes back when you leave. Arrow keys and the wheel still step it. If what you typed doesn't work
 out, Enter does nothing and the field flashes amber with the reason; leaving the field puts the
-switcher's value back. The canvas zoom box has no range and is left alone. This hasn't been typed
-into on a 6.1.x box yet: if the arrow keys stop stepping a field there, switch **Field arithmetic**
-off.
+switcher's value back. The canvas zoom box has no range and is left alone. It's been tried on
+Analog Way's 6.1.60 simulator, which serves exactly the web page an Aquilon on 6.1.60 does, but not
+yet on a 6.1.x box itself: if the arrow keys stop stepping a field there, switch **Field
+arithmetic** off.
 
 There's **no `eval`** anywhere in this path, and anything the parser doesn't fully understand is
 refused rather than guessed at.

@@ -223,7 +223,9 @@ rather than reasoned about:
   anything else first. Do not "simplify" by holding back the `input` events
   instead — React's controlled update then writes the stale number over the
   typing. Unbounded number inputs and our own `wru-input`s are not swapped.
-  Read the 6.2.73 bundle, proven on its simulator; not yet on a 6.1.x box.
+  Read the 6.2.73 bundle and 6.1.60's own `AwNumberInput` (hard-coded
+  `type: "number"`; arrows, wheel and Enter→blur→parse all in script), and
+  proven on both simulators; not yet on a 6.1.x box.
 - **Capture phase on `document` is the entire timing strategy.** React attaches
   its handlers at the root container, so a capture listener on `document` runs
   before them. We rewrite the value, then let the event continue into the
@@ -1497,6 +1499,15 @@ no benefit. Read `wru` as "the panels".
   (2026-10-16), screens on air, reports it exactly. `inspectMapping` calls it
   `unreported` and the panel words it from the device's own `isSimulated` —
   never from the shape, or a live switcher gets called a simulator.
+- **There is a 6.1.x simulator, and it is the RS4's page.** The AW LivePremier
+  Simulator's package manager (the version button on a session) installs
+  older firmware beside 6.2.73; 6.1.60 is installed on Allan's Mac as Session 2
+  (C+, `NLC_CPLUS`). Its web client is `app.80837794a672b9e2107f.js`, the bundle
+  an Aquilon RS4 on 6.1.60 serves, and its store has the same empty VPU shape.
+  A fresh session has **no screens in service**, so nothing has layer geometry
+  until a preconfig is built; the Save Master Memory slot box is a bounded
+  `AwNumberInput` that exists regardless. Both sessions use port 3000, so run
+  one at a time.
 - **The Browser pane blocks cross-origin requests when the tab is on the LAN.**
   Injecting the modules from a local dev server works against a page on
   localhost and fails with `ERR_BLOCKED_BY_CLIENT` against a real device, with
