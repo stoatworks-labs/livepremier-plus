@@ -1654,3 +1654,38 @@ eight background sets. `NLC.sourceOffered` / `MNG.sourceOffered` in
 - Not done: the vendor also narrows by the kind of layer — a NATIVE layer takes
   only background sets, an aux layer no colour, a screen layer other screens
   only in split mode. The dropdown still offers all kinds on every layer.
+
+**A second pass, the same day, read-only on the box.** The Console's
+`AWJ {"op":"get",…}` answered `NLC_RS4` through the server's own AWJ path.
+**Variables** generated 685 `$` names off the RS4 (`$device.firmware` 6.1.60,
+`$S1.width` 2880, every layer value matching the store). **Audio Matrix**
+drew the real frame: 112 channels patched, 48 kHz on a Dante clock, outputs
+named by the screens they drive. Every write after that (a Console recall of
+an empty slot, switching the Thumbnail relay on in a throwaway instance) was
+refused by the session's guard before it left; the AWJ witness confirmed
+nothing reached the box. So the panels' LivePremier writes are still the
+Layer tab's one opacity.
+
+**How to run the rest without leaving a trace**, worked out on LivePremier
+Simulator 6.2.73 and checked against the RS4's store (11:32 dump):
+
+- **A6 "My Screen" is the place for it.** Its program and preview are
+  identical, whole buffer, and so is their bookkeeping (memory 0, modified).
+  A1–A4 are identical too, both on memory 1 unmodified, but they are the back
+  walls. S1/S2 match in content but not in bookkeeping, S3 and A5 differ.
+- **6.1.60 calls preset toggle off `copyMode: true`**, on every destination,
+  and `xTake` reads false at rest. Two takes on a destination whose preview
+  equals program, `copyMode` on, then `xTake` written back to false: **0
+  leaves differ** across the group, both buffers and the preset ids (simulator
+  S2, 1005 ms and 999 ms). Every take-based test (Timeline GO, OSC, Layer Lock,
+  Preview lock) belongs on A6 for that reason.
+- **A save leaves one trace a delete does not undo.** Saving a preview into an
+  empty slot sets its preset id to the slot and `isNotModified` true; deleting
+  the slot puts the id back to 0 and clears its label, but `isNotModified`
+  stays true. Nudging one layer property and putting it back clears it, as
+  `guardScreen` does. On A6, already "modified", save → label → recall the copy
+  → delete → nudge leaves nothing.
+- **The direct save route is the one that can't be undone.** The RS4's
+  `presetBank/import/extract/status` reads `NO_REQUEST`; a path its disk cannot
+  read would leave it on an error word, and status words are not writable.
+  Leave it until there is a share the box can see.
