@@ -1,6 +1,10 @@
 /*
- * Background Slicer — sending writes and waiting for the switcher's echo.
- * Shared by both platforms' apply steps (`apply.js`, `apply-mng.js`).
+ * Sending writes and waiting for the switcher's echo.
+ *
+ * Written for the Background Slicer's apply steps (both platforms) and moved
+ * here when the UMD generator needed the same thing: a plugin may not import
+ * another's folder (AGENTS.md), so anything two of them send through lives
+ * in `src/`. Everything below was learned on the Background Slicer's writes.
  *
  * The echo is the only evidence a write landed (AGENTS.md: never update the
  * mirror optimistically), so every step sends and then waits.
@@ -37,6 +41,16 @@ export const IMPORT_MS = 60000;
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Whether two values are the same write. A list — a layer's `effects.flags`,
+ * a border's style — comes back from the switcher as a new array, which
+ * `Object.is` never calls equal; anything else is compared as it is.
+ */
+export function same(a, b) {
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i) => same(v, b[i]));
+  return Object.is(a, b);
+}
+
 /** Resolve once `test()` holds, re-checking on every write to the store; false on timeout. */
 export function until(store, test, ms = ECHO_MS) {
   try { if (test()) return Promise.resolve(true); } catch { /* not yet */ }
@@ -68,7 +82,7 @@ export async function sendAndEcho(session, writes, opts = ECHO_MS) {
   if (!send(session, writes)) return false;
   const last = new Map();
   for (const w of writes) last.set(w.path.join('/'), w);
-  return until(session.store, () => [...last.values()].every((w) => session.store.get(w.path) === w.value), ms);
+  return until(session.store, () => [...last.values()].every((w) => same(session.store.get(w.path), w.value)), ms);
 }
 
 /**
@@ -83,7 +97,7 @@ export function changedPaths(store, writes) {
   for (const w of writes) {
     const k = w.path.join('/');
     const prev = held.has(k) ? held.get(k) : store.get(w.path);
-    if (!Object.is(prev, w.value) || want.has(k)) want.set(k, w.value);
+    if (!same(prev, w.value) || want.has(k)) want.set(k, w.value);
     held.set(k, w.value);
   }
   return want;
@@ -106,7 +120,7 @@ function sendAndHear(session, writes, ms) {
       const f = ev && ev.detail;
       if (!f || f.dir !== 'in' || !Array.isArray(f.path)) return;
       const k = f.path.join('/');
-      if (!want.has(k) || !Object.is(want.get(k), f.value)) return;
+      if (!want.has(k) || !same(want.get(k), f.value)) return;
       heard.add(k);
       if (heard.size === want.size) finish(true);
     }

@@ -42,7 +42,7 @@ import {
   presetWrites, frameStatusPath, presetBackgroundStatus, libraryDeleteWrites, edidWrites, activePlug
 } from './mng.js';
 import { MNG } from '../../src/core/dialect.js';
-import { until, send, sendAndEcho, sleep, ECHO_MS, IMPORT_MS } from './wire.js';
+import { until, send, sendAndEcho, sleep, ECHO_MS, IMPORT_MS } from '../../src/core/wire.js';
 
 export const UPLOAD_URL = '/api/device/images/upload';
 

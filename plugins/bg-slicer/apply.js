@@ -53,49 +53,17 @@ import {
   readLibrary, readStills, readSets, nativeLayer
 } from './core.js';
 import { presetBanks } from '../../src/core/screens.js';
-import { until, send, sendAndEcho, sleep, ECHO_MS, IMPORT_MS } from './wire.js';
+import { until, send, sendAndEcho, sleep, ECHO_MS, IMPORT_MS } from '../../src/core/wire.js';
+import { uploadImage, UPLOAD_URL } from '../../src/core/stills.js';
 import { applyMngPlan, revertMng } from './apply-mng.js';
 
-export { until };
+export { until, uploadImage, UPLOAD_URL };
 
-export const UPLOAD_URL = '/api/device/images/upload';
 const PRECONFIG_MS = 20000;
 /** Only the switcher's own echo counts (see the head of this file). */
 const HEARD = { inbound: true };
 
 const pp = (n) => (n && n.pp) || {};
-
-/**
- * Upload one PNG into one library slot and wait until the store has it.
- * `blob` is the image; `name` the file name the library shows.
- */
-export async function uploadImage({ session, fetchImpl = fetch, blob, name, slot }) {
-  const form = new FormData();
-  form.append('librarySlot', String(slot));
-  form.append('FILES', blob, name);
-  let res;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    res = await fetchImpl(UPLOAD_URL, { method: 'POST', body: form });
-    /* 503: another upload (ours from another tab, or the vendor page's) is
-       running. Wait and try again rather than fail a long run on it. */
-    if (res.status !== 503) break;
-    await sleep(1500);
-  }
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`the switcher refused the upload: ${res.status}${text ? ` ${text.slice(0, 120)}` : ''}`);
-  }
-  let answer = null;
-  try { answer = await res.json(); } catch { answer = null; }
-  const status = answer && typeof answer === 'object' ? String(Object.values(answer)[0] || '') : '';
-  if (status !== 'FINISH') throw new Error(`the switcher did not import ${name}: ${status || 'no answer'}`);
-  /* The store, because the slot's `isValid` is only ever the switcher's word. */
-  const landed = await until(session.store, () => {
-    const s = readLibrary(session.store).slots.find((x) => x.slot === Number(slot));
-    return s && !s.free;
-  }, IMPORT_MS);
-  if (!landed) throw new Error(`library slot ${slot} did not report ${name} after the import finished`);
-}
 
 /**
  * The still-capacity changes, through the staged preconfig. Refuses — before

@@ -63,6 +63,9 @@
  */
 
 import { ROOT } from '../../src/core/paths.js';
+import {
+  SET_COUNT, BG, PRE_STILLS, readSets, firstFreeSet, stillsInSets, readLibrary, readStills, CAPACITY_UNITS, likelyCapability, stillPath, libraryDeletePath, pulse, LABEL_MAX, stillWrites, stillRestoreWrites, libraryDeleteWrites
+} from '../../src/core/stills.js';
 import { listDestinations } from '../../src/core/screens.js';
 import { screenOutputs } from '../../src/core/pitch.js';
 import { dialectFor, NLC } from '../../src/core/dialect.js';
@@ -73,8 +76,6 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 /** Which model this is — `model.js` and the plan carry it. Midra 4K / Alta 4K is `mng.js`. */
 export const PLATFORM = 'nlc';
 
-/** Eight background sets per screen (manual p.100; the store has 1..8). */
-export const SET_COUNT = 8;
 /** Four slices per output — `OUTPUT_SLICE` is 1..4. */
 export const MAX_SLICES = 4;
 
@@ -93,6 +94,12 @@ export const NOTES = {
   rotation: { proven: false, text: 'A rotated output’s image is turned the way the switcher turns its layers. Whether it turns a background as well is not established — check the first one on the display.' },
   group: { proven: false, text: 'An output group gets one background at its leader, covering the group’s whole raster, which the switcher splits across the connectors. No grouped output has been read off a device.' },
   native: { proven: true, text: 'A background set reaches the screen through its NATIVE layer: source NATIVE_<set> (AWJ guide §3.10). A screen whose NATIVE layer is not allocated cannot show one.' }
+};
+
+/* The library and the stills are read and written in `src/core/stills.js`,
+   shared with the UMD generator; these are what this plugin always exported. */
+export {
+  SET_COUNT, readSets, firstFreeSet, stillsInSets, readLibrary, readStills, CAPACITY_UNITS, likelyCapability, stillPath, libraryDeletePath, pulse, LABEL_MAX, stillWrites, stillRestoreWrites, libraryDeleteWrites
 };
 
 /* ------------------------------------------------------------------ topology */
@@ -462,142 +469,6 @@ export function renderRGBA(blits, image, width, height, fill = [0, 0, 0, 255]) {
 
 /* ------------------------------------------------------------- the device */
 
-const BG = [ROOT, 'preconfig', 'backgrounds'];
-const STILLS = [ROOT, 'stillList'];
-const LIBRARY = [ROOT, 'stillList', 'library'];
-const PRE_STILLS = [ROOT, 'preconfig', 'stills'];
-
-/** The eight background sets of a screen: `{ index, label, onProgram, onPreview, contents: {out: content} }`. */
-export function readSets(store, screenId) {
-  const list = store.get([...BG, 'screenList', 'items', screenId, 'backgroundSetList']) || {};
-  const items = list.items || {};
-  const out = [];
-  for (let n = 1; n <= SET_COUNT; n++) {
-    const set = items[String(n)];
-    if (!set) continue;
-    const st = pp(set.status);
-    const contents = {};
-    const outs = (set.outputList && set.outputList.items) || {};
-    for (const [k, v] of Object.entries(outs)) {
-      const c = pp(v && v.control).content;
-      if (c && c !== 'NONE') contents[k] = c;
-    }
-    out.push({
-      index: n,
-      label: String(pp(set).label || ''),
-      onProgram: st.isOnProgram === true,
-      onPreview: st.isOnPreview === true,
-      contents,
-      empty: Object.keys(contents).length === 0 && !pp(set).label
-    });
-  }
-  return out;
-}
-
-/** The first set of a screen with no content, no label and not on air; else null. */
-export function firstFreeSet(sets) {
-  return sets.find((s) => s.empty && !s.onProgram && !s.onPreview) || null;
-}
-
-/** Every `STILL_n` any background set of any screen names. */
-export function stillsInSets(store) {
-  const used = new Set();
-  const screens = store.get([...BG, 'screenList', 'items']) || {};
-  for (const sid of Object.keys(screens)) {
-    for (const set of readSets(store, sid)) {
-      for (const c of Object.values(set.contents)) {
-        const m = /^STILL_(\d+)$/.exec(c);
-        if (m) used.add(m[1]);
-      }
-    }
-  }
-  return used;
-}
-
-/** The image library: `{ slots: [{ slot, free, fileName, width, height, size }], sizeKB, maxKB, limits }`. */
-export function readLibrary(store) {
-  const bank = store.get([...LIBRARY, 'bankList']) || {};
-  const items = bank.items || {};
-  const keys = Array.isArray(bank.itemKeys) ? bank.itemKeys : Object.keys(items);
-  const slots = keys.map((k) => {
-    const st = pp(items[k] && items[k].status);
-    return {
-      slot: Number(k),
-      free: st.isValid !== true,
-      used: st.isUsed === true,
-      fileName: String(st.fileName || ''),
-      width: num(st.width) || 0,
-      height: num(st.height) || 0,
-      size: num(st.fileSize) || 0
-    };
-  }).filter((s) => Number.isInteger(s.slot));
-  const status = pp(bank.status);
-  const limits = pp(store.get([...LIBRARY, 'import', 'status']));
-  return {
-    slots,
-    /* `maxSize` is 972800 on a 6.2.73 simulator: the manual's "950 MB
-       limit" (p.126) in KiB, so both are read as kilobytes. */
-    sizeKB: num(status.size) || 0,
-    maxKB: num(status.maxSize) || 0,
-    limits: {
-      maxWidth: num(limits.maxWidth) || 16384,
-      maxHeight: num(limits.maxHeight) || 8192,
-      maxPixels: num(limits.maxTotalPixel) || 39321600,
-      maxBytes: num(limits.maxFileSize) || 157286400
-    }
-  };
-}
-
-/**
- * The stills of this frame, with what makes one free to take: fitted
- * (`isAvailable`), holding nothing (`mode` NONE and no valid image), named by
- * no background set and claimed by no output (`preconfig/backgrounds/
- * stillList/<n>/control/pp/useOnOutput`), and enabled in the applied
- * preconfig. `capability` is the applied capacity (`preconfig/stills/current`).
- */
-export function readStills(store) {
-  const list = store.get(STILLS) || {};
-  const items = list.items || {};
-  const keys = Array.isArray(list.itemKeys) ? list.itemKeys : Object.keys(items);
-  const current = (store.get([...PRE_STILLS, 'current', 'stillList', 'items'])) || {};
-  const staged = (store.get([...PRE_STILLS, 'new', 'stillList', 'items'])) || {};
-  const bgStills = (store.get([...BG, 'stillList', 'items'])) || {};
-  const inSets = stillsInSets(store);
-  return keys.filter((k) => /^\d+$/.test(k)).map((k) => {
-    const node = items[k] || {};
-    const st = pp(node.status);
-    const ctl = pp(node.control);
-    const pre = pp(current[k] && current[k].status);
-    const helper = staged[k] && staged[k].control && staged[k].control.helper;
-    const validity = staged[k] && staged[k].status && staged[k].status.helper;
-    const claimed = pp(bgStills[k] && bgStills[k].control).useOnOutput;
-    const fitted = st.isAvailable === true && pp(node.mapping).isValid !== false;
-    const enabled = pre.global ? pre.global === 'USED' : fitted;
-    const holding = ctl.mode && ctl.mode !== 'NONE';
-    const onOutput = claimed && claimed !== 'NONE' ? String(claimed) : null;
-    return {
-      key: k,
-      label: String(ctl.label || ''),
-      device: pp(node.mapping).device ?? null,
-      fitted,
-      enabled,
-      capability: pre.capability || st.capability || null,
-      format: pp(helper).format || null,
-      formats: Array.isArray(pp(validity).formatValidity) ? pp(validity).formatValidity : [],
-      mode: ctl.mode || 'NONE',
-      source: ctl.source,
-      rescale: ctl.rescale || null,
-      inSet: inSets.has(k),
-      onOutput,
-      onAir: st.isOnProgram === true || st.isOnPreview === true,
-      free: fitted && enabled && !holding && st.isValid !== true && st.isUsed !== true && !inSets.has(k) && !onOutput
-    };
-  });
-}
-
-/** Units of still capacity, as the manual counts them (p.99/p.100): DUAL is one slot. */
-export const CAPACITY_UNITS = { OFF: 0, DUAL: 1, '4K': 2, 3: 3, '5K': 4, 5: 5, 6: 6, 7: 7, '8K': 8 };
-
 /* ---------------------------------------------------------- formats */
 
 /**
@@ -619,21 +490,6 @@ export function formatSize(name) {
   if (known) return { width: known[0], height: known[1] };
   const m = /^COMPUTER_(\d{3,5})_(\d{3,5})(?:_RB\d?)?$/.exec(String(name || ''));
   return m ? { width: Number(m[1]), height: Number(m[2]) } : null;
-}
-
-/**
- * The capacity a format probably gives a still, by its size — DUAL up to
- * 1920 × 1200, 4K up to 4096 × 2160, 5K up to 5120 × 2880, else 8K. A guess
- * used only to choose what to ask for: the switcher's own `xCheck` says what
- * the capacity really is, and a change that comes back different is refused
- * (`apply.js`). The odd capacities (3, 5, 6, 7) are never guessed at.
- */
-export function likelyCapability(size) {
-  const area = size.width * size.height;
-  if (area <= 1920 * 1200) return 'DUAL';
-  if (area <= 4096 * 2160) return '4K';
-  if (area <= 5120 * 2880) return '5K';
-  return '8K';
 }
 
 /** The format that is each capacity beyond doubt. */
@@ -831,55 +687,12 @@ export const setContentPath = (screenId, set, out) =>
 /** A background set's label. */
 export const setLabelPath = (screenId, set) =>
   [...BG, 'screenList', 'items', screenId, 'backgroundSetList', 'items', String(set), 'pp', 'label'];
-/** One property of a still. */
-export const stillPath = (still, prop) => [...STILLS, 'items', String(still), 'control', 'pp', prop];
-/** Empty a library slot — the bin on the vendor's card. */
-export const libraryDeletePath = (slot) => [...LIBRARY, 'bankList', 'items', String(slot), 'control', 'pp', 'xDelete'];
 /** A preset buffer's NATIVE layer source. */
 export const nativeSourcePath = (screenId, letter) =>
   [ROOT, 'screenList', 'items', screenId, 'presetList', 'items', letter, 'layerList', 'items', 'NATIVE', 'source', 'pp', 'inputNum'];
 /** The staged still-capacity preconfig. */
 export const preStillsNew = (...tail) => [...PRE_STILLS, 'new', ...tail];
 export const preStillsCurrent = (...tail) => [...PRE_STILLS, 'current', ...tail];
-
-/** A trigger, as Web RCS pulses every `x…` property: false, then true. */
-export const pulse = (path) => [{ path, value: false }, { path, value: true }];
-
-/** The longest label a still and a background set take (`label: {max: 16}` in the bundle). */
-export const LABEL_MAX = 16;
-
-/**
- * The writes that make a still show a library image at its own size, in the
- * order the Web RCS's image picker sends them — `mode` IMAGE, then `source`
- * (the library slot, 1-based) — then `rescale` NO_RESCALE ("No rescale"; the
- * other choice, "Downscale to capacity", would resample a picture cut to be
- * pixel-exact) and the label.
- */
-export function stillWrites(still, slot, label) {
-  return [
-    { path: stillPath(still, 'mode'), value: 'IMAGE' },
-    { path: stillPath(still, 'source'), value: Number(slot) },
-    { path: stillPath(still, 'rescale'), value: 'NO_RESCALE' },
-    { path: stillPath(still, 'label'), value: String(label || '').slice(0, LABEL_MAX) }
-  ];
-}
-
-/**
- * Put a still back as it was. Leaving IMAGE, `mode` goes first, so the still
- * never shows the slot it is being pointed back at; returning to IMAGE, the
- * source goes first for the same reason.
- */
-export function stillRestoreWrites(still, before) {
-  const b = before || {};
-  const mode = { path: stillPath(still, 'mode'), value: b.mode || 'NONE' };
-  const writes = [];
-  if (mode.value !== 'IMAGE') writes.push(mode);
-  if (Number.isInteger(b.source)) writes.push({ path: stillPath(still, 'source'), value: b.source });
-  if (mode.value === 'IMAGE') writes.push(mode);
-  writes.push({ path: stillPath(still, 'rescale'), value: b.rescale || 'SCALE_TO_CAPABILITY' });
-  writes.push({ path: stillPath(still, 'label'), value: String(b.label || '') });
-  return writes;
-}
 
 const bgClaimPath = (source, out) => {
   const live = /^LIVE_(\d+)$/.exec(source);
@@ -939,9 +752,6 @@ function otherOutputUsing(store, source, screenId, set, outKey) {
 /** A background set's label write, cut to what the switcher keeps. */
 export const setLabelWrite = (screenId, set, label) =>
   ({ path: setLabelPath(screenId, set), value: String(label || '').slice(0, LABEL_MAX) });
-
-/** Empty a library slot: the vendor card's bin, pulsed. */
-export const libraryDeleteWrites = (slot) => pulse(libraryDeletePath(slot));
 
 /** A still's capacity helper format, staged in `preconfig/stills/new`. */
 export const stillFormatPath = (still) => preStillsNew('stillList', 'items', String(still), 'control', 'helper', 'pp', 'format');
