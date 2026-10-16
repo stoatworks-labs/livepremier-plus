@@ -1754,3 +1754,23 @@ committed, and Tab then left it at 6; ArrowUp while text stepped to 7;
 with the RS4's attributes. **Not run on 6.1.x** — 6.1.60's own copy of the
 component is unread, and nothing was typed into the RS4. If arrows stop
 stepping there with the plugin on, it steps natively after all.
+
+## Saves of one file at once (2026-10-16)
+
+Every save — cue stacks, settings, groups, names, the patch, the routers and
+each plugin's per-switcher document — wrote `<file>.<pid>.tmp` and renamed it
+into place. Two saves of one file in this process shared that name: the first
+rename took it, the second failed with ENOENT, and the file kept whichever
+document happened to be in it. Found retaking the README screenshots: three
+`__WRU.rename` calls in a row lost one PUT every run (`layer-names: PUT /:
+ENOENT … rename`). An operator renaming quickly, or a cue edit and a group
+edit landing together, would do the same.
+
+`writeJsonAtomic` now queues writes per file, gives each its own temporary
+name, and removes it if the write fails; every `StackStore` save and the
+plugin host's documents go through it. The queue is joined the moment a save
+is called, so nothing may be awaited before it — a `mkdir` in front let later
+saves overtake earlier ones (caught by its own test), which is why
+`createDir` is an option rather than a step. `test/storage.test.js` saves
+each kind five times at once and expects the last; through the demo, three
+renames in a row now all land.

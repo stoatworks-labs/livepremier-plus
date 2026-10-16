@@ -53,7 +53,7 @@
  * authors in docs/PLUGINS.md.
  */
 
-import { mkdir, readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join, extname, relative, isAbsolute, normalize } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -369,8 +369,9 @@ export async function createPluginHost({
       },
       async save(name, data, { perDevice = false, device: forDevice } = {}) {
         const where = file(name, perDevice, forDevice);
-        await mkdir(dir, { recursive: true });
-        await writeJsonAtomic(where, data);
+        /* No await before the write: it queues behind earlier saves of the
+           same file only if it asks straight away. See `writeJsonAtomic`. */
+        await writeJsonAtomic(where, data, { createDir: true });
       }
     });
   }

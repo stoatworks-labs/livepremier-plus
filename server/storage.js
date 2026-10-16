@@ -11,8 +11,8 @@
  * state, not from the page, but it ends up in a filename either way.
  */
 
-import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
-import { join } from 'node:path';
+import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
 
 /**
  * A device address as it appears in a filename: `names-10_0_0_5_80.json`.
@@ -32,12 +32,46 @@ export function safeDeviceKey(deviceKey) {
  * half of one: to a temporary file, renamed into place. A show laptop gets
  * closed abruptly, and a half-written stack that still parsed would be worse
  * than none.
+ *
+ * ⚠️ **Writes to one file queue behind each other, each with its own
+ * temporary name.** Every save used to write `<file>.<pid>.tmp`, so two saves
+ * of the same file in this process shared it: the first rename took it, the
+ * second failed with ENOENT, and which document was left on disk was down to
+ * timing. Three layer renames in a row lost one of their PUTs every time
+ * (found 2026-10-16). Queued, the last save asked for is the one kept; a save
+ * that fails cleans up after itself and does not hold up the next.
+ *
+ * A save takes its place in the queue the moment it is called, so nothing
+ * may be awaited before it — creating the directory included, which is why
+ * that is `createDir` here rather than a `mkdir` in front of the call. An
+ * await in front lets later saves overtake earlier ones, and the file ends on
+ * whichever came last out of `mkdir`.
  */
-export async function writeJsonAtomic(file, data) {
-  const tmp = `${file}.${process.pid}.tmp`;
-  await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-  await rename(tmp, file);
+const queues = new Map();
+let serial = 0;
+
+export function writeJsonAtomic(file, data, { createDir = false } = {}) {
+  const run = async () => {
+    if (createDir) await mkdir(dirname(file), { recursive: true });
+    const tmp = `${file}.${process.pid}.${++serial}.tmp`;
+    try {
+      await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
+      await rename(tmp, file);
+    } catch (err) {
+      await unlink(tmp).catch(() => {});
+      throw err;
+    }
+  };
+  const done = (queues.get(file) || Promise.resolve()).catch(() => {}).then(run);
+  queues.set(file, done);
+  /* Forget the queue once it is empty, or every file ever written stays a key. */
+  const forget = () => { if (queues.get(file) === done) queues.delete(file); };
+  done.then(forget, forget);
+  return done;
 }
+
+/** `writeJsonAtomic`, creating the directory first — inside the queue. */
+const writeJsonIn = (file, data) => writeJsonAtomic(file, data, { createDir: true });
 
 export class StackStore {
   /** @param {string} dir directory to keep stacks in; created on demand. */
@@ -63,8 +97,7 @@ export class StackStore {
   }
 
   async saveDevice(device) {
-    await mkdir(this.dir, { recursive: true });
-    await writeFile(join(this.dir, 'device.json'), JSON.stringify({ device }, null, 2), 'utf8');
+    await writeJsonIn(join(this.dir, 'device.json'), { device });
   }
 
   /**
@@ -86,11 +119,7 @@ export class StackStore {
   }
 
   async saveSettings(settings) {
-    await mkdir(this.dir, { recursive: true });
-    const file = join(this.dir, 'settings.json');
-    const tmp = `${file}.${process.pid}.tmp`;
-    await writeFile(tmp, JSON.stringify(settings, null, 2), 'utf8');
-    await rename(tmp, file);
+    await writeJsonIn(join(this.dir, 'settings.json'), settings);
   }
 
   /**
@@ -141,11 +170,7 @@ export class StackStore {
   }
 
   async _writeAtomic(name, data) {
-    await mkdir(this.dir, { recursive: true });
-    const file = join(this.dir, name);
-    const tmp = `${file}.${process.pid}.tmp`;
-    await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-    await rename(tmp, file);
+    await writeJsonIn(join(this.dir, name), data);
   }
 
   _file(deviceKey, kind = 'stack') {
@@ -172,11 +197,7 @@ export class StackStore {
    * so the write lands on a temporary file and is renamed into place.
    */
   async save(deviceKey, data) {
-    await mkdir(this.dir, { recursive: true });
-    const file = this._file(deviceKey);
-    const tmp = `${file}.${process.pid}.tmp`;
-    await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-    await rename(tmp, file);
+    await writeJsonIn(this._file(deviceKey), data);
   }
 
   /*
@@ -197,11 +218,7 @@ export class StackStore {
   }
 
   async saveGroups(deviceKey, data) {
-    await mkdir(this.dir, { recursive: true });
-    const file = this._file(deviceKey, 'groups');
-    const tmp = `${file}.${process.pid}.tmp`;
-    await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-    await rename(tmp, file);
+    await writeJsonIn(this._file(deviceKey, 'groups'), data);
   }
 
   /*
@@ -221,10 +238,6 @@ export class StackStore {
   }
 
   async saveNames(deviceKey, data) {
-    await mkdir(this.dir, { recursive: true });
-    const file = this._file(deviceKey, 'names');
-    const tmp = `${file}.${process.pid}.tmp`;
-    await writeFile(tmp, JSON.stringify(data, null, 2), 'utf8');
-    await rename(tmp, file);
+    await writeJsonIn(this._file(deviceKey, 'names'), data);
   }
 }
