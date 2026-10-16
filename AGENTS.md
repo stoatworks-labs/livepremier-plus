@@ -1498,7 +1498,11 @@ no benefit. Read `wru` as "the panels".
   ⚠️ **Nor is the empty shape only a simulator's:** an Aquilon RS4 on 6.1.60
   (2026-10-16), screens on air, reports it exactly. `inspectMapping` calls it
   `unreported` and the panel words it from the device's own `isSimulated` —
-  never from the shape, or a live switcher gets called a simulator.
+  never from the shape, or a live switcher gets called a simulator. It is
+  not the store's doing: over AWJ `$vpuMixer` answers E12 and every scaler
+  reads its enum defaults, and the 6.1.60 page never reads `vpuLayerList`
+  itself. What 6.1.x reports is per screen (`readScreenLayers`: layer sizes,
+  staged room), and the panel shows that table under the explanation.
 - **There is a 6.1.x simulator, and it is the RS4's page.** The AW LivePremier
   Simulator's package manager (the version button on a session) installs
   older firmware beside 6.2.73; 6.1.60 is installed on Allan's Mac as Session 2

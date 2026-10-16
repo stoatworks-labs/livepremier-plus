@@ -30,11 +30,19 @@ import { panel } from '../../src/ui/shell.js';
 import { whyNot } from '../../src/core/platform.js';
 import { screenColour } from '../../src/ui/theme.js';
 import {
-  readSide, diffSides, inspectMapping, layerLabel, layerShort, stackVpus, screenOutputLinks,
+  readSide, diffSides, inspectMapping, readScreenStatus, readScreenLayers,
+  layerLabel, layerShort, stackVpus, screenOutputLinks,
   LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY
 } from '../../src/core/vpu.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** A screen's layers by size, in the order they first appear: "4K ×2", "DUAL". */
+function layerSizes(layers) {
+  const counts = new Map();
+  for (const { capability } of layers) counts.set(capability, (counts.get(capability) || 0) + 1);
+  return [...counts].map(([c, n]) => (n > 1 ? `${c} ×${n}` : c)).join(', ') || '—';
+}
 
 const CELL = 26;
 const FIELD = LINKS_PER_VPU * CELL;
@@ -85,7 +93,17 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
     }
 
     const side = readSide(store, view.which);
-    if (!side) return panel({ toolbar: title(), body: unavailable(store, here) });
+    if (!side) {
+      /* No mixer map is not no figures. A box that reports none still says
+         what each screen spends and, staged, what room it has left; that is
+         the whole of what a 6.1.60 Aquilon says about its VPU. */
+      const screens = { screenStatus: readScreenStatus(store, { which: view.which }) };
+      const inService = Object.keys(screens.screenStatus).length > 0;
+      return panel({
+        toolbar: title(),
+        body: h('div', {}, unavailable(store, here, inService), screenTable(store, screens))
+      });
+    }
 
     const diffs = diffSides(store);
     const changed = new Set(
@@ -115,8 +133,12 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
    * Aquilon RS4 at 6.1.60 with its screens on air, so which sentence is true
    * is the device's to say (`isSimulated`), never the store shape's. Telling
    * an operator their switcher is a simulator is the one wrong answer here.
+   *
+   * `inService` says the screen table follows, so a box that reports no
+   * allocation is not told there is nothing to look at when its screens'
+   * own figures are right below.
    */
-  function unavailable(store, here) {
+  function unavailable(store, here, inService = false) {
     const info = inspectMapping(store, view.which);
     const scalers = info.scalers
       ? `${info.scalers} scaler${info.scalers === 1 ? '' : 's'} in a vpuLayerList, every one switched off,`
@@ -135,8 +157,9 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
           ? [
               'This firmware does not report its VPU allocation',
               `${box} reports ${scalers} and no vpuMixerList. The VPU is there; this firmware ` +
-              'just does not say how it is allocated, so there is nothing here to draw — the ' +
-              'panel is working.'
+              'just does not say how it is allocated, so there is no link grid to draw — the ' +
+              'panel is working.' +
+              (inService ? ' What it does report is each screen’s share, below.' : '')
             ]
           : [
               'No VPU allocation reported',
@@ -537,6 +560,11 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
     const entries = Object.entries(side.screenStatus);
     if (!entries.length) return null;
     const staged = view.which === 'new';
+    const layers = readScreenLayers(store, { which: view.which });
+    /* Each column only where a screen has the figure: "Room for" is the
+       staged side's alone, and a trimmed capture has no layer figures. */
+    const sized = entries.some(([id]) => layers[id] && layers[id].layers.length);
+    const roomy = staged && entries.some(([id]) => layers[id] && layers[id].room.length);
 
     return h('div', { class: 'aw-margin-bottom-large' },
       sectionTitle('Screens', h('span', {
@@ -544,11 +572,13 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
         text: staged ? 'staged configuration' : 'running configuration'
       })),
       h('table', { class: 'wru-cuelist' },
-        h('thead', {}, h('tr', {}, ...['Screen', 'Mode', 'Outputs', 'Used', 'Remaining', 'Layers', 'Optimized', '']
+        h('thead', {}, h('tr', {}, ...['Screen', 'Mode', 'Outputs', 'Used', 'Remaining', 'Layers',
+          ...(sized ? ['Sizes'] : []), ...(roomy ? ['Room for'] : []), 'Optimized', '']
           .map((t) => h('th', { text: t })))),
         h('tbody', {}, ...entries.map(([id, st]) => {
           const exceeding = Number(st.exceedingOutputCapabilities || 0)
             + Number(st.exceedingLayerCapabilities || 0);
+          const mine = layers[id] || { layers: [], room: [] };
           return h('tr', { class: 'wru-cue' },
             h('td', {}, h('span', { class: 'wru-swatch aw-margin-right-small', style: { background: screenColour(id) } }), id),
             h('td', { class: 'aw-text-secondary', text: st.mode ?? '—' }),
@@ -556,6 +586,16 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
             h('td', { text: st.usedOutputCapabilities ?? '—' }),
             h('td', { text: st.remainingOutputCapabilities ?? '—' }),
             h('td', { text: st.layerCount ?? '—' }),
+            sized ? h('td', {
+              text: layerSizes(mine.layers),
+              title: mine.layers.map((l) => `${layerLabel(l.layer)}: ${l.capability}`).join('\n') || null
+            }) : null,
+            roomy ? h('td', {
+              text: mine.room.map((r) => `${r.layers} ${r.capability}`).join(' · ') || 'none',
+              title: mine.room.length
+                ? 'With a mask: ' + mine.room.map((r) => `${r.withMask} ${r.capability}`).join(' · ')
+                : null
+            }) : null,
             h('td', { text: st.isOptimized ? 'yes' : 'no' }),
             h('td', {}, exceeding
               ? h('span', { class: 'wru-tag wru-warn', text: 'exceeds by ' + exceeding })

@@ -113,6 +113,45 @@ export function readScreenStatus(store, { which = 'current' } = {}) {
 }
 
 /**
+ * What each screen in service spends, layer by layer, and what room it has
+ * left — the figures a box reports whether or not it reports a mixer map.
+ *
+ *   preconfig/resources/<side>/screenList/items/S<n>/layerList/items/<k>/status/pp/capability
+ *   preconfig/resources/new/screenList/items/S<n>/layerCapabilityList/items/<capa>
+ *     /status/pp/{remainingLayerCapabilities,remainingLayerWithMaskCapabilities}
+ *
+ * An Aquilon RS4 on 6.1.60 (2026-10-16) answers E12 for `$vpuMixer` and leaves
+ * its 32 scalers at their defaults, over AWJ as much as in the store, so this
+ * is all it says about its VPU: S1 two 4K layers, room for 15 more DUAL, 7 4K
+ * or 3 5K. `room` is the staged side's alone, like the other "would it fit"
+ * figures, and keeps the device's order. Every screen in service reported the
+ * same room, at two reads hours apart, so it is the box's pool as seen from
+ * that screen rather than a share held for it. A capability with no room left is
+ * dropped rather than named: the RS4 lists one called `3` that is always 0,
+ * and nothing here knows what it is.
+ */
+export function readScreenLayers(store, { which = 'current' } = {}) {
+  const base = screenResources(which);
+  const out = {};
+  for (const id of Object.keys(readScreenStatus(store, { which }))) {
+    const screen = [...base, 'items', id];
+    const layers = [];
+    for (const key of store.itemKeys([...screen, 'layerList'])) {
+      const capability = (store.get([...screen, 'layerList', 'items', key, 'status', 'pp']) || {}).capability;
+      if (capability && capability !== 'OFF') layers.push({ layer: key, capability });
+    }
+    const room = [];
+    for (const capability of store.itemKeys([...screen, 'layerCapabilityList'])) {
+      const pp = store.get([...screen, 'layerCapabilityList', 'items', capability, 'status', 'pp']) || {};
+      const count = Number(pp.remainingLayerCapabilities || 0);
+      if (count > 0) room.push({ capability, layers: count, withMask: Number(pp.remainingLayerWithMaskCapabilities || 0) });
+    }
+    out[id] = { layers, room };
+  }
+  return out;
+}
+
+/**
  * Every output, and which screen, region and plug it is — the header over the
  * grid's columns, in the shape `screenOutputLinks` reads.
  *

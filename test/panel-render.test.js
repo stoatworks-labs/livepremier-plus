@@ -255,7 +255,14 @@ test('the VPU Map’s empty state names a simulator as one and hardware as hardw
       assert.match(hw, /This firmware does not report its VPU allocation/, which);
       assert.match(hw, /AQUILON NLC_RS4 on firmware 6\.1\.60 reports 32 scalers/, which);
       assert.doesNotMatch(hw, /simulator/i, `${which}: hardware is never called a simulator`);
+      /* No mixer map is not nothing to show: the screens' own figures follow. */
+      assert.match(hw, /each screen’s share, below/, which);
+      assert.match(hw, /S1FREESTYLE.*4K ×2/, which);
+      assert.match(hw, /S3FREESTYLE.*DUAL/, which);
+      assert.doesNotMatch(hw, /DISABLED/, `${which}: a DISABLED screen is left out`);
     }
+    assert.doesNotMatch(draw(rs4()), /Room for/, 'room is a staged figure');
+    assert.match(draw(rs4(), { which: 'new' }), /Room for.*15 DUAL · 7 4K · 3 5K/);
 
     /* No identity to go on: say what the mapping holds, and accuse nobody. */
     const unknown = draw(rs4(), { platform: null });

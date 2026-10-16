@@ -277,6 +277,12 @@ the documentation you've already got:
 Preconfig, and a count says how many changes applying it would make, including a layer moving onto
 different links with every other value identical, which still counts as a change.
 
+Under the grid, **Screens** lists what each screen spends: outputs, output capabilities, its layers
+and their sizes (4K, DUAL and so on), and on the staged side how many more of each size there's room
+for. On firmware 6.1.60 that table is all you get. The switcher doesn't say how its VPU is
+allocated, not to this page and not over its own protocol either, so there's no grid to draw and
+the panel tells you that rather than pretending there's no VPU.
+
 It only reads; nothing on this page writes to the switcher. It's LivePremier only: a Midra 4K or
 Alta 4K has fixed processing rather than allocated mixers, so there's no budget to draw and the
 entry isn't there.
@@ -1490,5 +1496,5 @@ contain it.
 | **The Speed Editor does nothing** | DaVinci Resolve is still running, or the panel is plugged into a different machine from the one the app runs on, or another page is driving it (**Take over**), or the device host is not running (see the **Device host** card in Preconfig ▸ LivePremier Plus), or this is the Docker image, which has no USB. |
 | **A console command means the wrong thing** | The grammar is mynah's; the fix is there. |
 | **Arithmetic does not work in a field** | It is not one the vendor marks numeric with a range — the canvas zoom box, for one, has none. |
-| **The VPU panel says there is nothing to draw** | A simulator has no VPU, and LivePremier firmware 6.1.60 does not report its VPU allocation. The panel says which. Either way it is correct, not a failure. |
+| **The VPU panel says there is nothing to draw** | A simulator has no VPU, and LivePremier firmware 6.1.60 does not report its VPU allocation. The panel says which, and on 6.1.60 shows each screen's layers and the room left instead. Either way it is correct, not a failure. |
 | **The demo refuses to start** | It only runs against loopback, on purpose. |

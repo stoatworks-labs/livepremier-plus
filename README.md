@@ -1462,7 +1462,8 @@ It isn't only a simulator's quirk, though: an Aquilon RS4 on firmware 6.1.60 rep
 same shape with its screens on air (and so does Analog Way's 6.1.60 simulator, where the panel says
 it's a simulator). So the panel asks the device whether it's a simulator
 (`isSimulated`) and says so, or says that this firmware doesn't report its VPU allocation, instead
-of drawing an empty chassis or blaming a simulator that isn't there. Not every
+of drawing an empty chassis or blaming a simulator that isn't there. On 6.1.60 it then shows what
+the firmware does report: each screen's layers by size and, staged, the room left for more. Not every
 simulator does it, mind: another 6.2.73, running under Wine, reports a fully fitted C MAX (64
 mixers, two of them carrying S1's NATIVE layer), and the live suite checks the panel's reading of
 that one mixer by mixer.

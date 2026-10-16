@@ -1803,3 +1803,38 @@ that morning, so the vendor page is the hardware's, byte for byte.
   vpuLayerList, every one switched off, and no vpuMixerList", captioned
   `AQUILON · NLC_CPLUS · 6.1.60 · simulator` — the wording ae6aa87 could only
   test offline, because the 6.2.73 simulator reports a fitted C MAX.
+
+## The VPU Map on 6.1.60: what the RS4 does say (2026-10-16)
+
+Allan: "no VPU" on the live Aquilon. Two things. His installed app is 0.17.2,
+which predates ae6aa87, so it still told the RS4 the simulator sentence ("the
+simulator simply has no VPU"). And ae6aa87's sentence, though no longer wrong,
+left the panel empty on a box with three screens on air. Read-only throughout:
+AWJ `get` through the field kit's `AwjClient` and one `GET /api/stores/device`.
+
+- **The mixer map is absent on the wire too, not only in the page's store.**
+  AWJ at 17:54: `$vpuMixer` answers E12; all 32 `PROC_<1-4>_SCALER_<1-8>` on
+  both sides read `isAvailable`/`isEnabled` false, `capability` OFF,
+  `usedInScreen` S1, `usedInLayer` NATIVE, every `usedOnOutPipe` NONE — the
+  enums' first values, never set; all 64 pipes `isUsed` false. The 6.1.60
+  bundle mentions `vpuLayerList` and `pipeList` only in its generated
+  reducers: no component of the vendor's own page reads them.
+- **What 6.1.x does report is per screen.** `preconfig/resources/<side>/
+  screenList/items/S<n>/layerList/items/<k>/status/pp/capability` (`4K`,
+  `DUAL`, `OFF`) and, staged only, `layerCapabilityList/items/<capa>/status/
+  pp/{remainingLayerCapabilities,remainingLayerWithMaskCapabilities}`. Every
+  screen in service reported the same room — 15 DUAL · 7 4K · 3 5K on S1-S3
+  at 11:33, 19 · 9 · 4 on S1 and S3 at 17:59 — so it is the box's pool seen
+  from each screen, not a share held for it. A capability called `3` is
+  listed and always 0; not named, since nothing here knows what it is.
+- **The box changed between reads:** at 17:59 S2 was DISABLED and S1 spent
+  two output capabilities rather than one. The fixture keeps the 11:32 read
+  it was cut from, now with each side's `screenList` (statuses for all 24
+  screens, layers only where switched on, the staged room).
+- **Change:** `readScreenLayers` in `core/vpu.js`; the panel shows the Screens
+  table under its explanation whenever there is no mixer map and a screen is
+  in service, with **Sizes** ("4K ×2") and, staged, **Room for**. Each column
+  only where some screen has the figure, so the trimmed Aquilon C capture
+  draws as before. Rendered against the 17:59 live store (S1 4K ×2, S3 DUAL,
+  room 19 DUAL · 9 4K · 4 5K) and in the panel bench with the RS4's own
+  stylesheet. Not released: the installed app stays on 0.17.2 until it is.

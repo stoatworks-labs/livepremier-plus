@@ -22,6 +22,7 @@ import { toAwj, CMD, screenAuxControl, ROOT } from '../src/core/paths.js';
 import { DeviceStore } from '../src/core/device-store.js';
 import {
   readMixers, readSide, diffSides, inspectMapping, layerLabel, layerShort, readOutputs,
+  readScreenStatus, readScreenLayers,
   summarise, parseMixerId, stackVpus, screenOutputLinks, MIXER_PROPS, LINKS_PER_VPU
 } from '../src/core/vpu.js';
 import { CueStack, ACTION_KINDS, toTenths, SETTLE_MS } from '../src/core/cuestack.js';
@@ -314,6 +315,27 @@ test('an Aquilon RS4 on 6.1.60 has the simulator’s shape, on both sides', () =
     assert.equal(info.scalers, 32, which);
     assert.equal(readSide(store, which), null, which);
   }
+});
+
+test('an Aquilon RS4 on 6.1.60 still says what each screen spends', () => {
+  /* The same store read: S1 and S2 two 4K layers each, S3 one DUAL, the
+     other 21 screens DISABLED. The staged side adds the room each screen has
+     left by capability; the RS4 lists one called `3`, always 0, and nothing
+     here knows what it is, so it is not named. */
+  const store = storeFrom(fixture('aquilon-rs4-6.1.60-resources.json'));
+  for (const which of ['current', 'new']) {
+    assert.deepEqual(Object.keys(readScreenStatus(store, { which })), ['S1', 'S2', 'S3'], which);
+    const screens = readScreenLayers(store, { which });
+    assert.deepEqual(Object.keys(screens), ['S1', 'S2', 'S3'], which);
+    assert.deepEqual(screens.S1.layers, [{ layer: '1', capability: '4K' }, { layer: '2', capability: '4K' }], which);
+    assert.deepEqual(screens.S3.layers, [{ layer: '1', capability: 'DUAL' }], which);
+  }
+  assert.deepEqual(readScreenLayers(store, { which: 'current' }).S1.room, [], 'room is a staged figure');
+  assert.deepEqual(readScreenLayers(store, { which: 'new' }).S1.room, [
+    { capability: 'DUAL', layers: 15, withMask: 7 },
+    { capability: '4K', layers: 7, withMask: 3 },
+    { capability: '5K', layers: 3, withMask: 0 }
+  ]);
 });
 
 test('a vpuLayerList with a scaler switched on is not called unreported', () => {
