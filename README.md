@@ -558,15 +558,15 @@ sidecar's `TS_SERVE_CONFIG`), or run it from the Linux package on the appliance 
 
 ## Download
 
-**[v0.17.3](https://github.com/stoatworks-labs/livepremier-plus/releases/tag/v0.17.3)** — prebuilt for macOS, Windows and Linux. Pick your platform:
+**[v0.17.4](https://github.com/stoatworks-labs/livepremier-plus/releases/tag/v0.17.4)** — prebuilt for macOS, Windows and Linux. Pick your platform:
 
 <details>
 <summary><b>macOS</b> — Universal (Apple Silicon + Intel)</summary>
 
 | Build | Download | Size |
 | --- | --- | --- |
-| Universal (Apple Silicon + Intel) · .dmg disk image | [`livepremier-plus-0.17.3-macos-universal.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.3/livepremier-plus-0.17.3-macos-universal.dmg) | 83 MB |
-| Universal (Apple Silicon + Intel) · .pkg installer | [`livepremier-plus-0.17.3-macos-universal.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.3/livepremier-plus-0.17.3-macos-universal.pkg) | 83 MB |
+| Universal (Apple Silicon + Intel) · .dmg disk image | [`livepremier-plus-0.17.4-macos-universal.dmg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.4/livepremier-plus-0.17.4-macos-universal.dmg) | 83 MB |
+| Universal (Apple Silicon + Intel) · .pkg installer | [`livepremier-plus-0.17.4-macos-universal.pkg`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.4/livepremier-plus-0.17.4-macos-universal.pkg) | 83 MB |
 
 </details>
 
@@ -575,7 +575,7 @@ sidecar's `TS_SERVE_CONFIG`), or run it from the Linux package on the appliance 
 
 | Build | Download | Size |
 | --- | --- | --- |
-| x64 · .exe installer | [`LivePremier.Plus_0.17.3_x64-setup.exe`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.3/LivePremier.Plus_0.17.3_x64-setup.exe) | 26 MB |
+| x64 · .exe installer | [`LivePremier.Plus_0.17.4_x64-setup.exe`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.4/LivePremier.Plus_0.17.4_x64-setup.exe) | 26 MB |
 
 </details>
 
@@ -584,8 +584,8 @@ sidecar's `TS_SERVE_CONFIG`), or run it from the Linux package on the appliance 
 
 | Build | Download | Size |
 | --- | --- | --- |
-| x64 · .deb package (Debian/Ubuntu) | [`LivePremier.Plus_0.17.3_amd64.deb`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.3/LivePremier.Plus_0.17.3_amd64.deb) | 51 MB |
-| x64 · .rpm package (Fedora/RHEL) | [`LivePremier.Plus-0.17.3-1.x86_64.rpm`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.3/LivePremier.Plus-0.17.3-1.x86_64.rpm) | 51 MB |
+| x64 · .deb package (Debian/Ubuntu) | [`LivePremier.Plus_0.17.4_amd64.deb`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.4/LivePremier.Plus_0.17.4_amd64.deb) | 51 MB |
+| x64 · .rpm package (Fedora/RHEL) | [`LivePremier.Plus-0.17.4-1.x86_64.rpm`](https://github.com/stoatworks-labs/livepremier-plus/releases/download/v0.17.4/LivePremier.Plus-0.17.4-1.x86_64.rpm) | 51 MB |
 
 </details>
 
