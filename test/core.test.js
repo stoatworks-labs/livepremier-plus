@@ -22,7 +22,7 @@ import { toAwj, CMD, screenAuxControl, ROOT } from '../src/core/paths.js';
 import { DeviceStore } from '../src/core/device-store.js';
 import {
   readMixers, readSide, diffSides, inspectMapping, layerLabel, layerShort, readOutputs,
-  readScreenStatus, readScreenLayers,
+  readScreenStatus, readScreenLayers, sharedRoom,
   summarise, parseMixerId, stackVpus, screenOutputLinks, MIXER_PROPS, LINKS_PER_VPU
 } from '../src/core/vpu.js';
 import { CueStack, ACTION_KINDS, toTenths, SETTLE_MS } from '../src/core/cuestack.js';
@@ -319,9 +319,9 @@ test('an Aquilon RS4 on 6.1.60 has the simulator’s shape, on both sides', () =
 
 test('an Aquilon RS4 on 6.1.60 still says what each screen spends', () => {
   /* The same store read: S1 and S2 two 4K layers each, S3 one DUAL, the
-     other 21 screens DISABLED. The staged side adds the room each screen has
-     left by capability; the RS4 lists one called `3`, always 0, and nothing
-     here knows what it is, so it is not named. */
+     other 21 screens DISABLED. The staged side adds the room left by
+     capability; the RS4 lists `3` (a capacity-3 layer, which 6.1.60 does not
+     offer) at 0, so it is not named. */
   const store = storeFrom(fixture('aquilon-rs4-6.1.60-resources.json'));
   for (const which of ['current', 'new']) {
     assert.deepEqual(Object.keys(readScreenStatus(store, { which })), ['S1', 'S2', 'S3'], which);
@@ -330,12 +330,29 @@ test('an Aquilon RS4 on 6.1.60 still says what each screen spends', () => {
     assert.deepEqual(screens.S1.layers, [{ layer: '1', capability: '4K' }, { layer: '2', capability: '4K' }], which);
     assert.deepEqual(screens.S3.layers, [{ layer: '1', capability: 'DUAL' }], which);
   }
-  assert.deepEqual(readScreenLayers(store, { which: 'current' }).S1.room, [], 'room is a staged figure');
+  assert.equal(readScreenLayers(store, { which: 'current' }).S1.room, null, 'room is a staged figure');
   assert.deepEqual(readScreenLayers(store, { which: 'new' }).S1.room, [
     { capability: 'DUAL', layers: 15, withMask: 7 },
     { capability: '4K', layers: 7, withMask: 3 },
     { capability: '5K', layers: 3, withMask: 0 }
   ]);
+});
+
+test('room every screen agrees on is the box’s pool, and only then', () => {
+  /* S1-S3 report the same room on the RS4, at two reads hours apart: it is
+     the box's spare as seen from each screen. That pooling is observed, not
+     documented, so screens that disagree get no single figure. */
+  const store = storeFrom(fixture('aquilon-rs4-6.1.60-resources.json'));
+  const staged = readScreenLayers(store, { which: 'new' });
+  assert.deepEqual(sharedRoom(staged), staged.S1.room);
+  assert.equal(sharedRoom(readScreenLayers(store, { which: 'current' })), null, 'no figure is not no room');
+
+  const full = { S1: { room: [] }, S2: { room: [] } };
+  assert.deepEqual(sharedRoom(full), [], 'a full box is a figure: none');
+  const apart = { S1: { room: staged.S1.room }, S2: { room: [{ capability: 'DUAL', layers: 1, withMask: 0 }] } };
+  assert.equal(sharedRoom(apart), null);
+  assert.deepEqual(sharedRoom({ S1: { room: staged.S1.room }, S2: { room: null } }), staged.S1.room,
+    'a screen with no figure does not veto the others');
 });
 
 test('a vpuLayerList with a scaler switched on is not called unreported', () => {

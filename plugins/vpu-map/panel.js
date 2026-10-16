@@ -30,7 +30,7 @@ import { panel } from '../../src/ui/shell.js';
 import { whyNot } from '../../src/core/platform.js';
 import { screenColour } from '../../src/ui/theme.js';
 import {
-  readSide, diffSides, inspectMapping, readScreenStatus, readScreenLayers,
+  readSide, diffSides, inspectMapping, readScreenStatus, readScreenLayers, sharedRoom,
   layerLabel, layerShort, stackVpus, screenOutputLinks,
   LINKS_PER_VPU, SCALING_ENGINE_BOUNDARY
 } from '../../src/core/vpu.js';
@@ -561,10 +561,15 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
     if (!entries.length) return null;
     const staged = view.which === 'new';
     const layers = readScreenLayers(store, { which: view.which });
-    /* Each column only where a screen has the figure: "Room for" is the
-       staged side's alone, and a trimmed capture has no layer figures. */
+    /* Each column only where a screen has the figure: room is the staged
+       side's alone, and a trimmed capture has no layer figures. Room every
+       screen agrees on is the box's pool, said once under the table — a
+       column repeating it on every row invites adding it up. */
     const sized = entries.some(([id]) => layers[id] && layers[id].layers.length);
-    const roomy = staged && entries.some(([id]) => layers[id] && layers[id].room.length);
+    const pool = staged ? sharedRoom(layers) : null;
+    const roomy = staged && !pool && entries.some(([id]) => layers[id] && layers[id].room && layers[id].room.length);
+    const roomText = (room) => room.map((r) => `${r.layers} ${r.capability}`).join(' · ') || 'none';
+    const maskText = (room) => room.map((r) => `${r.withMask} ${r.capability}`).join(' · ');
 
     return h('div', { class: 'aw-margin-bottom-large' },
       sectionTitle('Screens', h('span', {
@@ -578,7 +583,7 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
         h('tbody', {}, ...entries.map(([id, st]) => {
           const exceeding = Number(st.exceedingOutputCapabilities || 0)
             + Number(st.exceedingLayerCapabilities || 0);
-          const mine = layers[id] || { layers: [], room: [] };
+          const mine = layers[id] || { layers: [], room: null };
           return h('tr', { class: 'wru-cue' },
             h('td', {}, h('span', { class: 'wru-swatch aw-margin-right-small', style: { background: screenColour(id) } }), id),
             h('td', { class: 'aw-text-secondary', text: st.mode ?? '—' }),
@@ -591,10 +596,8 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
               title: mine.layers.map((l) => `${layerLabel(l.layer)}: ${l.capability}`).join('\n') || null
             }) : null,
             roomy ? h('td', {
-              text: mine.room.map((r) => `${r.layers} ${r.capability}`).join(' · ') || 'none',
-              title: mine.room.length
-                ? 'With a mask: ' + mine.room.map((r) => `${r.withMask} ${r.capability}`).join(' · ')
-                : null
+              text: mine.room ? roomText(mine.room) : '—',
+              title: mine.room && mine.room.length ? 'With a mask: ' + maskText(mine.room) : null
             }) : null,
             h('td', { text: st.isOptimized ? 'yes' : 'no' }),
             h('td', {}, exceeding
@@ -602,7 +605,12 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
               : (st.remainingOutputCapabilities !== undefined
                   ? h('span', { class: 'wru-tag wru-tag--good', text: 'fits' })
                   : null)));
-        }))));
+        }))),
+      pool ? h('div', {
+        class: 'aw-font-body-2 aw-text-secondary aw-margin-top-small',
+        text: 'Room left on the box, shared by every screen: ' + roomText(pool) +
+          (pool.length ? ' (with a mask: ' + maskText(pool) + ')' : '')
+      }) : null);
   }
 
   function changeList(diffs) {

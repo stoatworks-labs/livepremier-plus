@@ -124,11 +124,14 @@ export function readScreenStatus(store, { which = 'current' } = {}) {
  * its 32 scalers at their defaults, over AWJ as much as in the store, so this
  * is all it says about its VPU: S1 two 4K layers, room for 15 more DUAL, 7 4K
  * or 3 5K. `room` is the staged side's alone, like the other "would it fit"
- * figures, and keeps the device's order. Every screen in service reported the
- * same room, at two reads hours apart, so it is the box's pool as seen from
- * that screen rather than a share held for it. A capability with no room left is
- * dropped rather than named: the RS4 lists one called `3` that is always 0,
- * and nothing here knows what it is.
+ * figures, and keeps the device's order; it is `null` where the screen reports
+ * none (the running side, a trimmed capture), so "no figure" never reads as
+ * "no room". Every screen in service reported the same room, at two reads hours
+ * apart, so it is the box's pool as seen from that screen rather than a share
+ * held for it — `sharedRoom` says when that holds. A capability with no room
+ * left is dropped: the RS4 lists `3` at 0 every time. That is a capacity-3
+ * layer (in the model's LAYER_CAPABILITIES the position is the capacity), and
+ * 6.1.60 does not offer one — its `layerCapabilityValidity` is DUAL, 4K, 5K.
  */
 export function readScreenLayers(store, { which = 'current' } = {}) {
   const base = screenResources(which);
@@ -140,8 +143,9 @@ export function readScreenLayers(store, { which = 'current' } = {}) {
       const capability = (store.get([...screen, 'layerList', 'items', key, 'status', 'pp']) || {}).capability;
       if (capability && capability !== 'OFF') layers.push({ layer: key, capability });
     }
-    const room = [];
-    for (const capability of store.itemKeys([...screen, 'layerCapabilityList'])) {
+    const capabilities = store.itemKeys([...screen, 'layerCapabilityList']);
+    const room = capabilities.length ? [] : null;
+    for (const capability of capabilities) {
       const pp = store.get([...screen, 'layerCapabilityList', 'items', capability, 'status', 'pp']) || {};
       const count = Number(pp.remainingLayerCapabilities || 0);
       if (count > 0) room.push({ capability, layers: count, withMask: Number(pp.remainingLayerWithMaskCapabilities || 0) });
@@ -149,6 +153,21 @@ export function readScreenLayers(store, { which = 'current' } = {}) {
     out[id] = { layers, room };
   }
   return out;
+}
+
+/**
+ * The room every screen in service agrees on, or null.
+ *
+ * Null when no screen reports room, and when two screens report different
+ * figures: the pooling is read off two observations of one box, not
+ * documented, so a box that disagrees is shown screen by screen rather than
+ * summed up as one figure that would be wrong for some of them.
+ */
+export function sharedRoom(screens) {
+  const rooms = Object.values(screens).map((s) => s.room).filter((r) => r !== null);
+  if (!rooms.length) return null;
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  return rooms.every((r) => same(r, rooms[0])) ? rooms[0] : null;
 }
 
 /**

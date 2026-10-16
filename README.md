@@ -170,7 +170,10 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
-> interleaved output links, and a staged preconfig that differs from the running one.
+> interleaved output links, and a staged preconfig that differs from the running one. It has
+> also been read from a live **Aquilon RS4 on firmware 6.1.60**, which reports no mixer map at
+> all, not even over its own protocol; there the panel shows each screen's layers and the room
+> left on the box instead. Both were read only, never written to.
 >
 > **The Edit page was driven on a simulator on 2026-09-22**, and what it claims was measured
 > rather than taken on trust. All three of S1's preset buffers were read over AWJ before and

@@ -1826,7 +1826,9 @@ AWJ `get` through the field kit's `AwjClient` and one `GET /api/stores/device`.
   screen in service reported the same room — 15 DUAL · 7 4K · 3 5K on S1-S3
   at 11:33, 19 · 9 · 4 on S1 and S3 at 17:59 — so it is the box's pool seen
   from each screen, not a share held for it. A capability called `3` is
-  listed and always 0; not named, since nothing here knows what it is.
+  listed and always 0: a capacity-3 layer (the model's LAYER_CAPABILITIES —
+  the position is the capacity), which 6.1.60 does not offer
+  (`layerCapabilityValidity` is DUAL, 4K, 5K). Dropped, as any 0 is.
 - **The box changed between reads:** at 17:59 S2 was DISABLED and S1 spent
   two output capabilities rather than one. The fixture keeps the 11:32 read
   it was cut from, now with each side's `screenList` (statuses for all 24
@@ -1838,3 +1840,10 @@ AWJ `get` through the field kit's `AwjClient` and one `GET /api/stores/device`.
   draws as before. Rendered against the 17:59 live store (S1 4K ×2, S3 DUAL,
   room 19 DUAL · 9 4K · 4 5K) and in the panel bench with the RS4's own
   stylesheet. Released in 0.17.3 the same evening.
+- **Room is said once** (folded into 0.17.3 before its build): a Room for
+  column repeating the same figure on every row invited adding it up.
+  `sharedRoom` returns the room every screen in service agrees on, and the
+  panel puts it under the table as the box's, mask figures included. The
+  pooling is observed, not documented, so screens that disagree keep a
+  per-screen column. `room` is now `null` where a screen reports none, so a
+  trimmed capture or the running side never reads as a full box.

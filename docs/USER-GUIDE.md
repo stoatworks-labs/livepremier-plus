@@ -75,7 +75,10 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 > store mirrors live. Both are verified through this proxy against **LivePremier Simulator
 > 6.2.73**, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
-> interleaved output links, and a staged preconfig that differs from the running one.
+> interleaved output links, and a staged preconfig that differs from the running one. It has
+> also been read from a live **Aquilon RS4 on firmware 6.1.60**, which reports no mixer map at
+> all, not even over its own protocol; there the panel shows each screen's layers and the room
+> left on the box instead. Both were read only, never written to.
 >
 > **Midra 4K and Alta 4K (QuickVu, Pulse, Eikos, QuickMatrix, Zenith 100/200) have been supported
 > since 0.6.0** for the Timeline, Console, Memories, Layer and Pitch Compensation, and since
@@ -282,9 +285,11 @@ the documentation you've already got:
 Preconfig, and a count says how many changes applying it would make, including a layer moving onto
 different links with every other value identical, which still counts as a change.
 
-Under the grid, **Screens** lists what each screen spends: outputs, output capabilities, its layers
-and their sizes (4K, DUAL and so on), and on the staged side how many more of each size there's room
-for. On firmware 6.1.60 that table is all you get. The switcher doesn't say how its VPU is
+Under the grid, **Screens** lists what each screen spends: outputs, output capabilities, and its
+layers and their sizes (4K, DUAL and so on). On the staged side it also says how many more layers of
+each size the box has room for. That figure is the whole box's, so it's given once rather than on
+every row, where it would invite adding up; if the screens ever report different figures, each gets
+its own. On firmware 6.1.60 that table is all you get. The switcher doesn't say how its VPU is
 allocated, not to this page and not over its own protocol either, so there's no grid to draw and
 the panel tells you that rather than pretending there's no VPU.
 

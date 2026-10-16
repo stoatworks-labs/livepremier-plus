@@ -261,8 +261,20 @@ test('the VPU Map’s empty state names a simulator as one and hardware as hardw
       assert.match(hw, /S3FREESTYLE.*DUAL/, which);
       assert.doesNotMatch(hw, /DISABLED/, `${which}: a DISABLED screen is left out`);
     }
-    assert.doesNotMatch(draw(rs4()), /Room for/, 'room is a staged figure');
-    assert.match(draw(rs4(), { which: 'new' }), /Room for.*15 DUAL · 7 4K · 3 5K/);
+    assert.doesNotMatch(draw(rs4()), /Room/, 'room is a staged figure');
+    /* Every screen reports the same room: it is said once, as the box's. */
+    const staged = draw(rs4(), { which: 'new' });
+    assert.match(staged,
+      /Room left on the box, shared by every screen: 15 DUAL · 7 4K · 3 5K \(with a mask: 7 DUAL · 3 4K · 0 5K\)/);
+    assert.doesNotMatch(staged, /Room for/, 'no column repeating it on every row');
+    /* Screens that disagree keep it screen by screen. */
+    const apart = rs4();
+    apart.set(['device', 'preconfig', 'resources', 'new', 'screenList', 'items', 'S3', 'layerCapabilityList',
+      'items', 'DUAL', 'status', 'pp', 'remainingLayerCapabilities'], 14);
+    const split = draw(apart, { which: 'new' });
+    assert.match(split, /Room for/);
+    assert.match(split, /S1FREESTYLE.*15 DUAL · 7 4K · 3 5K.*S3FREESTYLE.*14 DUAL · 7 4K · 3 5K/);
+    assert.doesNotMatch(split, /Room left on the box/);
 
     /* No identity to go on: say what the mapping holds, and accuse nobody. */
     const unknown = draw(rs4(), { platform: null });
