@@ -673,6 +673,20 @@ export const companionLocation = (action, page, row) => {
  */
 export const SILENT_KEY_MODES = Object.freeze({ 112: 'mvr', 181: 'sourceBackup' });
 
+/**
+ * What SOURCE BACKUP hands the open page, or why it hands it nothing: the
+ * backup menu of `input`, the last input pressed on the panel. Only where the
+ * switcher's inputs have a backup at all (`dialect.inputBackup`) — a Midra 4K
+ * or Alta 4K input's ⋮ is a menu too, and opening it would claim a backup
+ * menu that is not one.
+ */
+export function backupRequest({ dialect, input }) {
+  if (!input) return { note: 'SOURCE BACKUP — press an input on the panel first, so it knows which' };
+  if (!dialect) return { note: 'refused — the switcher has not been read yet' };
+  if (!dialect.inputBackup) return { note: `refused — a ${dialect.name} input has no backup` };
+  return { payload: { type: 'inputBackup', input }, what: `open the backup menu of input ${input}` };
+}
+
 /* ------------------------------------------------------ faders and encoders */
 
 /**

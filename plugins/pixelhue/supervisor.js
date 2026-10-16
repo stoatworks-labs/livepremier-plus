@@ -44,7 +44,7 @@ import { toAwj } from '../../src/core/paths.js';
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName, CONSOLE_MODELS,
   MIDI_BINDINGS, readMidi, midiWrite, layerParam,
-  stepLayer, companionLocation, SILENT_KEY_MODES,
+  stepLayer, companionLocation, backupRequest, SILENT_KEY_MODES,
 } from './core.js';
 import {
   mappedIntent, controlForKeyMode, controlById, actionOf, intentOf, resolvedMap,
@@ -539,7 +539,7 @@ export class PixelhueSupervisor extends EventEmitter {
     }
 
     if (intent.kind === 'transport') { await this.#transport(intent.action, code); return; }
-    if (intent.kind === 'page') { this.#toPage({ type: intent.type, path: intent.path }, intent.what, code); return; }
+    if (intent.kind === 'page') { this.#toPage({ type: intent.type, paths: intent.paths }, intent.what, code); return; }
     if (intent.kind === 'inputBackup') { this.#openBackup(code); return; }
     if (intent.kind === 'companion') { await this.#pressCompanion(intent.location, code, 'Companion'); return; }
     if (intent.kind === 'layerStep') { this.#stepLayer(intent.to, code); return; }
@@ -773,12 +773,12 @@ export class PixelhueSupervisor extends EventEmitter {
 
   /** The backup menu of the last input pressed on the panel, in the open page. */
   #openBackup(code) {
-    const input = this.#lastInput;
-    if (!input) {
-      this.#note({ kind: 'noted', command: nameOf(code), code, note: 'SOURCE BACKUP — press an input on the panel first, so it knows which' });
+    const ask = backupRequest({ dialect: this.#dialect, input: this.#lastInput });
+    if (!ask.payload) {
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: ask.note });
       return;
     }
-    this.#toPage({ type: 'inputBackup', input }, `open the backup menu of input ${input}`, code);
+    this.#toPage(ask.payload, ask.what, code);
   }
 
   /** LAYER UP / DOWN: the selected layer moves through the active screen's. */

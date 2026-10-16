@@ -78,11 +78,19 @@ export default function activate(ctx) {
     } catch { /* the next beat tries again */ }
   }
 
-  /** Open one of the vendor's pages by its path, as its own sidebar link does. */
-  function openPath(path) {
-    const link = document.querySelector(`a[href="${path}"]`);
-    if (link) { link.click(); return true; }
-    ctx.log.warn(`no link to ${path} on this page`);
+  /**
+   * Open one of the vendor's pages, as its own sidebar link does. `paths` is
+   * one path or the page's spellings across platforms (`mapping.js`'s
+   * `LIVE_MULTIVIEWER_PATHS`); the first this page links to, matched whole,
+   * is the one clicked.
+   */
+  function openPath(paths) {
+    const list = [].concat(paths || []);
+    for (const path of list) {
+      const link = document.querySelector(`a[href="${path}"]`);
+      if (link) { link.click(); return true; }
+    }
+    ctx.log.warn(`no link to ${list.join(' or ')} on this page`);
     return false;
   }
 
@@ -91,7 +99,10 @@ export default function activate(ctx) {
   /**
    * An input's own menu on Screens / Aux. — the one its card's ⋮ opens, with
    * the input's backup in it. Found by the card's number and the ⋮'s icon,
-   * because every class on that page is hashed.
+   * because every class on that page is hashed. LivePremier's only: a Midra
+   * 4K's card numbers itself in its footer, not an `.aw-header`, and its ⋮
+   * has no backup in it, so the supervisor never asks there
+   * (`backupRequest`, `dialect.inputBackup`).
    */
   async function openInputBackup(input) {
     if (location.pathname !== '/live/screens') openPath('/live/screens');
@@ -141,7 +152,7 @@ export default function activate(ctx) {
 
   async function act(msg) {
     if (msg.type === 'transport') transport(msg.action);
-    else if (msg.type === 'navigate') openPath(msg.path);
+    else if (msg.type === 'navigate') openPath(msg.paths || msg.path);
     else if (msg.type === 'inputBackup') await openInputBackup(msg.input);
   }
 
@@ -240,7 +251,8 @@ export default function activate(ctx) {
       notes.push(note('info',
         'A recall from the panel always lands in preview, whatever PGM EDIT is doing, for the '
         + 'same reason every other recall in this app does. Fade to black and freeze are '
-        + 'sent on a LivePremier; a Midra 4K or Alta 4K has no proven path for them yet.'));
+        + 'sent on a LivePremier; a Midra 4K or Alta 4K has no proven path for them yet, and '
+        + 'no input backup for SOURCE BACKUP to open.'));
       notes.push(note('info',
         'Tally is read when the panel connects and after each change it makes. A take fired '
         + 'from the Web RCS or the front panel does not relight the console’s keys until then.'));

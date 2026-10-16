@@ -1418,7 +1418,8 @@ dot, and **Reset** puts everything back.
 > ⚠️ **This hasn't been run against a real console yet.** It was built from the consoles' firmware
 > and proved against the vendor's own control service running with no panel attached. Treat the
 > first show with one as a rehearsal. Fade-to-black and freeze are sent on LivePremier, not yet on
-> a Midra 4K. docs/PIXELHUE.md lists what each key does, and has a test suite to run the day a
+> a Midra 4K. SOURCE BACKUP is LivePremier's only: a Midra 4K or Alta 4K input has no backup, so
+> the key says so instead. docs/PIXELHUE.md lists what each key does, and has a test suite to run the day a
 > console turns up ("Testing it on a console").
 
 ---

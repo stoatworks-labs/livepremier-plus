@@ -47,8 +47,13 @@ on a Midra: no Virtual RC400T to hang under, and the surface engine spells LiveP
 their Plugins rows read *not on this switcher* with the capability's sentence. Giving them a
 place on the mng sidebar waits for the engine to speak the dialect. Pixelhue Mapping has one
 already: the same day it moved to the foot of PLUS on a Midra or Alta, and drew and edited the
-mapping on the Midra 4K simulator 3.2.29. Its MVR key opens `/live/multiviewers`, which a Midra
-spells `/live/multiviewer`, so it does nothing there yet.
+mapping on the Midra 4K simulator 3.2.29. Its MVR key now names the live multiviewer page in both
+spellings (`/live/multiviewers` on LivePremier, `/live/multiviewer` on Midra and Alta, read off the
+bundles' route tables) and the page clicks whichever its sidebar has; handed the supervisor's
+payload, the page half on the Midra simulator went from Screens / Aux. to LIVE ▸ Multiviewer.
+SOURCE BACKUP is refused on Midra and Alta with the reason: their inputs have no backup (no
+`backup` node in either bundle's input object; the card's ⋮ is plug, Setup, Freeze, Capture).
+Neither key has been pressed on a console.
 
 ## The live suite, against the rack simulator (2026-10-13)
 

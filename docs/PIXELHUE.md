@@ -77,8 +77,8 @@ faders and encoders — and it is by **function**, not by key: TAKE reports
 | DEL, then a preset | `521`, then `403 {id, text}` | deletes that memory (DEL disarms itself) |
 | LAYER UP / DOWN (cluster page 0) | `505` / `507` (`504` / `506` top / bottom) | steps the selected layer through the active screen's fitted layers, clamped at the ends — a LivePremier layer's stacking is its number, so the keys move the selection instead |
 | cue transport (cluster page 1) | `569`–`573` | play, restart, stop, previous, next — to this app's cue stack, or to five Companion buttons, or nowhere (**Settings → Pixelhue panel → Cue transport keys**) |
-| MVR | *nothing* — acted on from the raw press | opens the Web RCS's live Multiviewers page |
-| SOURCE BACKUP (cluster page 3) | *nothing* — acted on from the raw press | opens the backup menu of the last input pressed on the panel, on Screens / Aux. |
+| MVR | *nothing* — acted on from the raw press | opens the Web RCS's live multiviewer page: `/live/multiviewers` on a LivePremier, `/live/multiviewer` on a Midra 4K or Alta 4K |
+| SOURCE BACKUP (cluster page 3) | *nothing* — acted on from the raw press | opens the backup menu of the last input pressed on the panel, on Screens / Aux. — LivePremier only; refused on a Midra 4K or Alta 4K, whose inputs have no backup |
 | faders 1–8 | tag `0x0010031c` | opacity of layer *n* on the active screen, in the edited buffer — *a first answer* |
 | encoders 1–4 | tag `0x0010031c` | the selected layer's X, Y, width, height, 8 px per detent — *a first answer* |
 | page up/down | none | nothing; the console pages itself |
@@ -407,9 +407,20 @@ worth doing.
   | (no key on a U5) | `402` deleteAllPreset, `522` switchMutiDel — deliberately never acted on |
 - **Swap, time, stills and screens are LivePremier only**; Midra's spellings
   for them are unverified.
-- **Open Multiviewers is a LivePremier path.** It clicks the sidebar's link to
-  `/live/multiviewers`; a Midra 4K's is `/live/multiviewer` (simulator
-  3.2.29), so there the key logs that there is no such link and does nothing.
+- **SOURCE BACKUP is LivePremier's.** A Midra 4K or Alta 4K input has no
+  backup: the bundles' input object is plugs, `control`, `snapshot` and
+  `status` (Midra 3.2.29, Alta 1.3.7), and the input card's ⋮ on the Midra
+  simulator's Screens / Aux. holds the plug, Setup, Freeze and Capture. So
+  the key is refused there with that reason (`dialect.inputBackup`), rather
+  than opening a menu and calling it the backup. The page half's card
+  lookup is LivePremier's too — a Midra card has its number in the footer
+  and no `.aw-header` — which no longer matters, since it is never asked.
+  MVR finds the live multiviewer page on both platforms: the page clicks the
+  first of `/live/multiviewers` (LivePremier 6.2.73) and `/live/multiviewer`
+  (Midra 3.2.29, Alta 1.3.7) its sidebar links to, matched whole, so neither
+  platform's setup multiviewer page can be taken for it. Proved on the Midra
+  4K simulator 3.2.29 on 2026-10-16 by handing the page half the payload the
+  supervisor sends, with no console.
 - **Layer names are `Layer <n>`.** The console shows the layer bus from the
   model; the names the Layer names plugin keeps live on the page side, not
   where this reads.
