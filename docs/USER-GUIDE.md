@@ -113,6 +113,11 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.17.7 adds the UMD Generator**: ATEM-style borders and source names drawn as a transparent
+> PNG from where each layer is and what it shows, put on an aux's top layer or handed to the
+> Background Slicer for a screen, with 1, 3, 5 and 7-box layouts for an aux. Off until you switch
+> it on. Proven on LivePremier Simulator 6.2.73 only, and not on a real frame yet.
+>
 > **0.17.6 adds Surfaces**, the LED elements a screen lands on as rectangles on its canvas, with
 > the layers bound to them kept inside. Off until you switch it on. Proven on LivePremier
 > Simulator 6.2.73 only; on 6.1.60 only by comparing the vendor's bundle, and not on a real frame

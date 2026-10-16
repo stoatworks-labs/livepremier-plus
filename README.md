@@ -183,7 +183,7 @@ command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or
 well for the Edit page, Timeline, Console, Memories, Layer, Pitch Compensation, HyperDecks and
 the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 
-> **Status: field testing, v0.17.6.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.17.7.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -283,6 +283,16 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.7 (2026-10-16).** Adds the **UMD Generator**, off until you switch it on. An aux laid out
+> as a multiviewer has the pictures and none of the furniture; this draws the furniture, ATEM-style
+> (a hairline round each box and a dark tab with the source's name), as one transparent PNG worked
+> out from where each layer is and what it shows. It goes on an aux's top layer through a library
+> slot and a still, updates by uploading again, and asks first when that's on air. For a screen it
+> hands the PNG to the Background Slicer, which cuts backgrounds per output. Templates of 1, 3, 5
+> and 7 boxes start an aux, because its layers come in pairs with its capability and the top one
+> is the UMD's. Proven on LivePremier Simulator 6.2.73 only, every write checked over AWJ; not run
+> on a real frame, so whether a frame keys the still's transparency is the first thing to look at.
 >
 > **0.17.6 (2026-10-16).** Adds **Surfaces**, off until you switch it on. Mark out the LED
 > elements a screen's canvas really lands on (a wall in pieces, a header strip, a pair of IMAG
