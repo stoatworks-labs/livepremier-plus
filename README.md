@@ -172,7 +172,7 @@ command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or
 well for the Edit page, Timeline, Console, Memories, Layer, Pitch Compensation, HyperDecks and
 the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 
-> **Status: field testing, v0.17.4.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.17.5.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -272,6 +272,15 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.5 (2026-10-16).** Adds **Pixel Map**. Pick a picture from the switcher's own image library
+> for a screen and it's laid over that screen's preview on Screens / Aux. as a mask, so you can see
+> which bits of a layer will end up on LED and which on the scenery. It uses no layer, writes
+> nothing to the switcher and takes no clicks, so the layers under it still select, drag and zoom
+> as normal. It's proven on LivePremier Simulator 6.2.73 only. On 6.1.60, the RS4's firmware, it's
+> proven by comparing the vendor's bundle: the image library and its routes answer the same and the
+> card is drawn by the same code, but no 6.1.60 card has had a map on it. Not run on a real frame
+> yet.
 >
 > **0.17.4 (2026-10-16).** One change to the **VPU map** on a box with no mixer map. Every screen in
 > service on the RS4 reports the same spare room, so the Screens table's Room for column repeated
