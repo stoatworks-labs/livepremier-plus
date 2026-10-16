@@ -186,6 +186,66 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
 }
 
 /*
+ * On a Midra 4K the pages under Virtual RC400T have nowhere to hang, and
+ * until 2026-10-16 the Plugins card still called MIDI Mapping and the Speed
+ * Editor on. Now their rows carry the capability's own sentence, and the
+ * Pixelhue plugin keeps its card — driving a console works there — while its
+ * Mapping entry declines and the card says where the page went.
+ */
+test('on a Midra the Plugins card and the Pixelhue card say why the Virtual RC400T pages are missing', async () => {
+  await withDom(async () => {
+    const { supports, whyNot } = await import('../src/core/platform.js');
+    const { manifestOf } = await import('../src/core/plugins.js');
+    const { createSettingsPanel } = await import('../src/ui/settings-panel.js');
+    const { KIT } = await import('../src/ui/plugin-host.js');
+    const { default: activatePixelhue } = await import('../plugins/pixelhue/client.js');
+
+    const pixelhueOn = async (store) => {
+      const platform = () => detectPlatform(store);
+      const registered = [];
+      await activatePixelhue({
+        id: 'pixelhue', session: sessionOver(store), platform, can: (cap) => supports(platform(), cap),
+        refresh() {}, kit: KIT, url: (p = '/') => `/__lpp/pixelhue${p === '/' ? '' : p}`,
+        settings: { get: () => ({}), set: async () => ({}) },
+        contribute() {}, contributions: () => [], provide() {}, use: () => null, share() {},
+        log: { info() {}, warn() {} },
+        ui: { sidebar: (e) => registered.push(e), tab: (e) => registered.push(e), settingsSection: (e) => registered.push(e) }
+      });
+      const map = registered.find((e) => e.id === 'pixelhue-map');
+      const card = registered.find((e) => e.id === 'pixelhue');
+      return { map, text: renders('pixelhue card', card).textContent };
+    };
+    const missing = /Pixelhue Mapping is not on this switcher: it lives under Virtual RC400T/;
+
+    const midra = new DeviceStore();
+    midra.hydrate(fixture('midra-3.2.29-pulse4k.json'));
+    const platform = () => detectPlatform(midra);
+    const why = whyNot(platform(), 'controlSurfaces');
+    assert.ok(why, 'a Midra has no control surfaces to offer');
+    const text = renders('settings', createSettingsPanel({
+      session: sessionOver(midra), platform, onRefresh() {}, sections: () => []
+    })).textContent;
+    for (const id of ['midi', 'speed-editor']) {
+      const m = manifestOf(id);
+      assert.ok(text.includes(`${m.name}not on this switcher${m.description}${why}`),
+        `${m.name}’s row says it is not here, and why`);
+    }
+    const ph = manifestOf('pixelhue');
+    assert.ok(text.includes(`${ph.name}${ph.description}${ph.where}`), 'the Pixelhue panel is on, with no reason against it');
+
+    const onMidra = await pixelhueOn(midra);
+    assert.equal(onMidra.map.after, 'Virtual RC400T');
+    assert.equal(onMidra.map.enabled(), false, 'the Mapping entry declines');
+    assert.match(onMidra.text, missing);
+    assert.doesNotMatch(onMidra.text, /is on the Pixelhue Mapping page/);
+
+    const onLivePremier = await pixelhueOn(STORES.simulator());
+    assert.equal(onLivePremier.map.enabled(), true);
+    assert.doesNotMatch(onLivePremier.text, missing);
+  });
+});
+
+/*
  * The Variables panel with something in it: the user's own — one that
  * evaluates, one over a system variable, two in a cycle — over the
  * simulator's catalogue, and a search. The page-half pass above draws it

@@ -37,7 +37,7 @@
 import { h, button, readout, card, note, picker as pick } from './dom.js';
 import { panel } from './shell.js';
 import { readIdentity } from '../core/identity.js';
-import { detectPlatform, CAPABILITIES } from '../core/platform.js';
+import { detectPlatform, CAPABILITIES, whyNot } from '../core/platform.js';
 import { BUILTINS, status as pluginStatus, isSwitchedOn } from '../core/plugins.js';
 import {
   AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES
@@ -306,6 +306,10 @@ export function createSettingsPanel({
           const failed = verdict.on && server && server.hosted && !server.on && server.reason
             ? server.reason : null;
           const dim = !verdict.on || Boolean(failed);
+          /* Not on this switcher: the capability's own sentence, so the row
+             says why and not only that — MIDI Mapping on a Midra once read
+             as on and simply never appeared. */
+          const why = verdict.capability ? whyNot(here, verdict.capability) : null;
           return h('div', {
             class: 'aw-flex-row aw-gap-col-large aw-flex-wrap',
             style: dim ? { opacity: '0.55' } : null
@@ -323,6 +327,7 @@ export function createSettingsPanel({
               : h('span', { class: 'wru-tag', text: verdict.reason })),
           h('div', { class: 'aw-flex-col aw-gap-row-mini', style: { flex: '1 1 20rem' } },
             h('div', { class: 'aw-font-body-1', text: plugin.description }),
+            why ? h('div', { class: 'aw-font-body-1-bold', text: why }) : null,
             h('div', { class: 'aw-font-caption aw-text-tertiary',
               text: plugin.builtIn ? `${plugin.where} · built in` : plugin.where })));
         }),

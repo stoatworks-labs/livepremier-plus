@@ -293,6 +293,26 @@ export const CAPABILITIES = [
     },
     needs: 'the EDID bank',
     absent: 'This switcher has no EDID bank this app knows how to write.'
+  },
+  {
+    id: 'controlSurfaces',
+    label: 'Control surfaces',
+    /* MIDI Mapping, the Speed Editor and Pixelhue Mapping hang under the
+       vendor's Virtual RC400T page (`after: 'Virtual RC400T'`), and the
+       mng-platform sidebar has no such page — `ui/shell.js` drops an entry
+       whose anchor is missing, so they used to vanish while the Plugins card
+       called them on. And the surface engine behind the first two
+       (`vendor/surface/`) reads the take state off `screenAuxGroupList` and
+       writes LivePremier's layer paths, so it has nothing to drive on a
+       Midra even if it were mounted. The probe is that tree. No mng probe,
+       by design, until the engine speaks the dialect and the pages have
+       somewhere to hang on that sidebar. A Pixelhue console is not this: its
+       driving is dialect-aware and stays on — only its Mapping page asks. */
+    probes: {
+      nlc: [ROOT, 'screenAuxGroupList', 'items']
+    },
+    needs: 'the take groups the control-surface engine drives',
+    absent: 'MIDI Mapping, the Speed Editor and Pixelhue Mapping live under Virtual RC400T, which this switcher’s sidebar does not have — and the engine behind MIDI Mapping and the Speed Editor speaks only LivePremier’s paths.'
   }
 ];
 

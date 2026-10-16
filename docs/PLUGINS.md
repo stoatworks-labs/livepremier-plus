@@ -148,8 +148,12 @@ gaps since: in PLUS, Edit 10, VPU Map 20, Memories 30, Layer Groups 40, Layer Lo
 Routing 50, Audio Matrix and HyperDecks 55, Variables 57, Dante 58, Background Slicer 59 — and
 Companion asks for 60. On the strip, Console 10, Timeline 20, Layer 30, Groups 40, Pixel Map 50,
 Surfaces 55, UMD 60. An entry with **`after`** is hung under the vendor's own item of that label
-instead of in PLUS, and is left out where the switcher's sidebar has no such item (a Midra has no
-Virtual RC400T, so MIDI Mapping, the Speed Editor and Pixelhue Mapping don't appear there).
+instead of in PLUS, and is left out where the switcher's sidebar has no such item. That happens
+silently, so an entry that knows its anchor may be missing should say so: ask for a capability
+that is false where the anchor is (MIDI Mapping and the Speed Editor require `controlSurfaces`,
+false on a Midra, which has no Virtual RC400T), and the Plugins card says why in its words. A
+plugin whose other parts work there gates only the entry instead (Pixelhue Mapping's `enabled`
+asks `ctx.can('controlSurfaces')`) and says where the page went on its own card.
 Anchored entries stack upwards, so the highest `order` sits nearest the anchor: MIDI Mapping 70,
 Speed Editor 69, Pixelhue Mapping 68. **`submenuOf`** puts an entry in a vendor flyout (Pitch
 Compensation is 80 in Preconfig, this app's settings 90).

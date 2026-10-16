@@ -181,6 +181,8 @@ export default function activate(ctx) {
     const on = settings.pixelhueEnabled;
     const link = live && live.link;
     const model = CONSOLE_MODELS.find((m) => m.id === settings.pixelhueModel);
+    /* Asked at every render: the answer arrives with the device store. */
+    const mappable = ctx.can('controlSurfaces');
 
     const toggle = h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { cursor: 'pointer' } },
       h('input', {
@@ -227,12 +229,22 @@ export default function activate(ctx) {
         + 'running on the console itself to reach one. A U5 mini answers on the network.'));
     }
     if (link && link.lastError) notes.push(note('warn', link.lastError));
+    if (!mappable) {
+      notes.push(note('info',
+        'Pixelhue Mapping is not on this switcher: it lives under Virtual RC400T, which this '
+        + 'switcher’s sidebar does not have. The console still drives it, and its function keys, '
+        + 'faders and encoders keep the mapping already saved — the defaults, unless one was made '
+        + 'on a LivePremier or restored from a setup file.'));
+    }
     if (on) {
       notes.push(note('info',
         'The console is handed a model of this switcher — its screens, inputs and memories — '
         + 'and labels, lights and pages its own keys from it, so the buses need no mapping. '
-        + 'What the function keys, faders and encoders do is on the Pixelhue Mapping page, '
-        + 'under Virtual RC400T. docs/PIXELHUE.md has the rest.'));
+        + (mappable
+          ? 'What the function keys, faders and encoders do is on the Pixelhue Mapping page, '
+            + 'under Virtual RC400T. '
+          : '')
+        + 'docs/PIXELHUE.md has the rest.'));
       notes.push(note('info',
         'A recall from the panel always lands in preview, whatever PGM EDIT is doing, for the '
         + 'same reason every other recall in this app does. Fade to black and freeze are '
@@ -286,7 +298,11 @@ export default function activate(ctx) {
   ctx.ui.settingsSection({ id: 'pixelhue', order: 10, render });
 
   /* The console drawn, and what every control does on it — beside MIDI
-     Mapping under Virtual RC400T, for the reason MIDI Mapping is there. */
+     Mapping under Virtual RC400T, for the reason MIDI Mapping is there.
+     Only where there is a Virtual RC400T: a Midra 4K or Alta 4K sidebar has
+     none, so the entry declines on `controlSurfaces` and the card above says
+     where the page went. The plugin's own `requires` stays empty, because
+     driving the console is offered on both platforms. */
   const mapping = createMapPage({
     ctx,
     settings: () => settings,
@@ -302,6 +318,7 @@ export default function activate(ctx) {
     icon: ['rc400t-18', 'desktop-18'],
     after: 'Virtual RC400T',
     order: 68,   // anchored entries stack upwards: below MIDI Mapping (70) and the Speed Editor (69)
+    enabled: () => ctx.can('controlSurfaces'),
     render: () => {
       if (!asked) { asked = true; void load(); }
       listen();

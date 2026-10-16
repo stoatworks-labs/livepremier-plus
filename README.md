@@ -1723,7 +1723,7 @@ device's store rather than by the model name:
 | VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
 | Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |
 | OSC input | yes — 173 addresses, widened by the device's own catalogue | **yes** — 44 addresses, mynah's vouched-for table; the Midra catalogue is vendored for the Layer tab but not yet merged into the dictionary |
-| MIDI Mapping, Speed Editor, Pixelhue Mapping | yes | not shown — all three pages hang under Virtual RC400T, which a Midra's sidebar doesn't have, and the surface engine still spells LivePremier |
+| MIDI Mapping, Speed Editor, Pixelhue Mapping | yes | no — all three pages hang under Virtual RC400T, which a Midra's sidebar doesn't have, and the surface engine still spells LivePremier. The Plugins card says so on MIDI Mapping's and the Speed Editor's rows, and the Pixelhue panel's card says where its Mapping page went |
 | Pixelhue panel | yes | untried — the dialect spells takes, recalls and sources there; fade to black, freeze, swap, time, stills and screens are LivePremier only |
 | EDID builder | yes — the 100-slot bank and M1–M16, read off the simulator | not yet seen — it lights up by itself if the store has the same `system/edid/bankList` |
 | HyperDecks | yes | **yes** — a deck plays into an `INPUT_<n>` and records an output or `MTVW`; the rules are tested against a Pulse 4K's store |
@@ -1742,8 +1742,9 @@ Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step o
 differs, so a cue stack reads the same on either. Which screens and auxes are offered comes from
 the switcher's *applied* preconfig, which is also where the models differ: a QuickVu has one
 screen, a Zenith 200 has four screens and four auxes, and the app lists whatever the box says is
-in service. Anything a panel holds back is listed with its reason on the Settings page, apart
-from the three pages under Virtual RC400T, which just don't appear.
+in service. Anything a panel holds back is listed with its reason on the Settings page: on the
+Plugins card beside the plugin, and under Compatibility beside the part of the switcher it needs.
+The three pages under Virtual RC400T are no exception; they're held back as *Control surfaces*.
 
 ## Safety
 

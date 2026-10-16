@@ -105,7 +105,9 @@ connection of their own when they act, which is worth knowing, because the switc
 > the Midra 4K simulator, and the UMD Generator gives a Midra its PNG. There's no VPU to map on
 > those, and Matrix Routing, Audio Matrix, Mosaic inputs, Pixel Map and Surfaces are LivePremier
 > only. MIDI Mapping, the Speed Editor and Pixelhue Mapping hang under Virtual RC400T, which a
-> Midra's sidebar doesn't have, so they don't appear. The port was proven on a **live Pulse 4K**:
+> Midra's sidebar doesn't have, so they don't appear; the Plugins card says so on MIDI Mapping's
+> and the Speed Editor's rows, and the Pixelhue panel's card (the console itself still works)
+> says where its Mapping page went. The port was proven on a **live Pulse 4K**:
 > every write over the device protocol by a test harness, and the Console panel's own lines typed
 > by the operator, which were the first writes this app's panels have made to real hardware. On
 > LivePremier the one write to a physical device so far is a preview opacity the Layer tab set on
@@ -1820,5 +1822,5 @@ contain it.
 | **The VPU panel says there is nothing to draw** | This simulator has no VPU (not every one does), or it's LivePremier firmware 6.1.60, which does not report its VPU allocation. The panel says which, and on 6.1.60 shows each screen's layers and the room left instead. Either way it is correct, not a failure. |
 | **The demo refuses to start** | It only runs against loopback, on purpose. Or it found no simulator (start one, or set `LPP_DEMO_DEVICE`), or port 8535 is the app's and the app is running (quit it, or set `LPP_DEMO_PORT`). |
 | **The Console, Timeline or Layer tab has gone** | On LivePremier they sit behind the **⋯** at the end of the Screens / Aux. tab strip, because the strip has room for one more tab and no more. |
-| **I switched a plugin on and it isn't there** | Reload the page; the page picks up a change on its next load. If its row says *not on this switcher* or *needs* another plugin, that's the reason. MIDI Mapping, the Speed Editor and Pixelhue Mapping never appear on a Midra 4K or Alta 4K, which has no Virtual RC400T to hang them under. |
+| **I switched a plugin on and it isn't there** | Reload the page; the page picks up a change on its next load. If its row says *not on this switcher* or *needs* another plugin, that's the reason, and a *not on this switcher* row says why underneath. MIDI Mapping, the Speed Editor and Pixelhue Mapping never appear on a Midra 4K or Alta 4K, which has no Virtual RC400T to hang them under; the first two say so on their rows, and the Pixelhue panel's card says so for its Mapping page. |
 | **I restored a setup and the old cue stack came back** | A page that was open during the restore saved what it had loaded. Reload every open page after a restore, then restore again. |
