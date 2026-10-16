@@ -1339,6 +1339,8 @@ it's drawn over that screen's PRW canvas, on its card, in one of three ways:
 - **Lines**: only the light parts of the map show. What you want from a white grid of panel
   edges over dark content.
 
+![Screens / Aux. with only PRW showing and the Pixel Map tab open: one 1920×1080 map from library slot 1 on S1 and S2 in Mask, IN1 and IN4 showing only inside the wall's panels, with the cut-out corners and the opening in the middle dark, and S1's layer selected with its handles over the map](docs/screenshots/pixel-map.png)
+
 **1:1** puts one map pixel on one canvas pixel from the top left, which is where a pixel map is
 true. **Stretch** fits the whole map to the canvas, whatever its size. A map that isn't the size of
 its screen's canvas says so. **On** at the top picks PRW, PGM or both, and **Show** hides the lot.

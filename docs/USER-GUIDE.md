@@ -588,6 +588,8 @@ lands on: which bits of the raster are LED, where the gaps between panels are, t
 middle where the set piece goes. Pick one from the switcher's image library for a screen and it's
 drawn over that screen's PRW canvas, on its own card, while you build the look.
 
+![Screens / Aux. with only PRW showing and the Pixel Map tab open: one map from library slot 1 on S1 and S2 in Mask, IN1 and IN4 showing only inside the wall's panels, and S1's layer selected with its handles over the map](screenshots/pixel-map.png)
+
 1. **Put the map in the image library.** Image Library in the vendor's sidebar, any PNG or JPEG.
    Draw it at the screen's canvas size if you can: white where there's LED, black where there
    isn't.
