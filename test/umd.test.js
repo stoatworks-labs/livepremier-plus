@@ -1,5 +1,5 @@
 /*
- * UMD Generator: an ATEM-style UMD drawn from where an aux's layers are.
+ * UMD Generator: borders and name tabs drawn from where an aux's layers are.
  *
  * What is pinned here, each the quiet way to get it wrong:
  *
@@ -152,7 +152,7 @@ test('templates come in the sizes an auxâ€™s layer pairs leave, keep the canvasâ
   }
 });
 
-test('the quad split is an ATEM layout: three quadrants and a quarter-split one, to the pixel', () => {
+test('the quad split is three quadrants and a quarter-split one, to the pixel', () => {
   const rects = templateRects(templateById('seven-quad'), CANVAS);
   assert.deepEqual(rects.slice(0, 3), [
     { left: 0, top: 0, width: 960, height: 540 }, { left: 960, top: 0, width: 960, height: 540 }, { left: 0, top: 540, width: 960, height: 540 }

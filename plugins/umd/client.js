@@ -2,8 +2,8 @@
  * UMD Generator — the plugin's page half.
  *
  * A tab on the Screens / Aux. strip, beside the cards it describes: pick a
- * destination, and the panel draws an ATEM-style UMD over where its layers
- * are, named after what they show. Download it as a PNG, or put it on the
+ * destination, and the panel draws a UMD (borders and name tabs) over where
+ * its layers are, named after what they show. Download it as a PNG, or put it on the
  * switcher — an aux's top layer, through a still; a screen's background,
  * through the Background Slicer, which cuts it per output. A template lays
  * the aux's layers out first, in 1, 3, 5 or 7 boxes. See `core.js` for why

@@ -1074,7 +1074,7 @@ frame, not on Midra (the shaper reads LivePremier's paths only).
 
 ### The UMD Generator (`plugins/umd/`, `core/stills.js`, `core/wire.js`) — **preview**
 
-An ATEM multiviewer's furniture — a line round each window, a dark tab with
+A multiviewer's furniture — a thin line round each window, a dark tab with
 the source's name — drawn as one transparent PNG at a destination's canvas
 size, from where its layers are and what they show, and put on the switcher.
 Off by default: it uploads into the library and writes a still and an aux's
