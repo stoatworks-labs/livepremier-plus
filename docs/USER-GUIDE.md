@@ -33,7 +33,7 @@ than something bolted on.
 - **Surfaces:** the LED elements a screen lands on, as rectangles on its canvas, with layers
   bound to them. A bound layer stays inside its surface however it's moved, and full screen
   fills the surface. Off until you switch it on.
-- **UMD Generator** *(preview)*: ATEM-style borders and source names for an aux laid out as a
+- **UMD Generator** *(preview)*: thin borders and dark name tabs for an aux laid out as a
   multiviewer, drawn as one transparent PNG from where each layer is and what it shows, and put on
   the aux's top layer, with 1, 3, 5 and 7-box layouts to start from. Off until you switch it on.
 - **Send to:** a `…` on every source card that routes it to a screen and layer, or to a whole
@@ -130,8 +130,8 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
-> **0.17.7 adds the UMD Generator**, a preview: ATEM-style borders and source names drawn as a transparent
-> PNG from where each layer is and what it shows, put on an aux's top layer or handed to the
+> **0.17.7 adds the UMD Generator**, a preview: a thin border round each box and a dark tab with
+> its source's name, drawn as a transparent PNG from where each layer is and what it shows, put on an aux's top layer or handed to the
 > Background Slicer for a screen, with 1, 3, 5 and 7-box layouts for an aux. Off until you switch
 > it on. Proven on LivePremier Simulator 6.2.73 only, and not on a real frame yet.
 >
@@ -797,8 +797,8 @@ The surfaces and bindings are kept per switcher by this app and go into the setu
 Plugins**. It's off to start with because it uploads into the image library and writes a still
 and an aux's layers, and it hasn't met a real frame yet.
 
-It draws what an ATEM multiviewer draws over its windows (a thin line round each box and a dark
-tab with the source's name) as one transparent PNG the size of the screen or aux, from where its
+It draws a multiviewer's furniture (a thin line round each box and a dark tab with the source's
+name) as one transparent PNG the size of the screen or aux, from where its
 layers really are and what they're really showing.
 
 ![Screens / Aux. with only A1's PRW showing and the UMD tab open: A1 laid out as Three and four, IN1 to IN7 on L1 to L7 and L8 carrying the UMD still; the tab shows the look, a preview of the borders and the CAM 1, CAM 2, Lectern, Wide shot, Audience, Graphics and Playback tabs, Update UMD, and the four steps that put it on L8](screenshots/umd.png)
@@ -816,7 +816,7 @@ layers really are and what they're really showing.
    source: the input's or still's label, or `IN5` if it hasn't got one. Type a name and it wins.
    **Name from ▸ Layer name** uses the names from Layer names instead. A layer with nothing on it
    isn't drawn, unless you've named it.
-4. **Set the look.** Labels inside the bottom of each box (the ATEM way), inside the top, under
+4. **Set the look.** Labels in a dark tab inside the bottom of each box, inside the top, under
    the box, or none; the border, its width (blank is 2 px at 1080, in proportion above) and its
    colour; the text size; CAPITALS; and how dark the tab is. The preview shows the boxes as grey
    stand-ins with the UMD over them, and lists anything wrong: a name too long for its box (it's

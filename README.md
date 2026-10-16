@@ -72,8 +72,8 @@ bolted on afterwards:
   Console, a cue. Full screen fills the surface rather than the canvas, and the align buttons
   align to it. The outlines are drawn on the screen cards so you can see the edge coming.
 - **UMD Generator** *(preview, off by default)*: an aux laid out as a multiviewer has the
-  pictures and none of the furniture. This draws the furniture, ATEM-style: a hairline round each
-  box and a dark tab with the source's name, as one transparent PNG worked out from where each
+  pictures and none of the furniture. This draws the furniture: a hairline round each box and a
+  dark tab with the source's name, as one transparent PNG worked out from where each
   layer actually is and what it's showing. It goes on an aux's top layer through a still, or to the
   Background Slicer for a screen's background, and there are 1, 3, 5 and 7-box layouts to start an
   aux from.
@@ -294,9 +294,9 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
 >
 > **0.17.7 (2026-10-16).** Adds the **UMD Generator**, off until you switch it on. An aux laid out
-> as a multiviewer has the pictures and none of the furniture; this draws the furniture, ATEM-style
-> (a hairline round each box and a dark tab with the source's name), as one transparent PNG worked
-> out from where each layer is and what it shows. It goes on an aux's top layer through a library
+> as a multiviewer has the pictures and none of the furniture; this draws the furniture (a hairline
+> round each box and a dark tab with the source's name) as one transparent PNG worked out from where
+> each layer is and what it shows. It goes on an aux's top layer through a library
 > slot and a still, updates by uploading again, and asks first when that's on air. For a screen it
 > hands the PNG to the Background Slicer, which cuts backgrounds per output. Templates of 1, 3, 5
 > and 7 boxes start an aux, because its layers come in pairs with its capability and the top one
@@ -1487,7 +1487,7 @@ Screens / Aux. ▸ ⋯ ▸ UMD. Off until you switch it on in Preconfig ▸ Live
 because it uploads into the image library and writes a still and an aux's layers.
 
 Pick a screen or aux and the tab reads every layer that's showing something: where it is, and
-what it's showing. From that it draws what an ATEM multiviewer draws over its windows: a thin
+what it's showing. From that it draws the furniture a multiviewer wears over its windows: a thin
 line round each box, shared where two boxes touch, and a dark tab along the bottom with the
 source's name. It's one PNG at the canvas's size, transparent everywhere else.
 
@@ -1514,8 +1514,8 @@ source's name. It's one PNG at the canvas's size, transparent everywhere else.
 - **Templates** lay an aux out first. Its layers come with its capability, two at a time (an
   advanced aux gets 2 at 4K, 4 at 5K, 6 at "6" and 8 at 8K), and with the top one spent on the
   UMD that leaves 1, 3, 5 or 7 boxes: *Full* or *Inset*; *Two over one*, *One over two* or *One
-  and two*; *Two over three* or *One over four*; *Three and four* (the ATEM quad split) or *Three
-  over four*. Every box keeps the canvas's shape, so a 16:9 camera isn't squashed into it, and a
+  and two*; *Two over three* or *One over four*; *Three and four* (three quarters, the fourth split in
+  four again) or *Three over four*. Every box keeps the canvas's shape, so a 16:9 camera isn't squashed into it, and a
   gap can stand them apart. **Lay out** writes the box layers' positions in the buffer you're on
   and empties the ones the template doesn't use; sources are left alone.
 - **Download PNG** needs nothing from the switcher's library, so a Midra gets that much (drawn
