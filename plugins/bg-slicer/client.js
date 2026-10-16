@@ -28,6 +28,7 @@
 
 import { createBgSlicerPanel } from './panel.js';
 import { createJob } from './job.js';
+import { decodePicture } from './render.js';
 
 export default function activate(ctx) {
   const job = createJob();
@@ -44,4 +45,31 @@ export default function activate(ctx) {
     busy: () => view.busy()
   });
   ctx.share({ job });
+
+  /*
+   * `backgrounds`: another plugin hands over a picture for some screens — the
+   * UMD generator's, made at a screen's canvas size — and the operator
+   * finishes here, where the outputs, stills, capacities and set are shown
+   * before anything is written. Nothing is written by the hand-over.
+   */
+  ctx.provide('backgrounds', Object.freeze({
+    /** `{ file, screens }`: a File or Blob with a name, and the screens to put it on. */
+    async offer({ file, screens = [] }) {
+      const { bitmap, width, height } = await decodePicture(file);
+      if (job.picture) { try { URL.revokeObjectURL(job.picture.url); } catch { /* fine */ } }
+      job.stale();
+      job.source = 'stills';
+      job.mode = 'each';
+      job.picture = { name: file.name || 'picture.png', width, height, bitmap, url: URL.createObjectURL(file) };
+      job.place = {};
+      job.span.rect = null;
+      job.screens = screens.slice();
+      job.journal = null;
+      job.progress = [];
+      job.note = `From the UMD generator: ${width}×${height} for ${screens.join(', ') || 'no screen'}. Generate, then write it as usual.`;
+      job.changed();
+      ctx.refresh();
+      return { width, height };
+    }
+  }));
 }

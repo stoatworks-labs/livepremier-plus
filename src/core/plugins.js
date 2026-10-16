@@ -188,6 +188,18 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'umd',
+    name: 'UMD Generator',
+    where: 'Screens / Aux., beside Surfaces',
+    description: 'ATEM-style borders and source names drawn as one transparent PNG from where each layer is and what it shows, put on an aux’s top layer or handed to the Background Slicer for a screen — with 1, 3, 5 and 7-box layouts for an aux. Never yet run against a real frame.',
+    requires: { capabilities: ['screens'] },
+    /* Off until it has been: it uploads into the image library and writes a
+       still and an aux's layers. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'send-to',
     name: 'Send to',
     where: 'The … on every source card',

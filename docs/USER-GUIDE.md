@@ -709,6 +709,66 @@ The surfaces and bindings are kept per switcher by this app and go into the setu
 
 ---
 
+## UMD Generator
+
+**Screens / Aux. ▸ ⋯ ▸ UMD**, once it's switched on in **Preconfig ▸ LivePremier Plus ▸
+Plugins**. It's off to start with because it uploads into the image library and writes a still
+and an aux's layers.
+
+It draws what an ATEM multiviewer draws over its windows (a thin line round each box and a dark
+tab with the source's name) as one transparent PNG the size of the screen or aux, from where its
+layers really are and what they're really showing.
+
+1. **Pick the destination** at the top of the tab, and the buffer: **PRW** to build it in
+   preview and take it, **PGM** to work on what's on air.
+2. **Lay it out (an aux, optionally).** **Template** lists the layouts the aux has layers for.
+   An aux's layers come with its capability, in pairs (an advanced aux gets 2 at 4K, 4 at 5K, 6 at
+   "6" and 8 at 8K), and the top one carries the UMD, which leaves 1, 3, 5 or 7 boxes. Every box
+   keeps the canvas's shape; **Gap** stands them apart. **Lay out** writes the box layers'
+   positions and sizes and empties the box layers the template doesn't use. It leaves sources
+   alone, so route your cameras before or after, as you like. **Layers as they are** skips this
+   and draws whatever you've built yourself.
+3. **Name the boxes.** Each box layer has a field. Leave it blank and the box is named after its
+   source: the input's or still's label, or `IN5` if it hasn't got one. Type a name and it wins.
+   **Name from ▸ Layer name** uses the names from Layer names instead. A layer with nothing on it
+   isn't drawn, unless you've named it.
+4. **Set the look.** Labels inside the bottom of each box (the ATEM way), inside the top, under
+   the box, or none; the border, its width (blank is 2 px at 1080, in proportion above) and its
+   colour; the text size; CAPITALS; and how dark the tab is. The preview shows the boxes as grey
+   stand-ins with the UMD over them, and lists anything wrong: a name too long for its box (it's
+   shrunk, then cut short), a label with no room under its box, a label a layer would hide.
+5. **Put it on the switcher.**
+   - **An aux: Put on L*n***. The PNG goes into a free library slot, a free still is pointed at it
+     (no rescale), and the aux's top layer shows the still over the whole canvas. After the first
+     time the button is **Update UMD**, which only uploads the PNG again: the still and the layer
+     follow by themselves. If the UMD is on program, the button asks first, since the update is on
+     air as soon as it lands. The line under the buttons says where the UMD is and whether it
+     still matches the layers.
+   - **A screen: To Background Slicer.** A screen's background is cut per output, and the
+     Background Slicer does that, so the UMD is handed to it as its picture with the screen
+     chosen. Open **PLUS ▸ Background Slicer** and carry on there. It has to be switched on.
+   - **Anywhere: Download PNG**, to load it yourself.
+
+**Undo** takes back the last thing the tab wrote to the destination you're looking at: a layout,
+or a UMD's layer, still and library slot. An update can't be undone back to the previous picture,
+which wasn't kept.
+
+**Why an aux uses a layer and not its background.** The vendor's page offers an aux's background
+nothing but *None*, and the preconfig never gives it any capacity. The switcher's control software
+will in fact accept a still there (it did on the simulator), but whether a frame then shows it is
+not known yet, so the UMD uses a layer it knows will.
+
+The box names, label positions and where each UMD went are kept per switcher by this app and go
+into the setup file under *UMDs*.
+
+> **LivePremier** for writing. A Midra gets the preview and the download.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-16: a 7-box layout on an 8-layer aux; the UMD
+> put on its top layer and checked over AWJ; an update after a rename, on program; a screen's UMD
+> handed to the Background Slicer. Not yet run on a real frame.
+
+---
+
 ## Matrix Routing
 
 **PLUS ▸ Matrix Routing.** Patch the switcher's own sockets to ports on an external router (a

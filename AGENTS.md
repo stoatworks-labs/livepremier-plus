@@ -1048,6 +1048,77 @@ alone; the Surfaces tab editing a surface; the Edit page's drag stopping at
 the edge. Not on 6.1.60 (that session has no screen in service), not on a
 frame, not on Midra (the shaper reads LivePremier's paths only).
 
+### The UMD Generator (`plugins/umd/`, `core/stills.js`, `core/wire.js`) — **preview**
+
+An ATEM multiviewer's furniture — a line round each window, a dark tab with
+the source's name — drawn as one transparent PNG at a destination's canvas
+size, from where its layers are and what they show, and put on the switcher.
+Off by default: it uploads into the library and writes a still and an aux's
+layers. Everything below was read off the 6.2.73 simulator on 2026-10-16.
+
+- **An aux's UMD goes on its top layer, a screen's on its background.** An
+  aux has no background a picture can reach (next points), so the highest
+  fitted layer carries a still of the PNG at full canvas, and the layers under
+  it are the boxes. A screen's layers are what it is for and its background
+  costs no mixer, but a background is per output — the Background Slicer's
+  whole job — so the PNG is handed to it through the **`backgrounds`**
+  service (`offer({ file, screens })`), which loads it as the job's picture
+  and writes nothing. Under the layers a label inside a box is hidden by the
+  box, so a screen defaults to labels *under* the box and the plan names every
+  label a layer covers.
+- **An aux's layers come with its capability, in pairs.** Staged in
+  `preconfig/resources/new/outputList/items/<out>/control/pp` (`mode` AUX,
+  `useInScreenAux`, `auxCapability`, `auxAdvanced`) and read back after
+  `xCheck`: advanced at 4K gives 2 DUAL layers, 5K 4, `6` 6, 8K 8; not advanced,
+  one layer of the whole capability. The NATIVE layer's `auxCapability` is OFF
+  in every one of those. That is why the templates come in 1, 3, 5 and 7 boxes:
+  the top layer of 2, 4, 6 or 8 is the UMD's.
+- ⚠️ **An aux's background is closed by the client, not by the switcher.**
+  The vendor's `getAllowedLayerSourceTypes` gives an aux's NATIVE layer only
+  `NONE` (`allowedAuxBackgroundLayerSourceTypes`), its inspector shows NONE with
+  Source Setup greyed, and `preconfig/backgrounds` lists screens only. But over
+  AWJ, A1's NATIVE in a preset took `STILL_48`, `NATIVE_1`, `LIVE_1` and
+  `COLOR`, `source/status/pp/inputNum` reported each, and still 48 read
+  `isOnPreview` exactly as it does on a real layer; the vendor's card and
+  inspector then drew the still there without complaint. A screen's NATIVE is
+  enforced: given `STILL_48` or `LIVE_1` its reported source stayed NONE, and
+  only `NATIVE_1` was reported. Whether a frame's output card renders a still
+  on a plane with no capacity allocated is **not known** — a simulator has no
+  video. Not used here until a frame says so; `docs/NOTES.md` has the test.
+- **Updating is one upload.** `POST /api/device/images/upload` into a slot
+  that holds a file replaces it (new `hashName`), and a still showing that
+  slot follows by itself (`imageWidth`, `newSnaphot` change) — so a UMD in
+  place is refreshed with no still or layer write, and one on program changes
+  air the moment it lands; the panel asks first. `uploadImage`'s own wait
+  passes at once on a valid slot, so the apply waits for the new hash.
+- **The PNG keeps its alpha in the library**: the slot's download came back a
+  1920×1080 RGBA PNG. Whether a frame keys a still's alpha over the layers
+  under it is assumed, not seen.
+- **Layer paths go through the catalogue.** `dialect.layerParamPath` takes the
+  spec's `path` array (`['position', 'pp', 'posH']`), not its id
+  (`position.posH`); `core.layerPath` looks one up from the other. An aux
+  layer has no `border`, `keying` or `cutNFill`, so the clean-up writes only
+  the properties the mirror has, and only those not already so.
+- **`wire.same` compares lists by value.** `Object.is` never matched the echo of
+  an array write (`effects.flags`), so waiting for one timed out; nothing wrote
+  arrays before.
+- **"Top" is the highest layer number**, as the vendor lists them. Which
+  layer occludes which on a frame is still the open question
+  `core/screens.js` notes.
+
+The image library and still readers and writes, and the echo-waiting send,
+moved from the Background Slicer to `core/stills.js` and `core/wire.js` for
+this; `plugins/bg-slicer/core.js` re-exports what it always exported.
+
+Proven on the 6.2.73 simulator through the demo (2026-10-16), each checked
+over AWJ: the 7-box template laid out on A1 to the pixel, and S1's Inset
+laid out and undone from the tab; a UMD put on
+A1 L8 in preview (library slot 199, still 47, `NO_RESCALE`, full canvas);
+a rename marked it out of date; after a take, an update to program asked first
+and changed only the renamed tab's pixels; S1's UMD reached the Background
+Slicer as its picture. Not on 6.1.60, not on a frame, not on Midra (the panel
+offers Download only there).
+
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 
 There are four — the Console's, the Timeline's cue editor, Memories' and

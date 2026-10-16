@@ -1882,3 +1882,52 @@ screen on A and B).
   each section carried `data-lpp-surfaces` — the outlines' own mark — and every sweep removed them
   as stray outlines. Sections renamed, and sweeps now require `data-lpp-overlay` as well.
 
+
+## The UMD Generator, and whether an aux can have a picture for a background (2026-10-16)
+
+Built `plugins/umd/` against the local 6.2.73 simulator (Session 1, Cmax), with output 5 made aux
+A1 for the afternoon (8K advanced, 8 layers) and put back after; a full store diff against a
+snapshot from before showed only status words the switcher owns (deleted library slots keep their
+old `fileName`/size, the disabled A1 reports size 0 and `isAuxAdvanced` false, outputs 14/15 report
+`dpBoxMode` NONE after the resources re-apply) and the triggers, which I re-armed.
+
+**Aux layers come in pairs with the capability.** Staging output 5 as an aux and reading
+`preconfig/resources/new/outputList/items/5/status` after `xCheck`: advanced 4K → 2 DUAL layers,
+5K → 4, `6` → 6, 8K → 8; not advanced → 1 layer of the whole capability. NATIVE's `auxCapability`
+was OFF in all eight. Hence templates of 1, 3, 5 and 7 boxes with the top layer for the UMD.
+
+**Can an aux's background show a still?** Allan asked whether the "background sets for screens
+only" rule is the hardware or the UI. What I can say from a simulator:
+
+- The **UI** closes it: `allowedAuxBackgroundLayerSourceTypes = [NONE]` in the 6.2.73 bundle, the
+  inspector shows NONE with Source Setup greyed, and Preconfig ▸ Backgrounds has screens only
+  (`preconfig/backgrounds` has `screenList`, `outputList`, `inputList`, `stillList`, no aux list).
+- The **preconfig** never gives an aux's NATIVE any capacity (above), where a screen's NATIVE gets a
+  mixer.
+- The **control software does not refuse it.** Over AWJ, `auxiliaryList/items/A1/presetList/items/
+  B/layerList/items/NATIVE/source/pp/inputNum` took `STILL_48`, `NATIVE_1`, `LIVE_1` and `COLOR`,
+  and `…/source/status/pp/inputNum` reported each one. Still 48 read `isOnPreview: true`, as it does
+  on a real layer. The vendor's own card then drew it as A1's BKG and the inspector showed the
+  still's thumbnail. For contrast, a screen's NATIVE given `STILL_48` or `LIVE_1` kept reporting
+  NONE (only `NATIVE_1` was reported), so screens *are* enforced below the UI.
+- Whether the **output card renders** a still on a plane with nothing allocated is the bit a
+  simulator can't answer. My guess is that it doesn't (the aux background on the vendor's page is a
+  colour at most, and there's no capacity behind it), but a guess isn't worth a show.
+
+The test on a frame, when one is free and someone can see an aux's output: with an aux in service
+and a loaded still `N`, write its **preview** NATIVE source and take it.
+
+```
+{"op":"replace","path":"DeviceObject/$auxiliary/@items/A1/$preset/@items/<preview letter>/$layer/@items/NATIVE/source/@props/inputNum","value":"STILL_<N>"}
+```
+
+(Spell the path with `toAwj` from `src/core/paths.js` rather than trusting my hand.) Then read
+`…/source/status/@props/inputNum` and look at the output. Put it back to `NONE` after. If a frame
+shows it, the UMD Generator can offer the aux's background as a target and give the aux its top
+layer back; the label rule for screens (labels under the boxes) would apply there too.
+
+**Two things I tripped over.** The layer path builders take the catalogue spec's `path` array, not
+its id; `dialect.layerParams` are ids, so `layerParamPath(id, buf, key, 'position.posH')` builds
+a path of single characters and every write goes nowhere quietly. And `wire.js` compared echoes
+with `Object.is`, so a write of an array (`effects.flags: []`) could never be heard; it compares
+lists by value now.

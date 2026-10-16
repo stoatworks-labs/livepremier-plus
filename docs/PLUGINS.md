@@ -23,9 +23,9 @@ and read [Adding your own](#adding-your-own) below.
 from the manifests in [`src/core/plugins.js`](../src/core/plugins.js), so it cannot drift from the
 app the way the hand-written one did.
 
-- **Every built-in is on unless you switch it off**, bar five that start off (Preview lock, and the
-  Dante, Thumbnail relay, Multiviewer thumbnails and Background Slicer previews), so nobody
-  upgrading loses anything.
+- **Every built-in is on unless you switch it off**, bar seven that start off (Preview lock,
+  Surfaces, and the Dante, Thumbnail relay, Multiviewer thumbnails, Background Slicer and UMD
+  Generator previews), so nobody upgrading loses anything.
 - **Off means absent**: no sidebar entry or tab, no page decoration, no routes (they answer 404,
   name the plugin, and say why: its own switch, or a plugin it needs), no background service (an
   OSC listener is closed, router and Companion connections are hung up).
@@ -145,7 +145,7 @@ its menu has nothing to offer without one.
 
 **`order`** places an entry among the app's own, which are numbered in tens: in PLUS, Edit 10, VPU Map
 20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix Routing 50, Audio Matrix 55, Variables 57, Dante 58, Background Slicer 59 — and Companion asks for 60. On the strip,
-Console 10, Timeline 20, Layer 30, Groups 40, Pixel Map 50, Surfaces 55.
+Console 10, Timeline 20, Layer 30, Groups 40, Pixel Map 50, Surfaces 55, UMD 60.
 
 **`busy()`** holds every repaint off while it returns true — for a panel with a text field that
 somebody is typing in, since a repaint rebuilds the field and takes the caret with it.
@@ -321,6 +321,9 @@ pages; **`variables`**, from Variables — `list()`, `resolve('$S1.width')`, `re
 `(name, kind)` function mynah's `vars` and `core/expr.js` take; fresh per call), `evaluate(text)` and
 `onChange(fn)` — the Console and Field arithmetic ask for it per use, [VARIABLES.md](VARIABLES.md);
 and
+**`backgrounds`**, from the Background Slicer — `offer({ file, screens })` loads a picture (a
+File, or a Blob with a name) as its job's picture for those screens and writes nothing; the
+operator finishes in its panel. The UMD Generator hands a screen's UMD over through it;
 **`stack`**, the cue stack, owned by the Timeline —
 `go()`, `back()`, `stop()`, `gotoId(id)`, `fire(id)`, `standby`, `cues()` (copies), and
 `addEventListener`/`removeEventListener` for its events (`fired`, `took`, `armed`, `changed`,

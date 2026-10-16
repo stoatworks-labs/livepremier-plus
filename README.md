@@ -68,6 +68,12 @@ bolted on afterwards:
   however it's moved: the vendor's own drag, nudge, fields and toolbar, the Layer tab, the
   Console, a cue. Full screen fills the surface rather than the canvas, and the align buttons
   align to it. The outlines are drawn on the screen cards so you can see the edge coming.
+- **UMD Generator** (off until you switch it on): an aux laid out as a multiviewer has the
+  pictures and none of the furniture. This draws the furniture, ATEM-style: a hairline round each
+  box and a dark tab with the source's name, as one transparent PNG worked out from where each
+  layer actually is and what it's showing. It goes on an aux's top layer through a still, or to the
+  Background Slicer for a screen's background, and there are 1, 3, 5 and 7-box layouts to start an
+  aux from.
 - **Send to:** a `…` on every source card that routes it without dragging: preview or program,
   then a screen and layer or a whole group. It respects the vendor's own PGM padlock and asks
   before it steps past one.
@@ -1433,6 +1439,52 @@ fits are flagged until they're next moved.
 > the Edit page's drag stopped at the edge as it moved, and nothing reached the switcher. 6.1.60's
 > bundle has the same toolbar and the same drag code. LivePremier only. Not yet run on a real frame.
 
+## UMD Generator
+
+Screens / Aux. ▸ ⋯ ▸ UMD. Off until you switch it on in Preconfig ▸ LivePremier Plus ▸ Plugins,
+because it uploads into the image library and writes a still and an aux's layers.
+
+Pick a screen or aux and the tab reads every layer that's showing something: where it is, and
+what it's showing. From that it draws what an ATEM multiviewer draws over its windows: a thin
+line round each box, shared where two boxes touch, and a dark tab along the bottom with the
+source's name. It's one PNG at the canvas's size, transparent everywhere else.
+
+- **Names** come from the switcher: an input's label, a still's label, or the short `IN5` when
+  nobody gave it one. Type your own per layer, or take the layer's name from Layer names. A layer
+  with no source isn't drawn, unless you've named it, which is how you label a box before its
+  camera turns up.
+- **The look:** labels inside the bottom or top of the box, under it, or none; border on or off,
+  its width and colour; text size, capitals, and how dark the tab is. Long names shrink, then get
+  cut short with an ellipsis rather than escaping their box.
+- **On an aux** it goes on the top layer. An aux can't take a picture on its background (the
+  vendor's own page won't offer one; [AGENTS.md](AGENTS.md) has the longer story), so the top
+  layer carries a still of the PNG over the whole canvas and the layers under it are the boxes.
+  **Put on** uploads it into a free library slot, loads a free still and points the layer at it,
+  in preview (or program, if you've chosen PGM, after it asks). After that it's **Update UMD**,
+  which only re-uploads: the still and the layer follow on their own. The tab says when the UMD
+  on the switcher no longer matches the layers, and **Undo** takes back the last thing it wrote.
+- **On a screen** it goes on the background, which costs no mixer but is cut per output, and the
+  Background Slicer already does that properly. **To Background Slicer** hands it over; finish
+  there. Under the layers a label inside its box is hidden by the box, so a screen's labels sit
+  under each box by default, and the tab names any label a layer would cover.
+- **Templates** lay an aux out first. Its layers come with its capability, two at a time (an
+  advanced aux gets 2 at 4K, 4 at 5K, 6 at "6" and 8 at 8K), and with the top one spent on the
+  UMD that leaves 1, 3, 5 or 7 boxes: *Full* or *Inset*; *Two over one*, *One over two* or *One
+  and two*; *Two over three* or *One over four*; *Three and four* (the ATEM quad split) or *Three
+  over four*. Every box keeps the canvas's shape, so a 16:9 camera isn't squashed into it, and a
+  gap can stand them apart. **Lay out** writes the box layers' positions in the buffer you're on
+  and empties the ones the template doesn't use; sources are left alone.
+- **Download PNG** needs nothing from the switcher's library, so a Midra gets that much (drawn
+  against the Midra 4K simulator's store, not yet tried on a Midra) for loading by hand.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-16, each write checked over AWJ: an 8-layer
+> aux laid out as *Three and four* to the pixel; the UMD put on its L8 (library slot, still,
+> full canvas, no rescale) and the library's copy downloaded back with its transparency; a rename
+> marked it out of date; after a take, an update to program asked first and changed only that
+> tab's pixels; a screen's UMD arrived in the Background Slicer as its picture. LivePremier only
+> for writing. Not yet run on a real frame, so whether a frame keys the still's transparency over
+> the layers under it is the first thing to look at.
+
 ## Gallery
 
 The panels from the list above that don't have a section of their own, and the windows that pop
@@ -1623,6 +1675,7 @@ device's store rather than by the model name:
 | Matrix routing | yes | not yet — the sockets are read, but the Router tab and box are written into LivePremier's own pages |
 | Pixel Map | yes | not yet — a Midra keeps an image library too, but its Screens page lays the cards out differently |
 | Surfaces | yes | not yet — the shaper reads LivePremier's layer paths, and a Midra's Screens page lays the cards out differently |
+| UMD Generator | yes | the PNG only — Download works; putting it on the switcher reads LivePremier's library and stills |
 | Arithmetic in fields, Settings | yes | yes |
 
 Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step onto the wire
