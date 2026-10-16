@@ -64,6 +64,15 @@ import { EDIT } from '../../src/core/programmer.js';
 const SNAPSHOT_MS = 1000;
 
 /**
+ * The page's glyph, in the sidebar and beside its title. One picture under
+ * two names: `layer-stacked-18` in LivePremier's sprite, `stacked-layers-14`
+ * in Midra 4K's and Alta 4K's. It was `properties-18`, which none of the
+ * four sprites read (6.1.60, 6.2.73, Midra 3.2.29, Alta 1.3.7) defines, so
+ * the title never had one and the entry drew blank on a Midra.
+ */
+export const ICON = ['layer-stacked-18', 'stacked-layers-14'];
+
+/**
  * The eight resize handles, as the fraction of the box each one moves.
  *
  * `dx`/`dy` are which edges the handle drags: -1 is the near edge, +1 the far
@@ -336,7 +345,7 @@ export function createEditPanel({
 
     return h('div', { class: 'aw-flex-row-center-v aw-gap-col-large aw-flex-wrap' },
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
-        icon('properties-18', 'aw-block-huge'),
+        icon(ICON, 'aw-block-huge'),
         h('span', { class: 'aw-font-body-1-bold', text: 'Edit' }),
         h('span', {
           class: 'wru-tag wru-tag--good',

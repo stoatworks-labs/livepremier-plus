@@ -85,8 +85,11 @@ export default function activate(ctx) {
   }));
 
   const entry = { id: 'groups', render: () => groups.render(), busy: () => groups.busy(), order: 40 };
-  ctx.ui.tab({ ...entry, label: 'Groups', short: 'Grps', icon: ['group-14', 'layer-stacked-14'] });
-  ctx.ui.sidebar({ ...entry, label: 'Layer Groups', icon: ['group-18', 'layer-stacked-18'] });
+  /* `group-*` is LivePremier 6.2's sprite; Midra 4K and Alta 4K have no group
+     glyph, and `stacked-2-12` — a square over a filled one — is the nearest
+     they draw. 6.1.60 has neither and falls back to the layer stack. */
+  ctx.ui.tab({ ...entry, label: 'Groups', short: 'Grps', icon: ['group-14', 'stacked-2-12', 'layer-stacked-14'] });
+  ctx.ui.sidebar({ ...entry, label: 'Layer Groups', icon: ['group-18', 'stacked-2-12', 'layer-stacked-18'] });
 
   void groups.load();
 }

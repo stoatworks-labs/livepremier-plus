@@ -1549,7 +1549,10 @@ Fixed structurally rather than by platform-sniffing:
   a heading, larger than the vendor's and on its own line.
 - **The sprites differ.** `gpio-18`, `hardware-18` and `mini-list-14` do not
   exist on mng; `icon()` takes a list of candidates and uses the first the
-  page's sprite defines.
+  page's sprite defines. `test/panel-render.test.js` holds every sidebar entry
+  and tab to the sprite of each switcher it is offered on
+  (`test/fixtures/sprite-ids.json`, four simulators' ids) — Edit, Layer Groups
+  and the Groups tab were blank on a Midra until that test existed.
 
 ⚠️ Running the simulators: all three default to `PORT=3000` **and**
 `AWJ_EXT_PORT=10606`, so only one runs at a time out of the box. Edit the port

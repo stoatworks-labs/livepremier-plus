@@ -261,6 +261,67 @@ test('on a Midra the Plugins card says why MIDI Mapping is missing, and Pixelhue
 });
 
 /*
+ * Every sidebar entry and tab draws a glyph, out of the sprite of each
+ * switcher it is offered on. A `<use>` of an id the sprite lacks draws
+ * nothing and says nothing, and the two families' sprites differ: until
+ * 2026-10-16 Edit, Layer Groups and the Groups tab were blank on a Midra 4K.
+ *
+ * `sprite-ids.json` is the `<symbol>` ids in each simulator's web client,
+ * read off its bundle; the Midra's matched `#__SVG_SPRITE_NODE__` on the
+ * running page id for id. What is offered on a Midra is what the Pulse 4K's
+ * store offers, and the Alta, the same platform with no store here, is held
+ * to the same list. A LivePremier is offered everything.
+ */
+test('every sidebar entry and tab has a glyph in the sprite of each switcher it is offered on', async () => {
+  await withDom(async () => {
+    const { supports } = await import('../src/core/platform.js');
+    const { BUILTINS, status } = await import('../src/core/plugins.js');
+    const { KIT } = await import('../src/ui/plugin-host.js');
+    const { spriteId } = await import('../src/ui/dom.js');
+
+    const allOn = Object.fromEntries(BUILTINS.map((b) => [b.id, { enabled: true }]));
+    const entriesOn = async (store, can) => {
+      const entries = [];
+      for (const b of BUILTINS.filter((m) => m.client && status(allOn, m.id, can).on)) {
+        const { default: activate } = await import(`../plugins/${b.id}/client.js`);
+        await activate({
+          id: b.id, session: sessionOver(store), platform: () => detectPlatform(store), can, refresh() {}, kit: KIT,
+          url: (p = '/') => `/__lpp/${b.id}${p === '/' ? '' : p}`,
+          settings: { get: () => ({}), set: async () => ({}) },
+          contribute() {}, contributions: () => [], provide() {}, use: () => null, share() {},
+          log: { info() {}, warn() {} },
+          ui: {
+            sidebar: (e) => entries.push({ plugin: b.id, ...e }), tab: (e) => entries.push({ plugin: b.id, ...e }),
+            settingsSection() {}
+          }
+        });
+      }
+      /* A flyout item carries no icon, and an entry that declines is not drawn. */
+      return entries.filter((e) => !e.submenuOf && (!e.enabled || e.enabled()));
+    };
+
+    const midra = new DeviceStore();
+    midra.hydrate(fixture('midra-3.2.29-pulse4k.json'));
+    const onMng = await entriesOn(midra, (cap) => supports(detectPlatform(midra), cap));
+    const onNlc = await entriesOn(STORES.simulator(), () => true);
+    assert.ok(onMng.some((e) => e.id === 'edit') && onMng.some((e) => e.id === 'groups'), 'Edit and Layer Groups are offered on a Midra');
+
+    const offered = {
+      'livepremier-6.1.60': onNlc, 'livepremier-6.2.73': onNlc,
+      'midra-3.2.29': onMng, 'alta-1.3.7': onMng
+    };
+    for (const [sprite, { ids }] of Object.entries(fixture('sprite-ids.json'))) {
+      const has = new Set(ids);
+      document.getElementById = (id) => (has.has(id) ? {} : null);
+      const blank = offered[sprite]
+        .filter((e) => !e.icon || !has.has(spriteId(e.icon)))
+        .map((e) => `${e.plugin}: ${e.label} [${[].concat(e.icon || []).join(', ')}]`);
+      assert.deepEqual(blank, [], `drawn blank on ${sprite}`);
+    }
+  });
+});
+
+/*
  * The Variables panel with something in it: the user's own — one that
  * evaluates, one over a system variable, two in a cycle — over the
  * simulator's catalogue, and a search. The page-half pass above draws it
