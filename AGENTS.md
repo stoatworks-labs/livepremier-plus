@@ -211,11 +211,19 @@ rather than reasoned about:
   reports `step="1"`, X spans -960..2880, width 0..8192. Using the vendor's own
   declaration avoids matching a per-build class hash, and excludes labels and
   the `00:01.000` transition field, neither of which has a `step`.
-- **`type="number"` fields are excluded on purpose.** A number input discards
-  what it cannot parse: after `1080-80` the browser reports `value === ""` with
-  `validity.badInput`, and `selectionStart` is `null`. The expression is on
-  screen and unreadable from script. Supporting them needs a `type` swap on
-  focus plus reimplemented arrow-key stepping — do not add it casually.
+- **A bounded `type="number"` field is text only while focused.** A number
+  input discards what it cannot parse: after `1080-80` the browser reports
+  `value === ""` with `validity.badInput`, and `selectionStart` is `null`. On
+  6.1.x the geometry fields are number inputs (`step`/`min`/`max`), so one is
+  made `type=text` on `focusin` and put back on `focusout`. That costs no
+  stepping only because they are aw-ui's `AwNumberInput`, which steps in
+  script — and which 6.2 itself renders as text for its own arithmetic.
+  ⚠️ While it is text the vendor must never be handed a string its number
+  input could not hold: Enter goes through only on a number, blur empties
+  anything else first. Do not "simplify" by holding back the `input` events
+  instead — React's controlled update then writes the stale number over the
+  typing. Unbounded number inputs and our own `wru-input`s are not swapped.
+  Read the 6.2.73 bundle, proven on its simulator; not yet on a 6.1.x box.
 - **Capture phase on `document` is the entire timing strategy.** React attaches
   its handlers at the root container, so a capture listener on `document` runs
   before them. We rewrite the value, then let the event continue into the

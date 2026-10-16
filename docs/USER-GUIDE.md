@@ -1304,11 +1304,13 @@ putting `min`, `max` and `step` on them. That leaves out everything that mustn't
 have no `step`, and neither does the transition-time field, whose `00:01.000` would be mangled by
 anything treating `:` as arithmetic.
 
-**Opacity and zoom are left out on purpose.** They're proper number inputs, and a number input
-*discards* anything it can't parse: after typing `1080-80` the browser reports an empty value, so
-the expression is there on screen but can't be read from script. Getting arithmetic in there would
-mean changing a vendor element's type on every focus, in a UI that's driving a live show, and that
-isn't a trade I'm willing to make.
+**On firmware 6.1.x it works too.** There the geometry fields are number inputs, which throw away
+anything they can't parse, so while you type in one that has a range it becomes a text field, and
+it goes back when you leave. Arrow keys and the wheel still step it. If what you typed doesn't work
+out, Enter does nothing and the field flashes amber with the reason; leaving the field puts the
+switcher's value back. The canvas zoom box has no range and is left alone. This hasn't been typed
+into on a 6.1.x box yet: if the arrow keys stop stepping a field there, switch **Field arithmetic**
+off.
 
 There's **no `eval`** anywhere in this path, and anything the parser doesn't fully understand is
 refused rather than guessed at.
@@ -1486,6 +1488,6 @@ contain it.
 | **A fader does not move anything** | Soft pickup. Sweep it through the current value. |
 | **The Speed Editor does nothing** | DaVinci Resolve is still running, or the panel is plugged into a different machine from the one the app runs on, or another page is driving it (**Take over**), or the device host is not running (see the **Device host** card in Preconfig ▸ LivePremier Plus), or this is the Docker image, which has no USB. |
 | **A console command means the wrong thing** | The grammar is mynah's; the fix is there. |
-| **Arithmetic does not work in a field** | It is not one the vendor marks numeric — opacity and zoom are deliberately excluded. |
+| **Arithmetic does not work in a field** | It is not one the vendor marks numeric with a range — the canvas zoom box, for one, has none. |
 | **The VPU panel says there is nothing to draw** | A simulator has no VPU. That is correct, not a failure. |
 | **The demo refuses to start** | It only runs against loopback, on purpose. |

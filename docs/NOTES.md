@@ -1615,8 +1615,59 @@ writes stopped at one.
   `input[type=number]` with `step`/`min`/`max` (X -960..2880, width 0..8192);
   `isNumericField` wants `type=text`, so it never engages. Not typed into on
   the box: a number input discards an expression, and what the vendor commits
-  for an empty value on a live preview was not worth finding out.
+  for an empty value on a live preview was not worth finding out. Fixed the
+  same day — the next entry.
 - **The Layer tab offers every source the catalogue knows** (LIVE 1 to 256)
   on a box with 24 inputs available. `valuesFor` returns the enum whole.
 - Not run, deliberately: anything that takes, writes program, outputs, EDIDs
   or audio. The Console step was refused by the session's own guard.
+
+## Arithmetic in 6.1.x number fields (2026-10-16)
+
+The RS4 above left the plugin doing nothing: `isNumericField` wanted
+`type=text`, and 6.1.60's geometry fields are `type=number` with `step`,
+`min` and `max`. A number input reports `""` for `1080-80`, so there is
+nothing to read after the fact — the field has to be text while it is typed
+into. `math-fields.js`'s header had argued against exactly that swap, because
+it seemed to mean reimplementing native stepping. The 6.2.73 bundle settles
+it:
+
+- **The fields are aw-ui's `AwNumberInput`, and the vendor swaps it itself.**
+  It renders `type: arithmeticModeEnabled ? 'text' : 'number'`; in 6.2.73
+  only `AwSliderInput` (the geometry fields) turns that mode on, which is why
+  they are text there. 6.1.60 drawing them as number inputs says its slider
+  input did not.
+- **Its stepping is script.** ArrowUp/Down with `preventDefault`, the wheel
+  while focused, its own spinner; native stepping is never used. Text loses
+  none of it.
+- **It keeps the typed string in state** (`handleInputChange` stores
+  `data.value`), commits on blur (Enter is `event.target.blur()`), and its
+  blur parses with `tryParseNumber` — `+value`, with `""` mapped to NaN — and
+  puts its old value back on NaN or on no change. So what it commits for an
+  empty value, the question the RS4 entry left open, is nothing.
+
+So a bounded number input (`step` + `min` + `max`, not a `wru-input` of ours)
+is made `type=text` on `focusin` and put back on `focusout`. Enter in such a
+field goes no further unless the field holds a number or an expression that
+evaluated — it keeps its text and flashes amber — and on blur anything else is
+emptied first, which is what the number input would have reported. Typed text
+reaches React whole: held back, the component's state would be stale and
+React's controlled update would write it over the typing.
+
+Not a separate switch: on 6.1.60 the number fields are all the plugin touches,
+so its own switch is the way out. On 6.2.73 the swap also reaches the
+number-typed bounded `AwNumberInput`s — the bank-slot pickers, colour params,
+ST2110 network numbers, backup thresholds — the same component with the same
+script stepping. The canvas zoom box has no bounds and is left alone.
+
+Proven in a real Chromium on the 6.2.73 simulator, on the Save Master Memory
+popup's Memory box (`type=number`, step 1, 1..500 — the RS4's shape, and a
+commit there only picks the slot the popup would save to; SAVE was never
+pressed): a click left it focused, text and selected; `2*3` held through
+store repaints and Enter gave "Save to MM6" with the box back to `number`;
+`6-` and Enter stayed focused with "Not applied: unexpected end" and nothing
+committed, and Tab then left it at 6; ArrowUp while text stepped to 7;
+`400+200` clamped to 500. `test/math-fields.test.js` models the component
+with the RS4's attributes. **Not run on 6.1.x** — 6.1.60's own copy of the
+component is unread, and nothing was typed into the RS4. If arrows stop
+stepping there with the plugin on, it steps natively after all.

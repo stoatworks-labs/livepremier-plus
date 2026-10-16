@@ -421,9 +421,9 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > **An Aquilon RS4 on firmware 6.1.60 (2026-10-16).** The Screens / Aux. strip, which ran off
 > both sides of its panel with four plugin tabs on it, now puts them behind a ⋯; checked on the
 > simulator and on the RS4. The Layer tab wrote a preview opacity to the RS4 and put it back,
-> both read over AWJ. Two things that box showed aren't fixed yet: arithmetic in vendor fields
-> doesn't engage on 6.1.60, whose geometry fields are number inputs, and the VPU map calls the
-> box a simulator. `docs/NOTES.md` has the rest.
+> both read over AWJ. Arithmetic in vendor fields didn't engage on 6.1.60, whose geometry fields
+> are number inputs; it does now (proven on the simulator's number fields, not yet on the box).
+> The VPU map still calls the box a simulator. `docs/NOTES.md` has the rest.
 >
 > **Still untested on hardware:** on LivePremier the panels have written only to the simulator
 > and, with the socket stubbed, proven their paths against an Aquilon, apart from the Layer tab's
@@ -1125,12 +1125,20 @@ and it leaves out everything that mustn't be touched. Labels have no `step`, and
 transition-time field, whose `00:01.000` would be mangled by anything treating `:` as
 arithmetic.
 
-**Opacity and zoom are left out on purpose.** Those are proper `input[type="number"]` fields, and
-a number input *discards* anything it can't parse: after typing `1080-80` the browser reports
-`value === ""`, so the expression is there on screen but can't be read from script. Supporting
-them would mean swapping `type` to `text` on focus and reimplementing the native up/down stepping
-that operators use. Changing a vendor element's `type` on every focus, in a UI that's driving a
-live show, just to get arithmetic in an opacity field isn't a trade I'm willing to make.
+**On firmware 6.1.x the same fields are number inputs, and it works there too.** An Aquilon RS4
+on 6.1.60 draws its geometry fields as `input[type="number"]`, and a number input *discards*
+anything it can't parse: after typing `1080-80` the browser reports an empty value, so the
+expression can't be read back. So a number field with `min`, `max` and `step` becomes a text field
+while you're typing in it and goes back to a number field when you leave. That's what Web RCS 6.2
+does to the same vendor component for its own arithmetic, and the component does its arrow-key and
+wheel stepping in its own code, so nothing is lost while it's text. Two rules keep it safe: Enter
+in such a field only goes through if the field holds a number or an expression that works out
+(otherwise your text stays put and the field flashes amber with the reason), and leaving it with
+anything else empties it first, so Web RCS puts its own value back, exactly as it does when you
+leave a stray `-` in a number field. The canvas zoom box has no range and is left alone, and so
+are this app's own number fields. Proven on a 6.2 simulator's number field of the same kind. **It
+hasn't been typed into on a 6.1.x box yet.** If the arrow keys stop stepping a geometry field there, switch
+**Field arithmetic** off and tell me.
 
 There's **no `eval`** anywhere in this path. `src/core/expr.js` is a hand-written
 recursive-descent parser over a closed token set. Anything it doesn't fully understand is refused
