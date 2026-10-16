@@ -166,6 +166,13 @@ draws the console in the Virtual RC400T's own look — its chassis, key caps,
 lamp gradients and section headings, read off that page's stylesheet — with
 what each control does written on it.
 
+A Midra 4K or Alta 4K sidebar has no Virtual RC400T, so there the same page
+sits at the foot of the PLUS section, after Companion: `client.js` registers
+it twice and `controlSurfaces` picks which one is mounted. The look is
+restated in `map-page.js` rather than borrowed live, so it draws the same with
+no RC400T page to borrow from — seen on the Midra 4K simulator 3.2.29
+(2026-10-16), and the mapping it edits is the one the console applies there.
+
 - **The buses** show what the console shows: each key's text and lamp are the
   key states the console pushes (the supervisor mirrors them; `/state`'s
   `keys`), so S1 lit amber there is S1 selected on the panel. Empty positions
@@ -400,6 +407,9 @@ worth doing.
   | (no key on a U5) | `402` deleteAllPreset, `522` switchMutiDel — deliberately never acted on |
 - **Swap, time, stills and screens are LivePremier only**; Midra's spellings
   for them are unverified.
+- **Open Multiviewers is a LivePremier path.** It clicks the sidebar's link to
+  `/live/multiviewers`; a Midra 4K's is `/live/multiviewer` (simulator
+  3.2.29), so there the key logs that there is no such link and does nothing.
 - **Layer names are `Layer <n>`.** The console shows the layer bus from the
   model; the names the Layer names plugin keeps live on the page side, not
   where this reads.

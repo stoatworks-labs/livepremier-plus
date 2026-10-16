@@ -4,10 +4,14 @@
  *
  * Lives under Virtual RC400T, beside MIDI Mapping, for the reason MIDI
  * Mapping does: that is where an operator goes to think about control
- * surfaces. And it borrows that page's look on purpose — the chassis, the
- * key caps, the lit-key gradients and the section headings are the Virtual
- * RC400T's own, read off its stylesheet — so a U5 on this page reads as
- * another of the switcher's panels rather than as somebody else's app.
+ * surfaces. A Midra 4K or Alta 4K has no Virtual RC400T, so there it is in
+ * the PLUS section (`client.js` registers both). And it borrows that page's
+ * look on purpose — the chassis, the key caps, the lit-key gradients and the
+ * section headings are the Virtual RC400T's own, read off its stylesheet —
+ * so a U5 on this page reads as another of the switcher's panels rather than
+ * as somebody else's app. Read, not reused: every rule is restated in `CSS`
+ * below, so the page draws the same on a sidebar with no RC400T to borrow
+ * from.
  *
  * What it shows:
  *
@@ -486,7 +490,7 @@ export function createMapPage({ ctx, settings, live, put }) {
     const notes = [];
     if (state.error) notes.push(note('warn', `Could not save: ${state.error}`));
     if (!s.pixelhueEnabled) {
-      notes.push(note('info', 'The console link is off (Preconfig → Settings → Pixelhue panel). The mapping can be '
+      notes.push(note('info', 'The console link is off (Preconfig ▸ LivePremier Plus → Pixelhue panel). The mapping can be '
         + 'edited now and takes effect when it is on; the buses fill in once a console is connected.'));
     }
     if (s.pixelhueModel && s.pixelhueModel !== 'u5') {

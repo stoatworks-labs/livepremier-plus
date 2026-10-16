@@ -152,8 +152,10 @@ instead of in PLUS, and is left out where the switcher's sidebar has no such ite
 silently, so an entry that knows its anchor may be missing should say so: ask for a capability
 that is false where the anchor is (MIDI Mapping and the Speed Editor require `controlSurfaces`,
 false on a Midra, which has no Virtual RC400T), and the Plugins card says why in its words. A
-plugin whose other parts work there gates only the entry instead (Pixelhue Mapping's `enabled`
-asks `ctx.can('controlSurfaces')`) and says where the page went on its own card.
+page that works there too registers a second entry with no `after`, and the two `enabled`s
+pick one: Pixelhue Mapping is `pixelhue-map` under Virtual RC400T when
+`ctx.can('controlSurfaces')`, and `pixelhue-map-plus` in PLUS when not. One entry whose `after`
+changed would not do: the host copies an entry when it is registered.
 Anchored entries stack upwards, so the highest `order` sits nearest the anchor: MIDI Mapping 70,
 Speed Editor 69, Pixelhue Mapping 68. **`submenuOf`** puts an entry in a vendor flyout (Pitch
 Compensation is 80 in Preconfig, this app's settings 90).

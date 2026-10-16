@@ -188,11 +188,13 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
 /*
  * On a Midra 4K the pages under Virtual RC400T have nowhere to hang, and
  * until 2026-10-16 the Plugins card still called MIDI Mapping and the Speed
- * Editor on. Now their rows carry the capability's own sentence, and the
- * Pixelhue plugin keeps its card — driving a console works there — while its
- * Mapping entry declines and the card says where the page went.
+ * Editor on. Now their rows carry the capability's own sentence. The Pixelhue
+ * plugin keeps its card — driving a console works there — and its Mapping
+ * page moves to the PLUS section rather than going missing: the entry under
+ * Virtual RC400T declines, its PLUS twin is mounted and draws the page, and
+ * the card says where it is. On a LivePremier, the other way round.
  */
-test('on a Midra the Plugins card and the Pixelhue card say why the Virtual RC400T pages are missing', async () => {
+test('on a Midra the Plugins card says why MIDI Mapping is missing, and Pixelhue Mapping is in PLUS', async () => {
   await withDom(async () => {
     const { supports, whyNot } = await import('../src/core/platform.js');
     const { manifestOf } = await import('../src/core/plugins.js');
@@ -206,16 +208,21 @@ test('on a Midra the Plugins card and the Pixelhue card say why the Virtual RC40
       await activatePixelhue({
         id: 'pixelhue', session: sessionOver(store), platform, can: (cap) => supports(platform(), cap),
         refresh() {}, kit: KIT, url: (p = '/') => `/__lpp/pixelhue${p === '/' ? '' : p}`,
-        settings: { get: () => ({}), set: async () => ({}) },
+        /* On, so the card says where the Mapping page is. */
+        settings: { get: () => ({ pixelhueEnabled: true }), set: async () => ({}) },
         contribute() {}, contributions: () => [], provide() {}, use: () => null, share() {},
         log: { info() {}, warn() {} },
         ui: { sidebar: (e) => registered.push(e), tab: (e) => registered.push(e), settingsSection: (e) => registered.push(e) }
       });
-      const map = registered.find((e) => e.id === 'pixelhue-map');
+      const entries = registered.filter((e) => e.label === 'Pixelhue Mapping');
+      const anchored = registered.find((e) => e.id === 'pixelhue-map');
+      const plus = registered.find((e) => e.id === 'pixelhue-map-plus');
       const card = registered.find((e) => e.id === 'pixelhue');
-      return { map, text: renders('pixelhue card', card).textContent };
+      return { entries, anchored, plus, text: renders('pixelhue card', card).textContent };
     };
-    const missing = /Pixelhue Mapping is not on this switcher: it lives under Virtual RC400T/;
+    const missing = /not on this switcher/;
+    const inPlus = /on the Pixelhue Mapping page, in the PLUS section of the sidebar/;
+    const underRc400t = /on the Pixelhue Mapping page, under Virtual RC400T/;
 
     const midra = new DeviceStore();
     midra.hydrate(fixture('midra-3.2.29-pulse4k.json'));
@@ -234,14 +241,22 @@ test('on a Midra the Plugins card and the Pixelhue card say why the Virtual RC40
     assert.ok(text.includes(`${ph.name}${ph.description}${ph.where}`), 'the Pixelhue panel is on, with no reason against it');
 
     const onMidra = await pixelhueOn(midra);
-    assert.equal(onMidra.map.after, 'Virtual RC400T');
-    assert.equal(onMidra.map.enabled(), false, 'the Mapping entry declines');
-    assert.match(onMidra.text, missing);
-    assert.doesNotMatch(onMidra.text, /is on the Pixelhue Mapping page/);
+    assert.equal(onMidra.entries.length, 2, 'one page, two places to put it');
+    assert.equal(onMidra.anchored.after, 'Virtual RC400T');
+    assert.equal(onMidra.anchored.enabled(), false, 'the entry under Virtual RC400T declines');
+    assert.equal(onMidra.plus.enabled(), true, 'its PLUS twin is mounted instead');
+    assert.ok(!onMidra.plus.after && !onMidra.plus.submenuOf, 'in the PLUS section, anchored to nothing');
+    assert.equal(onMidra.entries.filter((e) => e.enabled()).length, 1, 'exactly one of them');
+    assert.match(renders('Pixelhue Mapping on a Midra', onMidra.plus).textContent, /Pick a control/);
+    assert.doesNotMatch(onMidra.text, missing);
+    assert.match(onMidra.text, inPlus);
+    assert.doesNotMatch(onMidra.text, underRc400t);
 
     const onLivePremier = await pixelhueOn(STORES.simulator());
-    assert.equal(onLivePremier.map.enabled(), true);
-    assert.doesNotMatch(onLivePremier.text, missing);
+    assert.equal(onLivePremier.anchored.enabled(), true);
+    assert.equal(onLivePremier.plus.enabled(), false);
+    assert.match(onLivePremier.text, underRc400t);
+    assert.doesNotMatch(onLivePremier.text, inPlus);
   });
 });
 

@@ -347,12 +347,13 @@ test('a real Pulse 4K store gets everything but the VPU map', () => {
 });
 
 /*
- * MIDI Mapping, the Speed Editor and Pixelhue Mapping hang under Virtual
- * RC400T, which a Midra's sidebar does not have, and the shell drops an
- * anchored entry with nowhere to go. The first two asked only for `console`,
- * which a Midra has, so the Plugins card called them on and they simply never
- * appeared. Driving a Pixelhue console is dialect-aware and stays on; only its
- * Mapping page asks for `controlSurfaces` (`test/panel-render.test.js`).
+ * MIDI Mapping and the Speed Editor hang under Virtual RC400T, which a
+ * Midra's sidebar does not have, and the shell drops an anchored entry with
+ * nowhere to go. They asked only for `console`, which a Midra has, so the
+ * Plugins card called them on and they simply never appeared. Driving a
+ * Pixelhue console is dialect-aware and stays on; its Mapping page asks
+ * `controlSurfaces` only to choose between Virtual RC400T and the PLUS
+ * section (`test/panel-render.test.js`).
  */
 test('on a Pulse 4K, MIDI Mapping and the Speed Editor are withheld and say why; the Pixelhue console is not', () => {
   const p = detectPlatform(pulse);

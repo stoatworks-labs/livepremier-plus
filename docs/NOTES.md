@@ -41,13 +41,14 @@ Pixelhue panel has never met a console; the console suite has only run against i
 (`LPP_CONSOLE=stand-in`, 31 pass, 3 skip).
 
 **Open:** the aux-background test for the UMD Generator waits for Allan to say a frame is free
-(recipe under "The UMD Generator" below). MIDI Mapping, the Speed Editor and Pixelhue Mapping
-still have no home on a Midra: no Virtual RC400T to hang under, and the surface engine spells
-LivePremier. Since 2026-10-16 that is said rather than silent: MIDI Mapping and the Speed Editor
-require `controlSurfaces` (no mng probe), so their Plugins rows read *not on this switcher* with
-the capability's sentence, and the Pixelhue panel stays on with its card saying where the
-Mapping page went. Giving them a place on the mng sidebar is the next step, once the engine
-speaks the dialect.
+(recipe under "The UMD Generator" below). MIDI Mapping and the Speed Editor still have no home
+on a Midra: no Virtual RC400T to hang under, and the surface engine spells LivePremier. Since
+2026-10-16 that is said rather than silent: they require `controlSurfaces` (no mng probe), so
+their Plugins rows read *not on this switcher* with the capability's sentence. Giving them a
+place on the mng sidebar waits for the engine to speak the dialect. Pixelhue Mapping has one
+already: the same day it moved to the foot of PLUS on a Midra or Alta, and drew and edited the
+mapping on the Midra 4K simulator 3.2.29. Its MVR key opens `/live/multiviewers`, which a Midra
+spells `/live/multiviewer`, so it does nothing there yet.
 
 ## The live suite, against the rack simulator (2026-10-13)
 

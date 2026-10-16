@@ -1488,9 +1488,14 @@ and **Mosaic inputs** (no mng probe for the channel matrix or input groups) and
 anchored entry with nowhere to go — silently, so until 2026-10-16, when they
 asked only for `console`, the Plugins card called them on and they never
 appeared. The surface engine (`vendor/surface/`) is still LivePremier's as well.
-**Pixelhue** keeps its card on mng, since driving a console is dialect-aware;
-only its **Pixelhue Mapping** entry declines on `controlSurfaces`, and the card
-says where the page went. The Plugins card prints a withheld plugin's
+**Pixelhue** keeps its card on mng, since driving a console is dialect-aware,
+and its **Pixelhue Mapping** page moves to the PLUS section: two entries, one
+page — `pixelhue-map` under Virtual RC400T where `controlSurfaces` holds,
+`pixelhue-map-plus` in PLUS where it does not. Two, because the plugin host
+copies an entry when it is registered and `ui/shell.js` reads placement at
+mount, so one entry with a changing `after` would keep its first answer. The
+page restates the RC400T's look in its own CSS and drew the same on the Midra
+4K simulator. The Plugins card prints a withheld plugin's
 capability sentence (`status(...).capability` → `whyNot`), so an anchor that
 can be missing wants a capability, not silence.
 

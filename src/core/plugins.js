@@ -311,12 +311,13 @@ export const BUILTINS = [
   {
     id: 'pixelhue',
     name: 'Pixelhue panel',
-    where: 'Settings (preview), and Pixelhue Mapping under Virtual RC400T',
+    where: 'Settings (preview), and Pixelhue Mapping under Virtual RC400T — in PLUS on a Midra or Alta',
     description: 'A Pixelhue U5, U5 Pro or U5 mini driving the switcher. Never yet run against a console.',
     /* Nothing in `requires`: driving a console is dialect-aware and offered on
-       both platforms. Only its Mapping page needs `controlSurfaces`, and asks
-       for it itself, so a Midra keeps the console and is told where the page
-       went (`client.js`). */
+       both platforms, and so is its Mapping page. That page asks
+       `controlSurfaces` itself, only to choose where it goes: under Virtual
+       RC400T on a LivePremier, in PLUS on a Midra or Alta, which has no
+       Virtual RC400T (`client.js`). */
     server: 'server.js',
     client: 'client.js'
   },

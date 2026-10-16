@@ -1133,10 +1133,11 @@ key.
 > the simulator; fade-to-black and freeze are sent on LivePremier, not yet on a Midra 4K.
 
 You can change what each key, fader and encoder does on **Pixelhue Mapping**, under Virtual
-RC400T. It draws the console in the Virtual RC400T's look, with the buses showing what the
-console shows. Click a control to change it (take, cut, fade to black, layer stepping, the cue
-stack, a memory to preview, a Companion button), or press it on the console and it lights up
-here. A changed control gets a blue dot, and **Reset** puts everything back.
+RC400T (in the **PLUS** section on a Midra 4K or Alta 4K, which has no Virtual RC400T). It draws
+the console in the Virtual RC400T's look, with the buses showing what the console shows. Click a
+control to change it (take, cut, fade to black, layer stepping, the cue stack, a memory to
+preview, a Companion button), or press it on the console and it lights up here. A changed
+control gets a blue dot, and **Reset** puts everything back.
 
 ![Pixelhue Mapping: a U5 drawn as a Virtual RC400T, with its source and preset buses, function keys, faders, encoders and T-bar, and the "Pick a control" panel beside it](docs/screenshots/pixelhue-mapping.png)
 
@@ -1285,9 +1286,11 @@ monitor that turns out to be better anyway, because the window stays pointed whe
 
 MIDI Mapping, Speed Editor and Pixelhue Mapping sit **under Virtual RC400T** in the vendor's own
 LIVE section. They're all about control surfaces, and putting them in a section of my own would
-file them by who wrote them rather than by what they do. Pitch Compensation and this app's own
-settings sit in the **Preconfig** flyout, next to the device settings they belong with. The
-whole-device views get a section of their own:
+file them by who wrote them rather than by what they do. A Midra 4K or Alta 4K has no Virtual
+RC400T, so MIDI Mapping and the Speed Editor aren't offered there, and Pixelhue Mapping goes at
+the foot of PLUS instead. Pitch Compensation and this app's own settings sit in the
+**Preconfig** flyout, next to the device settings they belong with. The whole-device views get a
+section of their own:
 
 ```
 LIVE
@@ -1723,7 +1726,8 @@ device's store rather than by the model name:
 | VPU Map | yes | no — a fixed-architecture switcher has no VPU to map |
 | Pitch Compensation | yes | **yes** — the ratios live under `canvas/pitch` there, and the panel knows |
 | OSC input | yes — 173 addresses, widened by the device's own catalogue | **yes** — 44 addresses, mynah's vouched-for table; the Midra catalogue is vendored for the Layer tab but not yet merged into the dictionary |
-| MIDI Mapping, Speed Editor, Pixelhue Mapping | yes | no — all three pages hang under Virtual RC400T, which a Midra's sidebar doesn't have, and the surface engine still spells LivePremier. The Plugins card says so on MIDI Mapping's and the Speed Editor's rows, and the Pixelhue panel's card says where its Mapping page went |
+| MIDI Mapping, Speed Editor | yes | no — both pages hang under Virtual RC400T, which a Midra's sidebar doesn't have, and the surface engine still spells LivePremier. The Plugins card says so on their rows |
+| Pixelhue Mapping | yes, under Virtual RC400T | **yes, in PLUS** — there's no Virtual RC400T to hang it under, so it sits after Companion; the same page, drawn and edited on the Midra 4K simulator 3.2.29. What a mapped key does there is the Pixelhue panel's row |
 | Pixelhue panel | yes | untried — the dialect spells takes, recalls and sources there; fade to black, freeze, swap, time, stills and screens are LivePremier only |
 | EDID builder | yes — the 100-slot bank and M1–M16, read off the simulator | not yet seen — it lights up by itself if the store has the same `system/edid/bankList` |
 | HyperDecks | yes | **yes** — a deck plays into an `INPUT_<n>` and records an output or `MTVW`; the rules are tested against a Pulse 4K's store |
