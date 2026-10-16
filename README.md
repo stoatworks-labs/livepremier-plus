@@ -1400,6 +1400,8 @@ A bound layer is kept inside its surface:
 - **Too big for its surface**, it's made to fit, keeping its shape unless the change was to its
   shape.
 
+![Screens / Aux. with only S1's PRW showing and the Surfaces tab open: two 960×1080 surfaces on S1, LED left and LED right, drawn as dashed outlines on the card, L1 on IN1 filling LED left, and L2 on IN4 sitting against LED right's left edge, selected with its handles over the outline](docs/screenshots/surfaces.png)
+
 The outlines are drawn on every PGM and PRW card, over a Pixel Map and under the selection
 handles, and take no clicks. A surface with a bound layer outside it on that buffer goes red and
 names the layer.

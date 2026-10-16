@@ -650,6 +650,8 @@ A screen's canvas is one raster, but what it lands on is usually several physica
 wall in three pieces, a header strip, a pair of IMAG screens either side. Each of those is a
 **surface**, and a layer bound to one stays inside it.
 
+![Screens / Aux. with only S1's PRW showing and the Surfaces tab open: LED left and LED right as dashed outlines on the card, IN1 on L1 filling LED left, and IN4 on L2 inside LED right, selected with its handles over the outline](screenshots/surfaces.png)
+
 1. **Make the surfaces.** Each screen in service has a section. **Add** makes a surface the size
    of the canvas; type its name and its X, Y, W and H in canvas pixels, the same units a layer's
    own position and size are in. **From outputs** makes one per output feeding the screen, where
