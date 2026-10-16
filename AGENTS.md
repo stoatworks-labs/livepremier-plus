@@ -718,6 +718,15 @@ So the banks and the properties are read from the mirror instead:
   MIDI mapper already generated from a device's own bundle — 67 layer
   parameters in twelve groups. Regenerate the catalogue and the panel grows the
   new properties on its own.
+  ⚠️ **Except the source list, which is the switcher's, not the enum's.** The
+  enum is every source the platform could have — 482 on LivePremier — and an
+  Aquilon RS4 with 24 inputs was offered all 256. `offeredValues` narrows a
+  *picker* by the dialect's `sourceOffered`, the vendor picker's own rule
+  (inputs and stills available, enabled and `USED` in the **applied
+  preconfig**, screens in `FREESTYLE`; on Midra, `isAvailable`), and always
+  keeps what the layer holds. `valuesFor` — what a write is checked against —
+  stays the whole enum, so a cue, a group or the Console naming a source that
+  has gone is still sent and the device judges it. Do not narrow the write.
 
 ⚠️ **Layer selection is not device state.** There is no `isSelected` anywhere in
 the store and nothing in the catalogue; the vendor's Properties tab follows a
@@ -1482,6 +1491,10 @@ no benefit. Read `wru` as "the panels".
   (2026-10-13) reports a fully fitted C MAX — 64 mixers, all available, two
   enabled for S1/NATIVE — and `test/sim/screen.sim.test.js` checks `readSide`
   against it mixer by mixer. Neither case is evidence about hardware.
+  ⚠️ **Nor is the empty shape only a simulator's:** an Aquilon RS4 on 6.1.60
+  (2026-10-16), screens on air, reports it exactly. `inspectMapping` calls it
+  `unreported` and the panel words it from the device's own `isSimulated` —
+  never from the shape, or a live switcher gets called a simulator.
 - **The Browser pane blocks cross-origin requests when the tab is on the LAN.**
   Injecting the modules from a local dev server works against a page on
   localhost and fails with `ERR_BLOCKED_BY_CLIENT` against a real device, with

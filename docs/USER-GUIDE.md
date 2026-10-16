@@ -1489,5 +1489,5 @@ contain it.
 | **The Speed Editor does nothing** | DaVinci Resolve is still running, or the panel is plugged into a different machine from the one the app runs on, or another page is driving it (**Take over**), or the device host is not running (see the **Device host** card in Preconfig ▸ LivePremier Plus), or this is the Docker image, which has no USB. |
 | **A console command means the wrong thing** | The grammar is mynah's; the fix is there. |
 | **Arithmetic does not work in a field** | It is not one the vendor marks numeric with a range — the canvas zoom box, for one, has none. |
-| **The VPU panel says there is nothing to draw** | A simulator has no VPU. That is correct, not a failure. |
+| **The VPU panel says there is nothing to draw** | A simulator has no VPU, and LivePremier firmware 6.1.60 does not report its VPU allocation. The panel says which. Either way it is correct, not a failure. |
 | **The demo refuses to start** | It only runs against loopback, on purpose. |

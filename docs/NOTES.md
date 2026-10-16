@@ -1607,10 +1607,15 @@ writes stopped at one.
   `presetId` status (0, modified) unchanged.
 - **The VPU map is wrong about what it is looking at.** 6.1.60 has the
   simulator's shape — `pipeList` (64) and `vpuLayerList` (32
-  `PROC_1_SCALER_n`, every one `capability: OFF`, nothing enabled), no
+  `PROC_<1-4>_SCALER_<1-8>`, every one `capability: OFF`, nothing enabled), no
   `vpuMixerList` — while its screens are plainly on air. Nothing to draw is
   right; "the simulator simply has no VPU" is not. Firmware, not simulator,
-  needs saying.
+  needs saying. **Fixed the same day:** `inspectMapping` calls the shape
+  `unreported` (and only while every scaler is off), and the panel picks
+  its words from `isSimulated`: the simulator's own, "this firmware does not
+  report its VPU allocation" naming the model and firmware, or a neutral
+  sentence when there is no identity. The fixture
+  `aquilon-rs4-6.1.60-resources.json` is cut from that store read.
 - **Arithmetic does nothing on 6.1.60.** The geometry fields are
   `input[type=number]` with `step`/`min`/`max` (X -960..2880, width 0..8192);
   `isNumericField` wants `type=text`, so it never engages. Not typed into on
@@ -1619,8 +1624,72 @@ writes stopped at one.
   same day — the next entry.
 - **The Layer tab offers every source the catalogue knows** (LIVE 1 to 256)
   on a box with 24 inputs available. `valuesFor` returns the enum whole.
+  *Fixed the same day* — see "The source list" below.
 - Not run, deliberately: anything that takes, writes program, outputs, EDIDs
   or audio. The Console step was refused by the session's own guard.
+
+**The source list.** The Layer tab's and the Edit page's source dropdown now
+offers what the vendor's own picker offers, read off the 6.2.73 client bundle
+(`allAvailableLayerSourcesSelector`): NONE and COLOR; an input or still whose
+device-list status is `isAvailable` and `isEnabled` and whose `global` in the
+*applied preconfig* is `USED`; a screen whose `mode` is `FREESTYLE`; and the
+eight background sets. `NLC.sourceOffered` / `MNG.sourceOffered` in
+`core/dialect.js`; `offeredValues` in `core/properties.js`.
+
+- RS4 store (from the field kit, not committed): 24 of 256 inputs, 48 of 192
+  stills (allocated; one holds a picture), 3 of 24 screens — 85 entries where
+  there were 482.
+- The 6.2.73 simulator through the app: 92 entries (32 inputs, 48 stills, 2
+  screens, 8 sets, NONE, COLOR), and the vendor's Sources panel's four tabs
+  hold 32, 48, 8 and 2 cards. Read only; nothing written.
+- ⚠️ The still list's own `global` is not the preconfig's: the simulator reads
+  `DISABLE` on the device list for five allocated, empty stills that the
+  preconfig calls `USED`, and the vendor offers them. On the RS4 the two agreed.
+- What the layer holds is always in the list, marked "(not available)" when
+  it is not on offer, so the field never shows NONE for a layer on an input
+  that has gone.
+- Writes are not narrowed: `valuesFor` is still the whole enum, so a cue, a
+  group's fan-out or the Console can still send a source that is not on offer.
+  Send-to takes its source off the vendor's own cards (already this rule) and
+  a ganged group copies what a member was set to, so neither offers a list.
+- Not done: the vendor also narrows by the kind of layer — a NATIVE layer takes
+  only background sets, an aux layer no colour, a screen layer other screens
+  only in split mode. The dropdown still offers all kinds on every layer.
+
+**A second pass, the same day, read-only on the box.** The Console's
+`AWJ {"op":"get",…}` answered `NLC_RS4` through the server's own AWJ path.
+**Variables** generated 685 `$` names off the RS4 (`$device.firmware` 6.1.60,
+`$S1.width` 2880, every layer value matching the store). **Audio Matrix**
+drew the real frame: 112 channels patched, 48 kHz on a Dante clock, outputs
+named by the screens they drive. Every write after that (a Console recall of
+an empty slot, switching the Thumbnail relay on in a throwaway instance) was
+refused by the session's guard before it left; the AWJ witness confirmed
+nothing reached the box. So the panels' LivePremier writes are still the
+Layer tab's one opacity.
+
+**How to run the rest without leaving a trace**, worked out on LivePremier
+Simulator 6.2.73 and checked against the RS4's store (11:32 dump):
+
+- **A6 "My Screen" is the place for it.** Its program and preview are
+  identical, whole buffer, and so is their bookkeeping (memory 0, modified).
+  A1–A4 are identical too, both on memory 1 unmodified, but they are the back
+  walls. S1/S2 match in content but not in bookkeeping, S3 and A5 differ.
+- **6.1.60 calls preset toggle off `copyMode: true`**, on every destination,
+  and `xTake` reads false at rest. Two takes on a destination whose preview
+  equals program, `copyMode` on, then `xTake` written back to false: **0
+  leaves differ** across the group, both buffers and the preset ids (simulator
+  S2, 1005 ms and 999 ms). Every take-based test (Timeline GO, OSC, Layer Lock,
+  Preview lock) belongs on A6 for that reason.
+- **A save leaves one trace a delete does not undo.** Saving a preview into an
+  empty slot sets its preset id to the slot and `isNotModified` true; deleting
+  the slot puts the id back to 0 and clears its label, but `isNotModified`
+  stays true. Nudging one layer property and putting it back clears it, as
+  `guardScreen` does. On A6, already "modified", save → label → recall the copy
+  → delete → nudge leaves nothing.
+- **The direct save route is the one that can't be undone.** The RS4's
+  `presetBank/import/extract/status` reads `NO_REQUEST`; a path its disk cannot
+  read would leave it on an error word, and status words are not writable.
+  Leave it until there is a share the box can see.
 
 ## Arithmetic in 6.1.x number fields (2026-10-16)
 

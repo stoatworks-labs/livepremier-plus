@@ -78,7 +78,7 @@ test('the VPU map reads what the switcher reports, mixer for mixer', { skip: SKI
 
   if (!mixers) {
     assert.equal(info.present, false);
-    assert.equal(info.reason, 'simulator', 'no mixers is a simulator, not an empty chassis');
+    assert.equal(info.reason, 'unreported', 'no mixers and every scaler off is a mapping that says nothing, not an empty chassis');
     return;
   }
 

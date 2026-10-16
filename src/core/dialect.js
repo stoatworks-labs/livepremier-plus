@@ -521,6 +521,60 @@ export const NLC = {
     return out;
   },
 
+  /**
+   * Whether the vendor's own source picker would offer a layer this value
+   * now — the rule behind a source *dropdown*, as `sources()` is the one
+   * behind a grid of pictures. Returns `(value) => boolean`.
+   *
+   * Read off the 6.2.73 client bundle (`allAvailableLayerSourcesSelector`):
+   *
+   * - `LIVE_<n>`: `inputList/items/IN_<n>/status/pp` says `isAvailable` and
+   *   `isEnabled`, and the input's `global` in the **applied preconfig**
+   *   (`preconfig/inputs/current/…/status/pp/global`) is `USED`. The Aquilon
+   *   RS4 on 6.1.60 (2026-10-16) has 256 inputs and 24 pass; `mapping.isValid`
+   *   picks the same 24 there, but the vendor's `GROUPED` and `AVAILABLE`
+   *   inputs can have a card behind them and are still not offered, so this
+   *   is not `sources()`' gate.
+   * - `STILL_<n>`: the same three, against `stillList` and
+   *   `preconfig/stills/current`. That is still capacity being allocated, not a
+   *   picture being loaded: 48 on the RS4, one of them holding an image.
+   *   ⚠️ The device list carries a `global` of its own and it is not the same
+   *   fact — the 6.2.73 simulator reads `DISABLE` there for five allocated,
+   *   empty stills its preconfig calls `USED`. The vendor asks the preconfig.
+   * - `SCREEN_<n>`: `screenList/items/S<n>/status/pp/mode` is `FREESTYLE`.
+   * - `NONE`, `COLOR` and the background sets (`NATIVE_<n>`) are always
+   *   offered, and so is anything this file has not met.
+   *
+   * A list the store does not carry at all decides nothing, so a partial store
+   * offers the whole enum rather than an empty one. The vendor also narrows by
+   * the kind of layer (a NATIVE layer takes only background sets, an aux layer
+   * no colour, a screen's layer other screens only in split mode); this does
+   * not — it is about what the switcher has, not what one layer accepts.
+   */
+  sourceOffered(store) {
+    const list = (...path) => store.get([ROOT, ...path, 'items']);
+    const inputs = list('inputList');
+    const stills = list('stillList');
+    const screens = list('screenList');
+    const applied = {
+      inputs: list('preconfig', 'inputs', 'current', 'inputList') || {},
+      stills: list('preconfig', 'stills', 'current', 'stillList') || {}
+    };
+    const usable = (node, preconfig) => {
+      const status = pp(node && node.status);
+      if (!status.isAvailable || !status.isEnabled) return false;
+      const global = pp(preconfig && preconfig.status).global;
+      return global === undefined || global === 'USED';
+    };
+    return (value) => {
+      const m = /^(LIVE|STILL|SCREEN)_(\d+)$/.exec(String(value));
+      if (!m) return true;
+      if (m[1] === 'LIVE') return !inputs || usable(inputs['IN_' + m[2]], applied.inputs['IN_' + m[2]]);
+      if (m[1] === 'STILL') return !stills || usable(stills[m[2]], applied.stills[m[2]]);
+      return !screens || pp(screens['S' + m[2]] && screens['S' + m[2]].status).mode === 'FREESTYLE';
+    };
+  },
+
   /*
    * The readouts below — what an input is receiving, what an output drives,
    * which stills are loaded, what a timer says — are for anything that wants
@@ -1087,6 +1141,19 @@ export const MNG = {
     }
     out.push({ value: 'COLOR', kind: 'color', label: MNG.sourceLabel('COLOR'), snapshot: null });
     return out;
+  },
+
+  /**
+   * Whether a layer is offered this value now — nlc's `sourceOffered`, and
+   * here the same rule as `sources()`, because on this platform the picker
+   * and the grid are one list: an `INPUT_<n>` whose `status/pp/isAvailable`
+   * is true, and `NONE` and `COLOR` always. Ten of a Pulse 4K's sixteen. An
+   * input list the store does not carry decides nothing.
+   */
+  sourceOffered(store) {
+    const inputs = store.get([ROOT, 'inputList', 'items']);
+    return (value) => !/^INPUT_\d+$/.test(String(value)) || !inputs ||
+      pp(inputs[value] && inputs[value].status).isAvailable === true;
   },
 
   /**

@@ -422,8 +422,9 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > both sides of its panel with four plugin tabs on it, now puts them behind a ⋯; checked on the
 > simulator and on the RS4. The Layer tab wrote a preview opacity to the RS4 and put it back,
 > both read over AWJ. Arithmetic in vendor fields didn't engage on 6.1.60, whose geometry fields
-> are number inputs; it does now (proven on the simulator's number fields, not yet on the box).
-> The VPU map still calls the box a simulator. `docs/NOTES.md` has the rest.
+> are number inputs; it does now (proven on a simulator field of the same kind, not yet on the
+> box). The VPU map no longer calls the box a simulator, and the Layer tab offers only the sources
+> it has. `docs/NOTES.md` has the rest.
 >
 > **Still untested on hardware:** on LivePremier the panels have written only to the simulator
 > and, with the socket stubbed, proven their paths against an Aquilon, apart from the Layer tab's
@@ -1454,8 +1455,10 @@ sources that can disagree about what's on air.
 
 **The simulator the fixtures came from has no VPU at all.** It carries a `vpuLayerList` that's
 there and permanently empty, and no `vpuMixerList`; `$vpuLayer` answers `E12` on real hardware.
-That's a quirk of the simulator rather than a second generation of firmware, and the panel just
-says so, instead of drawing an empty chassis or claiming the firmware isn't supported. Not every
+It isn't only a simulator's quirk, though: an Aquilon RS4 on firmware 6.1.60 reports exactly the
+same shape with its screens on air. So the panel asks the device whether it's a simulator
+(`isSimulated`) and says so, or says that this firmware doesn't report its VPU allocation, instead
+of drawing an empty chassis or blaming a simulator that isn't there. Not every
 simulator does it, mind: another 6.2.73, running under Wine, reports a fully fitted C MAX (64
 mixers, two of them carrying S1's NATIVE layer), and the live suite checks the panel's reading of
 that one mixer by mixer.

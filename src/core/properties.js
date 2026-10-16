@@ -115,10 +115,47 @@ export function layerSpec(store, name) {
   return (id && dialect.catalogue.layer.find((p) => p.id === id)) || null;
 }
 
-/** The member list for a spec's enum, whichever way the catalogue spelled it. */
+/**
+ * The member list for a spec's enum, whichever way the catalogue spelled it.
+ *
+ * This is what a write is checked against, and it stays the whole enum: a cue,
+ * a group's fan-out or the Console may name a source this switcher does not
+ * have right now, and the device, not this file, decides what that does. A
+ * picker draws from `offeredValues` instead.
+ */
 export const valuesFor = (spec, store = null) =>
   (Array.isArray(spec && spec.values) && spec.values) ||
   (spec && spec.enum && catalogueFor(store).enums[spec.enum]) || [];
+
+/**
+ * Whether a picker should offer this member of a spec's enum: `(value) =>
+ * boolean`, true for everything except a layer source the switcher does not
+ * have.
+ *
+ * Only the source enum is narrowed — `LIVE_1`..`LIVE_256` on a LivePremier
+ * with 24 inputs (the Aquilon RS4 on 2026-10-16), `INPUT_1`..`16` on a Pulse
+ * 4K with ten. It is recognised as the enum the dialect's `sourceParam` uses,
+ * so a cut-and-fill source picks from the same list without being named here.
+ * The rule is the dialect's `sourceOffered`, the vendor picker's own.
+ */
+export function offersValue(spec, store) {
+  const dialect = dialectFor(store);
+  const source = dialect && layerSpec(store, 'source');
+  const isSource = source && spec && (spec === source || (source.enum && spec.enum === source.enum));
+  return isSource && dialect.sourceOffered ? dialect.sourceOffered(store) : () => true;
+}
+
+/**
+ * The members a picker shows: `valuesFor`, less what `offersValue` turns
+ * down, in catalogue order — and always `current`, the value the field holds,
+ * even when it is not on offer. A layer left on an input that has since gone
+ * must still say so; a dropdown that drops it would show the first option
+ * instead, which reads as the layer being on NONE.
+ */
+export function offeredValues(spec, store = null, current) {
+  const offered = offersValue(spec, store);
+  return valuesFor(spec, store).filter((v) => v === current || offered(v));
+}
 
 /* ------------------------------------------------------------- addressing */
 

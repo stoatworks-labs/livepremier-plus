@@ -85,7 +85,7 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
     }
 
     const side = readSide(store, view.which);
-    if (!side) return panel({ toolbar: title(), body: unavailable(store) });
+    if (!side) return panel({ toolbar: title(), body: unavailable(store, here) });
 
     const diffs = diffSides(store);
     const changed = new Set(
@@ -110,17 +110,40 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
   /**
    * A device with no mixer map is not the same as a device with an empty one,
    * and the difference is worth spelling out rather than drawing 64 grey boxes.
+   *
+   * A mapping that reports nothing looks the same on a simulator and on an
+   * Aquilon RS4 at 6.1.60 with its screens on air, so which sentence is true
+   * is the device's to say (`isSimulated`), never the store shape's. Telling
+   * an operator their switcher is a simulator is the one wrong answer here.
    */
-  function unavailable(store) {
+  function unavailable(store, here) {
     const info = inspectMapping(store, view.which);
+    const scalers = info.scalers
+      ? `${info.scalers} scaler${info.scalers === 1 ? '' : 's'} in a vpuLayerList, every one switched off,`
+      : 'a vpuLayerList with nothing switched on';
+    const box = here && here.firmware
+      ? [here.name, here.model].filter(Boolean).join(' ') + ' on firmware ' + here.firmware
+      : null;
     const messages = {
-      simulator: [
-        'No VPU mixer map on this device',
-        'This box reports a vpuLayerList collection and no vpuMixerList. That is what a ' +
-        'LivePremier simulator looks like: the collection exists but is permanently empty, ' +
-        'and $vpuLayer answers E12 on real hardware. There is no allocation here to draw — ' +
-        'the panel is working, the simulator simply has no VPU.'
-      ],
+      unreported: here && here.simulated
+        ? [
+            'No VPU on this simulator',
+            `The device says it is a simulator, and it reports ${scalers} and no vpuMixerList. ` +
+            'This simulator allocates nothing, so there is nothing here to draw — the panel is working.'
+          ]
+        : box
+          ? [
+              'This firmware does not report its VPU allocation',
+              `${box} reports ${scalers} and no vpuMixerList. The VPU is there; this firmware ` +
+              'just does not say how it is allocated, so there is nothing here to draw — the ' +
+              'panel is working.'
+            ]
+          : [
+              'No VPU allocation reported',
+              `The resource mapping holds ${scalers} and no vpuMixerList, so there is no ` +
+              'allocation here to draw. A simulator reports this, and so does LivePremier ' +
+              'firmware 6.1.60 on hardware.'
+            ],
       'no-mixer-collection': [
         'No VPU mixer map on this device',
         'The resource mapping is present but carries no vpuMixerList. Either this firmware ' +
@@ -135,7 +158,10 @@ export function createVpuPanel({ session, platform = null, onRefresh }) {
     const [heading, body] = messages[info.reason] || messages['no-mapping'];
     return h('div', { class: 'wru-empty' },
       h('div', { class: 'aw-font-subtitle-1 aw-margin-bottom-medium', text: heading }),
-      h('div', { style: { maxWidth: '46rem', margin: '0 auto' }, text: body }));
+      h('div', { style: { maxWidth: '46rem', margin: '0 auto' }, text: body }),
+      box ? h('div', { class: 'aw-font-caption aw-text-tertiary aw-margin-top-medium',
+        text: [here.name, here.model, here.firmware].filter(Boolean).join(' · ') +
+          (here.simulated ? ' · simulator' : '') }) : null);
   }
 
   function title(side, diffs) {
