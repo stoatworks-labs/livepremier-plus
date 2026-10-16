@@ -168,9 +168,15 @@ class ProgrammerStore {
 /**
  * A session-shaped programmer over a live one.
  *
- * @param {{session: {store: object, send: Function}, buffer?: string}} opts
+ * `shape`, when given, sees every run of writes before it lands and may
+ * change or add to them — Surfaces keeping a bound layer inside its LED
+ * element here exactly as it does on the wire. It is read per use, so a
+ * feature switched off mid-session simply stops shaping.
+ *
+ * @param {{session: {store: object, send: Function}, buffer?: string,
+ *          shape?: (cmds: object[], read: (path: string[]) => unknown) => object[]}} opts
  */
-export function createProgrammer({ session, buffer = EDIT } = {}) {
+export function createProgrammer({ session, buffer = EDIT, shape = null } = {}) {
   const store = new ProgrammerStore(session.store, buffer);
   const events = new EventTarget();
 
@@ -200,10 +206,31 @@ export function createProgrammer({ session, buffer = EDIT } = {}) {
    */
   function send(cmd) {
     if (!cmd || !Array.isArray(cmd.path)) return false;
-    const ok = store.set(cmd.path, cmd.value);
-    events.dispatchEvent(new CustomEvent('sent', { detail: { cmd, ok } }));
-    if (ok) events.dispatchEvent(new CustomEvent('frame', { detail: { path: cmd.path, value: cmd.value } }));
-    return ok;
+    return sendMany([cmd]) > 0;
+  }
+
+  /**
+   * Write several properties as one run — a drag step's size and position
+   * together, so a shaper sees the whole rectangle rather than one edge of
+   * it. Returns how many landed.
+   */
+  function sendMany(cmds) {
+    let run = (cmds || []).filter((cmd) => cmd && Array.isArray(cmd.path));
+    if (shape && run.length) {
+      try {
+        const shaped = shape(run, (path) => store.get(path));
+        if (Array.isArray(shaped) && shaped.length >= run.length) run = shaped;
+      } catch (err) {
+        console.error('[lpp] programmer shaper threw', err);
+      }
+    }
+    let n = 0;
+    for (const cmd of run) {
+      const ok = store.set(cmd.path, cmd.value);
+      events.dispatchEvent(new CustomEvent('sent', { detail: { cmd, ok } }));
+      if (ok) { n++; events.dispatchEvent(new CustomEvent('frame', { detail: { path: cmd.path, value: cmd.value } })); }
+    }
+    return n;
   }
 
   /**
@@ -365,6 +392,7 @@ export function createProgrammer({ session, buffer = EDIT } = {}) {
   return {
     store,
     send,
+    sendMany,
     buffer,
     /* The live session underneath, for the few callers that must reach the
        real device on purpose — saving a memory, above all. Named rather than

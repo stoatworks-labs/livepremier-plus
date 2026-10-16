@@ -85,10 +85,11 @@ const HANDLES = [
  * @param {Function} [opts.names]   layer names
  * @param {Function} [opts.onSave]  ({id, slot, label, route}) => Promise, saves a memory
  * @param {Function} [opts.onLoad]  ({id, slot}) => Promise, reads one back in
+ * @param {Function} [opts.surfaces] the Surfaces service, or null while it is off
  */
 export function createEditPanel({
   session, programmer, properties, onRefresh = () => {},
-  names = () => ({}), onSave = null, onLoad = null, doc = document
+  names = () => ({}), onSave = null, onLoad = null, surfaces = () => null, doc = document
 }) {
   const view = {
     /* null means "every destination in service", which is the vendor's ALL.
@@ -195,15 +196,15 @@ export function createEditPanel({
     const target = { id, bank: EDIT, layer: String(layerKey) };
     const { posH, posV } = topLeftToAnchor(anchor, rect.left, rect.top, rect.width, rect.height);
 
-    for (const [name, value] of [
+    /* One run, so a shaper (Surfaces) sees the whole rectangle at once. */
+    const cmds = [
       ['sizeH', Math.round(rect.width)],
       ['sizeV', Math.round(rect.height)],
       ['posH', Math.round(posH)],
       ['posV', Math.round(posV)]
-    ]) {
-      const cmd = writeCmd(target, layerSpec(store(), name), value, store());
-      if (cmd) programmer.send(cmd);
-    }
+    ].map(([name, value]) => writeCmd(target, layerSpec(store(), name), value, store())).filter(Boolean);
+    if (programmer.sendMany) programmer.sendMany(cmds);
+    else for (const cmd of cmds) programmer.send(cmd);
   }
 
   /**
@@ -225,6 +226,9 @@ export function createEditPanel({
     const start = { x: ev.clientX, y: ev.clientY };
     const from = { ...layer.rect };
     const anchor = layerAnchor(dest, layer.key);
+    /* A layer bound to a surface stops at its edge as it is dragged, rather
+       than following the pointer out and jumping back on release. */
+    const keep = surfaces();
 
     dragging = { dest, layer, box, handle };
     box.setPointerCapture?.(ev.pointerId);
@@ -232,9 +236,10 @@ export function createEditPanel({
     const move = (e) => {
       const dx = (e.clientX - start.x) * scale;
       const dy = (e.clientY - start.y) * scale;
-      const rect = handle ? resized(from, handle, dx, dy) : {
+      let rect = handle ? resized(from, handle, dx, dy) : {
         left: from.left + dx, top: from.top + dy, width: from.width, height: from.height
       };
+      if (keep) rect = keep.constrain(dest.id, layer.key, rect, { before: from });
       /* Drawn straight onto the node, in the fractions the stage uses. */
       box.style.left = ((rect.left / canvas.width) * 100).toFixed(4) + '%';
       box.style.top = ((rect.top / canvas.height) * 100).toFixed(4) + '%';
@@ -404,6 +409,7 @@ export function createEditPanel({
         }
       })
       : emptyStage(dest);
+    if (live) outlineSurfaces(frame, dest);
 
     return h('div', { class: ['lpp-card', 'lpp-card--fill', selDest === dest.id ? 'lpp-card--on' : ''] },
     h('div', { class: 'lpp-card-head aw-flex-row-center-v aw-gap-col-small' },
@@ -417,6 +423,26 @@ export function createEditPanel({
     fit(dest, frame),
     cardTools(dest, live),
     live ? layerStrip(dest) : null);
+  }
+
+  /**
+   * The LED elements this destination lands on, outlined over the stage —
+   * the Surfaces plugin's, while it is on. They take no pointer, so a press
+   * goes to the layer or the canvas under them.
+   */
+  function outlineSurfaces(frame, dest) {
+    const svc = surfaces();
+    const list = svc ? svc.surfaces(dest.id) : [];
+    if (!list.length || !dest.canvas) return;
+    const pct = (a, b) => ((a / b) * 100).toFixed(4) + '%';
+    frame.append(h('div', { class: 'lpp-stage-surfaces', 'aria-hidden': 'true' },
+      list.map((s) => h('div', {
+        class: 'lpp-stage-surface',
+        style: {
+          left: pct(s.x, dest.canvas.width), top: pct(s.y, dest.canvas.height),
+          width: pct(s.width, dest.canvas.width), height: pct(s.height, dest.canvas.height)
+        }
+      }, h('span', { class: 'lpp-stage-surface-tag', text: s.name })))));
   }
 
   /**

@@ -9,32 +9,14 @@
  * card makes the map not appear, quietly — so `describe()` counts what was
  * found and what was drawn, and the panel prints it.
  *
- * ## What is matched
+ * ## Where, and what is matched
  *
- * Read off a running Web RCS (LivePremier Simulator 6.2.73, 2026-10-16):
- *
- *   .aw-preset-view > h2 "S1"                           one screen card
- *     [class*="screen-overview-container__c__preset___"] one buffer, labelled PGM / PRW
- *       [class*="preset-overview-container__c__canvas___"]  the canvas box
- *         .react-transform-component                    the card's pan and zoom
- *           … .aw-absolute.aw-background-black          the raster, sized in px
- *               > .aw-relative > .aw-absolute           the stack:
- *                   div                                   the layers
- *                   div                                   the selected layer's handles
- *
- * The card and buffer come from `ui/preset-lock.js`, which already knows
- * them. The raster is found by its utility classes inside the pan-zoom
- * component; the only hashed name used is matched on its stable middle, as
- * everywhere else here.
- *
- * ## Where in the stack, and why there
- *
- * Between the layers and the handles. Over the layers, because a mask is no
+ * `src/ui/canvas-overlay.js` finds the raster in each card and seats the map
+ * between the layers and the handles: over the layers, because a mask is no
  * use under what it masks; under the handles, because the operator still has
- * to see where to grab a layer that the map has just blacked out. The handles
- * group is only mounted while a layer is selected, and React appends it, so
- * it lands after the map on its own. A stack that is not shaped like that
- * gets the map on top of everything instead, and `describe()` says so.
+ * to see where to grab a layer that the map has just blacked out. A stack
+ * that is not shaped like that gets the map on top of everything instead,
+ * and `describe()` says so. Surfaces' outlines sit over the map.
  *
  * ## Never in the way
  *
@@ -46,64 +28,16 @@
  */
 
 import { presetBlocks } from '../../src/ui/preset-lock.js';
+import { OVERLAY, MARKS, rasterOf, slotIn, seat, style, sweeper } from '../../src/ui/canvas-overlay.js';
 
 /** Ours, so a re-render cannot end up with two and so `stop()` can find them. */
-export const MARK = 'data-lpp-pixel-map';
-
-const CANVAS_BOX = '[class*="preset-overview-container__c__canvas___"]';
-const ZOOM = '.react-transform-component';
-const RASTER = '.aw-background-black';
-/* A build that paints the raster another colour still positions it in px. */
-const RASTER_FALLBACK = '.aw-absolute[style*="height"]';
-
-/** The raster `<div>` inside one buffer block, or null. */
-export function rasterOf(block) {
-  const box = block.querySelector(CANVAS_BOX);
-  const zoom = box && box.querySelector(ZOOM);
-  if (!zoom) return null;
-  return zoom.querySelector(RASTER) || zoom.querySelector(RASTER_FALLBACK);
-}
-
-const vendorChildren = (el) => [...el.children].filter((c) => !c.hasAttribute(MARK));
-
-/**
- * Where the map goes in one raster: `{parent, after, where}`.
- *
- * `between` puts it straight after the layers group, so handles mounted later
- * are drawn over it; `top` appends it to the raster, over everything.
- */
-export function slotIn(raster) {
-  const inner = vendorChildren(raster)[0];
-  const stack = inner && vendorChildren(inner)[0];
-  if (stack && stack.classList.contains('aw-absolute')) {
-    const layers = vendorChildren(stack)[0] || null;
-    if (layers) return { parent: stack, after: layers, where: 'between' };
-  }
-  const kids = vendorChildren(raster);
-  return { parent: raster, after: kids[kids.length - 1] || null, where: 'top' };
-}
-
-/** Put `node` straight after `after` in `parent`, unless it is there already. */
-function seat(node, { parent, after }) {
-  if (after) {
-    if (node.parentNode === parent && after.nextSibling === node) return false;
-    parent.insertBefore(node, after.nextSibling);
-    return true;
-  }
-  if (node.parentNode === parent && parent.firstChild === node) return false;
-  parent.insertBefore(node, parent.firstChild);
-  return true;
-}
-
-/** Set a style property only when it differs, so a sweep that changes nothing writes nothing. */
-function style(el, prop, value) {
-  if (el.style[prop] !== value) el.style[prop] = value;
-}
+export const MARK = MARKS.pixelMap;
 
 /** Build one overlay: a clipping box and the picture in it. */
 function build(doc, key) {
   const box = doc.createElement('div');
   box.setAttribute(MARK, key);
+  box.setAttribute(OVERLAY, 'pixel-map');
   box.setAttribute('aria-hidden', 'true');
   box.className = 'wru-pixel-map';
   const img = doc.createElement('img');
@@ -152,12 +86,9 @@ function paint(box, entry) {
  * @param {Document} [opts.doc]
  */
 export function installPixelMaps({ plan, roles, enabled = () => true, doc = document } = {}) {
-  let observer = null;
-  let scheduled = false;
   let last = { cards: 0, blocks: 0, rasters: 0, drawn: 0, between: 0, top: 0, notDrawn: [] };
 
   function sweep() {
-    scheduled = false;
     const keep = new Set();
     const report = { cards: 0, blocks: 0, rasters: 0, drawn: 0, between: 0, top: 0, notDrawn: [] };
 
@@ -193,19 +124,9 @@ export function installPixelMaps({ plan, roles, enabled = () => true, doc = docu
   }
 
   /* Coalesced: the vendor page mutates constantly, and one sweep per frame
-     is plenty. Our own insertions cause one more sweep, which finds
-     everything in place and changes nothing — so it settles. */
-  function refresh() {
-    if (scheduled) return;
-    scheduled = true;
-    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn) => setTimeout(fn, 16);
-    raf(sweep);
-  }
-
-  if (typeof MutationObserver === 'function' && doc.body) {
-    observer = new MutationObserver(refresh);
-    observer.observe(doc.body, { childList: true, subtree: true });
-  }
+     is plenty. */
+  const sweeps = sweeper(sweep, doc);
+  const refresh = sweeps.refresh;
   refresh();
 
   return {
@@ -215,7 +136,7 @@ export function installPixelMaps({ plan, roles, enabled = () => true, doc = docu
     /** What the last sweep found and drew. A count of zero is how a moved card shows up. */
     describe: () => ({ ...last, notDrawn: [...last.notDrawn] }),
     stop() {
-      if (observer) { observer.disconnect(); observer = null; }
+      sweeps.stop();
       for (const node of doc.querySelectorAll(`[${MARK}]`)) node.remove();
     }
   };

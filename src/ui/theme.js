@@ -458,6 +458,12 @@ const CSS = `
 
 .lpp-layer--pick { cursor: move; }
 .lpp-layer--on { outline: 2px solid #E8A33D; z-index: 2; }
+.lpp-stage-surfaces { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.lpp-stage-surface { position: absolute; box-sizing: border-box; border: 1px dashed #4FC3F7; }
+.lpp-stage-surface-tag {
+  position: absolute; left: 0; top: 0; padding: 0 0.25rem; font-size: 0.75rem; line-height: 1.1rem;
+  color: #000; background: #4FC3F7; white-space: nowrap;
+}
 
 /* The eight resize handles. Drawn on the selected layer only, and large
    enough to hit on a small card — a 6px handle on a 240px stage is a target

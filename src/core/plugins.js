@@ -176,6 +176,18 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'surfaces',
+    name: 'Surfaces',
+    where: 'Screens / Aux., beside Pixel Map, and over each screen card',
+    description: 'Mark out the LED elements a screen lands on and bind layers to them: a bound layer stays inside its surface however it is dragged, nudged or typed, and full screen fills the surface instead of the canvas.',
+    requires: { capabilities: ['screens'] },
+    /* Off until tested on a frame: it rewrites the vendor's own geometry
+       writes on their way out, and writes preview by itself. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'send-to',
     name: 'Send to',
     where: 'The … on every source card',

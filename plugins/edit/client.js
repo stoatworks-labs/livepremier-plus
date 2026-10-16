@@ -108,7 +108,12 @@ export default function activate(ctx) {
   const namer = () => ctx.use('names');
   const names = () => (namer() ? namer().get() : {});
 
-  const programmer = createProgrammer({ session: ctx.session });
+  /* Surfaces, when it is on, keeps a bound layer inside its LED element here
+     as it does on the wire; asked per use, so switching it off just stops. */
+  const programmer = createProgrammer({
+    session: ctx.session,
+    shape: (cmds, read) => { const s = ctx.use('surfaces'); return s ? s.shape(cmds, read) : cmds; }
+  });
   const properties = createPropertiesPanel({
     session: programmer,
     onRefresh: ctx.refresh,
@@ -127,6 +132,7 @@ export default function activate(ctx) {
     properties,
     onRefresh: ctx.refresh,
     names,
+    surfaces: () => ctx.use('surfaces'),
     onSave: (req) => saveLook(ctx, programmer, req),
     onLoad: (req) => loadLook(ctx, programmer, req)
   });
