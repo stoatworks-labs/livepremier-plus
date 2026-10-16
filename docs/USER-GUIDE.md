@@ -113,6 +113,11 @@ worth knowing, because the switcher only allows five AWJ clients at once.
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.17.6 adds Surfaces**, the LED elements a screen lands on as rectangles on its canvas, with
+> the layers bound to them kept inside. Off until you switch it on. Proven on LivePremier
+> Simulator 6.2.73 only; on 6.1.60 only by comparing the vendor's bundle, and not on a real frame
+> yet.
+>
 > **0.17.5 adds Pixel Map**, an image from the switcher's library laid over a screen's preview as
 > a mask. Proven on LivePremier Simulator 6.2.73 only; on 6.1.60 only by comparing the vendor's
 > bundle, and not on a real frame yet.

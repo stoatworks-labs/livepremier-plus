@@ -177,7 +177,7 @@ command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or
 well for the Edit page, Timeline, Console, Memories, Layer, Pitch Compensation, HyperDecks and
 the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 
-> **Status: field testing, v0.17.5.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.17.6.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -277,6 +277,17 @@ the Background Slicer. [Platforms](#platforms) says which panels each one gets.
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.6 (2026-10-16).** Adds **Surfaces**, off until you switch it on. Mark out the LED
+> elements a screen's canvas really lands on (a wall in pieces, a header strip, a pair of IMAG
+> screens) as rectangles on that canvas and bind layers to them, and a bound layer is kept inside
+> its surface: full screen fills the surface rather than the canvas, the vendor's align buttons
+> align to it, and a drag stops at its edge, on Screens / Aux. and the Edit page alike. Writes
+> leaving the page are put right before they go, so the switcher never sees a bound layer outside
+> its surface; a change from anywhere else is pulled back on preview and only flagged on program.
+> It's proven on LivePremier Simulator 6.2.73 only. On 6.1.60, the RS4's firmware, it's proven by
+> comparing the vendor's bundle: the same align buttons and the same drag code, but that simulator
+> has no screen in service, so nothing was dragged there. Not run on a real frame yet.
 >
 > **0.17.5 (2026-10-16).** Adds **Pixel Map**. Pick a picture from the switcher's own image library
 > for a screen and it's laid over that screen's preview on Screens / Aux. as a mask, so you can see
