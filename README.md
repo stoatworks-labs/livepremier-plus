@@ -63,6 +63,11 @@ bolted on afterwards:
   it, so while you're building a look you can see what the wall will actually show of it. It costs
   no layer, writes nothing to the switcher, and every click goes straight through it to the layers
   underneath.
+- **Surfaces** (off until you switch it on): mark out the LED elements a screen actually lands on,
+  as rectangles on its canvas, and bind layers to them. A bound layer stays inside its surface
+  however it's moved: the vendor's own drag, nudge, fields and toolbar, the Layer tab, the
+  Console, a cue. Full screen fills the surface rather than the canvas, and the align buttons
+  align to it. The outlines are drawn on the screen cards so you can see the edge coming.
 - **Send to:** a `…` on every source card that routes it without dragging: preview or program,
   then a screen and layer or a whole group. It respects the vendor's own PGM padlock and asks
   before it steps past one.
@@ -1370,6 +1375,51 @@ with one-pixel panel edges stays sharp when you zoom the card.
 > the card are the same source as 6.2.73's, but that simulator had no screen in service, so no
 > card was drawn there. LivePremier only. Not yet run on a real frame.
 
+## Surfaces
+
+Screens / Aux. ▸ ⋯ ▸ Surfaces. Off until you switch it on in Preconfig ▸ LivePremier Plus ▸
+Plugins, because it rewrites the vendor's own geometry writes on their way out, and that's the
+sort of thing you should choose rather than discover.
+
+A screen's canvas is one raster, but it usually lands on several things: a wall in three pieces,
+a header strip, a pair of IMAG screens. Each of those is a **surface**: a name and a rectangle in
+canvas pixels, typed in, or made one per output with **From outputs** (each output's place on the
+canvas, which is the right first guess when one processor drives one element and the wrong one
+when it doesn't). Then bind layers to them, by layer slot: the binding holds in program, preview
+and the Edit page alike.
+
+A bound layer is kept inside its surface:
+
+- **Dragged or nudged**, it stops at the edge. Drag an edge past the surface and the other edge
+  stays where it was; drag a corner with the ratio kept and it stops with its shape.
+- **Full screen** fills the surface, not the canvas. So does anything else that asks for the
+  whole canvas, such as a memory that was saved full screen.
+- **The align buttons** align to the surface. Align centre centres it on the surface, which is
+  the one that needed help, since keeping a centred layer inside would only have pushed it to the
+  nearest edge.
+- **Too big for its surface**, it's made to fit, keeping its shape unless the change was to its
+  shape.
+
+The outlines are drawn on every PGM and PRW card, over a Pixel Map and under the selection
+handles, and take no clicks. A surface with a bound layer outside it on that buffer goes red and
+names the layer.
+
+How it holds, briefly: writes leaving this page are rewritten before they go, so the switcher never
+sees a bound layer outside its surface, program included. Changes from anywhere else (Companion,
+OSC, the front panel, another browser, a memory recall) are pulled back in on **preview** only.
+Program is never corrected by itself; it's flagged, in red on the card and in words on the tab. A
+layer that something keeps moving back out is let go after three goes, and the tab says which, so
+two things never fight over it. A layer held by Layer Lock is left to the lock, which keeps it equal
+to program, or the two would argue for ever. Changing a surface moves nothing; layers it no longer
+fits are flagged until they're next moved.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-16: the vendor's full-screen button filled the
+> bound layer's surface; its align-to-middle centred it on the surface (960 asked, 480 sent); a
+> drag past the edge stopped there on the switcher and on the vendor's own card; a write from
+> outside the page (AWJ) on preview was pulled back within 40 ms, and one on program was left alone;
+> the Edit page's drag stopped at the edge as it moved, and nothing reached the switcher. 6.1.60's
+> bundle has the same toolbar and the same drag code. LivePremier only. Not yet run on a real frame.
+
 ## Gallery
 
 The panels from the list above that don't have a section of their own, and the windows that pop
@@ -1559,6 +1609,7 @@ device's store rather than by the model name:
 | Background Slicer | yes — a background per output, from a still or from an input | **yes** — one picture per screen through an Auto Crop set, or a Custom set with an input per output |
 | Matrix routing | yes | not yet — the sockets are read, but the Router tab and box are written into LivePremier's own pages |
 | Pixel Map | yes | not yet — a Midra keeps an image library too, but its Screens page lays the cards out differently |
+| Surfaces | yes | not yet — the shaper reads LivePremier's layer paths, and a Midra's Screens page lays the cards out differently |
 | Arithmetic in fields, Settings | yes | yes |
 
 Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step onto the wire

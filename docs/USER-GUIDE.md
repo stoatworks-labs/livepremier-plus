@@ -28,6 +28,9 @@ than something bolted on.
 - **Pixel Map:** an image from the switcher's own library laid over a screen's preview as a
   mask, so you see what the LED wall will show of each layer. No layer spent, nothing written,
   and it never takes a click.
+- **Surfaces:** the LED elements a screen lands on, as rectangles on its canvas, with layers
+  bound to them. A bound layer stays inside its surface however it's moved, and full screen
+  fills the surface. Off until you switch it on.
 - **Send to:** a `…` on every source card that routes it to a screen and layer, or to a whole
   group, in preview or program, without a drag.
 - **Matrix Routing:** patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
@@ -634,6 +637,68 @@ bottom of the tab says how many buffers it's drawn on, and says so if it can't f
 > after leaving the page and went when its slot was deleted. On 6.1.60, the RS4's firmware, the
 > library and the image routes answer the same and the card is drawn by the same code, but no card
 > was drawn there. Not yet run on a real frame.
+
+---
+
+## Surfaces
+
+**Screens / Aux. ▸ ⋯ ▸ Surfaces**, once it's switched on in **Preconfig ▸ LivePremier Plus ▸
+Plugins**. It's off to start with because it rewrites the vendor's own layer moves on their way
+to the switcher, and you should get to decide that.
+
+A screen's canvas is one raster, but what it lands on is usually several physical things: a
+wall in three pieces, a header strip, a pair of IMAG screens either side. Each of those is a
+**surface**, and a layer bound to one stays inside it.
+
+1. **Make the surfaces.** Each screen in service has a section. **Add** makes a surface the size
+   of the canvas; type its name and its X, Y, W and H in canvas pixels, the same units a layer's
+   own position and size are in. **From outputs** makes one per output feeding the screen, where
+   that output sits on the canvas. That's right when one processor drives one element, and only
+   a start when one output feeds several.
+2. **Bind layers.** Under the surfaces, each layer has a list: pick the surface it lives on. A
+   binding is the layer slot, so it holds in program, preview and on the Edit page.
+3. **Watch the outlines.** Every surface is drawn as a dashed outline on its screen's PGM and PRW
+   cards, over a Pixel Map and under the selection handles. They take no clicks. **Outlines** at
+   the top of the tab hides them; the layers are still kept in.
+
+What "kept in" means:
+
+- A **drag or a nudge** stops at the surface's edge. Drag one edge past it and the opposite edge
+  stays put. Drag a corner with the ratio kept and it stops with its shape.
+- **Full screen** fills the surface, and so does anything that asks for the whole canvas, such as
+  a memory that was saved full screen.
+- The **align** buttons align to the surface: centre means its centre, left its left edge.
+- A layer **too big** for its surface is made to fit, keeping its shape unless you were changing
+  its shape.
+
+**On the Edit page** the same rule applies to the programmer, and a dragged layer stops at the
+edge while you're still dragging. On the vendor's page the box follows the pointer past the edge
+and settles back inside when you let go, because the vendor draws its own drag; the switcher
+never sees it outside.
+
+**From anywhere else.** Companion, OSC, the front panel, another browser or a memory recall can
+still put a bound layer outside its surface. On **preview** it's pulled back in a moment later.
+On **program** it isn't: nothing here moves what's on air by itself. It's flagged instead, red on
+the card and in words at the top of the tab, so you can fix it in preview and take. A layer that
+something keeps moving back out is let go after three goes rather than fought over, and the tab
+names it; change its binding to try again.
+
+**Layer Lock wins.** A locked layer is kept equal to program, so Surfaces leaves it alone, and the
+binding says *locked*.
+
+**Changing a surface moves nothing.** Layers it no longer fits are flagged until they're next
+moved.
+
+The surfaces and bindings are kept per switcher by this app and go into the setup file under
+*Surfaces*.
+
+> **LivePremier only**, for now.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-16: full screen and align-to-middle on a bound
+> layer landed on its surface; a drag past the edge stopped there on the switcher and on the
+> vendor's card; a change from outside the page was pulled back on preview and left alone on
+> program; the Edit page's drag stopped at the edge. 6.1.60's Web RCS has the same buttons and the
+> same drag code. Not yet run on a real frame.
 
 ---
 

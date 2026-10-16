@@ -827,7 +827,9 @@ Four things are load-bearing:
   on purpose — a plugin bug may delay a TAKE, never swallow one. The lock
   engine holds only a take on a destination whose locked layers are out of
   line; an in-line take is untouched. There is one gate, not a list; a second
-  user needs a design, not a second `setGate`.
+  user needs a design, not a second `setGate`. Surfaces needed to REWRITE
+  frames rather than hold them, and got that design: the **shaper** beside the
+  gate (see Surfaces below), which runs first.
 - ⚠️ **Echoes are matched on path AND value.** Found on the simulator: a
   recall writes preview L1, the lock writes the same path back, and the
   recall's echo arrives first — path-only matching released the TAKE before
@@ -961,6 +963,90 @@ and `pan-zoom` are the same source as 6.2.73's (only `preset-layers.jsx`
 differs, by 6.2.73's Shift-to-keep-ratio); no 6.1.60 card was drawn, since
 that sim session has no screen in service. LivePremier only (`imageLibrary`
 has no mng probe).
+
+**Finding the card and seating the overlay is `ui/canvas-overlay.js`**, shared
+with Surfaces' outlines. Two overlays that both say "straight after the
+layers" move each other on every sweep and wake each other's observers for
+ever, so each names the overlays it sits above (`below`) and the order is
+fixed: layers, map, outlines, handles. Every overlay node carries
+`data-lpp-overlay`, and a sweep removes only nodes with its mark AND that —
+the Surfaces tab once tagged its own sections with the outlines' mark and
+every sweep deleted them.
+
+### Surfaces (`plugins/surfaces/`, the hook's shaper, `ui/canvas-overlay.js`)
+
+A surface is a rectangle on a screen's canvas — one LED element — and a layer
+slot bound to one is kept inside it however it is moved. `core.js`'s
+`constrain` is the only rule; the shaper, the Edit page's drag, the
+programmer and the follower all call it. (Nothing to do with
+`src/vendor/surface/`, the MIDI mapper's control surface.)
+
+What decides its shape, each read off the vendor's bundle or the 6.2.73
+simulator on 2026-10-16:
+
+- **The vendor's full screen and its eleven `align-screen-*` buttons are
+  worked out in the browser** against the whole screen and sent as plain
+  `position/pp/posH|posV|sizeH|sizeV` writes (`axDispatchSetLayersToFullscreen`
+  is align-centre then resize-to-screen: two runs). The same icons and thunks
+  are in 6.1.60. So the wire cannot say "full screen": the canvas rectangle is
+  recognised as one, and a click on one of those buttons — caught in the
+  capture phase on `document`, by the sprite id of its icon (`OPS`) — marks
+  the writes of that task as an alignment to redo against the surface.
+  ⚠️ The vendor names an alignment by the LINE: `horizontal-center` is its
+  `alignVerticalCenter`.
+- **The vendor's drag streams**: lodash `debounce(…, 0)` in
+  `preset-layers-container.tsx`, four writes per step in one task, then
+  `screenAuxGroupList/control/pp/xUpdate` false→true. And it only sends what
+  differs from its own store, so a full screen on a layer already full screen
+  sends no geometry at all.
+- **The vendor's "trap layer on screen" is an aw-ui DnR constraint** on the
+  screen's rectangle, in React state. It cannot be pointed at a surface
+  without patching React, so the vendor's box follows the pointer past the
+  edge during a drag and is put right after; only the Edit page's drag (ours)
+  stops at the edge as it moves.
+
+Load-bearing:
+
+- ⚠️ **The shaper is the second thing between the vendor's UI and its
+  socket** (`hook.setShaper({wants, shape})`). A frame it `wants` is held to
+  the end of the task — one microtask, never a timer — and the run goes to
+  `shape` whole, so it sees a drag step's four writes together. Any other
+  frame flushes the held run FIRST and then goes out synchronously as before:
+  the preview lock and the cue engine rely on seeing an outbound frame inside
+  `send()`, and only bound-layer geometry is ever delayed at all. A shaper
+  that throws, or returns fewer frames than it was given, has the run sent as
+  it came. Shaped frames then pass the gate. One shaper, not a list.
+- ⚠️ **The vendor's store applies its own write about 4 ms AFTER sending it,
+  and the switcher does not echo a value it already had.** Measured with the
+  vendor's Redux store subscribed: a layer held at its surface's edge through
+  a drag got no posH echo, and the vendor's card drew it where the pointer
+  let go while the switcher had it inside. Telling the page the corrected
+  value at once did nothing — it landed before the vendor's own update and
+  was overwritten. So `hook.tellPage(raw)` hands the page a frame as an echo,
+  and the engine calls it 60 ms and 300 ms after a rewrite, each time only if
+  the mirror still holds that value. Do not "simplify" it back to one tell
+  inside the flush.
+- **The follower corrects preview only**, from live inbound frames on the
+  preview letter (and after a take lands); never program, never found state,
+  never mid-take, and a layer moved back out three times in five seconds is
+  let go and named. Program is flagged, red on the card and in words.
+- ⚠️ **Layer Lock wins.** A locked layer is exempt from the shaper and the
+  follower alike: the lock writes preview equal to program, and if program is
+  outside the surface the two would rewrite each other for ever.
+- **A resize keeps the edge that was not dragged** only for a layer that was
+  inside to begin with. One straddling two surfaces has no edge on this one,
+  and keeping its centre left it one pixel wide — caught by a test.
+- **A request already inside comes back as the same object**, never
+  re-rounded: a centred layer of odd width sits on a half pixel, and rounding
+  it again would move every write by one.
+
+Proven on the 6.2.73 simulator through the demo (2026-10-16): the vendor's
+full screen and align-to-middle on a bound layer; a drag past the edge,
+switcher and vendor card agreeing; our own writes shaped as one run; an AWJ
+write to preview from outside the page pulled back, one to program left
+alone; the Surfaces tab editing a surface; the Edit page's drag stopping at
+the edge. Not on 6.1.60 (that session has no screen in service), not on a
+frame, not on Midra (the shaper reads LivePremier's paths only).
 
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 

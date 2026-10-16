@@ -1847,3 +1847,38 @@ AWJ `get` through the field kit's `AwjClient` and one `GET /api/stores/device`.
   pooling is observed, not documented, so screens that disagree keep a
   per-screen column. `room` is now `null` where a screen reports none, so a
   trimmed capture or the running side never reads as a full box.
+
+## Surfaces on the 6.2.73 simulator (2026-10-16)
+
+The local LivePremier Simulator 6.2.73 (session 1, Aquilon Cmax, `npm run demo` on :8545),
+S1 with two surfaces — *LED left* 0,0 960×1080 and *LED right* 960,0 960×1080 — and layers 1
+and 2 bound to them. Preview was B throughout. Put back as found afterwards (both layers full
+screen on A and B).
+
+- **The vendor's full screen, on a layer already full screen, sends no geometry** — only the
+  `xUpdate` pulses. Its store diff sends only what changed. Shrunk first (by our own writes, which
+  the shaper took as one run and added the position to), then full screen: `posH 480, sizeH 960,
+  sizeV 1080` went out, LED left exactly. It is two runs (centre, then resize), and the click was
+  read as intent on the first.
+- **Align to screen middle**: the vendor asked for 960,540; 480,540 went out.
+- **A drag past the edge**: posH held at 760 (right edge of LED left) step after step.
+- **The vendor's card lied until `tellPage`.** With the vendor's Redux store subscribed
+  (found through the root fiber's `memoizedProps.store`, read only): the outbound frames left at
+  t, the vendor's store took its own optimistic value at t+4 ms, and on a step where posH did not
+  change on the switcher no echo ever came — so the card drew the layer at the pointer (centre
+  1794) with the switcher at 760. An echo told inside the flush landed before the vendor's own
+  update and was overwritten. Told at +60 ms, the store went back to 760 and the card agreed.
+  Re-tells check the mirror first, so a newer value is never talked over.
+- **The vendor's `AwPresetLayers` ignores new props while `isChanging`** (its
+  `getDerivedStateFromProps`), so mid-drag the box always follows the pointer; it re-reads the
+  store when the drag ends.
+- **Follower**: an AWJ `replace` of B L1 posH 1500 (the server's one-shot route, so not through the
+  page) arrived inbound and was written back to 760 40 ms later. An AWJ sizeH 1600 on program A was
+  left alone and flagged; the page sent nothing to A.
+- **Edit page**: L1 dragged past the stage's left edge stopped at 0% while the pointer went on;
+  nothing reached the switcher. L2, full screen and stacked on top, was what the first press
+  caught — dragged, it was pulled into LED right and fitted keeping its shape (960×540).
+- **Found while testing**: the Surfaces tab drew its warnings but none of its sections, because
+  each section carried `data-lpp-surfaces` — the outlines' own mark — and every sweep removed them
+  as stray outlines. Sections renamed, and sweeps now require `data-lpp-overlay` as well.
+
