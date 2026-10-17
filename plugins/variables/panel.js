@@ -213,7 +213,7 @@ export function createVariablesPanel({ variables, session, onRefresh = () => {},
             class: 'aw-font-caption aw-text-tertiary',
             text: '@name — a number, or a sum over numbers and other variables. Kept for this switcher, and in the setup file.'
           })),
-        button('Add', { iconId: 'add-18', onClick: addRow, disabled: !state.loaded, title: 'Add a variable of your own' })),
+        button('Add', { iconId: ['add-18', 'add-12'], onClick: addRow, disabled: !state.loaded, title: 'Add a variable of your own' })),
       state.error ? h('div', { class: 'wru-console-row wru-console-err aw-margin-bottom-small', text: state.error }) : null,
       state.saving ? h('div', { class: 'wru-console-row wru-console-warn aw-margin-bottom-small', text: state.saving }) : null,
       ...cycles.map((c) => h('div', {

@@ -215,7 +215,7 @@ export function createGroupsPanel({ session, storage, onRefresh = () => {}, name
         nameField(group),
         h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-margin-left-auto' },
           gangToggle(group),
-          button('Delete', { variant: 'ghost', iconId: ['delete-12', 'trash-12'], onClick: () => removeGroup(group.id) }))),
+          button('Delete', { variant: 'ghost', iconId: 'bin-12', onClick: () => removeGroup(group.id) }))),
       members.length
         ? h('table', { class: 'wru-groups-members' },
           h('thead', {}, h('tr', {},
