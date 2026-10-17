@@ -157,7 +157,7 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
   }
 
   const addCue = () => button('Add cue', {
-    onClick: () => { view.adding = true; onRefresh(); }, iconId: 'add-18'
+    onClick: () => { view.adding = true; onRefresh(); }, iconId: ['add-18', 'add-12']
   });
 
   /*

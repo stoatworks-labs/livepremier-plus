@@ -1552,7 +1552,10 @@ Fixed structurally rather than by platform-sniffing:
   page's sprite defines. `test/panel-render.test.js` holds every sidebar entry
   and tab to the sprite of each switcher it is offered on
   (`test/fixtures/sprite-ids.json`, four simulators' ids) — Edit, Layer Groups
-  and the Groups tab were blank on a Midra until that test existed.
+  and the Groups tab were blank on a Midra until that test existed. A sibling
+  test reads every literal `iconId:` / `icon(` / `spriteId(` out of the source
+  and holds it to the same sprites, since no render reaches every button;
+  three buttons had asked for ids no sprite has ever had.
 
 ⚠️ Running the simulators: all three default to `PORT=3000` **and**
 `AWJ_EXT_PORT=10606`, so only one runs at a time out of the box. Edit the port

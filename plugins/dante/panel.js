@@ -227,7 +227,7 @@ export function createDantePanel({ session, model, settings = () => ({}), onRefr
         filterInput, bar.routed,
         chip('Collapse all', false, () => { view.openRows.clear(); view.openCols.clear(); rerender(); }, 'Close every open device'),
         bar.lock,
-        button('Refresh', { iconId: ['refresh-14', 'refresh-18'], title: 'Read every device again now', onClick: () => model && model.refresh() }),
+        button('Refresh', { iconId: ['refresh-14', 'reset-12'], title: 'Read every device again now', onClick: () => model && model.refresh() }),
         popoutEnabled ? button('Pop out', { iconId: 'set-layer-to-fullscreen-18', title: 'Open the Dante panel in its own window', onClick: popOut }) : null));
     snapSave = button('Save current routing', {
       title: 'Every receiving device’s subscriptions as they read now; recall puts back only what differs',

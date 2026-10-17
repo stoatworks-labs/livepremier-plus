@@ -207,7 +207,7 @@ export function createPitchPanel({ session, onRefresh }) {
          * hard to hit by accident.
          */
         ? [
-            button('Confirm — write to device', { onClick: apply, variant: 'primary', iconId: 'check-14' }),
+            button('Confirm — write to device', { onClick: apply, variant: 'primary', iconId: 'checkmark-12' }),
             button('Cancel', { onClick: () => { view.confirming = false; onRefresh && onRefresh(); } })
           ]
         : button(applied ? 'Already set on the device' : 'Apply to device', {

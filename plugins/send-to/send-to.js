@@ -245,7 +245,7 @@ export function installSendTo({
       h('div', { class: 'wru-sendto-head aw-flex-row-center-v-space-between aw-padding-medium' },
         h('div', { class: 'aw-font-subtitle-1', text: 'Send ' + (sourceLabel(state.source, store()) || state.source) }),
         h('button', { class: 'wru-sendto-x aw-text-tertiary', type: 'button', title: 'Close', onClick: closeMenu },
-          icon(['close-12', 'close-14'], 'aw-block-medium'))));
+          icon('cross-12', 'aw-block-medium'))));
 
     if (state.result) return el.append(resultView(state));
     if (state.stage === 'confirm') return el.append(confirmView(state));

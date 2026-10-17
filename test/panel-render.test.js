@@ -19,7 +19,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -319,6 +319,84 @@ test('every sidebar entry and tab has a glyph in the sprite of each switcher it 
       assert.deepEqual(blank, [], `drawn blank on ${sprite}`);
     }
   });
+});
+
+/**
+ * Every literal list of sprite ids in some source: what follows an `iconId:`,
+ * an `icon(`, a `spriteId(` or an `…ICON =`, up to the end of that one
+ * expression. A bracketed list is one set of candidates and a string on its
+ * own another, so `locked ? ['locked-12'] : ['unlocked-12']` is two. An id
+ * worked out at run time (`icon(tab.icon)`) has nothing literal and is left out.
+ */
+function glyphLists(src) {
+  const out = [];
+  for (const m of src.matchAll(/\biconId:|\bicon\(|\bspriteId\(|\b[A-Z_]*ICON\b\s*=(?!=)/g)) {
+    let i = m.index + m[0].length;
+    while (/\s/.test(src[i])) i++;
+    const start = i;
+    for (let depth = 0, quote = null; i < src.length; i++) {
+      const c = src[i];
+      if (quote) { if (c === quote && src[i - 1] !== '\\') quote = null; continue; }
+      if (c === "'" || c === '"' || c === '`') quote = c;
+      else if ('([{'.includes(c)) depth++;
+      else if (')]}'.includes(c)) { if (depth-- === 0) break; }
+      else if (depth === 0 && ',;\n'.includes(c)) break;
+    }
+    const expr = src.slice(start, i);
+    const strings = (text) => [...text.matchAll(/'([^'\\]*)'|"([^"\\]*)"/g)].map((s) => s[1] ?? s[2]);
+    const line = src.slice(0, m.index).split('\n').length;
+    for (const list of expr.matchAll(/\[([^\]]*)\]/g)) out.push({ line, ids: strings(list[1]) });
+    for (const id of strings(expr.replace(/\[[^\]]*\]/g, ''))) out.push({ line, ids: [id] });
+  }
+  return out.filter((l) => l.ids.length);
+}
+
+/*
+ * And every glyph a panel draws inside itself — a button's `iconId`, an
+ * `icon(…)`, a `spriteId(…)`, an `…ICON = […]` — read out of the source,
+ * because a button is only drawn on the path that reaches it and no render
+ * here reaches them all. Six were blank on 2026-10-16: Refresh and Add on a
+ * Midra (`refresh-14`, `add-18` are LivePremier's), and Pitch's Confirm,
+ * Layer Groups' Delete and Send to's close on every switcher, because
+ * `check-14`, `trash-12` and `close-14` were never in any sprite.
+ *
+ * A list passes on a sprite if any id in it is there, as `spriteId` picks. A
+ * plugin's folder is held to the sprites of the switchers it is offered on —
+ * the Midra's store decides mng, as above — and `src/` to all four.
+ */
+test('every literal glyph a panel draws is in the sprite of each switcher it is offered on', async () => {
+  const { supports } = await import('../src/core/platform.js');
+  const { BUILTINS, status } = await import('../src/core/plugins.js');
+  const sprites = fixture('sprite-ids.json');
+  const everywhere = Object.keys(sprites);
+  const livePremier = everywhere.filter((s) => s.startsWith('livepremier-'));
+
+  const midra = new DeviceStore();
+  midra.hydrate(fixture('midra-3.2.29-pulse4k.json'));
+  const allOn = Object.fromEntries(BUILTINS.map((b) => [b.id, { enabled: true }]));
+  const offeredOnMng = (id) => status(allOn, id, (cap) => supports(detectPlatform(midra), cap)).on;
+
+  const root = join(here, '..');
+  const walk = (dir) => readdirSync(join(root, dir), { withFileTypes: true }).flatMap((e) => {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) return p === join('src', 'vendor') ? [] : walk(p);
+    return e.name.endsWith('.js') ? [p] : [];
+  });
+
+  const seen = [];
+  const blank = [];
+  for (const file of [...walk('src'), ...walk('plugins')]) {
+    const plugin = file.startsWith('plugins') ? file.split(/[\\/]/)[1] : null;
+    const on = plugin && BUILTINS.some((b) => b.id === plugin) && !offeredOnMng(plugin) ? livePremier : everywhere;
+    for (const { line, ids } of glyphLists(readFileSync(join(root, file), 'utf8'))) {
+      seen.push(`${file}:${line}`);
+      const missing = on.filter((s) => !ids.some((id) => sprites[s].ids.includes(id)));
+      if (missing.length) blank.push(`${file}:${line} [${ids.join(', ')}] on ${missing.join(', ')}`);
+    }
+  }
+  assert.ok(seen.length > 20, `the scan found ${seen.length} glyph lists`);
+  assert.ok(seen.some((s) => s.startsWith(join('plugins', 'layer-lock', 'panel.js'))), 'a glyph chosen by a ternary is seen');
+  assert.deepEqual(blank, [], 'drawn blank');
 });
 
 /*

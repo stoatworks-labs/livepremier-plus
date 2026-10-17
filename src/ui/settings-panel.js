@@ -439,7 +439,7 @@ export function createSettingsPanel({
     return [
       h('div', { class: 'aw-font-subtitle-1', text: 'LivePremier Plus' }),
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
-        button('Refresh', { iconId: 'refresh-14', onClick: () => { state.asked = false; loadStatus(); } }))
+        button('Refresh', { iconId: ['refresh-14', 'reset-12'], onClick: () => { state.asked = false; loadStatus(); } }))
     ];
   }
 
