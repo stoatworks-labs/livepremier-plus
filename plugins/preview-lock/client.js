@@ -22,6 +22,25 @@
  *   drawn, so a lock is never left behind by a page change. A new take on
  *   that screen before then keeps it shut, still ours.
  *
+ * ## ⚠️ Never press it inside the send
+ *
+ * Web RCS sends its own writes from inside its Redux reducer: 6.2.73's root
+ * reducer (`awStore`) diffs the device state and hands the change to the
+ * socket while Redux is still dispatching. The hook relays that frame to us
+ * synchronously, so a padlock clicked right there runs the vendor's toggle
+ * mid-dispatch, and Redux refuses it — "Reducers may not dispatch actions"
+ * (error #9), thrown inside the click's listener, where the browser reports
+ * it and carries on as if nothing happened. The vendor's TAKE button is that
+ * case exactly; a TAKE sent through the session is not, which is why only the
+ * vendor's own button lost the lock (found 2026-10-17). So every press is a
+ * microtask: it runs once the vendor's stack has unwound and before any
+ * further input, so it is still ahead of the switcher's first echo and of
+ * any recall the operator could make.
+ *
+ * The padlock is a toggle, so a press is made only if it still reads the
+ * other way when the time comes; and a press that leaves it open is reported
+ * as one that did not take, never as the operator opening it.
+ *
  * ⚠️ With Web RCS's remote selection on, the padlocks live in a store shared
  * between clients, so two pages running this would both press the same
  * padlock. Each reads it first and leaves a shut one alone, which covers
@@ -44,7 +63,10 @@ export default function activate(ctx) {
   const doc = () => (typeof document !== 'undefined' ? document : null);
   const padlock = (id) => (doc() ? cardPadlock(id, 'PRW', doc()) : null);
 
-  /** id -> {state: 'ours'|'theirs'|'absent'|'overridden', pressed: ms} while guarded */
+  /**
+   * id -> {state: 'ours'|'theirs'|'absent'|'overridden'|'failed', pressed: ms,
+   * seenShut: bool} while guarded
+   */
   const held = new Map();
   /** Padlocks we shut whose take has landed but whose card was not drawn to open. */
   const owed = new Set();
@@ -57,14 +79,30 @@ export default function activate(ctx) {
     ctx.refresh();
   }
 
-  function press(pad) {
-    pad.button.click();
-    return Date.now();
+  /**
+   * Shut or open a card's padlock once the current script has unwound — see
+   * the head: a frame may reach us from inside the vendor's reducer, where
+   * its toggle would be refused. Pressed only if it still reads the other
+   * way; `then(pad)` gets the padlock as it reads after the press.
+   */
+  function setPadlock(id, shut, then) {
+    queueMicrotask(() => {
+      const pad = padlock(id);
+      if (pad && pad.shut !== shut) pad.button.click();
+      if (then) then(padlock(id));
+    });
+  }
+
+  /** Shut a padlock for a take, as ours, and note whether it took. */
+  function shutForTake(id) {
+    const h = { state: 'ours', pressed: Date.now(), seenShut: false };
+    held.set(id, h);
+    setPadlock(id, true, (pad) => { if (pad && pad.shut) h.seenShut = true; });
   }
 
   function lock(id, why) {
     if (owed.delete(id)) {
-      held.set(id, { state: 'ours', pressed: 0 });
+      held.set(id, { state: 'ours', pressed: 0, seenShut: true });
       note(id, 'take started — PRW still shut from the last one');
       return;
     }
@@ -79,7 +117,7 @@ export default function activate(ctx) {
       note(id, 'take started — PRW was already locked, left as it is');
       return;
     }
-    held.set(id, { state: 'ours', pressed: press(pad) });
+    shutForTake(id);
     note(id, why === 'take' ? 'PRW locked: take sent' : 'PRW locked: transition in flight');
   }
 
@@ -96,7 +134,7 @@ export default function activate(ctx) {
       note(id, 'take landed — card not on screen; PRW opens when it is');
       return;
     }
-    if (pad.shut) press(pad);
+    setPadlock(id, false);
     note(id, why === 'never started' ? 'PRW unlocked: the take never started' : 'PRW unlocked: take landed');
   }
 
@@ -112,16 +150,25 @@ export default function activate(ctx) {
       if (h.state === 'absent') {
         const pad = padlock(id);
         if (pad && !pad.shut) {
-          held.set(id, { state: 'ours', pressed: press(pad) });
+          shutForTake(id);
           note(id, 'PRW locked: card appeared mid-take');
         } else if (pad) {
           held.set(id, { state: 'theirs', pressed: 0 });
         }
-      } else if (h.state === 'ours' && Date.now() - h.pressed > SETTLE_CLICK_MS) {
+      } else if (h.state === 'ours') {
         const pad = padlock(id);
-        if (pad && !pad.shut) {
-          held.set(id, { state: 'overridden', pressed: 0 });
-          note(id, 'PRW opened by the operator mid-take — left open');
+        if (pad && pad.shut) h.seenShut = true;
+        else if (pad && Date.now() - h.pressed > SETTLE_CLICK_MS) {
+          /* Open after our press: the operator's doing if it was ever seen
+             shut, and a press that never took if not. Either way it is not
+             ours to touch again this take. */
+          if (h.seenShut) {
+            held.set(id, { state: 'overridden', pressed: 0 });
+            note(id, 'PRW opened by the operator mid-take — left open');
+          } else {
+            held.set(id, { state: 'failed', pressed: 0 });
+            note(id, 'PRW did NOT lock — the padlock did not answer the press');
+          }
         }
       }
     }
@@ -130,7 +177,7 @@ export default function activate(ctx) {
       if (!pad) continue;
       owed.delete(id);
       if (pad.shut) {
-        press(pad);
+        setPadlock(id, false);
         note(id, 'PRW unlocked: card back on screen after the take');
       }
     }
@@ -211,7 +258,9 @@ export default function activate(ctx) {
     const status = h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
       readout('Mid-take now', now.length ? now.map((g) => {
         const st = held.get(g.id);
-        return st && st.state === 'ours' ? `${g.id} (PRW locked)` : `${g.id} (${st ? st.state : 'waiting'})`;
+        if (st && st.state === 'ours') return `${g.id} (PRW locked)`;
+        if (st && st.state === 'failed') return `${g.id} (PRW did not lock)`;
+        return `${g.id} (${st ? st.state : 'waiting'})`;
       }).join(', ') : 'nothing', { tone: now.length ? null : 'tertiary' }),
       owed.size ? readout('To unlock when drawn', [...owed].join(', '), { tone: 'warn' }) : null);
 

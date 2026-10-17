@@ -901,6 +901,21 @@ Load-bearing:
   operator's. Opened mid-take: overridden, left alone. Card gone when the take
   lands: owed, opened when it is next drawn — otherwise a page change leaves
   PRW locked with nobody knowing why.
+- ⚠️ **Press the padlock in a microtask, never inside the send.** Web RCS
+  sends its own writes from INSIDE its Redux reducer — 6.2.73's root reducer
+  wrapper `awStore` diffs the device state and calls
+  `deviceStoreManager.notifyChange` → `_sendToServer` while Redux is still
+  dispatching (Midra 4K 3.2.29's bundle has the same wrapper). The hook hands
+  that frame to the plugin synchronously, so a `.click()` there runs the
+  padlock's toggle mid-dispatch and Redux refuses it ("Reducers may not
+  dispatch actions", error #9) inside the click's listener, where the browser
+  reports it and `.click()` returns as if it worked. That is why the vendor's
+  own TAKE button never shut the padlock while a TAKE from `session.send` did
+  (found 2026-10-17). `setPadlock` queues the press, and presses only if the
+  padlock still reads the other way; a press that leaves it open is logged as
+  "did NOT lock", never as the operator opening it. **The same applies to
+  anything that clicks a vendor control or dispatches into the vendor's store
+  from an outbound frame** — defer it out of the send.
 - ⚠️ **The padlock stops the vendor's buttons, not the switcher**, so our own
   recall paths hold themselves back through the `preview-lock` service:
   `holdFor(ids)` / `holdWrites(cmds)` answer null (send now — exactly the old

@@ -628,7 +628,8 @@ presses it for you:
 
 - When a take starts on a screen (TAKE sent from this page, or a transition the switcher reports
   from anywhere: front panel, T-bar, Companion, OSC), that screen's PRW padlock is shut. A TAKE
-  from this page shuts it before the switcher has even answered.
+  from this page, Web RCS's own TAKE button included, shuts it before the switcher has even
+  answered.
 - While it's shut, Web RCS refuses a memory recalled into that screen's preview, with its own
   warning (*Screen memory could not be loaded … because PRW is locked*). A screen memory loaded on
   several selected screens still loads on the ones that aren't mid-take; a master memory that
@@ -672,7 +673,11 @@ buttons, so with this switched on the app holds its own recalls back itself:
 
 > Proven on the LivePremier simulator against Web RCS 6.2.73's own lock: a memory clicked into PRW
 > while a screen was mid-take was refused for that screen and loaded on the other, and loaded on
-> both once the take had landed. Proven on the Midra 4K simulator (3.2.29) with real takes: without
+> both once the take had landed. With Web RCS's own TAKE button on S1 and S2 (six-second takes),
+> both PRW padlocks were shut within 70 ms of the press and stayed shut until each screen landed,
+> and a screen memory clicked into PRW 1.5 s into the take was refused on both, with Web RCS's
+> warning in its notifications. Until 2026-10-17 a TAKE from that button never shut the padlock;
+> one sent by this app did. Proven on the Midra 4K simulator (3.2.29) with real takes: without
 > this feature, a memory recalled 0.6 s after TAKE went to program when the take landed. With it,
 > the PRW padlock shut for the whole take (from this page or sent straight to the switcher) and
 > opened on landing, a recall from the Memories panel waited and went into the new preview the

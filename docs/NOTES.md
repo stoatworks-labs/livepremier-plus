@@ -1977,3 +1977,50 @@ its id; `dialect.layerParams` are ids, so `layerParamPath(id, buf, key, 'positio
 a path of single characters and every write goes nowhere quietly. And `wire.js` compared echoes
 with `Object.is`, so a write of an array (`effects.flags: []`) could never be heard; it compares
 lists by value now.
+
+## Preview lock and the vendor's own TAKE button (2026-10-17)
+
+Found while taking the docs pictures on 10-16: with Preview lock on, a TAKE from Web RCS's own
+button logged "PRW locked: take sent", the padlock never read shut, and a second later the plugin
+blamed the operator ("opened by the operator mid-take"). A TAKE sent through `__WRU.session.send`
+worked, and so did a plain `.click()` on the padlock at rest.
+
+**Cause: Web RCS sends from inside its Redux reducer.** In the 6.2.73 bundle the root reducer is
+wrapped by `awStore`, which diffs the device state and calls
+`deviceStoreManager.notifyChange` → `AppManager._sendToServer` → the socket while Redux's
+`isDispatching` is still true. The hook relays that frame synchronously, the guard arms, and the
+plugin's `.click()` on the padlock runs the vendor's `TOGGLE_LOCK` dispatch mid-reduce. Redux
+throws error #9 ("Reducers may not dispatch actions") inside the click's listener, the browser
+reports it as an uncaught error, and `.click()` returns normally. The console had one per screen
+per take all along. A TAKE from `session.send` never goes through the vendor's Redux, which is
+why that path worked. Midra 4K 3.2.29's bundle has the same wrapper (minified: a reducer that
+calls `deviceStoreManager.notifyChange`), read from the code and not re-tried there.
+
+**Fix:** every press is a microtask (`setPadlock` in `plugins/preview-lock/client.js`). That runs
+once the vendor's handler has unwound and before any further task, so before the switcher's
+first echo is processed and before any input the operator could make. It presses only if the
+padlock still reads the other way, and a press that never shows shut is logged as "PRW did NOT
+lock", not as the operator opening it. `test/preview-lock-page.test.js` has a stand-in vendor
+page whose store refuses a nested dispatch and sends the TAKE from inside its reducer; the old
+client fails it exactly as the simulator did.
+
+**Proven on the 6.2.73 simulator (Session 1, Cmax) through the demo, vendor TAKE button:**
+
+- S1 + S2, 1 s takes: both PRW padlocks shut at 67 ms (the vendor's own re-render after the TAKE
+  takes about 60 ms, and the first echo is read at 68 ms), open at 983 / 996 ms as each landed.
+- S1 + S2, 6 s takes, with a catcher on `WebSocket.prototype.send` dropping any outbound memory
+  load: Memories ▸ Screen ▸ Load "House open" clicked 1.5 s in. Nothing was sent, and Web RCS
+  raised "The screen memory 1 could not be loaded to PRW - S1 because PRW - S1 is locked" (and
+  S2) in its notifications bell. The same click at rest sent both recalls (caught, not
+  delivered).
+- S1 alone, 6 s take, the same load at 1.5 s: refused, with the warning; padlock 67 ms → 6.25 s.
+
+Put back afterwards: take times 10/10 on S1 and S2, both screens `AT_DOWN` as the simulator
+booted (read off its trace), and no memory reached the simulator. Not tried: remote selection
+(the lock in the MST remote store), the vendor TAKE on a Midra, and anything on a frame.
+
+Two bare `xTake`s on S1 that none of this sent landed in the trace during the run (01:53:56 and
+02:02:32 UTC). Both were `test/osc.test.js` dialling the real AWJ port during somebody's `npm
+test`, the second during this session's own run; see "Stray TAKEs on the simulator came from `npm
+test`" (2026-10-17). They are why the screens' parity had to be read off the trace rather than
+counted.
