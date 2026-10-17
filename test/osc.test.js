@@ -307,10 +307,16 @@ test('a UDP take reaches the switcher as an AWJ write', async () => {
   let resolveEntry;
   const heard = new Promise((r) => { resolveEntry = r; });
 
+  /* ⚠️ `awjPort` is not optional here. Without it the listener asks the real
+     port, 10606, on 127.0.0.1 — and with a simulator running on the same
+     machine, that is a real TAKE on S1 every time the suite runs. This test
+     did exactly that from 2026-08-22 to 2026-10-17, accepting "it reached
+     the device" as a pass; `helpers/offline.js` now refuses the port. */
   const osc = createOscServer({
     port: 0,
     address: '127.0.0.1',
     deviceHost: () => '127.0.0.1',
+    awjPort: device.port,
     onActivity: (e) => { entry = e; resolveEntry(e); },
   });
   await osc.start();
@@ -321,18 +327,17 @@ test('a UDP take reaches the switcher as an AWJ write', async () => {
   assert.ok(bound > 0, 'the listener did not report the port it bound');
 
   try {
-    /* The AWJ port is fixed at 10606 in `awj.js`, so the end-to-end path is
-       exercised through `exchange` directly above; here the assertion is that
-       the datagram resolved to the right write and was attempted. */
     const client = dgram.createSocket('udp4');
     await new Promise((r) => client.send(omsg('/lp/screen/1/take', 'i', oint(1)), bound, '127.0.0.1', () => { client.close(); r(); }));
     await Promise.race([heard, new Promise((_, rej) => setTimeout(() => rej(new Error('nothing heard')), 3000))]);
 
     assert.equal(entry.address, '/lp/screen/1/take');
-    /* Either it reached the device, or it failed trying — both prove the
-       message resolved to a write rather than being refused as an address. */
-    assert.ok(entry.error === undefined || /10606|ECONN|no answer/.test(entry.error),
-      `unexpected refusal: ${entry.error}`);
+    assert.equal(entry.error, undefined, entry.error);
+    /* The write is flushed before the entry is logged, but the pretend device
+       reads it on its own socket a tick later. */
+    await until(() => device.received.some((m) => m.op === 'replace'), 1000);
+    assert.deepEqual(device.received.filter((m) => m.op === 'replace').map((m) => [m.path, m.value]),
+      [['DeviceObject/$screenAuxGroup/@items/S1/control/@props/xTake', true]]);
   } finally {
     await osc.stop();
     await device.close();
@@ -443,6 +448,7 @@ test('a switcher that answers neither identity path gets nothing sent, with the 
 });
 
 test('a button release is logged and sends nothing', async () => {
+  const device = await fakeAwj();
   let entry = null;
   let resolveEntry;
   const heard = new Promise((r) => { resolveEntry = r; });
@@ -451,6 +457,7 @@ test('a button release is logged and sends nothing', async () => {
     port: 0,
     address: '127.0.0.1',
     deviceHost: () => '127.0.0.1',
+    awjPort: device.port,
     onActivity: (e) => { entry = e; resolveEntry(e); },
   });
   await osc.start();
@@ -462,8 +469,12 @@ test('a button release is logged and sends nothing', async () => {
     assert.equal(entry.writes, 0);
     assert.match(entry.summary, /released/);
     assert.equal(entry.error, undefined);
+    /* Nothing on the wire either — not even the platform question. */
+    await new Promise((r) => setTimeout(r, 50));
+    assert.deepEqual(device.received, []);
   } finally {
     await osc.stop();
+    await device.close();
   }
 });
 
