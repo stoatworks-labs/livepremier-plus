@@ -40,8 +40,9 @@ both thumbnail previews and the Background Slicer included, has run on simulator
 Pixelhue panel has never met a console; the console suite has only run against its stand-in
 (`LPP_CONSOLE=stand-in`, 31 pass, 3 skip).
 
-**Open:** the aux-background test for the UMD Generator waits for Allan to say a frame is free
-(recipe under "The UMD Generator" below). MIDI Mapping and the Speed Editor still have no home
+**Open:** whether a frame draws a still on an aux's background. The RS4 (6.1.60) took and
+reported one on 2026-10-17 but was factory reset before anyone looked at the output ("The
+UMD Generator" below has the run); the next free frame needs someone watching the aux. MIDI Mapping and the Speed Editor still have no home
 on a Midra: no Virtual RC400T to hang under, and the surface engine spells LivePremier. Since
 2026-10-16 that is said rather than silent: they require `controlSurfaces` (no mng probe), so
 their Plugins rows read *not on this switcher* with the capability's sentence. Giving them a
@@ -1971,6 +1972,43 @@ and a loaded still `N`, write its **preview** NATIVE source and take it.
 `…/source/status/@props/inputNum` and look at the output. Put it back to `NONE` after. If a frame
 shows it, the UMD Generator can offer the aux's background as a target and give the aux its top
 layer back; the label rule for screens (labels under the boxes) would apply there too.
+
+**Run on the RS4, 2026-10-17, and still no answer to the one question.** Allan allowed the test on
+the live Aquilon RS4 (6.1.60) after its show, on auxes only. On A6 "My Screen" (output 15, a 4K aux,
+one layer, `copyMode` true), with still 1 (the show's slate graphic, already loaded):
+
+- **The frame takes it, as the simulator did.** Preview NATIVE = `STILL_1` over AWJ, and
+  `source/status` reported `STILL_1`. With L1 cleared and A6 taken, program reported `STILL_1` on
+  NATIVE and nothing on L1. So the control software on 6.1.60 hardware does not refuse an aux a
+  background still either. In copy mode the take also copied NATIVE into the new preview; the
+  6.1.60 simulator, given the same take, did not.
+- **Nobody saw the output.** `/api/device/snapshots/outputs/<n>` answers a 128×128 placeholder on
+  the RS4, not a picture, and no multiviewer widget showed A6, so it can't be read remotely; the
+  person who could look didn't get to before the box was factory reset. Whether a frame *draws* a
+  still on an aux background is as unknown as it was.
+- ⚠️ **A take moves program to the other letter.** Taken from AT_DOWN, A6 landed AT_UP with B as
+  program, and my first restore, which assumed A was still program, wrote program directly and
+  then took the still back on. Read the letters before every write (`resolve` in
+  `src/vendor/surface/preset.js` is the rule) and restore by writing both buffers back to a
+  recorded "before", with no take. That version, rehearsed on a private copy of the 6.1.60
+  simulator session (an aux staged like A6, `copyMode` on, test, an extra take, restore), left no
+  leaf of the aux, its preset ids or still 1 different. It's `aux-bg.mjs` in Allan's field kit.
+
+**What the switcher does when you force one, on the 6.1.60 simulator (same session copy, an aux
+staged like A6, a 1920×1080 card in library slot 1 loaded into still 1):** a whole-store diff
+around the write and around the take, leaving out what ticks on its own, shows only the layer and
+the source's own tally. Preview NATIVE = `STILL_1` changed three leaves: the NATIVE source, its
+status, and still 1's `isOnPreview`; the take moved that to `isOnProgram` and flipped the
+transition. `LIVE_2` did the same to `IN_2`'s `isOnPreview`/`isOnProgram`, so an input used as an
+aux background tallies as on air. No capacity, preconfig, output or error word moved, and
+`LIVE_1`, `COLOR`, `NATIVE_1` and an empty `STILL_2` were all taken and reported too. The engine's
+error log (`AW_TRACES/AW_APP_SIMULATOR_0`) gains eight `GetVarSigned() Index error` lines per take
+(`xSCREEN_STATUS_SCREENGROUP` got 24, out of 0–23: the aux looked up as a screen), but a control
+take with no background logs the same eight, so that is the simulator's aux take, not the
+background. The 6.1.60 vendor card draws no BKG for the aux (6.2.73's drew one); with L1 full
+screen there was nothing of it to see anyway.
+
+Next frame: an aux someone can see, or one shown on a multiviewer whose snapshot is a picture.
 
 **Two things I tripped over.** The layer path builders take the catalogue spec's `path` array, not
 its id; `dialect.layerParams` are ids, so `layerParamPath(id, buf, key, 'position.posH')` builds

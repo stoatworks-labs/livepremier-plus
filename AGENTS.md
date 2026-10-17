@@ -1121,9 +1121,13 @@ layers. Everything below was read off the 6.2.73 simulator on 2026-10-16.
   `isOnPreview` exactly as it does on a real layer; the vendor's card and
   inspector then drew the still there without complaint. A screen's NATIVE is
   enforced: given `STILL_48` or `LIVE_1` its reported source stayed NONE, and
-  only `NATIVE_1` was reported. Whether a frame's output card renders a still
-  on a plane with no capacity allocated is **not known** — a simulator has no
-  video. Not used here until a frame says so; `docs/NOTES.md` has the test.
+  only `NATIVE_1` was reported. An Aquilon RS4 on 6.1.60 took and reported
+  `STILL_1` on an aux's NATIVE the same way (2026-10-17, A6, program too after
+  a take). Whether a frame's output card renders a still on a plane with no
+  capacity allocated is still **not known** — a simulator has no video, the
+  RS4's output snapshots are placeholders, and nobody looked at its output
+  before it was reset. Not used here until a frame is seen to; `docs/NOTES.md`
+  has the run and the test.
 - **Updating is one upload.** `POST /api/device/images/upload` into a slot
   that holds a file replaces it (new `hashName`), and a still showing that
   slot follows by itself (`imageWidth`, `newSnaphot` change) — so a UMD in
