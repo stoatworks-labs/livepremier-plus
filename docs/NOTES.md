@@ -2010,6 +2010,16 @@ screen there was nothing of it to see anyway.
 
 Next frame: an aux someone can see, or one shown on a multiviewer whose snapshot is a picture.
 
+**Built behind a switch the same night (Allan: not in the main program until a frame shows it).**
+An **Experimental features** plugin, off by default, gates two things: **Aux backgrounds**, a
+column added to the vendor's Preconfig ▸ Backgrounds with a still or input picker and To PRW /
+To PGM per aux, and a **UMD on** choice in the UMD tab for an aux (top layer, or background,
+where every layer is a box and the even templates appear). Both driven on the 6.1.60
+simulator copy through the app: To PRW put still 1 on A1's preview background, the UMD went to
+library slot 200 and still 48 and onto A1's preview background, each confirmed over AWJ.
+Neither is in the README or the guide. The first frame they meet should have someone watching
+the aux's output.
+
 **Two things I tripped over.** The layer path builders take the catalogue spec's `path` array, not
 its id; `dialect.layerParams` are ids, so `layerParamPath(id, buf, key, 'position.posH')` builds
 a path of single characters and every write goes nowhere quietly. And `wire.js` compared echoes

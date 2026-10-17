@@ -28,7 +28,7 @@
 
 import { readLibrary, readStills, stillWrites, stillRestoreWrites, libraryDeleteWrites, uploadImage } from '../../src/core/stills.js';
 import { sendAndEcho, send, until, ECHO_MS, IMPORT_MS } from '../../src/core/wire.js';
-import { chooseSlot, chooseStill, umdLayerWrites, templateWrites, before, fileName } from './core.js';
+import { chooseSlot, chooseStill, umdLayerWrites, nativeWrites, templateWrites, before, fileName } from './core.js';
 
 const HEARD = { inbound: true };
 
@@ -39,7 +39,8 @@ const HEARD = { inbound: true };
  * @param {object} o.session    the page session (store, send, frame events)
  * @param {object} o.dest       `{ id, canvas }`
  * @param {string} o.letter     the buffer's letter, resolved and settled
- * @param {string} o.layer      the layer key that carries the UMD
+ * @param {string} o.layer      the layer key that carries the UMD — `NATIVE` for an aux's
+ *                             background (experimental: the still as its source, no placing)
  * @param {Blob} o.blob         the PNG
  * @param {object|null} o.placed what this app put there last time
  * @returns {Promise<{ok, journal, placed?, error?}>}
@@ -81,12 +82,17 @@ export async function putOnLayer({ session, dest, letter, layer, blob, placed = 
       step(`Still ${still.key} already shows slot ${slotChoice.slot}, and follows the new file`);
     }
 
-    const writes = umdLayerWrites(store, dest, letter, layer, still.key);
+    const native = String(layer) === 'NATIVE';
+    const where = native ? 'background' : `L${layer}`;
+    const writes = native ? nativeWrites(store, dest, letter, still.key) : umdLayerWrites(store, dest, letter, layer, still.key);
+    if (!writes.length) throw new Error(`${dest.id} has no ${where} path this app can spell`);
     journal.writes.push(...before(store, writes));
     if (!(await sendAndEcho(session, writes, HEARD))) {
-      throw new Error(`${dest.id} L${layer} did not take still ${still.key} — the switcher did not echo it`);
+      throw new Error(`${dest.id} ${where} did not take still ${still.key} — the switcher did not echo it`);
     }
-    step(`${dest.id} ${letter} L${layer} shows still ${still.key} over the whole canvas`);
+    step(native
+      ? `${dest.id} ${letter} background shows still ${still.key} (experimental: no frame has been seen to draw it)`
+      : `${dest.id} ${letter} L${layer} shows still ${still.key} over the whole canvas`);
     return {
       ok: true,
       journal,

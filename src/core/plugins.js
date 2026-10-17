@@ -387,6 +387,29 @@ export const BUILTINS = [
     description: 'Groups inputs 2X1 or 2X2 and loads each plug with its tile EDID, so a Mac joins its outputs into one frame-synced display.',
     requires: { capabilities: ['inputGroups'] },
     client: 'client.js'
+  },
+  {
+    id: 'experimental',
+    name: 'Experimental features',
+    where: 'Preconfig ▸ LivePremier Plus, a card saying what it shows',
+    description: 'Shows what the switcher accepts but no real frame has been seen to do yet, to try on a simulator or a spare box. Off unless you are testing.',
+    /* The gate. A built-in marked `experimental` requires this plugin, so it
+       reads "needs Experimental features" until this is on, and the Plugins
+       card does not list it at all meanwhile. A corner of another plugin asks
+       for this one's `experimental` service instead. */
+    enabledByDefault: false,
+    client: 'client.js'
+  },
+  {
+    id: 'aux-backgrounds',
+    name: 'Aux backgrounds',
+    experimental: true,
+    where: 'Preconfig ▸ Backgrounds, under the screens (experimental)',
+    description: 'A still or a live input on an aux’s background, in preview or program. The switcher takes it and reports it; no frame has been seen to draw it yet.',
+    requires: { capabilities: ['screens', 'imageLibrary'], plugins: ['experimental'] },
+    /* Off until a frame has shown what an aux's background does. */
+    enabledByDefault: false,
+    client: 'client.js'
   }
 ].map((p) => withDefaults(p));
 

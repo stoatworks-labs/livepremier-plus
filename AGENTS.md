@@ -151,6 +151,14 @@ The things about it that break quietly:
   routing before a take works at all. A cue naming a kind nobody handles
   keeps the action and warns when it fires — never drop it, it is somebody's
   show file.
+- **Experimental means behind a switch, not shipped quietly.** What the
+  switcher accepts but no frame has been seen to do goes behind the
+  Experimental features plugin (`plugins/experimental/`, off by default): a
+  plugin of its own sets `experimental: true` and requires it, and the
+  Plugins card leaves it out while the switch is off; a corner of an existing
+  plugin asks for the `experimental` service per use, and behaves exactly as
+  before without it. Nothing behind it goes in the README or the guide until
+  a frame has shown what it does; NOTES.md says what has been run.
 
 ## Why a proxy, and the three things that make it work
 
@@ -1161,6 +1169,23 @@ a rename marked it out of date; after a take, an update to program asked first
 and changed only the renamed tab's pixels; S1's UMD reached the Background
 Slicer as its picture. Not on 6.1.60, not on a frame, not on Midra (the panel
 offers Download only there).
+
+⚠️ **Experimental: the UMD on an aux's background** (`auxTarget:
+'background'`, offered only while the `experimental` service exists). The
+still goes on the aux's NATIVE source in the chosen buffer (`nativeWrites`;
+a background has no position), every fitted layer is a box, labels default
+to under the boxes as a screen's do, and the even templates (2, 4, 6, 8 —
+`even: true`) are offered for that target only. `putOnLayer` takes
+`layer: 'NATIVE'` for it and the journal and Undo are the same. Driven on
+the 6.1.60 simulator through the app (2026-10-17): slot 200, still 48, A1's
+preview background `STILL_48`, reported. **Aux backgrounds**
+(`plugins/aux-backgrounds/`, experimental too) adds a column to the vendor's
+Preconfig ▸ Backgrounds for each aux in service — a still or an input onto
+its preview or program background, letters read at the moment of writing,
+program asked first, the value's echo and then its status waited for. It
+is a column of its own after the vendor's, not inside it: 6.1.60's page is
+an info box until a screen is in service. Whether a frame draws an aux
+background is the open question both stand on (`docs/NOTES.md`).
 
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 

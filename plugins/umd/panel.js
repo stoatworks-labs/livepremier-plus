@@ -11,7 +11,7 @@
 
 import { h, fill, note, button } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
-import { LABEL_MODES, LABEL_FROM, BUFFERS, withDest, withStyle, fileName } from './core.js';
+import { LABEL_MODES, LABEL_FROM, BUFFERS, AUX_TARGETS, withDest, withStyle, fileName } from './core.js';
 import { drawPreview } from './render.js';
 
 const PREVIEW_WIDTH = 320;
@@ -87,9 +87,15 @@ export function createUmdPanel({ ready, doc, change, destinations, selected, mod
       } else {
         say = note('', `${dest.id} has ${n} layers: L${layers.umd} carries the UMD, L${layers.boxes[0]}–L${layers.boxes[layers.boxes.length - 1]} are the boxes.`);
       }
+    } else if (m.auxBackground) {
+      say = note('warn', `${dest.id}’s ${n} layer${n === 1 ? ' is' : 's are'} the boxes and the UMD goes on its background, under them. Experimental: the switcher takes a still there and reports it, but no frame has been seen to draw one.`);
     } else {
       say = note('', `${dest.id}’s ${n} layer${n === 1 ? ' is' : 's are'} the boxes. The UMD goes on its background, under them.`);
     }
+    const where = m.auxChoice
+      ? labelled('UMD on', select(AUX_TARGETS, m.entry.auxTarget, (v) => setDest(dest.id, { auxTarget: v }),
+        { 'aria-label': `${dest.id} UMD target`, title: AUX_TARGETS.find((x) => x.id === m.entry.auxTarget).what }), '0 0 auto')
+      : null;
     const choices = [{ id: '', label: 'Layers as they are' }, ...m.templates.map((t) => ({ id: t.id, label: `${t.boxes} · ${t.label}` }))];
     const t = m.template && m.templates.some((x) => x.id === m.template.id) ? m.template : null;
     const gap = h('input', {
@@ -101,6 +107,7 @@ export function createUmdPanel({ ready, doc, change, destinations, selected, mod
     const write = canWrite();
     return h('div', { class: 'aw-flex-col aw-gap-row-small' },
       heading('Layout'),
+      where,
       say,
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
         labelled('Template', select(choices, t ? t.id : '', (v) => setDest(dest.id, { template: v || null }),
@@ -209,9 +216,10 @@ export function createUmdPanel({ ready, doc, change, destinations, selected, mod
     if (!p) return null;
     if (!p.file || !p.stillShows) return note('warn', `The UMD put on ${m.dest.id} before is gone: library slot ${p.slot} or still ${p.still} holds something else now. Putting it on again takes a fresh pair.`);
     const where = [p.inProgram ? 'PGM' : null, p.inPreview ? 'PRW' : null].filter(Boolean);
+    const on = p.layer === 'NATIVE' ? 'its background' : `L${p.layer}`;
     const said = where.length
-      ? `On ${m.dest.id} L${p.layer} in ${where.join(' and ')}: still ${p.still}, library slot ${p.slot}.`
-      : `In still ${p.still} (library slot ${p.slot}), but no buffer of ${m.dest.id} shows it on L${p.layer} now.`;
+      ? `On ${m.dest.id} ${p.layer === 'NATIVE' ? 'background' : `L${p.layer}`} in ${where.join(' and ')}: still ${p.still}, library slot ${p.slot}.`
+      : `In still ${p.still} (library slot ${p.slot}), but no buffer of ${m.dest.id} shows it on ${on} now.`;
     return note(p.current ? '' : 'warn', `${said} ${p.current ? 'Up to date.' : 'Out of date — the layers have moved or been renamed since. Update it.'}`);
   }
 
@@ -220,16 +228,18 @@ export function createUmdPanel({ ready, doc, change, destinations, selected, mod
     const write = canWrite();
     const buttons = [button('Download PNG', { onClick: () => actions.download(m.dest.id), title: `Save ${fileName(m.dest.id)}`, disabled: !m.boxes.length })];
     const lines = [];
-    if (m.target === 'layer') {
+    if (m.target === 'layer' || m.auxBackground) {
+      const onBg = m.auxBackground;
       const p = m.placed;
       const update = p && p.file && p.stillShows;
       const air = (update && p.onProgram) || m.entry.buffer === 'program';
       const armed = confirming === m.dest.id;
-      const label = armed ? 'Confirm — changes program' : update ? 'Update UMD' : `Put on L${m.layers.umd || '?'} · ${m.entry.buffer === 'program' ? 'PGM' : 'PRW'}`;
+      const onWhat = onBg ? 'background' : `L${m.layers.umd || '?'}`;
+      const label = armed ? 'Confirm — changes program' : update ? 'Update UMD' : `Put on ${onWhat} · ${m.entry.buffer === 'program' ? 'PGM' : 'PRW'}`;
       buttons.push(button(label, {
         variant: armed ? 'danger' : 'go',
-        disabled: !write || r.running || !m.layers.umd || !m.boxes.length || !m.bank.settled,
-        title: write ? (update ? `Upload the new picture into library slot ${p.slot}: still ${p.still} and L${p.layer} follow it` : `Upload into the image library, load a still, and show it on ${m.dest.id} L${m.layers.umd}`) : 'Writing to the switcher is LivePremier only',
+        disabled: !write || r.running || (!onBg && !m.layers.umd) || !m.boxes.length || !m.bank.settled,
+        title: write ? (update ? `Upload the new picture into library slot ${p.slot}: still ${p.still} and its ${p.layer === 'NATIVE' ? 'background' : `L${p.layer}`} follow it` : `Upload into the image library, load a still, and show it on ${m.dest.id}’s ${onWhat}`) : 'Writing to the switcher is LivePremier only',
         onClick: () => {
           if (air && !armed) { confirming = m.dest.id; shown = null; root && render(); return; }
           confirming = null;
@@ -276,7 +286,7 @@ export function createUmdPanel({ ready, doc, change, destinations, selected, mod
     return JSON.stringify([
       ready(), d, id, confirming, canWrite(), !!backgrounds(), run(),
       dests.map((x) => [x.id, x.label, x.canvas.width, x.canvas.height]),
-      m && [m.target, m.labels, m.layers, m.bank, m.rows, m.print, m.placed, m.plan.warnings, m.plan.items.map((i) => i.notes), m.templates.map((t) => t.id)]
+      m && [m.target, m.auxChoice, m.entry.auxTarget, m.labels, m.layers, m.bank, m.rows, m.print, m.placed, m.plan.warnings, m.plan.items.map((i) => i.notes), m.templates.map((t) => t.id)]
     ]);
   }
 

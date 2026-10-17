@@ -297,7 +297,9 @@ export function createSettingsPanel({
         state.pluginsChanged
           ? note('warn', 'Reload the page to apply — a switch takes effect on the next load, and the server half has already changed.')
           : null,
-        BUILTINS.map((plugin) => {
+        /* An experimental built-in is not listed while the Experimental
+           features switch is off: nobody should meet it by accident. */
+        BUILTINS.filter((plugin) => !plugin.experimental || isSwitchedOn(plugins, 'experimental')).map((plugin) => {
           const switched = isSwitchedOn(plugins, plugin.id);
           const verdict = pluginStatus(plugins, plugin.id, can);
           /* Switched on and allowed, but the server could not load or start

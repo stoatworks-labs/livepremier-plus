@@ -97,7 +97,7 @@ function renders(name, panel) {
 const noStorage = { load: async () => null, save: async () => {} };
 
 /** Page halves that put nothing in the sidebar or on a strip. */
-const DECORATIONS = new Set(['arithmetic', 'layer-names', 'send-to', 'edid-mosaic', 'edid']);
+const DECORATIONS = new Set(['arithmetic', 'layer-names', 'send-to', 'edid-mosaic', 'edid', 'aux-backgrounds']);
 
 for (const [storeName, makeStore] of Object.entries(STORES)) {
   test(`every panel in src/ui renders against ${storeName === 'empty' ? 'an empty store' : 'the simulator’s store'}`, async () => {

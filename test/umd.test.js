@@ -31,7 +31,7 @@ import { readLibrary, readStills } from '../src/core/stills.js';
 import {
   TEMPLATES, templateRects, templatesFor, templateById, normalise, withDest, withStyle, layerPlan, targetOf, labelsFor,
   readBoxes, layout, borderBands, fingerprint, roughMeasure, placeWrites, cleanWrites, umdLayerWrites, templateWrites,
-  chooseStill, chooseSlot, fileName, intersect, autoBorder
+  chooseStill, chooseSlot, fileName, intersect, autoBorder, nativeWrites
 } from '../plugins/umd/core.js';
 import { draw } from '../plugins/umd/render.js';
 import { putOnLayer, applyTemplate, revert } from '../plugins/umd/apply.js';
@@ -136,7 +136,8 @@ const a1 = (store) => listDestinations(store).find((d) => d.id === 'A1');
 /* ============================================================ templates */
 
 test('templates come in the sizes an aux’s layer pairs leave, keep the canvas’s shape, and stay on it without overlapping', () => {
-  assert.deepEqual([...new Set(TEMPLATES.map((t) => t.boxes))], [1, 3, 5, 7]);
+  assert.deepEqual([...new Set(TEMPLATES.filter((t) => !t.even).map((t) => t.boxes))], [1, 3, 5, 7], 'the top layer is the UMD’s');
+  assert.deepEqual([...new Set(TEMPLATES.filter((t) => t.even).map((t) => t.boxes))], [2, 4, 6, 8], 'every layer is a box when the UMD is on the background');
   for (const t of TEMPLATES) {
     assert.equal(t.cells.length, t.boxes, `${t.id} has as many cells as boxes`);
     for (const canvas of [CANVAS, { width: 3840, height: 2160 }, { width: 1920, height: 1200 }]) {
@@ -170,6 +171,9 @@ test('the templates offered are those with no more boxes than there are layers f
   assert.deepEqual([...new Set(templatesFor(3).map((t) => t.boxes))], [1, 3]);
   assert.deepEqual([...new Set(templatesFor(7).map((t) => t.boxes))], [1, 3, 5, 7]);
   assert.deepEqual(templatesFor(0), []);
+  assert.ok(!templatesFor(8).some((t) => t.even), 'the even layouts are not offered for the top layer');
+  assert.deepEqual([...new Set(templatesFor(4, { even: true }).map((t) => t.boxes))].sort(), [1, 2, 3, 4]);
+  assert.deepEqual([...new Set(templatesFor(8, { even: true }).filter((t) => t.even).map((t) => t.boxes))], [2, 4, 6, 8]);
 });
 
 /* ============================================================ the doc */
@@ -203,6 +207,21 @@ test('an aux’s UMD goes on its top layer and the rest are boxes; a screen’s 
   assert.equal(labelsFor('A1', null), 'bottom');
   assert.equal(labelsFor('S1', null), 'below', 'under the box is the label a background can show');
   assert.equal(labelsFor('S1', { labels: 'top' }), 'top');
+});
+
+test('experimental: an aux’s UMD on its background only with the switch on, and then every layer is a box', () => {
+  const store = auxStore();
+  const wants = normalise({ dests: { A1: { auxTarget: 'background' }, A2: { auxTarget: 'sideways' } } });
+  assert.equal(wants.dests.A1.auxTarget, 'background');
+  assert.equal(wants.dests.A2.auxTarget, 'layer', 'anything else is the top layer');
+  assert.equal(targetOf('A1', wants.dests.A1), 'layer', 'without the switch the entry is ignored');
+  assert.equal(targetOf('A1', wants.dests.A1, true), 'background');
+  assert.equal(targetOf('S1', null, true), 'background');
+  assert.equal(labelsFor('A1', wants.dests.A1, true), 'below', 'under the layers, a label inside a box is hidden');
+  assert.deepEqual(layerPlan(store, 'A1', 'background'), { layers: KEYS, umd: null, boxes: KEYS });
+  assert.deepEqual(nativeWrites(store, a1(store), 'B', 48), [
+    { path: ['device', 'auxiliaryList', 'items', 'A1', 'presetList', 'items', 'B', 'layerList', 'items', 'NATIVE', 'source', 'pp', 'inputNum'], value: 'STILL_48' }
+  ], 'the still as the background’s source, and nothing placed');
 });
 
 test('the boxes are the layers showing something, named after their sources, and never the UMD’s own layer', () => {
@@ -432,6 +451,21 @@ test('put: the picture into a free slot, a free still onto it, and the top layer
   assert.equal(at(store, 'auxiliaryList', 'items', 'A1', 'presetList', 'items', 'B', 'layerList', 'items', '8', 'source', 'pp', 'inputNum'), 'NONE');
   assert.equal(at(store, 'stillList', 'items', '48', 'control', 'pp', 'mode'), 'NONE');
   assert.equal(at(store, 'stillList', 'library', 'bankList', 'items', '200', 'status', 'pp', 'isValid'), false, 'the slot it filled is emptied');
+});
+
+test('experimental: put on an aux’s background writes the still as its NATIVE source, and Undo puts NONE back', async () => {
+  const store = auxStore();
+  const { session, log, fetchImpl } = standIn(store);
+  const res = await putOnLayer({ session, dest: a1(store), letter: 'B', layer: 'NATIVE', blob: png(), fetchImpl });
+  assert.equal(res.ok, true, res.error);
+  assert.deepEqual(res.placed, { slot: 200, still: 48, layer: 'NATIVE', letter: 'B' });
+  const native = (b) => at(store, 'auxiliaryList', 'items', 'A1', 'presetList', 'items', b, 'layerList', 'items', 'NATIVE', 'source', 'pp', 'inputNum');
+  assert.equal(native('B'), 'STILL_48');
+  assert.equal(native('A'), 'NONE', 'program is not touched');
+  assert.ok(!log.some(([p]) => /layerList\/items\/\d+\//.test(p)), 'no picture layer is written');
+  const back = await revert({ session, journal: res.journal });
+  assert.equal(back.ok, true, back.problems.join(', '));
+  assert.equal(native('B'), 'NONE');
 });
 
 test('put refuses, writing nothing, when there is no still to hold the picture', async () => {

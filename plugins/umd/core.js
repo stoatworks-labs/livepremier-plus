@@ -17,6 +17,13 @@
  *   and `preconfig/backgrounds` has background sets for screens only. So the
  *   UMD is a still on the aux's highest fitted layer, full canvas, over the
  *   pictures, and the layers under it are the boxes.
+ *   ⚠️ **Experimental: an aux's background.** The control software does take a
+ *   still on an aux's NATIVE layer, on the 6.1.60 and 6.2.73 simulators and
+ *   on an Aquilon RS4 (2026-10-17), and reports it — but no frame has been
+ *   seen to draw it. With the Experimental features plugin on, an aux can put
+ *   its UMD there instead (`auxTarget: 'background'`), and every fitted layer
+ *   is a box. `targetOf` says which; without the switch it is always the
+ *   top layer.
  * - **A screen: its background.** A background costs no mixer, and a screen's
  *   layers are what it is for. A background set is per output, cut to each
  *   output's raster — which is the Background Slicer's whole job, so the
@@ -43,7 +50,7 @@
  *     style: { border: true, borderWidth: 0, borderColour: '#ffffff', textScale: 1,
  *              uppercase: false, tabOpacity: 0.7, labelFrom: 'source' },
  *     dests: { A1: { buffer: 'preview', labels: 'bottom', template: 'three-two-over-one',
- *                    gap: 0, names: { '2': 'CAM 2' },
+ *                    gap: 0, names: { '2': 'CAM 2' }, auxTarget: 'layer',
  *                    placed: { slot, still, layer, fingerprint } } } }
  *
  * `borderWidth` 0 is "automatic": two pixels at 1080, scaled with the canvas.
@@ -87,7 +94,13 @@ export const DEFAULT_STYLE = Object.freeze({
   labelFrom: 'source'
 });
 
-export const DEFAULT_DEST = Object.freeze({ buffer: 'preview', labels: null, template: null, gap: 0, names: {}, placed: null });
+export const DEFAULT_DEST = Object.freeze({ buffer: 'preview', labels: null, template: null, gap: 0, names: {}, placed: null, auxTarget: 'layer' });
+
+/** Where an aux's UMD goes. `background` is experimental: see the head of this file. */
+export const AUX_TARGETS = [
+  { id: 'layer', label: 'Top layer', what: 'A still on the aux’s highest layer, over the pictures. Proven on the simulator.' },
+  { id: 'background', label: 'Background (experimental)', what: 'A still on the aux’s background, under the pictures, so every layer is a box. The switcher takes it and reports it, but no frame has been seen to draw it.' }
+];
 
 export const EMPTY = Object.freeze({ version: 1, style: DEFAULT_STYLE, dests: {} });
 
@@ -134,6 +147,27 @@ export const TEMPLATES = [
       [0, 7 / 12, 0.25], [0.25, 7 / 12, 0.25], [0.5, 7 / 12, 0.25], [0.75, 7 / 12, 0.25]]
   }
 ];
+
+/*
+ * Even counts, for an aux whose UMD is on its background (experimental): all
+ * 2, 4, 6 or 8 of its layers are boxes then. Offered for that target only, so
+ * nothing changes for anyone without the switch.
+ */
+TEMPLATES.push(
+  { id: 'two-side', boxes: 2, even: true, label: 'Side by side', what: 'Two halves, side by side.', cells: [[0, 0.25, 0.5], [0.5, 0.25, 0.5]] },
+  {
+    id: 'four-quad', boxes: 4, even: true, label: 'Quad', what: 'Four quadrants.',
+    cells: [[0, 0, 0.5], [0.5, 0, 0.5], [0, 0.5, 0.5], [0.5, 0.5, 0.5]]
+  },
+  {
+    id: 'six-three-by-two', boxes: 6, even: true, label: 'Three by two', what: 'Two rows of three thirds.',
+    cells: [[0, sixth, third], [third, sixth, third], [2 * third, sixth, third], [0, 0.5, third], [third, 0.5, third], [2 * third, 0.5, third]]
+  },
+  {
+    id: 'eight-four-by-two', boxes: 8, even: true, label: 'Four by two', what: 'Two rows of four quarters.',
+    cells: [[0, 0.25, 0.25], [0.25, 0.25, 0.25], [0.5, 0.25, 0.25], [0.75, 0.25, 0.25], [0, 0.5, 0.25], [0.25, 0.5, 0.25], [0.5, 0.5, 0.25], [0.75, 0.5, 0.25]]
+  }
+);
 
 const TEMPLATE_IDS = new Set(TEMPLATES.map((t) => t.id));
 export const templateById = (id) => TEMPLATES.find((t) => t.id === id) || null;
@@ -212,7 +246,8 @@ export function normaliseDest(raw) {
     template: TEMPLATE_IDS.has(d.template) ? d.template : null,
     gap: Math.round(clamp(d.gap, 0, 200, 0)),
     names,
-    placed: normalisePlaced(d.placed)
+    placed: normalisePlaced(d.placed),
+    auxTarget: d.auxTarget === 'background' ? 'background' : 'layer'
   };
 }
 
@@ -242,11 +277,19 @@ export const withStyle = (doc, patch) => {
 
 /* ======================================================== the destination */
 
-/** Where the UMD goes on a destination: an aux's top layer, a screen's background. */
-export const targetOf = (id) => (String(id).startsWith('A') ? 'layer' : 'background');
+/**
+ * Where the UMD goes on a destination: an aux's top layer, a screen's
+ * background — or, with `experimental` on and the aux's entry asking for it,
+ * the aux's own background.
+ */
+export const targetOf = (id, entry = null, experimental = false) => {
+  if (!String(id).startsWith('A')) return 'background';
+  return experimental && entry && entry.auxTarget === 'background' ? 'background' : 'layer';
+};
 
 /** The label position in force: the destination's own, else the one that shows there. */
-export const labelsFor = (id, entry) => (entry && entry.labels) || (targetOf(id) === 'layer' ? 'bottom' : 'below');
+export const labelsFor = (id, entry, experimental = false) =>
+  (entry && entry.labels) || (targetOf(id, entry, experimental) === 'layer' ? 'bottom' : 'below');
 
 /** The fitted layers that can hold a picture, bottom first — NATIVE is not one. */
 export function pictureLayers(store, id) {
@@ -264,15 +307,19 @@ export function pictureLayers(store, id) {
  * ⚠️ "Top" is the highest layer number, as the vendor's own layer list stacks
  * them; `core/screens.js` notes it was first seen with one layer only.
  */
-export function layerPlan(store, id) {
+export function layerPlan(store, id, target = targetOf(id)) {
   const layers = pictureLayers(store, id);
-  if (targetOf(id) !== 'layer') return { layers, umd: null, boxes: layers };
+  if (target !== 'layer') return { layers, umd: null, boxes: layers };
   if (layers.length < 2) return { layers, umd: layers[layers.length - 1] || null, boxes: [] };
   return { layers, umd: layers[layers.length - 1], boxes: layers.slice(0, -1) };
 }
 
-/** The templates that fit a destination: no more boxes than it has layers for. */
-export const templatesFor = (boxLayers) => TEMPLATES.filter((t) => t.boxes <= boxLayers);
+/**
+ * The templates that fit a destination: no more boxes than it has layers
+ * for, and the even ones only for an aux whose UMD is on its background.
+ */
+export const templatesFor = (boxLayers, { even = false } = {}) =>
+  TEMPLATES.filter((t) => t.boxes <= boxLayers && (even || !t.even));
 
 /* ================================================================ labels */
 
@@ -542,6 +589,16 @@ export function umdLayerWrites(store, dest, letter, key, still) {
     ...placeWrites(store, dest.id, letter, key, { left: 0, top: 0, width: dest.canvas.width, height: dest.canvas.height }),
     ...cleanWrites(store, dest.id, letter, key)
   ];
+}
+
+/**
+ * The UMD on an aux's background (experimental): the still as its NATIVE
+ * layer's source, and nothing else — a background has no position to set.
+ */
+export function nativeWrites(store, dest, letter, still) {
+  const dialect = dialectFor(store);
+  const source = dialect && layerPath(store, dest.id, letter, 'NATIVE', dialect.sourceParam);
+  return source ? [{ path: source, value: `STILL_${still}` }] : [];
 }
 
 /**

@@ -9,6 +9,11 @@
  * the aux's layers out first, in 1, 3, 5 or 7 boxes. See `core.js` for why
  * each of those is the way it is, and `apply.js` for the writes.
  *
+ * With the Experimental features plugin on (its `experimental` service), an
+ * aux may put its UMD on its own background instead of its top layer — taken
+ * by the switcher, never seen drawn by a frame. Without it, nothing here
+ * changes.
+ *
  * Everything is worked out from the mirror on every frame — a layer moved on
  * the vendor's page is a moved box in the preview a second later — and the
  * panel says when the UMD on the switcher no longer matches the layers.
@@ -66,15 +71,20 @@ export default function activate(ctx) {
     const d = dialectFor(store);
     return !!d && d.id === 'nlc';
   };
+  /* An aux's background as a target is experimental, and LivePremier's only. */
+  const experimental = () => isLivePremier() && Boolean(ctx.use('experimental'));
 
   /** Everything the panel shows about one destination, from the mirror as it is now. */
   function model(id) {
     const dest = destinations().find((d) => d.id === id);
     if (!dest) return null;
     const entry = doc.dests[id] || normaliseDest(null);
-    const target = targetOf(id);
-    const labels = labelsFor(id, entry);
-    const lp = layerPlan(store, id);
+    const exp = experimental();
+    const isAux = dest.kind === 'aux' || String(id).startsWith('A');
+    const target = targetOf(id, entry, exp);
+    const auxBackground = isAux && target === 'background';
+    const labels = labelsFor(id, entry, exp);
+    const lp = layerPlan(store, id, target);
     const bank = bankLetter(store, id, entry.buffer === 'program' ? 'PROGRAM' : 'PREVIEW');
     const namesService = ctx.use('names');
     const layerNames = namesService ? namesService.get() : {};
@@ -100,7 +110,8 @@ export default function activate(ctx) {
 
     return {
       dest, entry, target, labels, layers: lp, bank, boxes, plan, print, rows,
-      templates: templatesFor(lp.boxes.length),
+      auxChoice: isAux && exp, auxBackground,
+      templates: templatesFor(lp.boxes.length, { even: auxBackground }),
       template: templateById(entry.template),
       placed: placedState(dest, entry, bank, print)
     };
@@ -174,12 +185,13 @@ export default function activate(ctx) {
       return guarded(async () => {
         const m = model(id);
         if (!m) throw new Error(`${id} is not in service`);
-        if (m.target !== 'layer') throw new Error('A screen’s UMD goes on its background, through the Background Slicer');
-        if (!m.layers.umd) throw new Error(`${id} has no layer to carry the UMD`);
+        if (m.target !== 'layer' && !m.auxBackground) throw new Error('A screen’s UMD goes on its background, through the Background Slicer');
+        const carrier = m.auxBackground ? 'NATIVE' : m.layers.umd;
+        if (!carrier) throw new Error(`${id} has no layer to carry the UMD`);
         if (!m.bank.reported || !m.bank.settled) throw new Error(`${id} is mid-take — wait for it to land`);
         const blob = await renderPng(m.plan);
         const res = await putOnLayer({
-          session: ctx.session, dest: m.dest, letter: m.bank.letter, layer: m.layers.umd, blob,
+          session: ctx.session, dest: m.dest, letter: m.bank.letter, layer: carrier, blob,
           placed: m.entry.placed, onStep: step
         });
         if (res.journal.uploads.length || res.journal.stills.length || res.journal.writes.length) run.journal = res.journal;

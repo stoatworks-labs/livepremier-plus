@@ -26,6 +26,12 @@ app the way the hand-written one did.
 - **Every built-in is on unless you switch it off**, bar seven that start off (Preview lock,
   Surfaces, and the Dante, Thumbnail relay, Multiviewer thumbnails, Background Slicer and UMD
   Generator previews), so nobody upgrading loses anything.
+- **Experimental features is a switch, and a gate.** It starts off, and a built-in whose manifest
+  says `experimental: true` requires it, starts off itself, and is not listed on the Plugins card
+  at all until the switch is on. It's for what the switcher accepts but no real frame has been
+  seen to do (Aux backgrounds, today). A corner of an existing plugin asks for the switch's
+  `experimental` service instead, which exists only while it runs; the UMD Generator's
+  aux-background target does.
 - **Off means absent**: no sidebar entry or tab, no page decoration, no routes (they answer 404,
   name the plugin, and say why: its own switch, or a plugin it needs), no background service (an
   OSC listener is closed, router and Companion connections are hung up).

@@ -21,7 +21,7 @@ import {
 /* Built-ins that arrived switched off, because nobody had them before and they
    have not yet run against a real switcher. Anyone upgrading loses nothing. A
    feature leaves this list when it is proved, and is on from then. */
-const OFF_UNTIL_TESTED = new Set(['snapshot-relay', 'mv-slicer', 'preview-lock', 'dante', 'bg-slicer', 'umd', 'surfaces']);
+const OFF_UNTIL_TESTED = new Set(['snapshot-relay', 'mv-slicer', 'preview-lock', 'dante', 'bg-slicer', 'umd', 'surfaces', 'experimental', 'aux-backgrounds']);
 
 test('every built-in is described once, on the current API, and on by default', () => {
   const ids = BUILTINS.map((p) => p.id);
@@ -108,6 +108,21 @@ test('the core’s own routes belong to no plugin, so none can switch them off',
   }
   /* A prefix must match a whole segment: /matrixfoo is nobody's. */
   assert.equal(routeOwner('/matrixfoo'), null);
+});
+
+/* ---------------------------------------------------------- experimental */
+
+test('an experimental built-in starts off, needs the Experimental features switch, and is off while it is', () => {
+  const experimental = BUILTINS.filter((p) => p.experimental);
+  assert.ok(experimental.length > 0);
+  assert.equal(manifestOf('experimental').enabledByDefault, false);
+  assert.equal(manifestOf('experimental').experimental, undefined, 'the switch itself is always listed');
+  for (const p of experimental) {
+    assert.equal(p.enabledByDefault, false, `${p.id} starts off`);
+    assert.ok(p.requires.plugins.includes('experimental'), `${p.id} requires the switch`);
+    assert.deepEqual(status({ [p.id]: { enabled: true } }, p.id), { on: false, reason: 'needs Experimental features' });
+    assert.equal(isEnabled({ [p.id]: { enabled: true }, experimental: { enabled: true } }, p.id), true);
+  }
 });
 
 /* ------------------------------------------------------------ hosted, phase 1 */
