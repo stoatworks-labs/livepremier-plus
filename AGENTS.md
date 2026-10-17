@@ -1567,7 +1567,10 @@ Fixed structurally rather than by platform-sniffing:
   page's sprite defines. `test/panel-render.test.js` holds every sidebar entry
   and tab to the sprite of each switcher it is offered on
   (`test/fixtures/sprite-ids.json`, four simulators' ids) — Edit, Layer Groups
-  and the Groups tab were blank on a Midra until that test existed.
+  and the Groups tab were blank on a Midra until that test existed. A sibling
+  test reads every literal `iconId:` / `icon(` / `spriteId(` out of the source
+  and holds it to the same sprites, since no render reaches every button;
+  three buttons had asked for ids no sprite has ever had.
 
 ⚠️ Running the simulators: all three default to `PORT=3000` **and**
 `AWJ_EXT_PORT=10606`, so only one runs at a time out of the box. Edit the port
@@ -1842,6 +1845,19 @@ rather than a mock — deliberately, because every bug worth catching there live
 in the plumbing (headers, encodings, streaming, the upgrade handshake) and a
 mocked `http.request` would simply agree with whatever the code did. Both
 framing bugs above were found this way.
+
+⚠️ **"No network" is enforced, because it was not true.** From 2026-08-22 to
+2026-10-17 `osc.test.js` sent a real `xTake` on S1 to 127.0.0.1:10606 on every
+run. It never passed its pretend device's port, and it accepted "reached the
+device" as a pass. With a simulator on the same Mac, which is most days here,
+that was an unexplained TAKE a second after any session's `npm test`
+(`docs/NOTES.md`, 2026-10-17). `npm test` now preloads `test/helpers/offline.js`
+(`node --import … --test`). It refuses a connection from any test to a port
+that real kit this app drives listens on (AWJ, Web RCS, HyperDeck, Companion,
+UCenter, the routers), on any host, and fails the file with the stack that
+dialled. A pretend device goes on port 0 and its port is passed in; a device
+that is not there goes on port 1. A new test file goes in the script's list,
+after the `--import`.
 
 `LPP_SIM=<host>:<port> npm run test:sim` — the live suite in `test/sim/`, against
 a running LivePremier simulator. It boots the real app (`createProxy`, as

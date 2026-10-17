@@ -1978,6 +1978,69 @@ a path of single characters and every write goes nowhere quietly. And `wire.js` 
 with `Object.is`, so a write of an array (`effects.flags: []`) could never be heard; it compares
 lists by value now.
 
+## Stray TAKEs on the simulator came from `npm test`, not the demo (2026-10-17)
+
+While the docs screenshots were being taken against the 6.2.73 simulator on 10-16 (`npm run
+demo` on :8545, headless pages), the engine trace (`AW_TRACES/AW_APP_SIMULATOR_0/*.log.001`)
+logged eight `xSCREENAUXGROUP_TAKE;S1;EXTERN;true` nobody had sent: a plain `xTake` (the vendor's
+TAKE button logs `TAKE_UP`/`TAKE_DOWN`), S1 only, never after a recall. A `WebSocket.send` patch in
+every page saw none of them, and lsof sampling of :3000/:10606 saw no other client.
+
+**It was `test/osc.test.js`**, run by whichever session happened to start `npm test`. `a UDP take
+reaches the switcher as an AWJ write` stood a pretend AWJ device up on a spare port and never
+passed `awjPort`, so the OSC listener asked the real port, 127.0.0.1:10606. Its comment said
+the port was "fixed at 10606 in `awj.js`". That stopped being true on 09-12, when `awjPort`
+arrived for the platform-probe tests beside it. Its assertion accepted "it reached the device"
+as well as "it failed trying". With nothing on 10606 it failed and passed. With a simulator on
+this Mac, the simulator answered the platform question (LivePremier) and then took S1. That has
+happened about a second after every `npm test` run while a simulator was up, from 2026-08-22
+until today, and on a Midra simulator it would have taken screen 1.
+
+The evidence: the trace's `[T]` line gives the engine's epoch, so every take has a wall-clock
+time, and every session's transcript has the time its `npm test` started:
+
+| stray take (UTC) | `npm test` started (session) |
+|---|---|
+| 10-16 22:20:27.3 | 22:20:26.1 (exciting-napier) |
+| 22:24:44.3 | 22:24:43.5 (exciting-napier) |
+| 22:36:48.9 | 22:36:47.9 (the UMD-wording session) |
+| 22:39:26.0 | 22:39:24.4 (zen-napier) |
+| 22:40:52.4 | 22:40:51.5 (awesome-lamport) |
+| 22:41:10.6 | 22:41:09.8 (zen-napier) |
+| 22:41:41.2 | 22:41:40.2 (awesome-lamport) |
+| 22:42:16.9 | 22:42:16.1 (awesome-lamport) |
+| 10-17 01:53:56.2 | 01:53:55.5 (stoic-jackson) |
+| 10-17 02:02:32.5 | 02:02:30.0 (gracious-heyrovsky) |
+
+Then the suite was run with a preload that refused, and logged with a stack, any connection to a
+switcher's ports. Exactly one connection in the whole suite: `osc.test.js` → `osc.js`
+`platformFor` → `awj.exchange` → 127.0.0.1:10606. The demo, the pages and every plugin are clear.
+The page patch saw nothing because there was nothing in a page to see, and lsof missed a socket
+that lives for a few milliseconds.
+
+**Fixed, and made impossible to repeat quietly:**
+
+- `osc.test.js` passes `awjPort: device.port`, and the take test now asserts that the pretend
+  device received exactly `DeviceObject/$screenAuxGroup/@items/S1/control/@props/xTake = true`.
+  The button-release test is pointed at a pretend device too, and asserts nothing reached it.
+- `test/helpers/offline.js` is preloaded into every file `npm test` runs (`node --import
+  ./test/helpers/offline.js --test …`). A TCP connection to a port that real kit this app drives
+  listens on is refused before it is made, on any host (AWJ 10606, Web RCS 80/3000, HyperDeck 9993,
+  Companion 8000, UCenter 8088/19999, Videohub 9990, Lightware 6107/10001), and the file fails
+  with the stack that dialled. It denies ports, not non-loopback hosts, because
+  `local-client.test.js` dials this Mac's own LAN address on purpose. The old `osc.test.js` under
+  it passes all 33 of its assertions and fails the file. `test/offline.test.js` holds the guard
+  to that: it is in the script, it refuses `exchange` at 10606 on loopback and elsewhere, it leaves
+  a pretend device on port 0 alone, and it fails a file that dials.
+
+The live suites (`test/sim/`, `test/console/`) reach a simulator on purpose and don't load it.
+
+**Trap, for anyone chasing a "phantom" TAKE:** a `WebSocket.prototype.send` patch installed after
+the page loads is blind to this app's own sends, because `ws-hook.js` keeps the native `send` it
+found at boot and `hook.send` calls that. One installed with `context.addInitScript` runs first
+and does see them. Either way, check the session transcripts for an `npm test` before suspecting
+the app.
+
 ## Preview lock and the vendor's own TAKE button (2026-10-17)
 
 Found while taking the docs pictures on 10-16: with Preview lock on, a TAKE from Web RCS's own
