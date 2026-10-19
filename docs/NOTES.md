@@ -2376,21 +2376,32 @@ recorded:
 
 Identify the frame by IP and by `deviceList/items/1/pp/{type,label,serial}`, not by its label.
 
-### What to build before the day (on a simulator, nothing on hardware)
+### What to have before the day
 
-- **`~/dev/aquilon-field-test/transitions/transitions.mjs`**, a runner built like
-  `aux-background/aux-bg.mjs` and `70-writes.mjs`: `read`, `record` (the whole destination: every
-  writable property of every fitted layer in A, B and C, both take times, `copyMode`, the
-  verdicts), one subcommand per test below, `restore` and `diff`. It needs a destination guard (no
-  write outside the chosen screen's `presetList` and its own `screenAuxGroupList` control),
-  letters resolved from the transition state before every step (`vendor/surface/preset.js`
-  `resolve`), each step's writes printed and a typed `YES` before they go, `--i-have-permission`
-  to start at all, and a log line with a wall-clock time for every write and every take. Rehearse
-  every subcommand on the 6.2.73 and 6.1.60 simulators until `restore` + `diff` shows nothing.
-- **`measure.py`**, for the recordings: per frame, the mean colour of a few fixed regions (each
-  layer's box, the reference strip) and, for wipes, where the edge is along one scan line. Out
-  come a CSV and, for each layer, the frame its change starts and ends. Test it on a synthetic
-  clip made with ffmpeg first.
+- **The runner and `measure.py`: built and rehearsed (2026-10-19)**, in
+  `~/dev/aquilon-field-test/transitions/` (not a git repository; its README has the commands in
+  order). `transitions.mjs` has `read`, `record`, `setup`, one subcommand per test below, `clear`,
+  `take`, `restore` and `diff`; a destination guard; letters worked out before every step; every
+  step's writes printed and a typed `YES` before they go; `--i-have-permission` to write at all;
+  `--yes` refused unless the switcher says it is a simulator; a wall-clock log of every write and
+  take. It borrows this repo's `transitions.js`, so it needs a checkout at ea18bb5 or later
+  (`LPP_DIR`). Every test writes a **baseline** under its own changes, on both copies of the three
+  layers (fades, whole windows, linear, the recorded flags and ratio): without it, t2's closings on
+  program's copy were still there when t5 took. `measure.py` finds each region's change from the
+  frames where it crosses 20 % and 80 % of the way, extended to 0 and 100 % (exact for a linear
+  change; 10 and 90 % read two frames early on a full red through 4:2:0), and passes seven
+  synthetic-clip tests, including a wipe inside each box failing the across-the-screen check.
+- **Rehearsed on both simulators**: 6.2.73 (Session 1, a third layer fitted on S1 by the kit's
+  `sim-layers.mjs`) and 6.1.60 (a copy of Session 2, ports +1000, S1 put in service with three
+  layers). Every subcommand ran; every write read back over AWJ (215 writes and 31 takes on 6.2.73,
+  201 and 28 on 6.1.60); `t8` against this app's own Take only engine and `t9` against its own
+  cascade both checked out (a first stand-in for t8 that hung up the moment Take only returned
+  lost its put-back writes: the screen kept 2.0 s and preview L2 stayed as held. The page stays
+  connected, but a page closed in that instant would do the same); `restore` and `diff` found
+  nothing different. A whole-store diff of
+  6.2.73 afterwards showed only status the switcher owns. Not seen, because a simulator cannot show
+  it: the picture, a verdict other than `OFF`, the T-bar's position between its ends, take timing
+  to the frame (its 4 s takes landed at 3.85–4.2 s by AWJ polling).
 - **The app from main**, not the installed one: the installed app predates all of this. Run
   `node server/index.js` from a clean checkout of main on a free port (not :8535/:8536, where the
   tray app lives), point it at the frame, and switch Experimental features and Transitions on.
@@ -2409,8 +2420,10 @@ Identify the frame by IP and by `deviceList/items/1/pp/{type,label,serial}`, not
   ones (T1, T5, T7, T8).
 - **The test screen**: take time **4.0 s** both ways (200 frames at 50 Hz), every layer's speed
   **linear** for the measured tests (smooth easing hides where a window starts), every source a
-  plain colour (`COLOR` and red/green/blue): no uploads, no live inputs needed.
-  - L1: the left half, red. L2: the right half, green. Both 960×1080 on a 1920×1080 canvas.
+  plain colour (`COLOR` and red/green/blue): no uploads. T5 and T6 also need one live input or still
+  with a picture (`--other`), and T8 is better with a moving live input (`--live`).
+  - L1: the left half, red. L2: the right half, green. Both 960×960 on a 1920×1080 canvas, above
+    the strip, so nothing overlaps and the stacking order does not matter.
   - L3: a full-width strip, 1920×120 along the bottom, white, FADE, window the whole take. It is
     the **reference**: where it starts and ends in the recording is where the take starts and
     ends, so nothing depends on clocks.
