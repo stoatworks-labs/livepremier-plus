@@ -192,7 +192,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.17.7.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.17.8.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -292,6 +292,17 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.17.8 (2026-10-19).** Fixes, mostly for a Midra 4K or Alta 4K. Seven in-panel buttons and
+> the Edit, Layer Groups and Groups icons drew blank there (or, for some, on every switcher),
+> because they asked for sprite ids those web clients don't have; a test now holds every icon to
+> the sprites of each switcher it's offered on. The console's **MVR** key opens the live
+> multiviewer on a Midra too, and **SOURCE BACKUP** says a Midra input has no backup instead of
+> looking for a menu that isn't there. **Pixelhue Mapping** now sits at the foot of PLUS on a
+> Midra or Alta, and the Plugins card says why MIDI Mapping and the Speed Editor aren't offered
+> there. **Preview lock** now shuts PRW when the take comes from the vendor's own TAKE button as
+> well as from this app. All of it was checked on simulators (LivePremier 6.2.73, Midra 4K
+> 3.2.29), not on a frame.
 >
 > **0.17.7 (2026-10-16).** Adds the **UMD Generator**, off until you switch it on. An aux laid out
 > as a multiviewer has the pictures and none of the furniture; this draws the furniture (a hairline

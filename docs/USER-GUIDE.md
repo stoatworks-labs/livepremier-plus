@@ -130,6 +130,10 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.17.8 is fixes**, mostly for a Midra 4K or Alta 4K: icons that drew blank, the MVR key,
+> SOURCE BACKUP's refusal, Pixelhue Mapping at the foot of PLUS, and Preview lock shutting PRW on
+> the vendor's own TAKE button. Proven on simulators only.
+>
 > **0.17.7 adds the UMD Generator**, a preview: a thin border round each box and a dark tab with
 > its source's name, drawn as a transparent PNG from where each layer is and what it shows, put on an aux's top layer or handed to the
 > Background Slicer for a screen, with 1, 3, 5 and 7-box layouts for an aux. Off until you switch
