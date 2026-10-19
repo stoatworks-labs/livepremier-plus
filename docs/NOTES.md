@@ -2135,3 +2135,147 @@ Two bare `xTake`s on S1 that none of this sent landed in the trace during the ru
 test`, the second during this session's own run; see "Stray TAKEs on the simulator came from `npm
 test`" (2026-10-17). They are why the screens' parity had to be read off the trace rather than
 counted.
+
+## Transitions per layer and per screen: three options (2026-10-19)
+
+Asked for: "the possibility of adding per layer/screen transitions". Nothing is built; this is
+what the switcher has and three ways to go, for a choice. Read from the code, both vendored
+catalogues, and the 6.2.73 Web RCS bundle inside the simulator app
+(`…/LIVEPREMIER_6_2_73/ressources/AW_APPS/webapp-bundle/dist/client/`). Nothing was run against
+a simulator or a frame.
+
+### What the switcher already has
+
+- **Every layer in every preset has its own transition**, at
+  `presetList/items/<A|B>/layerList/items/<k>/` on LivePremier and
+  `presetList/items/<UP|DOWN>/liveLayerList/items/<k>/` on Midra 4K. The two catalogues agree
+  on all of it but the flag names and a few enum spellings:
+  - `transition/opening/pp/{type,way}` and `transition/closing/pp/{type,way}`. Type is CUT, FADE,
+    SLIDE, WIPE, CIRCLE or STRETCH (the `ELEMENT_TRANSITION` enum also has `WIPE_ADVANCED`,
+    which the layer property does not offer). Way is one of eleven directions, `LEFT_TO_RIGHT`
+    to `NE_TO_SW`, three of them from or to the centre.
+  - `transition/pp/flags`: `FORCE_TRANSITION` ("Avoid cross transition", on by default),
+    `FORCE_CROSS` and `DEPTH_CUT_START/MIDDLE/END` on LivePremier; `DISABLE_CROSS_EFFECT` and
+    `DISABLE_CROSS_DEPTH` on Midra. `system/userPref` `layerForceTransition` (true) and
+    `layerForceCross` (false) are the defaults for new layers.
+  - `timing/opening/pp/{start,end}` and `timing/closing/pp/{start,end}`, 0–65535, defaults 0 and
+    65535: when in the take this layer opens and closes, as a fraction of the take.
+    `timing/pp/ratio` (default 32768) is `OPENING_CLOSING_RATIO` in a memory file. What it does
+    is not known.
+  - `flying/pp/type` (linear, two Béziers, two deviants) and two control points: the path a layer
+    takes when its position changes. `speed/pp/type` (linear or smooth), `point1`/`point2`
+    0–255: the easing.
+- **The vendor's Properties tab edits all of it.** Its en-US labels are `aw.LayerTransition.*`
+  (Opening, Closing, Type, Way, Force, Force Cross), `aw.LayerFlyingCurve.*` and
+  `aw.LayerTiming.Timeline`. Our Layer tab draws the same groups from the catalogue, raw numbers
+  and all.
+- **Memories carry them.** `TRANSITIONS`, `FLYING_CURVE`, `TIMING` and `SPEED` are save
+  categories (`core/preset-file.js`), so a memory saved with them overwrites them on recall.
+- **Only the duration belongs to the screen**: `takeUpTime`/`takeDownTime` under
+  `screenAuxGroupList/items/<S|A>/control/pp/` on LivePremier, one `takeTime` under
+  `transition/screenList/items/<n>/control/pp/` on Midra, tenths, 0–3000. A recall overwrites
+  it with the memory's `transitionDuration` (Aquilon C, 2026-08-21). A layer's timing window is a
+  fraction of it, so no layer can run longer than its screen's take.
+- **No per-layer take** ("Layer Lock and partial takes", 2026-09-23). Take only fakes one.
+
+### Option 1: a time and an effect on Take only
+
+Layer Lock's Take only, given a time and, if wanted, an effect. To take S1 L2 alone in 2 s with a
+wipe from the left:
+
+1. write the effect to L2 in the preview buffer;
+2. hold every other layer equal to program, as Take only already does;
+3. write the screen's take time (`dialect.fadeTimePath`), then the take;
+4. once it lands, put the other layers' preview looks back, and the screen's time.
+
+Every other layer is the same on both sides of the take, so the screen's time only governs the
+layers being taken. That makes it per layer in effect, not just in name. Two layers in one Take
+only with different times: the screen gets the longest, and each shorter one gets a timing window
+(`end = time / screenTime × 65535`).
+
+Where it goes: `takeOnly()` in `plugins/layer-lock/engine.js` already snapshots, holds, takes,
+waits for `landed()` and restores. The time write goes just before the trigger, after any recall
+has settled, as the timeline does it (`core/cuestack.js` header). The panel gets a time field and
+an effect picker on each row. A Timeline `cueAction` ("take only S1 L2, 2 s, wipe") is the
+natural second step.
+
+Small. The simulator can prove the writes, their order, and that the screen's time is put back.
+Only a frame can show the effect, and that a held layer really stands still.
+
+The cost: the screen's time is changed for the length of the take, so a take from the front panel
+at that moment gets it too. Only takes from this page see the effect at all.
+
+### Option 2: a Transitions tab per screen
+
+A Screens / Aux. tab (behind ⋯ with the others). For one screen it shows every layer's opening
+and closing effect and direction, and its timing window drawn as a bar in seconds against the
+screen's take time: a small timeline, one row per layer. Plus:
+
+- **Apply to all layers** on the screen, or to a group from Layer Groups.
+- **Styles**: named sets ("Wipe L→R", "Cascade") kept in a doc (`transition-styles-<dev>.json`)
+  and applied in one click.
+- Writes the preview buffer by default, the letter resolved with `bankLetter()` at the moment of
+  writing and refused mid-take, as the Layer tab does.
+
+Every write is a click, so there is no gate and no follower. That is the point of the design:
+anything that rewrites on every take needs the hook's gate, which Layer Lock holds and
+`ws-hook.js` allows one of, or the shaper, which Surfaces has. And because the settings are in
+the preset buffers before the take, **they apply to a take from anywhere**: front panel, T-bar,
+OSC, Companion. Option 1 cannot say that.
+
+The trap is the seconds. They are fractions of a take time that a recall replaces, so "1 s" on a
+2 s take is 0–32767, and after a recall to a 4 s memory the same window is 2 s. The tab has to
+draw against the current time and say when a recall has changed it. Keeping the seconds across
+recalls would need a follower that re-applies a screen's style to preview after each recall:
+opt-in, preview only, with Layer Lock's follower rules. That is a possible later half, not part
+of this.
+
+Medium: a new plugin, mostly UI; the writes reuse `writeCmd`. The simulator proves every write
+and read-back. Midra goes through the dialect: the same parameters with different flag names and
+layer root.
+
+### Option 3: screen-wide moves the switcher doesn't have
+
+Option 2's writes, worked out from where the layers sit:
+
+- **A wipe across the whole screen.** A layer's WIPE almost certainly runs inside its own box, so
+  two PIPs side by side wipe at the same moment instead of one edge crossing the screen.
+  Staggering each layer's opening window by its position (`start = left / width`,
+  `end = right / width`, × 65535) makes the edge travel. The same for top to bottom and from the
+  centre.
+- **Cascade**: the layers open one after another, by layer order or by position, each in its own
+  slice of the take.
+- **Dip through the background in one take**: the outgoing layers close in the first half and the
+  incoming ones open in the second. Whether that works for a layer that only changes source
+  depends on what `FORCE_TRANSITION` and `timing.ratio` actually do. The two-take version (a black
+  look, then the target) is a Timeline cue list already.
+
+The maths is small. Whether it looks right needs a frame, every bit of it: the simulator's output
+snapshot is a static "OUT1" placeholder.
+
+### What holds for all three
+
+- **One take per screen at a time.** L3 cannot start while L2's take is running, so overlapping
+  layer moves have to be one take with staggered windows.
+- **Simulators prove the writes, not the picture.** Besides the placeholder output, the 6.2.73
+  simulator's per-layer verdict (`screenList/items/<S>/layerList/items/<k>/status/pp/up|down`)
+  reads `OFF` for every layer, whatever the buffers hold.
+- **Hardware is ask-first**, and nothing here has met a frame.
+
+### What only a frame can answer
+
+1. Which copy of a layer a closing effect comes from: the outgoing (program) buffer or the
+   incoming one. If it is the outgoing one, setting how a layer leaves means a write to the buffer
+   on air. That write shouldn't change the picture, but it is still a write to program.
+2. What `timing.ratio` does.
+3. Whether a WIPE or SLIDE runs inside the layer's own box or across the screen.
+4. What `FORCE_TRANSITION` and `FORCE_CROSS` do to a layer that only changes source. The Aquilon
+   C reported `CROSS` for LIVE_2 against LIVE_8 at the same geometry; its flags weren't recorded.
+5. Whether timing windows behave the same on the T-bar as on an auto take.
+
+### Recommendation
+
+Option 1 first: it's small, it builds on code already proven on the simulator, and it's the only
+one that gives a single layer a transition of its own. Option 2 next if a quicker way to set
+effects across a screen is wanted; it is also the only one that front-panel takes would see.
+Option 3 after a frame has answered 1–4.
