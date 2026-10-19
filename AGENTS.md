@@ -875,6 +875,67 @@ take, Companion speaking AWJ, another browser. The panel says so on every
 render. Proven on the simulator only (2026-09-23): lock + follower, a
 recall-and-vendor-TAKE in one tick, take-only on one and on two screens.
 
+### Transitions per layer and across a screen (`core/transitions.js`, `plugins/transitions/`, Take only) — **experimental**
+
+Every layer of every preset buffer has its own transition, on both platforms
+and under the same catalogue ids: `transition.opening`/`closing` (effect and
+way), `timing.opening`/`closing` (a window, 0–65535 of the take), `speed.type`.
+Only the take's **duration** belongs to the screen, and a memory recall
+replaces it. There is no per-layer take. Two features stand on that, both
+behind the Experimental features switch because no frame has shown them:
+
+- **Take only with a time and an effect** (Layer Lock, "Take only with"). The
+  held layers have nothing to transition, so the screen's take time is the
+  moving layers' own. The engine writes the effect to the moving layers'
+  **preview** copies before the take, the time **last, straight before the
+  trigger** (the timeline's order), and puts each direction's own time back
+  in a `finally`, landed or not — a time written mid-take does not change the
+  running take. The effect stays on the layer (now program): Take only never
+  writes program. `client.js` strips `tenths`/`effect` while the switch is
+  off, for the panel and the `locks` service alike.
+- **The Transitions tab** (`plugins/transitions/`, its own plugin,
+  `experimental: true`). One destination, one card per fitted layer, three
+  ways to write the ticked layers (the same effect, a move, a style). Every
+  write is a click: no gate, no follower, so it needs neither of the hook's
+  two seats — and because the settings are in the buffer before the take,
+  they apply to a take from anywhere, front panel and T-bar included.
+
+The rules that are load-bearing:
+
+- ⚠️ **Seconds are a view, never stored.** A window is a fraction of the take
+  time, and a recall changes that time. The tab works seconds out on every
+  render and turns typed seconds into units against the time **as it is when
+  the edit is committed**. Styles keep the switcher's units.
+- **The letter is resolved at the moment of writing** (`bankLetter`), and
+  nothing is written mid-take. PRW by default; PGM is offered on purpose,
+  with a warning, because which copy a CLOSING is read from is unknown and
+  finding out needs a way to write the copy on air.
+- ⚠️ **A click handler reads the view when it runs, not when it was drawn.**
+  Found in the browser on 2026-10-19: the move was changed to "Whole take",
+  the click landed on the button from the previous repaint (panels repaint
+  about once a second), and its closure ran a wipe. Every button in the tab
+  reads `view` at click time; `test/transitions.test.js` clicks a stale one.
+- **The moves assume a WIPE runs inside its layer's own box.** That is the
+  only reason a wipe across the screen needs working out: each layer's
+  window is where a line crossing the canvas passes over it, with a linear
+  speed so the edge does not ease at every layer boundary. Opening windows
+  come from preview's rectangle, closing from program's.
+- **Speeds are spelt per platform** (`LINEAR_TRANSITION` / `LINEAR`): a style
+  keeps the word, `speedValue` spells it. The layer property offers six
+  effects; the enum's `WIPE_ADVANCED` is not one of them.
+- **Not `rc400t-transition` for an icon**: that sprite id is a 160×21 drawing
+  of the RC400T's panel and draws as a blank sliver. The tab uses the fade
+  icons.
+
+Run on the 6.2.73 simulator only (`test/sim/transitions.sim.test.js`, and the
+tab driven in a browser through the demo): every write read back over AWJ in
+the buffer meant, a 1.5 s take-only on a 0.3 s screen ran its 1.5 s and the
+screen got 0.3/0.4 s back, the effect on the moved layer only. What only a
+frame can answer is in `docs/NOTES.md` (2026-10-19): which copy a closing is
+read from, what `timing.ratio` does, whether a wipe stays in its box, what the
+force flags do to a layer that only swaps source, and whether windows behave
+the same on a T-bar.
+
 ### Preview lock during takes (`plugins/preview-lock/`, `ui/preset-lock.js`)
 
 **Mid-take, PREVIEW is the buffer arriving on program.** Both platforms

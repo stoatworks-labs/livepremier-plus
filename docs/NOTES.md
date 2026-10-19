@@ -2279,3 +2279,63 @@ Option 1 first: it's small, it builds on code already proven on the simulator, a
 one that gives a single layer a transition of its own. Option 2 next if a quicker way to set
 effects across a screen is wanted; it is also the only one that front-panel takes would see.
 Option 3 after a frame has answered 1–4.
+
+Allan asked for all three, in sequence, the same day. They are built, behind the Experimental
+features switch: see the next entry.
+
+## Transitions per layer and per screen: built, and run on the 6.2.73 simulator (2026-10-19)
+
+All three options from the entry above, behind the Experimental features switch, so nothing
+changes for anyone who has not switched it on, and nothing goes in the README or the guide until a
+frame has shown it. AGENTS.md "Transitions per layer and across a screen" has the rules.
+
+- **Option 1**, Layer Lock ▸ "Take only with": a time (seconds; blank is the screen's own) and an
+  effect (an opening and closing type and, for a slide, wipe, circle or stretch, a way). The
+  engine change is `takeOnly(targets, { tenths, effect })` in `plugins/layer-lock/engine.js`.
+- **Options 2 and 3**, a new `transitions` plugin: Screens / Aux. ▸ ⋯ ▸ Transitions. One card per
+  fitted layer (effect and way in and out, windows in seconds with a bar each), then "The same on
+  every ticked layer", "Across the screen" (wipe across, cascade, dip through the background, whole
+  take) and "Styles" (kept per switcher in `transition-styles-<dev>.json`, in the setup file).
+- `src/core/transitions.js` holds what both share: reading and writing a look, the take-time
+  writes, seconds against the take time, styles, and the moves.
+
+### What was run, on the simulator app's Session 1 (6.2.73 Cmax, engine started from the shell)
+
+`LPP_SIM=127.0.0.1:3000 node --test test/sim/transitions.sim.test.js`, six tests, all pass:
+
+- A whole look (slide in from the bottom, circle out from the centre, both windows, a linear
+  speed) written to preview and read back over AWJ; program unchanged.
+- Every effect the layer offers (six) and every way (eleven) accepted.
+- Two layers laid out side by side in preview, then each move's writes accepted and read back as
+  planned: right to left, the right-hand layer's window is the first half of the take.
+- Take only on S1 L1 at 1.5 s with the screen at 0.3 s up and 0.4 s down: the take took about
+  1.5 s (the simulator does run a take for its time), and the screen read 0.3 and 0.4 s afterwards.
+- Take only with a wipe from the top: the copy that went to air carries it in and out; the copy
+  that was program (preview afterwards) was never written.
+
+Then through the demo (`LPP_DEMO_PORT=8545`) in a browser, with Experimental features and
+Transitions switched on: the tab and the Layer Lock card both draw in the vendor's own CSS; picking
+an effect, a way and a window edge on a card each sent one write, read back over AWJ in preview (B)
+with program (A) untouched; 0.4 s typed into a 1.0 s take was written as 26214; a style was saved
+from L1, kept on the server, and applied to L2; "Take only with" 1.2 s and a slide from the page
+took S1 L1 in 1.2 s, the screen's 1.0 s put back, the slide on the copy that moved.
+
+**Found and fixed in the browser:** the move had been changed to "Whole take", but the click landed
+on the button drawn before the change (the panel repaints about once a second), and its closure
+ran a wipe. Every handler in the tab now reads the view when it runs; a test clicks a stale
+button. And the icon first chosen, `rc400t-transition`, is a 160×21 drawing of the RC400T panel,
+blank at icon size; the tab uses the fade icons.
+
+Put back afterwards: S1's 54 transition values (two layers, three buffers) saved over AWJ before
+the browser run and written back after it (nothing differing), S1 taken back to `AT_DOWN`, its
+latched `xTake` re-armed. The live suite's own run restores through `guardScreen`.
+
+`test/sim/locks.sim.test.js` "a source sent to a group…" fails on this simulator (3 fitted members
+where it expects 1). That test was written for the rack's simulator, with one fitted layer on S1;
+Session 1 has two layers on S1 and one on S2. Not touched by this work.
+
+### Still only a frame can answer
+
+The five questions in the entry above, unchanged. The first is the one that decides how the
+closings are written: if a closing is read from the outgoing copy, the tab's PGM switch is the
+way to set it, and Take only's effect only takes hold of a layer's next exit.
