@@ -346,6 +346,154 @@ test('take only is refused mid-take, before anything is written', async () => {
   assert.equal(device.sent.length, 0);
 });
 
+/* ------------------------------------- take only with a time and an effect */
+
+const UP_TIME = ['device', 'screenAuxGroupList', 'items', 'S1', 'control', 'pp', 'takeUpTime'];
+const DOWN_TIME = ['device', 'screenAuxGroupList', 'items', 'S1', 'control', 'pp', 'takeDownTime'];
+const sentAs = (device) => device.sent.map((c) => `${c.path.at(-1)}=${JSON.stringify(c.value)}`);
+
+test('take only with a time: written straight before the trigger, and the screen’s own time put back after', async () => {
+  const store = deskStore();
+  store.set(DOWN_TIME, 7);
+  const device = fakeDevice(store);
+  const engine = createLockEngine({ store, send: device.send, locks: () => [] });
+  device.attach(engine);
+
+  const r = await engine.takeOnly([{ id: 'S1', layer: '2' }], { tenths: 25 });
+  assert.equal(r.ok, true, r.message);
+  assert.match(r.message, /S1 L2 in 2\.5 s/);
+  const said = sentAs(device);
+  const take = said.indexOf('xTake=true');
+  assert.deepEqual(said.slice(take - 2, take), ['takeUpTime=25', 'takeDownTime=25'], 'the time is the last thing before the take');
+  assert.deepEqual(said.slice(take + 1).filter((s) => s.startsWith('take')), ['takeUpTime=1', 'takeDownTime=7'],
+    'each direction gets back what it held');
+  assert.equal(store.get(UP_TIME), 1);
+  assert.equal(store.get(DOWN_TIME), 7);
+  assert.equal(src(store, 'A', '1'), 'LIVE_5', 'the held layer’s preview look is still put back');
+});
+
+test('take only with no time and no effect sends exactly what it always did', async () => {
+  const store = deskStore();
+  const device = fakeDevice(store);
+  const engine = createLockEngine({ store, send: device.send, locks: () => [] });
+  device.attach(engine);
+  await engine.takeOnly([{ id: 'S1', layer: '2' }], { tenths: null, effect: null });
+  assert.ok(!sentAs(device).some((s) => s.startsWith('take') || s.startsWith('type') || s.startsWith('way')));
+});
+
+test('take only with an effect: the moving layer’s preview copy gets it before the take, and nothing else does', async () => {
+  const store = deskStore();
+  const device = fakeDevice(store);
+  const engine = createLockEngine({ store, send: device.send, locks: () => [] });
+  device.attach(engine);
+
+  const r = await engine.takeOnly([{ id: 'S1', layer: '2' }], { effect: { type: 'WIPE', way: 'BOTTOM_TO_UP' } });
+  assert.equal(r.ok, true, r.message);
+  assert.match(r.message, /with wipe bottom to top/);
+  const styled = device.sent.filter((c) => c.path.includes('transition'));
+  assert.deepEqual(styled.map((c) => [c.path[6], c.path[9], c.path.slice(10).join('.'), c.value]).sort(), [
+    ['B', '2', 'transition.closing.pp.type', 'WIPE'],
+    ['B', '2', 'transition.closing.pp.way', 'BOTTOM_TO_UP'],
+    ['B', '2', 'transition.opening.pp.type', 'WIPE'],
+    ['B', '2', 'transition.opening.pp.way', 'BOTTOM_TO_UP']
+  ], 'preview’s letter, the moving layer only, never program');
+  const take = device.sent.findIndex((c) => c.path.at(-1) === 'xTake');
+  assert.ok(device.sent.findIndex((c) => c.path.includes('transition')) < take, 'the effect is in place before the take');
+  assert.ok(!sentAs(device).some((s) => s.startsWith('takeUpTime')), 'no time asked for, none written');
+});
+
+test('a fade on take only carries no direction', async () => {
+  const store = deskStore();
+  const device = fakeDevice(store);
+  const engine = createLockEngine({ store, send: device.send, locks: () => [] });
+  device.attach(engine);
+  await engine.takeOnly([{ id: 'S1', layer: '2' }], { effect: { type: 'FADE', way: 'LEFT_TO_RIGHT' } });
+  const styled = device.sent.filter((c) => c.path.includes('transition')).map((c) => c.path.slice(10).join('.'));
+  assert.deepEqual(styled.sort(), ['transition.closing.pp.type', 'transition.opening.pp.type']);
+});
+
+test('the page’s locks service drops a time and an effect while Experimental features is off', async () => {
+  const { default: activate } = await import('../plugins/layer-lock/client.js');
+  const run = async (experimental) => {
+    const store = deskStore();
+    const device = fakeDevice(store);
+    const session = new EventTarget();
+    session.store = store;
+    session.send = device.send;
+    const services = {};
+    const fetchBefore = globalThis.fetch;
+    globalThis.fetch = async () => ({ ok: false, json: async () => ({}) });
+    try {
+      activate({
+        session,
+        url: (p) => `/__lpp/layer-lock${p}`,
+        log: { warn() {} },
+        refresh() {},
+        use: (name) => (name === 'experimental' && experimental ? { on: true } : null),
+        provide: (name, value) => { services[name] = value; },
+        ui: { sidebar() {} }
+      });
+      session.addEventListener('frame', () => {});
+      const engineSeesFrames = (cmd) => session.dispatchEvent(Object.assign(new Event('frame'), { detail: cmd }));
+      device.attach({ onFrame: (f) => engineSeesFrames(f) });
+      const r = await services.locks.takeOnly([{ id: 'S1', layer: '2' }], { tenths: 25, effect: { type: 'CUT' } });
+      assert.equal(r.ok, true, r.message);
+      return sentAs(device);
+    } finally {
+      globalThis.fetch = fetchBefore;
+    }
+  };
+  const off = await run(false);
+  assert.ok(!off.some((s) => s.startsWith('takeUpTime') || s.startsWith('type')), 'switch off: the take goes plain');
+  assert.ok(off.includes('xTake=true'));
+  const on = await run(true);
+  assert.ok(on.includes('takeUpTime=25'));
+  assert.ok(on.includes('type="CUT"'));
+});
+
+test('the panel offers a time and an effect only with the switch on, and refuses a time that is not one', async () => {
+  const { install } = await import('./helpers/fake-dom.js');
+  const { createLockPanel } = await import('../plugins/layer-lock/panel.js');
+  const dom = install();
+  try {
+    const store = deskStore();
+    const calls = [];
+    const fake = { takeOnly: async (targets, opts) => { calls.push(opts); return { ok: true, message: 'took' }; }, syncAll: () => [] };
+    let experimental = false;
+    let root = null;
+    const panel = createLockPanel({
+      session: { store }, storage: { load: async () => null, save: async () => {} },
+      engine: () => fake, experimental: () => experimental, onRefresh: () => { root = panel.render(); }
+    });
+    root = panel.render();
+    assert.equal(root.querySelector('[data-lpp-key=lock-take-effect]'), null, 'switch off: no card');
+
+    experimental = true;
+    root = panel.render();
+    const effect = root.querySelector('[data-lpp-key=lock-take-effect]');
+    assert.ok(effect, 'switch on: the card is there');
+    assert.ok(effect.textContent.includes('Wipe'));
+    assert.equal(root.querySelector('[data-lpp-key=lock-take-way]'), null, 'no direction for the layer’s own effect');
+    effect.dispatchEvent({ type: 'change', target: { value: 'SLIDE' } });
+    assert.ok(root.querySelector('[data-lpp-key=lock-take-way]'), 'a slide goes some way');
+
+    const seconds = root.querySelector('[data-lpp-key=lock-take-seconds]');
+    seconds.dispatchEvent({ type: 'change', target: { value: 'soon' } });
+    const takeButton = () => root.querySelectorAll('button').find((b) => b.textContent === 'Take only');
+    takeButton().click();
+    await sleep(5);
+    assert.equal(calls.length, 0, 'a time that is not a time takes nothing');
+    assert.match(root.textContent, /not a number of seconds/);
+
+    root.querySelector('[data-lpp-key=lock-take-seconds]').dispatchEvent({ type: 'change', target: { value: '1.5' } });
+    takeButton().click();
+    await sleep(5);
+    assert.deepEqual(calls, [{ tenths: 15, effect: { type: 'SLIDE', way: 'LEFT_TO_RIGHT' } }]);
+  } finally {
+    dom.uninstall();
+  }
+});
+
 /* -------------------------------------------------------------- the hook */
 
 function loadHook() {

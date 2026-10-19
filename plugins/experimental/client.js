@@ -28,6 +28,11 @@ const BEHIND = [
     name: 'UMD on an aux’s background',
     where: 'Screens / Aux. ▸ ⋯ ▸ UMD, “UMD on”',
     what: 'The UMD still under an aux’s layers instead of on its top layer, so every layer is a box, with 2, 4, 6 and 8-box layouts.'
+  },
+  {
+    name: 'Take only with a time and an effect',
+    where: 'PLUS ▸ Layer Lock, “Take only with”',
+    what: 'A take time and an opening and closing effect for the layers a Take only moves. The others are held, so the time is theirs alone, and the screen’s own time is put back afterwards.'
   }
 ];
 

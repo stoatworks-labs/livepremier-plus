@@ -22,15 +22,25 @@
  * anything speaking to the switcher directly are not held — the engine's head
  * has the full list — so the panel says so on every render rather than in a
  * tooltip. A lock that silently does not hold on a show is worse than no lock.
+ *
+ * ## Take only with a time and an effect (experimental)
+ *
+ * With the Experimental features switch on, "take only" can carry a time and
+ * an effect: the screen's take time for that one take, and an opening and
+ * closing effect on the layers that move. Held layers have nothing to
+ * transition, so the time is the moving layers' own. The switcher takes both
+ * and reports them; no frame has been seen to show them, which is why they
+ * are behind the switch (`src/core/transitions.js`).
  */
 
-import { h, button } from '../../src/ui/dom.js';
+import { h, button, isEnter } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
 import { listDestinations, sourceLabel, presetBanks } from '../../src/core/screens.js';
 import { fittedLayers, bankLetter, readValue } from '../../src/core/properties.js';
 import { sourceSpec } from '../../src/core/groups.js';
 import { layerLabel } from '../../src/core/layer-names.js';
 import { normalise, lockKey, parseLockKey, inSync, verdict, LOCKS_VERSION } from '../../src/core/layer-lock.js';
+import { effectsOn, waysOn, takesWay, tenthsOf, prettyEffect, prettyWay } from '../../src/core/transitions.js';
 
 /** The switcher's own words for a layer's next transition, as a reader would say them. */
 const VERDICT = {
@@ -47,13 +57,15 @@ const VERDICT = {
  * @param {() => object} [o.names]            layer names, `S1/2` → name
  * @param {() => Array|null} [o.groups]       the layer groups, when that plugin is on
  * @param {() => boolean} [o.gated]           whether the page hook took the gate
+ * @param {() => boolean} [o.experimental]    whether the Experimental features switch is on
  * @param {Function} [o.onRefresh]
  */
 export function createLockPanel({
-  session, storage, engine, names = () => ({}), groups = () => null, gated = () => true, onRefresh = () => {}
+  session, storage, engine, names = () => ({}), groups = () => null, gated = () => true,
+  experimental = () => false, onRefresh = () => {}
 } = {}) {
   let doc = { version: LOCKS_VERSION, locks: [] };
-  const view = { note: null, activity: null, running: false };
+  const view = { note: null, activity: null, running: false, take: { seconds: '', type: '', way: 'LEFT_TO_RIGHT' } };
   const store = () => session.store;
 
   /* ------------------------------------------------------------ the store */
@@ -91,13 +103,32 @@ export function createLockPanel({
     setLocks(on ? [...doc.locks, ...keys] : doc.locks.filter((k) => !keys.includes(k)), 'locked');
   }
 
+  /**
+   * What "take only" carries besides its targets: a time and an effect, while
+   * the Experimental features switch is on, and nothing otherwise. Null when
+   * the time field holds something that is not a number of seconds.
+   */
+  function takeOptions() {
+    if (!experimental()) return {};
+    const t = view.take;
+    const typed = String(t.seconds || '').trim();
+    const tenths = tenthsOf(typed);
+    if (typed && tenths == null) return null;
+    return {
+      tenths,
+      effect: t.type ? { type: t.type, way: takesWay(t.type) ? t.way : null } : null
+    };
+  }
+
   async function takeOnly(targets) {
     const e = engine();
     if (!e || view.running) return;
+    const opts = takeOptions();
+    if (!opts) { say('warn', `“${view.take.seconds}” is not a number of seconds — nothing was taken.`); return; }
     view.running = true;
     say('ok', 'Taking…');
     try {
-      const r = await e.takeOnly(targets);
+      const r = await e.takeOnly(targets, opts);
       say(r.ok ? 'ok' : 'warn', r.message);
     } catch (err) {
       say('err', `Partial take failed: ${err.message}`);
@@ -147,10 +178,43 @@ export function createLockPanel({
         view.activity ? h('div', { class: 'wru-groups-activity aw-font-caption aw-text-secondary', text: view.activity }) : null,
         !ready ? h('div', { class: 'aw-text-tertiary', text: 'Waiting for the device store…' }) : null,
         ready && !dests.length ? h('div', { class: 'aw-text-tertiary', text: 'No screen or aux in service has a fitted layer.' }) : null,
+        experimental() && ready ? takeWithCard() : null,
         groupList.length ? groupsCard(groupList) : null,
         dests.map(destCard),
         strayLocks(dests))
     });
+  }
+
+  /** The time and effect every "take only" below carries, while the switch is on. */
+  function takeWithCard() {
+    const t = view.take;
+    const set = (patch) => { view.take = { ...view.take, ...patch }; onRefresh(); };
+    const labelled = (label, control) => h('label', { class: 'aw-flex-col aw-gap-row-mini' },
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: label }), control);
+    const select = (key, choices, current, onPick) => h('select', {
+      class: 'wru-input', 'data-lpp-key': key, onChange: (ev) => onPick(ev.target.value)
+    }, choices.map((c) => h('option', { value: c.id, selected: c.id === current ? 'selected' : null, text: c.label })));
+
+    const effects = [{ id: '', label: 'Layer’s own' }, ...effectsOn(store()).map((v) => ({ id: v, label: prettyEffect(v) }))];
+    const ways = waysOn(store()).map((v) => ({ id: v, label: prettyWay(v) }));
+    return h('div', { class: 'wru-groups-card aw-padding-medium aw-flex-col aw-gap-row-small' },
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-flex-wrap' },
+        h('div', { class: 'aw-font-subtitle-1', text: 'Take only with' }),
+        h('span', { class: ['wru-tag', 'wru-tag--warn'], text: 'experimental' })),
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium aw-flex-wrap' },
+        labelled('Time (s)', h('input', {
+          class: 'wru-input wru-input--narrow', value: t.seconds, inputmode: 'decimal', placeholder: 'screen’s',
+          'data-lpp-key': 'lock-take-seconds', 'aria-label': 'Take only time in seconds',
+          onKeyDown: (ev) => { if (isEnter(ev)) { ev.preventDefault(); ev.target.blur(); } },
+          onChange: (ev) => set({ seconds: ev.target.value.trim() })
+        })),
+        labelled('Effect', select('lock-take-effect', effects, t.type, (v) => set({ type: v }))),
+        takesWay(t.type) ? labelled('Direction', select('lock-take-way', ways, t.way, (v) => set({ way: v }))) : null),
+      h('div', { class: 'aw-font-caption aw-text-tertiary',
+        text: 'Every Take only on this page uses these. Blank and “Layer’s own” leave the screen’s take time and the layer’s '
+          + 'effect as they are. The time is the moving layers’ own, because every other layer is held, and the screen’s '
+          + 'time is put back afterwards. The effect is written to the layer’s preview copy and stays with it, on program, '
+          + 'after the take. The switcher takes both; no frame has been seen to show them yet.' }));
   }
 
   function destCard(dest) {

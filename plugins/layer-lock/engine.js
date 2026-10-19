@@ -46,6 +46,9 @@ import { startsWith, key as pathKey } from '../../src/core/paths.js';
 import {
   lockedOn, lockedDestinations, syncWrites, takeTarget, snapshot, restoreWrites, partialPlan
 } from '../../src/core/layer-lock.js';
+import {
+  MAX_TENTHS, effectLook, lookWrites, takeTimeWrites, prettyEffect, prettyWay
+} from '../../src/core/transitions.js';
 
 /** How long a held take waits for the switcher to echo the writes ahead of it. */
 export const ECHO_WAIT_MS = 300;
@@ -213,8 +216,18 @@ export function createLockEngine({ store, send, locks, onActivity = () => {}, cl
    *
    * Refuses before writing anything if any destination involved is mid-take
    * or has not reported its buffers: half a partial take is worse than none.
+   *
+   * With `tenths`, the take runs for that long: the screen's take time is
+   * written just before the trigger and put back once the take has landed (or
+   * given up on). Every other layer is held equal to program, so that time
+   * governs only the layers that move — a time of their own. With `effect`
+   * (`{type, way}`), the moving layers' preview copies get it as their opening
+   * and closing before the take, and keep it afterwards: the copy that was
+   * preview is program now, and this never writes program. Both are the
+   * Experimental features switch's to offer (`client.js`); see
+   * `src/core/transitions.js` for what no frame has shown yet.
    */
-  async function takeOnly(targets, { restore = true } = {}) {
+  async function takeOnly(targets, { restore = true, tenths = null, effect = null } = {}) {
     const d = dialect();
     if (!d) return { ok: false, message: 'the device store has not arrived' };
     const { plans, refused } = partialPlan(store, targets, locks());
@@ -226,6 +239,9 @@ export function createLockEngine({ store, send, locks, onActivity = () => {}, cl
       if (holding.has(p.id)) return { ok: false, message: `${p.id}: a partial take is already running` };
     }
 
+    const time = Number.isFinite(tenths) ? Math.min(MAX_TENTHS, Math.max(0, Math.round(tenths))) : null;
+    const look = effect && effect.type ? effectLook(effect.type, effect.way) : null;
+
     const cmds = commandsFor(d);
     const runs = plans.map((p) => {
       const before = presetBanks(store, p.id);
@@ -233,7 +249,8 @@ export function createLockEngine({ store, send, locks, onActivity = () => {}, cl
         ...p,
         before,
         kept: restore ? snapshot(store, p.id, before.preview, p.restore) : null,
-        fadeMs: fadeMs(d, p.id)
+        timeBack: [],
+        fadeMs: time == null ? fadeMs(d, p.id) : time * 100
       };
     });
 
@@ -243,13 +260,30 @@ export function createLockEngine({ store, send, locks, onActivity = () => {}, cl
       const { writes } = syncWrites(store, r.id, r.hold);
       sendAll(writes);
       allWrites.push(...writes);
+      if (look) {
+        const styled = r.go.flatMap((layer) => lookWrites(store, r.id, r.before.preview, layer, look));
+        sendAll(styled);
+        allWrites.push(...styled);
+      }
     }
     try {
       const { missing } = await waitForEchoes(allWrites);
+      /* The time goes last, straight before the trigger, as the timeline
+         sends it: anything else that sets the time in between wins, and
+         the gap is kept as small as it can be rather than called closed. */
+      for (const r of runs) {
+        if (time == null) continue;
+        const t = takeTimeWrites(store, r.id, time);
+        sendAll(t.set);
+        r.timeBack = t.restore;
+      }
       for (const r of runs) send(cmds.take(r.id));
       await Promise.all(runs.map((r) => landed(r.id, r.before.transition, r.fadeMs + TAKE_GRACE_MS)));
     } finally {
       for (const r of runs) holding.delete(r.id);
+      /* The screen's own time back, landed or not: a time written mid-take
+         does not change the take that is running. */
+      for (const r of runs) sendAll(r.timeBack);
     }
 
     let restored = 0;
@@ -262,7 +296,12 @@ export function createLockEngine({ store, send, locks, onActivity = () => {}, cl
       }
       if (r.kept) restored += sendAll(restoreWrites(store, r.id, after.preview, r.kept));
     }
-    const what = runs.map((r) => `${r.id} ${r.go.map((k) => (k === 'NATIVE' ? 'NATIVE' : 'L' + k)).join('+')}`).join(', ');
+    const how = [
+      time == null ? null : `in ${(time / 10).toFixed(1)} s`,
+      look ? `with ${prettyEffect(effect.type).toLowerCase()}${look.opening.way ? ` ${prettyWay(look.opening.way).toLowerCase()}` : ''}` : null
+    ].filter(Boolean).join(' ');
+    const what = runs.map((r) => `${r.id} ${r.go.map((k) => (k === 'NATIVE' ? 'NATIVE' : 'L' + k)).join('+')}`).join(', ')
+      + (how ? ` ${how}` : '');
     onActivity({ kind: 'partial', what, restored });
     return {
       ok: notes.length === refused.length,

@@ -14,7 +14,10 @@
  * says so rather than pretending the lock holds.
  *
  * Offered to the rest of the page as the **`locks` service**: the list, and
- * `takeOnly(targets)`.
+ * `takeOnly(targets, opts)`. A time and an effect on a partial take
+ * (`opts.tenths`, `opts.effect`) are experimental: they are passed on only
+ * while the Experimental features plugin runs, asked per use, and dropped
+ * otherwise — the take still goes, as it always did.
  */
 
 import { createLockPanel } from './panel.js';
@@ -44,6 +47,9 @@ function documentAt(url, log) {
 export default function activate(ctx) {
   const hook = typeof window !== 'undefined' ? window.__WRU_HOOK : null;
   let engine = null;
+  const experimental = () => Boolean(ctx.use('experimental'));
+  /* Only a take's targets and `restore` survive with the switch off. */
+  const allowed = (opts) => (experimental() ? opts : { restore: opts && opts.restore });
 
   const lockPanel = createLockPanel({
     session: ctx.session,
@@ -52,15 +58,19 @@ export default function activate(ctx) {
     names: () => (ctx.use('names') ? ctx.use('names').get() : {}),
     groups: () => (ctx.use('groups') ? ctx.use('groups').list() : null),
     gated: () => !hook || typeof hook.setGate === 'function',
+    experimental,
     onRefresh: ctx.refresh
   });
 
-  engine = createLockEngine({
+  const lockEngine = createLockEngine({
     store: ctx.session.store,
     send: (cmd) => ctx.session.send(cmd),
     locks: () => lockPanel.list(),
     onActivity: (r) => lockPanel.reportActivity(r)
   });
+  /* The panel and the service both reach the engine through this, so neither
+     can carry a time or an effect past a switched-off Experimental. */
+  engine = { ...lockEngine, takeOnly: (targets, opts) => lockEngine.takeOnly(targets, allowed(opts)) };
   ctx.session.addEventListener('frame', (ev) => engine.onFrame(ev.detail));
   if (hook && typeof hook.setGate === 'function') hook.setGate(engine.gate);
 
