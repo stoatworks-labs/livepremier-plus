@@ -285,3 +285,129 @@ test('a layer’s look is kept as a style in words, not in one platform’s spel
   assert.equal(style.speed, 'SMOOTH');
   assert.deepEqual(style.window.opening, { start: 0, end: FULL });
 });
+
+/* ------------------------------------------------------------------ panel */
+
+/**
+ * The Transitions tab over a fake DOM, against `deskStore`, with a session
+ * that records what it is asked to send and mirrors it, as the switcher's
+ * echo would.
+ */
+async function tab(store = deskStore()) {
+  const { install } = await import('./helpers/fake-dom.js');
+  const { createTransitionsPanel } = await import('../plugins/transitions/panel.js');
+  const dom = install();
+  const sent = [];
+  let doc = normaliseStyles(null);
+  let root = null;
+  const session = { store, send: (cmd) => { sent.push(cmd); store.set(cmd.path, cmd.value); return true; } };
+  const panel = createTransitionsPanel({
+    session,
+    styles: () => doc,
+    setStyles: (next) => { doc = normaliseStyles(next); },
+    onRefresh: () => { root = panel.render(); }
+  });
+  root = panel.render();
+  const q = (sel) => root.querySelector(sel);
+  const change = (sel, value) => q(sel).dispatchEvent({ type: 'change', target: { value, checked: value } });
+  const press = (label) => {
+    const buttons = root.querySelectorAll('button');
+    (buttons.find((b) => b.textContent === label) || buttons.find((b) => b.textContent.startsWith(label))).click();
+  };
+  return { dom, sent, q, change, press, text: () => root.textContent, styles: () => doc, store };
+}
+
+test('the tab draws a card per fitted layer, with its windows in seconds of the take', async () => {
+  const t = await tab(deskStore({ up: 40, down: 40 }));
+  try {
+    for (const key of ['1', '2', '3', 'NATIVE']) assert.ok(t.q(`[data-lpp-transition-layer=S1/${key}]`), `a card for ${key}`);
+    assert.equal(t.q('[data-lpp-key=tr-S1-2-opening-end]').value, '4.00', 'the whole of a 4 s take');
+    assert.match(t.text(), /take time is 4\.0 s/);
+    assert.equal(t.q('[data-lpp-key=tr-S1-2-opening-way]'), null, 'a fade shows no direction');
+  } finally { t.dom.uninstall(); }
+});
+
+test('an effect picked on a card is written to preview’s copy, and to program’s only when PGM is chosen', async () => {
+  const t = await tab();
+  try {
+    t.change('[data-lpp-key=tr-S1-2-opening-type]', 'SLIDE');
+    assert.deepEqual(t.sent.map((w) => [w.path[6], w.path[9], w.path.slice(10).join('.'), w.value]),
+      [['B', '2', 'transition.opening.pp.type', 'SLIDE']]);
+    assert.ok(t.q('[data-lpp-key=tr-S1-2-opening-way]'), 'a slide shows its direction');
+
+    t.change('[data-lpp-key=tr-role]', 'PROGRAM');
+    assert.match(t.text(), /PGM is the buffer on air/);
+    t.change('[data-lpp-key=tr-S1-2-closing-type]', 'CUT');
+    assert.equal(t.sent.at(-1).path[6], 'A', 'program’s letter, because the operator chose it');
+  } finally { t.dom.uninstall(); }
+});
+
+test('a window typed in seconds is written as the switcher’s units against the take time as it is', async () => {
+  const t = await tab(deskStore({ up: 20, down: 20 }));
+  try {
+    t.change('[data-lpp-key=tr-S1-1-opening-end]', '1');
+    assert.deepEqual(t.sent.map((w) => [w.path.slice(10).join('.'), w.value]), [['timing.opening.pp.end', Math.round(FULL / 2)]]);
+    t.change('[data-lpp-key=tr-S1-1-opening-start]', '1.5');
+    assert.equal(t.sent.length, 1, 'a window that would end before it starts is refused');
+    assert.match(t.text(), /cannot end before it starts/);
+    t.change('[data-lpp-key=tr-S1-1-opening-start]', 'later');
+    assert.equal(t.sent.length, 1);
+  } finally { t.dom.uninstall(); }
+});
+
+test('nothing is written mid-take', async () => {
+  const t = await tab(deskStore({ transition: 'EFFECT_FROM_DOWN' }));
+  try {
+    t.change('[data-lpp-key=tr-S1-2-opening-type]', 'WIPE');
+    assert.equal(t.sent.length, 0);
+    assert.match(t.text(), /mid-take/);
+  } finally { t.dom.uninstall(); }
+});
+
+test('a move writes the ticked layers only', async () => {
+  const t = await tab();
+  try {
+    t.q('[data-lpp-transition-layer=S1/1] input[type=checkbox]').dispatchEvent({ type: 'change', target: { checked: false } });
+    t.press('Apply to the ticked layers');
+    const layers = new Set(t.sent.map((w) => w.path[9]));
+    assert.deepEqual([...layers], ['2'], 'L1 unticked, L3 and NATIVE show nothing');
+    assert.ok(t.sent.every((w) => w.path[6] === 'B'));
+    assert.ok(t.sent.some((w) => w.path.slice(10).join('.') === 'timing.opening.pp.start' && w.value === Math.round(FULL / 2)),
+      'the right-hand layer opens in the second half of a left-to-right wipe');
+  } finally { t.dom.uninstall(); }
+});
+
+test('a button from the last repaint does what is chosen now, not what was chosen when it was drawn', async () => {
+  /* Found in the browser on the 6.2.73 simulator: the move was changed to
+     "Whole take", the click landed on the button drawn before the change,
+     and a wipe ran. The panel repaints about once a second. */
+  const t = await tab(deskStore({ up: 20, down: 20 }));
+  try {
+    t.change('[data-lpp-key=tr-S1-2-opening-end]', '1');
+    t.sent.length = 0;
+    const stale = t.q('[data-lpp-key=tr-move]').closest('.wru-groups-card').querySelectorAll('button')[0];
+    t.change('[data-lpp-key=tr-move]', 'reset');
+    stale.click();
+    assert.deepEqual(t.sent.map((w) => [w.path[9], w.path.slice(10).join('.'), w.value]),
+      [['2', 'timing.opening.pp.end', FULL]], 'whole take put L2’s window back, and no wipe was written');
+  } finally { t.dom.uninstall(); }
+});
+
+test('a style is kept from a layer and written to the ticked layers', async () => {
+  const t = await tab();
+  try {
+    t.change('[data-lpp-key=tr-S1-1-opening-type]', 'WIPE');
+    t.sent.length = 0;
+    t.change('[data-lpp-key=tr-style-from]', '1');
+    t.change('[data-lpp-key=tr-style-name]', 'Big wipe');
+    t.press('Save');
+    assert.deepEqual(t.styles().styles.map((s) => s.name), ['Big wipe']);
+    assert.equal(t.styles().styles[0].look.opening.type, 'WIPE');
+    assert.equal(t.styles().styles[0].look.speed, 'SMOOTH', 'kept in words');
+
+    t.press('Apply');
+    const typed = t.sent.filter((w) => w.path.slice(10).join('.') === 'transition.opening.pp.type');
+    assert.deepEqual(typed.map((w) => [w.path[9], w.value]).sort(), [['2', 'WIPE'], ['3', 'WIPE'], ['NATIVE', 'WIPE']],
+      'every ticked layer that did not already have it');
+  } finally { t.dom.uninstall(); }
+});

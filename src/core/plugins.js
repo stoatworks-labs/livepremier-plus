@@ -410,6 +410,18 @@ export const BUILTINS = [
     /* Off until a frame has shown what an aux's background does. */
     enabledByDefault: false,
     client: 'client.js'
+  },
+  {
+    id: 'transitions',
+    name: 'Transitions',
+    experimental: true,
+    where: 'A tab on Screens / Aux., behind ⋯ when the strip is full (experimental)',
+    description: 'Every layer’s opening and closing effect and its timing in seconds of the take, the same effect on several layers at once, kept styles, and moves the switcher does not have: a wipe across the whole screen, a cascade, a dip through the background. The switcher takes and reports all of it; no frame has been seen to show it yet.',
+    requires: { capabilities: ['layerProperties'], plugins: ['experimental'] },
+    /* Off until a frame has shown what the windows and the moves do. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
   }
 ].map((p) => withDefaults(p));
 

@@ -33,6 +33,11 @@ const BEHIND = [
     name: 'Take only with a time and an effect',
     where: 'PLUS ▸ Layer Lock, “Take only with”',
     what: 'A take time and an opening and closing effect for the layers a Take only moves. The others are held, so the time is theirs alone, and the screen’s own time is put back afterwards.'
+  },
+  {
+    name: 'Transitions',
+    where: 'Screens / Aux. ▸ ⋯ ▸ Transitions',
+    what: 'Every layer’s effects in and out and its timing in seconds, the same effect on several layers, kept styles, and a wipe across the whole screen, a cascade or a dip worked out from where the layers sit. Switch the plugin on as well.'
   }
 ];
 
