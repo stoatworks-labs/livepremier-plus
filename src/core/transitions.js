@@ -107,10 +107,28 @@ export function speedValue(store, word) {
 
 /* ---------------------------------------------------------------- take time */
 
-/** A destination's take time in tenths, as the switcher holds it, or null. */
+/** The transition states in which a LivePremier's take runs, or will next run, on `takeUpTime`. */
+const GOING_UP = new Set(['AT_DOWN', 'EFFECT_FROM_DOWN', 'COPY_FROM_DOWN']);
+
+/**
+ * The time a destination's next take runs for — the one in flight, mid-take —
+ * in tenths, or null. The time a window's seconds are measured against.
+ *
+ * A LivePremier has two, and the take uses the one for its direction. This is
+ * Web RCS's own rule (`getScreenAuxGroupTakeDuration`, 6.2.73 and 6.1.60): at
+ * rest down, or on the way up, `takeUpTime`; otherwise `takeDownTime`. Reading
+ * `takeUpTime` always, as this did at first, shows wrong seconds at `AT_UP` on
+ * a screen whose two times differ. A Midra has one time and no question.
+ */
 export function takeTenths(store, id) {
   const d = dialectFor(store);
-  const path = d && d.fadeTimePath ? d.fadeTimePath(id) : null;
+  if (!d) return null;
+  let path = d.fadeTimePath ? d.fadeTimePath(id) : null;
+  const transition = d.id === 'nlc' ? store.get(d.takeStatus(id, 'transition')) : null;
+  /* Not reported yet: the up time, which is the one a screen at rest down uses. */
+  if (typeof transition === 'string') {
+    path = d.takeControl(id, GOING_UP.has(transition) ? 'takeUpTime' : 'takeDownTime');
+  }
   const v = path ? store.get(path) : null;
   return Number.isFinite(v) ? v : null;
 }

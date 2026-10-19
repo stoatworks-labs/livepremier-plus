@@ -121,9 +121,24 @@ test('a window edge in seconds is a fraction of the take time it is read against
 
 /* -------------------------------------------------------------- take time */
 
+test('seconds are measured against the time of the take that comes next, as Web RCS measures them', () => {
+  /* `getScreenAuxGroupTakeDuration` in the 6.2.73 and 6.1.60 bundles: up time
+     at rest down or on the way up, down time otherwise. */
+  const want = {
+    AT_DOWN: 10, EFFECT_FROM_DOWN: 10, COPY_FROM_DOWN: 10,
+    AT_UP: 30, EFFECT_FROM_UP: 30, COPY_FROM_UP: 30
+  };
+  for (const [transition, tenths] of Object.entries(want)) {
+    assert.equal(takeTenths(deskStore({ up: 10, down: 30, transition }), 'S1'), tenths, transition);
+  }
+  const unreported = deskStore({ up: 10, down: 30 });
+  unreported.set(['device', 'screenAuxGroupList', 'items', 'S1', 'status', 'pp', 'transition'], undefined);
+  assert.equal(takeTenths(unreported, 'S1'), 10, 'not reported yet: the up time');
+});
+
 test('a take time is set in both directions and put back as each direction held it', () => {
   const store = deskStore({ up: 10, down: 30 });
-  assert.equal(takeTenths(store, 'S1'), 10, 'read where the dialect says, the up time');
+  assert.equal(takeTenths(store, 'S1'), 10, 'at rest down, the up time');
   const { set, restore } = takeTimeWrites(store, 'S1', 25);
   assert.deepEqual(set.map((w) => [w.path.at(-1), w.value]), [['takeUpTime', 25], ['takeDownTime', 25]]);
   assert.deepEqual(restore.map((w) => [w.path.at(-1), w.value]), [['takeUpTime', 10], ['takeDownTime', 30]]);

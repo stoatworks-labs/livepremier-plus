@@ -2339,3 +2339,162 @@ Session 1 has two layers on S1 and one on S2. Not touched by this work.
 The five questions in the entry above, unchanged. The first is the one that decides how the
 closings are written: if a closing is read from the outgoing copy, the tab's PGM switch is the
 way to set it, and Take only's effect only takes hold of a layer's next exit.
+
+## Frame test plan: transitions (2026-10-19, nothing run yet)
+
+A plan, written before any hardware was touched. It needs Allan's go-ahead for the box, the day
+and every write, and nothing here is a standing permission. It answers the five questions above
+and checks the three features on a real output.
+
+### Found while planning: the seconds now follow the next take's direction
+
+Web RCS's own Timing panel shows windows in seconds as well (`useTimingConverter`, 6.2.73 and
+6.1.60 alike) and measures them against the time of the take that comes next:
+`getScreenAuxGroupTakeDuration` reads `takeUpTime` at `AT_DOWN`, `EFFECT_FROM_DOWN` or
+`COPY_FROM_DOWN`, and `takeDownTime` otherwise. `takeTenths` in `src/core/transitions.js` read
+`takeUpTime` always, so a screen with different up and down times showed wrong seconds at
+`AT_UP`. It now applies the vendor's rule. The vendor's Timing panel has no control for
+`timing.ratio` at all; the speed panel calls its curve "Acceleration".
+
+The 6.1.60 bundle (the RS4's) has the same transition model as 6.2.73: the same effects, ways,
+flags, `LAYER_STATUS` verdicts, timing fields and speed fields. So the RS4 tests the same thing as
+an Aquilon C.
+
+### Which box
+
+In order of preference. Each needs a screen with **at least three fitted layers**, a black
+background, nothing on it anybody else needs, and an output that can be both watched and
+recorded:
+
+1. **The Aquilon RS4 (192.168.2.140, 6.1.60)**, if it is free now that the show is over and it was
+   factory reset on 2026-10-17. Ask first: the 2026-10-16 rule (no hardware, simulators only,
+   ask before any access) still stands.
+2. **An Aquilon C on the bench** (.141/.142 on 2026-08-21, 6.2.73).
+3. **A Midra 4K / Pulse 4K** only as a second pass, for the mng spellings
+   (`DISABLE_CROSS_EFFECT`/`DISABLE_CROSS_DEPTH`, one `takeTime`, `liveLayerList`). Tests T1, T2, T4
+   and T6 are enough there.
+
+Identify the frame by IP and by `deviceList/items/1/pp/{type,label,serial}`, not by its label.
+
+### What to build before the day (on a simulator, nothing on hardware)
+
+- **`~/dev/aquilon-field-test/transitions/transitions.mjs`**, a runner built like
+  `aux-background/aux-bg.mjs` and `70-writes.mjs`: `read`, `record` (the whole destination: every
+  writable property of every fitted layer in A, B and C, both take times, `copyMode`, the
+  verdicts), one subcommand per test below, `restore` and `diff`. It needs a destination guard (no
+  write outside the chosen screen's `presetList` and its own `screenAuxGroupList` control),
+  letters resolved from the transition state before every step (`vendor/surface/preset.js`
+  `resolve`), each step's writes printed and a typed `YES` before they go, `--i-have-permission`
+  to start at all, and a log line with a wall-clock time for every write and every take. Rehearse
+  every subcommand on the 6.2.73 and 6.1.60 simulators until `restore` + `diff` shows nothing.
+- **`measure.py`**, for the recordings: per frame, the mean colour of a few fixed regions (each
+  layer's box, the reference strip) and, for wipes, where the edge is along one scan line. Out
+  come a CSV and, for each layer, the frame its change starts and ends. Test it on a synthetic
+  clip made with ffmpeg first.
+- **The app from main**, not the installed one: the installed app predates all of this. Run
+  `node server/index.js` from a clean checkout of main on a free port (not :8535/:8536, where the
+  tray app lives), point it at the frame, and switch Experimental features and Transitions on.
+
+### The setup on the day
+
+- **Allan runs every writing command himself**, in his own terminal. The auto-mode classifier
+  refused device writes from a session on 2026-10-16 even after "carry on", and the runner's `YES`
+  prompts need a terminal. The session prepares the commands and reads the results.
+- **AWJ budget**: five clients. Close the VPU map, mynah and anything else holding one.
+- **Recording**: the test screen's output into a capture device on the Mac (a UVC dongle or a
+  Blackmagic card), recorded at the output's own rate, e.g.
+  `ffmpeg -f avfoundation -framerate 50 -video_size 1920x1080 -i "<device>" -c:v libx264 -crf 16 tNN.mkv`.
+  Start it before each take and stop it after. Without a capture device, a phone's slow motion
+  pointed at a monitor still answers the yes/no questions (T2, T3, T4, T6), but not the timed
+  ones (T1, T5, T7, T8).
+- **The test screen**: take time **4.0 s** both ways (200 frames at 50 Hz), every layer's speed
+  **linear** for the measured tests (smooth easing hides where a window starts), every source a
+  plain colour (`COLOR` and red/green/blue): no uploads, no live inputs needed.
+  - L1: the left half, red. L2: the right half, green. Both 960×1080 on a 1920×1080 canvas.
+  - L3: a full-width strip, 1920×120 along the bottom, white, FADE, window the whole take. It is
+    the **reference**: where it starts and ends in the recording is where the take starts and
+    ends, so nothing depends on clocks.
+- **`record` first**, before anything is written. **`restore` and `diff` last**, whatever happened
+  in between. If the number of takes is odd, take once more before `restore` so the same letter is
+  program as at the start, then diff every leaf against the record.
+
+### The tests
+
+Each says what to write, what to do, and what to watch. "PGM copy" and "PRW copy" mean the
+buffer that is program or preview at the moment of writing.
+
+**T1. Windows open when their numbers say (every feature rests on this).** PGM: L1, L2 and L3
+NONE. PRW: the layout above, FADE in. Windows: L1 0–25 %, L2 50–100 %, L3 0–100 %. Take.
+*Watch*: L1 fades in over the first second, L2 stays black until 2 s and fades in by 4 s, the
+strip fades over all 4 s. *Pass*: each start and end within 2 frames of 0, 1, 2 and 4 s
+measured from the strip. If windows are ignored, the tab's timings and every move are moot.
+
+**T2. Which copy a closing is read from (question 1).** Start from T1's end: L1 and L2 on
+program, NONE in preview. Write the **PGM copy** of L1's closing as WIPE left to right, window
+0–50 %, and the **PRW copy** of L1's closing as SLIDE bottom to top, window 50–100 %. Mirror it on
+L2 (PGM copy SLIDE, PRW copy WIPE) so neither answer depends on the layer. *Watch first, before
+the take*: does writing the PGM copy change anything on the output at all? It should not. Then
+take. *Watch*: L1 wipes away in the first half → the closing is read from the **outgoing** copy;
+it slides away in the second half → from the **incoming** copy. L2 should say the same. *What it
+decides*: outgoing means Take only's effect only governs a layer's next exit and the tab's PGM
+switch is how a closing gets set; incoming means the tab's default (PRW) is right for both.
+
+**T3. Which copy an opening is read from.** The symmetric case, to be sure: PGM copy of L1 NONE
+with opening SLIDE, PRW copy of L1 red with opening WIPE left to right. Take. Expected: a wipe
+(the incoming copy). Anything else turns the whole design round, so it is worth the take.
+
+**T4. Does a wipe run inside its own box (question 3), and the wipe across the screen (option
+3).** From NONE: L1 and L2 side by side, both opening WIPE left to right, both windows the whole
+take, linear. Take. *Watch*: two edges moving at once, each across its own half → inside the
+box; one edge crossing the whole screen → across it (and the move is not needed). Then from the
+Transitions tab, "Wipe across the screen", left to right, and take again from NONE. *Pass*: one
+edge travels from x = 0 to x = 1920 over the 4 s without a jump or a pause at x = 960 (the
+measured edge position against time is one straight line). Also once each, on L1 alone: SLIDE
+and STRETCH with a way, and CIRCLE with `HV_FROM_TO_CENTER`, to see which of them honour a way
+(the code offers a way for all but CUT and FADE, which is a guess).
+
+**T5. What `timing.ratio` does (question 2).** L1 red on program, L1 showing a different source
+in preview (a live input, or a still; not another colour, see T6), same geometry, FADE, both
+windows the whole take, flags as the box has them (`FORCE_TRANSITION`, the default). Take five
+times, with the PRW copy's ratio at 0, 16384, 32768, 49151 and 65535, putting the sources back
+between takes. *Watch*: when the old picture is gone and when the new one starts. The guess:
+ratio is where, in a layer that closes and reopens, the closing ends and the opening begins.
+*Pass*: whatever it is, written down; it decides whether the dip move should set it.
+
+**T6. The force flags on a layer that only changes source (question 4).** As T5, ratio at its
+default, with the PRW copy's flags set in turn to `[]`, `["FORCE_TRANSITION"]`,
+`["FORCE_CROSS"]` and both. Before each take, read the verdict
+`screenList/items/<S>/layerList/items/1/status/pp/up|down` (read only, and it is the first time a
+frame's verdict gets compared with the picture). *Watch*: a cross-dissolve, or out to black and
+back in. While it is set up, once more with the *same* source (COLOR) and only the colour
+changed: does a colour change transition at all?
+
+**T7. Windows on a T-bar (question 5).** T1's setup again (L1 0–25 %, L2 50–100 %), taken with
+the T-bar (Web RCS's own, or an RC400T's), moved slowly and stopped at about 25 %, 50 % and
+100 %, with `status/pp/tbarPosition` logged. *Pass*: at 25 % L1 is fully in and L2 has not
+started; L2 only moves past half way. Once more with SMOOTH speeds, to see whether easing follows
+the bar.
+
+**T8. Take only with a time and an effect (option 1).** Program: L1 red, L2 a **live input with
+movement** if there is one, else green. Preview: L1 blue, L2 something else. From the Layer Lock
+page, "Take only with" 2.0 s and SLIDE left to right, then Take only on L1, with the screen at
+4.0 s. *Watch*: L1 slides from red to blue over 2.0 s (measured: 100 frames ± 2); L2 does not
+move, flicker or re-cut at any point. That last part is Layer Lock's own open question too: no
+frame has yet been seen holding a layer with a live source still through a take. *Read
+afterwards*: both take times back at 4.0 s, preview L2 back to its look.
+
+**T9. The Transitions tab end to end (options 2 and 3).** From the tab, PRW, all three layers
+ticked, with T1's layout: "Cascade", bottom layer first, overlap 0, then take; "Dip through the
+background" at 50 %, then take from a different look; then "Whole take" and check the windows
+read 0.00 to 4.00 s on the cards. *Watch*: the cascade opens L1, L2, L3 one after another in
+thirds of the take; the dip goes fully black (the background) at 2 s.
+
+### Afterwards
+
+- `restore`, then `diff`: nothing may differ from the record. Re-arm `xTake`.
+- Write down in this file what each test showed, frame numbers included, and keep the
+  recordings beside the runner's log.
+- Whatever T2 and T3 say, change the code to match before anything else, and say it in AGENTS.md.
+- Only when T1, T4 and T8 pass on a frame: take Transitions and "Take only with" out from behind
+  Experimental features, into `OFF_UNTIL_TESTED` (off by default, but listed), then the README and
+  the guide.

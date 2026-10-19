@@ -905,7 +905,9 @@ The rules that are load-bearing:
 - ⚠️ **Seconds are a view, never stored.** A window is a fraction of the take
   time, and a recall changes that time. The tab works seconds out on every
   render and turns typed seconds into units against the time **as it is when
-  the edit is committed**. Styles keep the switcher's units.
+  the edit is committed** — and against the **next take's direction**, as Web
+  RCS's own Timing panel does: `takeUpTime` at `AT_DOWN` or on the way up,
+  `takeDownTime` otherwise (`takeTenths`). Styles keep the switcher's units.
 - **The letter is resolved at the moment of writing** (`bankLetter`), and
   nothing is written mid-take. PRW by default; PGM is offered on purpose,
   with a warning, because which copy a CLOSING is read from is unknown and
