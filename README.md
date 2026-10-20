@@ -175,6 +175,12 @@ bolted on afterwards:
   keys pick screens, the preview row puts input *n* in preview, CUT, AUTO and the T-bar take, and
   the program row shows tally (it only cuts to air if you tick that, and the tick isn't saved).
   It hasn't been run against a real panel yet. [docs/ATEM-MICRO-PANEL.md](docs/ATEM-MICRO-PANEL.md)
+- **Experimental features** (off): things the switcher takes and reports back as done, which no
+  frame has yet been seen to do. Turn it on and two more switches appear: a **Transitions** tab
+  (every layer's opening and closing effect and its timing in seconds of the take, kept styles,
+  and moves the switcher hasn't got, like a wipe across a whole screen), and **Aux backgrounds**
+  (a still or an input on an aux's background). Layer Lock's take-only gets its own time and
+  effect too. For a simulator or a spare box, not a show.
 - **Thumbnail relay** *(preview, off by default)*: the switcher's source thumbnails re-encoded
   as JPEG and shared between pages. That's a twentieth or less of the bytes the vendor's pages
   would otherwise pull, and every Web RCS tab gets it without a change to the vendor's code. It
@@ -243,7 +249,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.17.8.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.18.0.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -343,6 +349,19 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.0 (2026-10-20).** New things, every one of them off until you switch it on. **Test
+> Card**: Test Card's patterns in a tab beside the switcher's own Pattern tab, on an output and on
+> a canvas, put on the top layer as a still and redrawn as the switcher changes. **Resolume
+> Mapping**: an Arena Advanced Output preset from the switcher's own screens and outputs.
+> **Image Library tools**: Delete all, delete a selection, a zip uploaded in name order, a
+> capacity dropdown per still. **Aux follow**, **AoI from a custom format**, and the **Barco EC**
+> and **ATEM Micro** panels (pretend panels only). The Background Slicer takes **PDF, PowerPoint
+> and Keynote** decks, as a background set per page or stills at any size. Every uploader now
+> leaves an empty library slot a still points at alone unless you tick otherwise, and HyperDecks
+> ask Mitti for its slot the way it answers. Behind Experimental features: a **Transitions** tab
+> and Layer Lock's take-only with its own time and effect. All of it checked on simulators (and
+> pretend panels), not on a frame.
 >
 > **0.17.8 (2026-10-19).** Fixes, mostly for a Midra 4K or Alta 4K. Seven in-panel buttons and
 > the Edit, Layer Groups and Groups icons drew blank there (or, for some, on every switcher),
