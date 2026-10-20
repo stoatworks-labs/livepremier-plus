@@ -2725,7 +2725,7 @@ note) — the confirm button looked stuck until `__WRU.shell.refresh()`.
 **Not done:** README section screenshots, the user guide and its PDF, a release. README's feature
 list, Safety and Platforms rows, PLUGINS.md and AGENTS.md are current.
 
-## Resolume Mapping (2026-10-20, simulator only, never opened in Arena)
+## Resolume Mapping (2026-10-20, simulator, then Resolume Arena 7.28.1)
 
 Allan asked for a tab in the Preconfig menu, after Canvas, that generates a Resolume Advanced
 Output XML for selected screens, and optionally maps the input plugs they'll use to a background
@@ -2755,8 +2755,51 @@ one:
 - Found on the way: a tall (stacked) composition's diagram was squashed by its height cap; it is
   narrowed now. The Browser pane, hidden, kept serving stale screenshots — read the DOM instead.
 
-**Open:** opening a generated preset in Arena (the one thing that would prove it; output-map's
-writer has the same gap); a frame; 6.1.60; README screenshots, the user guide and its PDF.
+**Open:** a frame; 6.1.60; README screenshots, the user guide and its PDF. (Opening a preset in
+Arena, the gap this left, is below.)
+
+### Opened in Resolume Arena 7.28.1 (2026-10-20, later)
+
+Arena 7.28.1 rev 26535 on this Mac, which had not been running. The presets came from
+`buildPlan` + `arenaPreset` on the test's synthetic store (S1 3840 × 1080 on a 2X1 group, two
+connectors; S2 1080 × 1920 on an output turned 90°), inputs IN 5 → S1 Out 1 and IN 6 → S2 Out 5:
+`LPP proof row.xml` (composition 4920 × 1920) and `LPP proof column.xml` (3840 × 3000), copied
+into `Presets/Advanced Output/` with `Preferences/`, the presets and the compositions backed up.
+
+- **Both loaded from the Presets list without a word**: two Virtual screens, `IN 5 → S1 Out 1`
+  3840 × 1080 with slices `S1 Out 1 s1` and `s2`, `IN 6 → S2 Out 5` 1920 × 1080 with `S2 Out 5`.
+  Arena lists a screen's slices topmost first, so s2 shows above s1.
+- **Input Rects, as Arena's panel reads them** (centre, left/top, size): s1 0,0 1920 × 1080; s2
+  1920,0; S2 Out 5 3840,0 1080 × 1920 side by side and 0,1080 stacked — the plan, to the pixel.
+- **Output Rects:** s1 at 0,0 and s2 at 1920,0 on the 3840 raster, rotation 0. The turned slice
+  reads rotation −90, centre 960,540, Left −0.03, Top 1080, Width 1080.05, Height 1920.03. That
+  slop is Arena's: typing 1080 into its own Width field gives 1080.05 back (and Height 1920.06),
+  and writing the angle at full precision instead of 6 decimals changed nothing.
+- **Arena's own read-back.** Save as… under a scratch name, then the geometry diffed against ours:
+  every screen name, device, size, Input Rect, warp lattice and unturned Output Rect identical;
+  the turned Output Rect re-derived in float32 (angle −1.5707960128784179688, corners off by under
+  0.001 px). Edited by hand in Arena, the same slice drifts 0.05 px, so the file is the more exact.
+- **Played through:** a labelled picture (each region its own colour, a yellow block at its
+  top-left, an arrow up) at the composition's size, the composition set to match over REST. Each
+  screen's Output Transformation view showed s1 and s2 upright, left and right, and S2 turned with
+  its yellow block at the raster's bottom-left and its arrow pointing left — content's top-left
+  where the plan says, both arrangements.
+- **Not taken from the preset: the composition size.** It stayed 1920 × 1080, and Arena writes its
+  own size back as `CurrentCompositionTextureSize`. Slices beyond it are kept, not clipped. Set by
+  hand, 4920 × 1920 or 3840 × 3000, the slices tile it exactly. `HOW` already said to.
+- **`→` draws as a stand-in glyph** (like ǂ) in Arena's interface font. The bytes are kept: the
+  read-back has `e2 86 92`. Cosmetic; the Background Slicer names its outputs the same way.
+- **Traps:** the Advanced Output window is a floating panel that hides while Arena is in the
+  background, so this needs the screen; its preset list is read once, so a file copied in while
+  it is open needs Load…; its **Save <name>** item names the preset before the last load or save,
+  so pressing it would overwrite that file; quitting dropped config.xml's SMPTE lines, as before,
+  and the backup put them back. A picture opened over another clip's slot kept the old clip's
+  size (3840 × 3000) — open a new one into an empty slot.
+
+Afterwards the six files it touched were removed and `Preferences/`, the presets and the
+compositions compared identical to the backup; Arena was quit, unsaved. Not covered: the
+Background Slicer's own Arena preset (same writer, same names), a screen bound to a real output,
+Arena on Windows, and a switcher fed by it.
 
 ## Image Library tools (2026-10-20, simulator only)
 

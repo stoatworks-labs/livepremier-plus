@@ -1711,7 +1711,25 @@ Proven on a private copy of the 6.2.73 simulator session (2026-10-20): the entry
 Canvas and Inputs; S1 + S2 made a 3840 × 1080 composition (1920 × 2160 stacked); the downloaded
 preset parsed in the browser with three screens named after IN 1–3; Write put LIVE_1/2/3 into S1
 and S2 set 1 with the label and the inputs' `useOnOutput` claims, and Undo put every one back —
-all read over AWJ from outside the page. Not opened in Arena; never on a frame; not on 6.1.60.
+all read over AWJ from outside the page. Never on a frame; not on 6.1.60.
+
+Opened in Resolume Arena 7.28.1 on this Mac (2026-10-20, `docs/NOTES.md`): the test's two-screen
+store (a 2X1 group, an output turned 90°), side by side and stacked, loaded with every name, size,
+Input Rect and Output Rect as written, and a labelled picture played across the composition landed
+on each output where the plan says, the turned one with content's top-left at the raster's
+bottom-left. What that run taught:
+
+- **Arena does not take the composition size from a preset.** It keeps its own and writes that
+  back as `CurrentCompositionTextureSize`; slices outside it are kept, not clipped. `HOW` says so.
+- **Arena keeps a turned quad in float32**: it re-derives the corners from the angle, so its own
+  save of the turned slice is off by under 0.001 px, and its panel shows Width 1080.05 for 1080.
+  That is Arena — typing 1080 into its own field gives the same. Do not chase it in the writer.
+- **`→` draws as a stand-in glyph** in Arena's interface font (the name is kept, UTF-8 intact).
+- **Testing:** back up `Preferences/` (Arena drops config.xml's SMPTE lines on quit) and put it
+  back after; the Advanced Output window is a floating panel that hides while Arena is in the
+  background, so it needs the screen; its preset list is read once, so use Load… for a file copied
+  in while it is open; and never press its **Save <name>** item, whose name lags a load behind.
+  **Save as…** under a scratch name is Arena's own read-back of what it parsed: diff the geometry.
 
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 

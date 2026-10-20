@@ -188,7 +188,7 @@ pixels. **Everything (.zip)** carries all of it; each server's button downloads 
 
 | Server | What it gets | Imports? | Not verified |
 |---|---|---|---|
-| **Resolume Arena** | Advanced Output preset `.xml`: a Screen per media output (Virtual), a Slice per region, InputRect = content, OutputRect = output, a turned region as a turned quad | **yes** — Presets/Advanced Output | written by output-map, held to files a real Arena 7.27 wrote; no generated file opened in Arena yet |
+| **Resolume Arena** | Advanced Output preset `.xml`: a Screen per media output (Virtual), a Slice per region, InputRect = content, OutputRect = output, a turned region as a turned quad | **yes** — Presets/Advanced Output | this exact file not opened in Arena; the same writer's Resolume Mapping preset (same names, a turned quad) loaded in Arena 7.28.1 as written (2026-10-20, NOTES.md). Arena keeps its own composition size: set it by hand |
 | **disguise** | Feed Mapping table `.csv` (columns from disguise's help) | **yes** — `objects/Table/`, Feed Mapping ▸ Import from table | rotation units (written in degrees; the API's index is 0–3) |
 | **Pixera** | feed-rect `.csv` in the layout of AV Stumpfl's example file | partly | whether the corner columns are pixels or normalised |
 | **Hippotizer V4** | Video Mapper `.csv` (no header) | **yes** | rotation sense |

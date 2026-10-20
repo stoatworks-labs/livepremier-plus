@@ -116,8 +116,11 @@ bolted on afterwards:
   cabled into and it's named after the cable (`IN 5 → S1 Out 1`); then, if you want, those inputs
   go into a background set per screen, with each plug loaded with the switcher's own EDID for its
   output's format, so Arena's graphics card is offered exactly the mode a live background has to
-  match. Nobody has opened one of these presets in Arena yet, so check the first one before a
-  show depends on it.
+  match. I've opened these presets in Resolume Arena 7.28.1 on a Mac and played a picture through
+  them: every output, slice and rectangle arrived as written, the turned output included. Arena
+  doesn't take the composition size from the preset, though, so set that by hand, and bind each
+  screen to its real output. Nobody has run one into a switcher yet, so check the first one before
+  a show depends on it.
 - **Send to:** a `…` on every source card that routes it without dragging: preview or program,
   then a screen and layer or a whole group. It respects the vendor's own PGM padlock and asks
   before it steps past one.

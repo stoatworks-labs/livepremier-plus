@@ -323,10 +323,13 @@ export function arenaPreset(plan) {
 /** How to load it, for the panel and the guide — kept beside the writer so the two agree. */
 export const HOW = [
   'Copy the .xml into Documents/Resolume Arena/Presets/Advanced Output/ on the Arena machine.',
-  'In Arena, Output ▸ Advanced Output, choose the preset from the Presets list.',
+  'In Arena, Output ▸ Advanced Output, choose the preset from the Presets list — one copied in while that window is open is not listed yet: Load… in the same menu opens it.',
   'Bind each screen to the graphics output cabled into the input its name gives (Device, per screen) — the file has them Virtual.',
-  'Set the composition to the size above (Composition ▸ Settings), or the slices read the wrong part of it.'
+  'Set the composition to the size above (Composition ▸ Settings): Arena does not take it from the preset, and the slices read the wrong part of a composition the wrong size.'
 ];
 
+/** What has been seen working, in Arena itself (docs/NOTES.md has the run). */
+export const ARENA_SEEN = 'Opened in Resolume Arena 7.28.1 on a Mac: every screen, slice and rectangle loaded as written, a turned output included, and a picture played across the composition landed on each output where this plan puts it.';
+
 /** What has not been seen working. */
-export const UNVERIFIED = 'Written by output-map’s writer, whose every element and parameter was read off files a real Arena 7.27 wrote; no generated preset has yet been opened in Arena.';
+export const UNVERIFIED = 'Not yet seen: a screen bound to a real graphics output, Arena on Windows, or a switcher fed by one.';

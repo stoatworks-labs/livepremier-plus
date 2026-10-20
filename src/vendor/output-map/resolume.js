@@ -3,13 +3,13 @@
  *
  * Upstream:  output-map (local repository, no remote)  src/lib/resolume.ts
  * Commit:    775b041c4361ceddc18107bd0df6fe0e30447745
- * Synced:    2026-10-06
+ * Synced:    2026-10-20
  * Built by:  tools/sync-output-map.mjs with output-map's own rolldown
  *
  * Resolume Arena's Advanced Output preset writer. Every element, attribute and
  * parameter name it emits was read off files a real Arena 7.27 wrote, and
- * output-map's resolume-schema.test.ts holds it to them. What is NOT verified
- * upstream either: no generated file has been opened in a running Arena.
+ * output-map's resolume-schema.test.ts holds it to them. A preset it wrote for
+ * Resolume Mapping loaded in Arena 7.28.1 as written (docs/NOTES.md, 2026-10-20).
  *
  * Edits belong upstream, in output-map's src/lib/.
  *

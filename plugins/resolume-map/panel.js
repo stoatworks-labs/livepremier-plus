@@ -28,7 +28,7 @@ import { panel } from '../../src/ui/shell.js';
 import { readScreens, liveCandidates, suggestInputs, sendingFormatOf } from '../../src/core/backgrounds.js';
 import { readSets, firstFreeSet } from '../../src/core/stills.js';
 import {
-  buildPlan, arenaPreset, inputWord, defaultName, ARRANGEMENTS, NOTES, HOW, UNVERIFIED, LABEL_MAX
+  buildPlan, arenaPreset, inputWord, defaultName, ARRANGEMENTS, NOTES, HOW, ARENA_SEEN, UNVERIFIED, LABEL_MAX
 } from './core.js';
 import { applyPlan, revert } from './apply.js';
 
@@ -278,7 +278,7 @@ export function createResolumePanel({ session, onRefresh = () => {}, job = creat
           onClick: () => downloadPreset(plan)
         })),
       h('ol', { class: 'lpp-rsm-how' }, HOW.map((t) => h('li', { text: t }))),
-      h('div', { class: 'aw-font-caption aw-text-tertiary', text: UNVERIFIED }));
+      h('div', { class: 'aw-font-caption aw-text-tertiary', text: `${ARENA_SEEN} ${UNVERIFIED}` }));
   }
 
   function downloadPreset(plan) {
@@ -397,6 +397,7 @@ export function createResolumePanel({ session, onRefresh = () => {}, job = creat
     return h('details', { class: 'lpp-rsm-section' },
       h('summary', { class: 'aw-text-tertiary', text: 'What is proven, and what is not' }),
       h('ul', { class: 'wru-warnings' },
+        h('li', {}, tag('proven', 'good'), h('span', { text: ARENA_SEEN })),
         h('li', {}, tag('assumed', 'warn'), h('span', { text: UNVERIFIED })),
         Object.entries(NOTES).map(([k, n]) => h('li', {},
           tag(n.proven ? 'proven' : 'assumed', n.proven ? 'good' : 'warn'), h('span', { text: n.text }), h('span', { class: 'aw-text-tertiary', text: ` (${k})` })))));

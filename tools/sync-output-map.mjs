@@ -90,8 +90,8 @@ const header = `/* -------------------------------------------------------------
  *
  * Resolume Arena's Advanced Output preset writer. Every element, attribute and
  * parameter name it emits was read off files a real Arena 7.27 wrote, and
- * output-map's resolume-schema.test.ts holds it to them. What is NOT verified
- * upstream either: no generated file has been opened in a running Arena.
+ * output-map's resolume-schema.test.ts holds it to them. A preset it wrote for
+ * Resolume Mapping loaded in Arena 7.28.1 as written (docs/NOTES.md, 2026-10-20).
  *
  * Edits belong upstream, in output-map's src/lib/.
  *
