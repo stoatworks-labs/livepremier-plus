@@ -164,7 +164,10 @@ pick one: Pixelhue Mapping is `pixelhue-map` under Virtual RC400T when
 changed would not do: the host copies an entry when it is registered.
 Anchored entries stack upwards, so the highest `order` sits nearest the anchor: MIDI Mapping 70,
 Speed Editor 69, Pixelhue Mapping 68. **`submenuOf`** puts an entry in a vendor flyout (Pitch
-Compensation is 80 in Preconfig, this app's settings 90).
+Compensation is 80 in Preconfig, this app's settings 90), at its end. With `after` as well, `after`
+names an item *in that flyout* and the entry goes directly beneath it: Resolume Mapping is
+`submenuOf: 'Preconfig', after: 'Canvas'`, and drops to the end of the flyout where a build has no
+Canvas.
 
 **The strip runs out of room, and then the tabs go behind ⋯.** It tries each tab in turn as icon
 and label, label alone, `short`, then `icon` alone, and when even the icons don't fit it shows as

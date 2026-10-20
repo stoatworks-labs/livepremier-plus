@@ -97,7 +97,10 @@ export class Shell {
    *   it by who wrote it rather than by what it does.
    * - `submenuOf: '<vendor label>'` puts it *inside* that item's flyout, at
    *   the end of the list. Only Preconfig has one, and app-wide settings
-   *   belong beside the device's own System page for the same reason.
+   *   belong beside the device's own System page for the same reason. With
+   *   `after` as well, it goes directly beneath that flyout item instead —
+   *   Resolume Mapping follows Canvas, because it is the canvas it maps — and
+   *   at the end of the list when this build has no item of that name.
    */
   constructor({ title = 'Unleashed', entries = [] } = {}) {
     this.title = title;
@@ -161,7 +164,7 @@ export class Shell {
      * device store has arrived and React re-mounts us constantly anyway.
      */
     const live = this.entries.filter((e) => (e.enabled ? e.enabled() !== false : true));
-    const anchored = live.filter((e) => e.after);
+    const anchored = live.filter((e) => e.after && !e.submenuOf);
     const nested = live.filter((e) => e.submenuOf);
     const sectioned = live.filter((e) => !e.after && !e.submenuOf);
 
@@ -196,7 +199,8 @@ export class Shell {
       if (!template) continue;
       const node = this._cloneSubItem(template, entry);
       node.id = 'wru-nav-' + entry.id;
-      sublist.append(node);
+      const anchor = entry.after ? this._subItemByLabel(sublist, entry.after) : null;
+      if (anchor) anchor.after(node); else sublist.append(node);
       this.nav.set(entry.id, node);
       this._parents.set(entry.id, host);
     }
@@ -229,6 +233,19 @@ export class Shell {
       const el = item.querySelector(LABEL_SEL);
       const text = (el ? el.textContent : item.textContent).trim().toLowerCase();
       if (text === wanted) return item;
+    }
+    return null;
+  }
+
+  /**
+   * A flyout item by its visible text, ours excluded — the same reasoning as
+   * `_itemByLabel`: the words are the one part of it nobody hashes.
+   */
+  _subItemByLabel(sublist, label) {
+    const wanted = String(label).trim().toLowerCase();
+    for (const a of sublist.querySelectorAll('a')) {
+      if (a.hasAttribute(NAV_MARK)) continue;
+      if (a.textContent.trim().toLowerCase() === wanted) return a;
     }
     return null;
   }

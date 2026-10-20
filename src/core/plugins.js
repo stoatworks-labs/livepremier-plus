@@ -234,6 +234,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'resolume-map',
+    name: 'Resolume Mapping',
+    where: 'Preconfig ▸ Resolume Mapping, beneath Canvas (preview)',
+    description: 'A Resolume Arena Advanced Output preset for the screens you choose: their canvases as one composition, and an Arena output per switcher output reading its own rectangle of it. Optionally name the inputs those outputs are cabled into and put them into a background set, with each plug’s EDID loaded for its output’s format. No preset from here has been opened in Arena yet.',
+    requires: { capabilities: ['outputAoi', 'backgroundSets'] },
+    /* Off until tested: the preset has never been opened in Arena, and the
+       set writes and EDID loads have only met a simulator. */
+    enabledByDefault: false,
+    client: 'client.js'
+  },
+  {
     id: 'send-to',
     name: 'Send to',
     where: 'The … on every source card',

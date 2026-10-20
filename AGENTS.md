@@ -640,7 +640,9 @@ Control, with a LivePremier behind it. Load-bearing:
 One picture cut into a background per output, put into the image library, the
 stills and a background set; or each output fed from an input, with the media
 server's output map exported. `docs/BACKGROUNDS.md` is the design and the
-proven/assumed table; `core.js`'s head is the geometry. Off by default — it
+proven/assumed table; `core.js`'s head is the cut, and `src/core/backgrounds.js`'s the model
+of an output it cuts against (shared with Resolume Mapping since 2026-10-20; `core.js` still
+re-exports every name it moved). Off by default — it
 writes to the library, stills, still capacities and background sets, and has
 only met a simulator.
 
@@ -660,7 +662,7 @@ Load-bearing, each read off the 6.2.73 bundle and proved on the simulator:
   `axSetBackgroundSetOutputSource` first hands the replaced input or still's
   claim (`preconfig/backgrounds/inputList|stillList/<n>/control/pp/
   useOnOutput`) to the next output still using it (or NONE), then claims the
-  output for the new one, then writes `content`. `core.contentWrites` is that
+  output for the new one, then writes `content`. `contentWrites` is that
   sequence; Undo goes back through it too. Writes under `preconfig/backgrounds`
   are immediate — there is no apply step, so a set on program changes on air
   and is refused unless the operator says otherwise. The set's label is
@@ -1551,6 +1553,41 @@ Proven on the private 6.2.73 simulator copy (2026-10-20): the sim's own
 3000×1000 at 420, 40, the vendor's own fields and canvas redrew to match, and
 the footprint read 3000×1000. Not on 6.1.60, not on a frame, not over a real
 SDI card (the sim's output cards are HDMI).
+
+### Resolume Mapping (`plugins/resolume-map/`, `core/backgrounds.js`) — off until tested
+
+Preconfig ▸ Resolume Mapping, beneath Canvas: a Resolume Arena Advanced Output preset for the
+chosen screens, and optionally their inputs into a background set. `core.js`'s head has the model.
+
+- **It is the Background Slicer's live-input mode with Arena standing where the picture was.**
+  The composition is the chosen canvases at 1:1, side by side or stacked (`compose`); each output
+  is an Arena screen the size of its raster, and each region is `outputBlits` of the screen's
+  whole canvas, so the input rect is the canvas rect moved to the screen's place and the output
+  quad is the raster rect, turned with corner 0 where content's top-left lands. Do not grow a
+  second geometry here: the output model moved to `src/core/backgrounds.js` so both plugins read
+  one (a plugin may not import another's folder, which is only served while that one is on).
+  `plugins/bg-slicer/core.js` still re-exports every name it moved.
+- **A region is clipped to its own screen's canvas.** Screens sit edge to edge in the
+  composition, so a footprint hanging off a canvas would otherwise read the next screen's
+  content. Off entirely or partly, the plan says so.
+- **The preset is output-map's writer** (`src/vendor/output-map/`), Virtual screens only: a real
+  display's id belongs to the Arena machine. `test/resolume-map.test.js` holds the preset to the
+  shapes real Arena 7.27 files contain when an output-map checkout sits beside the repo (in a
+  worktree, symlink it in as `.claude/worktrees/output-map` or the test skips).
+- **The set is the Slicer's writes, not a new kind**: `contentWrites` (claim handed on, claim
+  taken, content), the label on the set's `pp`, the preview's NATIVE source, each on the
+  switcher's inbound echo; EDIDs by the switcher's own `fromTemplate`/`fromCustom` pulse, never
+  undone. An output with no input chosen keeps what its set holds — a screen with none is left
+  out — and two outputs on one input is refused for the preset too, since it names the cable.
+- **Menu placement**: `submenuOf: 'Preconfig'` with `after: 'Canvas'` — the Shell's `after`
+  names a flyout item when `submenuOf` is set, matched on its text, ours excluded, and the entry
+  falls to the flyout's end where a build has no such item.
+
+Proven on a private copy of the 6.2.73 simulator session (2026-10-20): the entry sat between
+Canvas and Inputs; S1 + S2 made a 3840 × 1080 composition (1920 × 2160 stacked); the downloaded
+preset parsed in the browser with three screens named after IN 1–3; Write put LIVE_1/2/3 into S1
+and S2 set 1 with the label and the inputs' `useOnOutput` claims, and Undo put every one back —
+all read over AWJ from outside the page. Not opened in Arena; never on a frame; not on 6.1.60.
 
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 

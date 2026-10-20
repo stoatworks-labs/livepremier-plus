@@ -242,6 +242,22 @@ test('a submenu entry lands inside that item\'s flyout, cloned from a real one',
   });
 });
 
+test('a submenu entry with `after` goes beneath that flyout item, and at the end when there is none', async () => {
+  await withDom(async ({ sublist }) => {
+    const { Shell } = await import('../src/ui/shell.js');
+    const shell = new Shell({
+      entries: [
+        entry({ id: 'resolume', label: 'Resolume', submenuOf: 'Preconfig', after: 'System' }),
+        entry({ id: 'nowhere', label: 'Nowhere', submenuOf: 'Preconfig', after: 'Canvas' })
+      ]
+    });
+    shell._mount();
+    assert.deepEqual(sublist.children.map((a) => a.textContent), ['System', 'Resolume', 'Outputs', 'Nowhere']);
+    /* Not an anchored sidebar item as well: `after` means the flyout's here. */
+    assert.equal(sublist.children.filter((a) => a.textContent === 'Resolume').length, 1);
+  });
+});
+
 /*
  * The flyout's active class only exists on an element while the operator is on
  * a page inside the flyout, and they may never go to one. Reading it out of

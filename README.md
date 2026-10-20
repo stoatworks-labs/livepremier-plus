@@ -99,6 +99,18 @@ bolted on afterwards:
   custom format under the output's AoI on Preconfig ▸ Canvas, top left, top centre or centred,
   and it's set the way the vendor's own AoI fields set it. The output's footprint on the canvas
   becomes the wall's size, so the canvas is laid out in the wall's own pixels.
+- **Resolume Mapping** (off until you switch it on): Preconfig ▸ Resolume Mapping, just under
+  Canvas. Tick the screens, side by side or one above another, and it writes a Resolume Arena
+  Advanced Output preset. The screens' canvases are the composition, each at its own pixels, and
+  every switcher output gets an Arena output the size of its raster, with a slice per connector
+  reading exactly its rectangle of the composition. Rotated, pitched and grouped outputs are
+  worked out the way the Background Slicer works them out, and marked where that's the
+  switcher's arithmetic rather than something I've seen. Say which input each Arena output is
+  cabled into and it's named after the cable (`IN 5 → S1 Out 1`); then, if you want, those inputs
+  go into a background set per screen, with each plug loaded with the switcher's own EDID for its
+  output's format, so Arena's graphics card is offered exactly the mode a live background has to
+  match. Nobody has opened one of these presets in Arena yet, so check the first one before a
+  show depends on it.
 - **Send to:** a `…` on every source card that routes it without dragging: preview or program,
   then a screen and layer or a whole group. It respects the vendor's own PGM padlock and asks
   before it steps past one.
@@ -1737,6 +1749,7 @@ src/
     session.js     snapshot + stream, folded into a store
     stills.js      the image library, stills, capacities and uploads (Background Slicer, UMD, Image Library tools)
     zip.js         zips both ways: the Background Slicer's downloads, Image Library tools' uploads
+    backgrounds.js outputs as places on a canvas, and background-set writes (Background Slicer, Resolume Mapping)
     wire.js        send a write and wait for the switcher's own echo
     plugins.js     every feature as a plugin: what it is, and whether it is on
     contributions.js  how plugins extend each other: contribution points, services
@@ -1846,6 +1859,7 @@ device's store rather than by the model name:
 | UMD Generator | yes | the PNG only — Download works; putting it on the switcher reads LivePremier's library and stills |
 | Aux follow | yes | no — the layer paths it reads are LivePremier's, and the dialect has no aux layers there |
 | AoI from a custom format | yes | no — a Midra crops its outputs another way, and the section hangs off LivePremier's Canvas page |
+| Resolume Mapping | yes | no — it reads LivePremier's outputs, slices and background sets; a Midra keeps its sets on the screen, one picture per screen |
 | Arithmetic in fields, Variables, Settings | yes | yes — Variables are generated from whatever the box reports, so a Midra gets Midra's |
 
 Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step onto the wire
@@ -1912,6 +1926,12 @@ The three pages under Virtual RC400T are no exception; they're held back as *Con
   Both start off. Before anything goes they say which library slots, stills and layers or
   background sets they'll take; each write waits for the switcher's echo, and **Undo** puts back
   what was there. **Pixel Map writes nothing at all**: the switcher never learns the map is there.
+- **Resolume Mapping writes nothing unless you ask it to fill a background set.** It starts off,
+  and the preset is a download. The set goes in the way the Background Slicer puts one in, each
+  write waiting for the switcher's echo, a set on program refused unless you tick the box that
+  says you mean it, and **Undo** puts the set back. An EDID loaded into an input can't be taken
+  back (the switcher keeps no previous one), so the question counts them and Undo names the plugs
+  that still have one.
 - **Image Library tools only writes when you press something, and asks first.** It starts off.
   Deleting a library image empties every still showing it, so a delete never takes one a still on
   program or preview is showing (it's asked again just before each slot, in case a take landed

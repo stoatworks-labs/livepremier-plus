@@ -2725,6 +2725,39 @@ note) — the confirm button looked stuck until `__WRU.shell.refresh()`.
 **Not done:** README section screenshots, the user guide and its PDF, a release. README's feature
 list, Safety and Platforms rows, PLUGINS.md and AGENTS.md are current.
 
+## Resolume Mapping (2026-10-20, simulator only, never opened in Arena)
+
+Allan asked for a tab in the Preconfig menu, after Canvas, that generates a Resolume Advanced
+Output XML for selected screens, and optionally maps the input plugs they'll use to a background
+set. Built as `plugins/resolume-map/`, off by default.
+
+**Most of it already existed** in the Background Slicer's live-input mode, which exports an Arena
+preset and fills a set from inputs, but behind a picture and a placement. So the output model
+(topology, slices, rotation, pitch, groups, set writes, live inputs, EDID choice) moved out of
+`plugins/bg-slicer/core.js` into `src/core/backgrounds.js`, unchanged, with the Slicer re-exporting
+every name. Its 123 tests passed before and after the move.
+
+**Run** through this worktree's app on :8563 against a private copy of the 6.2.73 simulator's
+Session 1 (Cmax, web 3063, AWJ 10663, under `~/dev/sim-copies`, deleted after), never the shared
+one:
+
+- The Preconfig flyout read System, Multiviewers, Outputs, Screens, Aux. Screens, Canvas,
+  **Resolume Mapping**, Inputs, Images, …
+- S1 and S2 (both 1920 × 1080) side by side: composition 3840 × 1080; S1's Out 1 and Out 3 both
+  read 0,0 · 1920 × 1080 (the sim has them overlapping), S2's Out 2 reads 1920,0. Stacked:
+  1920 × 2160, S2 at 0,1080. Suggest inputs gave IN 1, 2, 3, all receiving 1080p60.
+- The Download button's file (the anchor's click intercepted, so nothing was saved): 8,132 bytes,
+  `LivePremier S1 S2.xml`, parsed by the browser's DOMParser, three `<Screen>`s named
+  `IN 1 → S1 Out 1`, `IN 2 → S1 Out 3`, `IN 3 → S2 Out 2`, texture size 3840 × 1080.
+- Write, set name "Resolume", EDIDs on: three EDIDs loaded, then over AWJ S1 set 1 Out 1 = LIVE_1,
+  Out 3 = LIVE_2, S2 set 1 Out 2 = LIVE_3, both labels "Resolume", IN_1/2/3 `useOnOutput` 1/3/2.
+  Undo: all six back to NONE / "" / NONE; the EDID notes named the three plugs.
+- Found on the way: a tall (stacked) composition's diagram was squashed by its height cap; it is
+  narrowed now. The Browser pane, hidden, kept serving stale screenshots — read the DOM instead.
+
+**Open:** opening a generated preset in Arena (the one thing that would prove it; output-map's
+writer has the same gap); a frame; 6.1.60; README screenshots, the user guide and its PDF.
+
 ## Image Library tools (2026-10-20, simulator only)
 
 Allan asked for a **Delete all** on the image library, a way to **select several images and delete

@@ -115,7 +115,9 @@ screen rather than writing a layer that does not exist.
 
 ## The geometry
 
-Pure, in `plugins/bg-slicer/core.js`; the reasoning is at its head.
+Pure, in `plugins/bg-slicer/core.js`, with the model of an output — slices, rotation, pitch,
+groups — in `src/core/backgrounds.js`, which Resolume Mapping reads too; the reasoning is at the
+heads of both.
 
 - **A background is 1:1 in the output's raster.** The manual calls the background layer
   "unscalable" (Aquilon User Manual v6.2, p.86) and the content's capacity must match the
@@ -591,7 +593,7 @@ On a LivePremier with a screen whose NATIVE layer is allocated, out of a show:
    join on the displays: no seam, no doubled or missing column.
 2. A rotated output (Preconfig ▸ Outputs: enable rotation; Canvas: 90°): write the same pattern; the
    labels should read upright on the turned display. If they read turned by a further 90°, the
-   switcher turns backgrounds itself — `ROTATION` in `core.js` must then not be applied to the cut.
+   switcher turns backgrounds itself — `ROTATION` in `src/core/backgrounds.js` must then not be applied to the cut.
 3. A 2X1 output group: the picture should cross the two connectors without a seam.
 4. A pitch ratio other than 1.000: the picture's scale on that wall should match the layers'.
 5. Live: a media server loaded with the Arena preset into two inputs; the same joins.
