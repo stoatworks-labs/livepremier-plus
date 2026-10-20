@@ -34,6 +34,14 @@ Copyright: none claimed — dedicated to the public domain by its authors
 
 Audinate publishes nothing about Dante's control protocol. The Dante plugin's codec, plugins/dante/protocol.js, is a port of netaudio's reverse engineering, read at commit a3323a3 (2026-10-02): the ARC request and response layouts, the classic and modern channel inventories, the subscription writes, the subscription-status table and the protocol-revision rule, each table naming the netaudio file and function it came from. test/fixtures/dante/netaudio-vectors.json carries netaudio's captured packets — Dante Controller's own requests among them — with netaudio's account of where each came from. The Unlicense asks for nothing; this is the credit it deserves.
 
+### ec50-panel — Jayden Nawotka (qubered)
+
+<https://github.com/qubered/ec50-panel>  
+Licence: MIT  
+Copyright: 2026 Jayden Nawotka
+
+Barco publishes nothing about how the Event Master Toolset talks to its EC-30, EC-40 and EC-50 panels. The Barco EC panel plugin's protocol — the FT232H's MPSSE setup, the register framing and latches, the framebuffer and its skew, the key queue and the T-bar — is a port of ec50-panel's reverse engineering from USB captures, read at commit ee24708 (2026-09-14), in src/core/ec-panel.js; its key-label font is ec50-panel's glyph table, in src/core/ec-font.js. Both files carry its MIT notice.
+
 ### VPU mixer model — Stoatworks aquilon-vpu-map
 
 <https://github.com/stoatworks-labs/aquilon-vpu-map>  
@@ -167,6 +175,10 @@ How a background set, an output group and an image slot behave — a background 
 ### Media-server file formats — disguise, AV Stumpfl, Green Hippo, Anomes
 
 The Background Slicer's exports follow what each vendor documents its own software importing: disguise designer's Feed Mapping "Import from table" columns, the feed-rect CSV of Pixera's example file, Hippotizer V4's Video Mapper CSV import, and the SVG Millumin 5's Video Routing imports. Only column layouts and element shapes are used; nothing of their software or documentation is included.
+
+### Event Master Toolset — Barco
+
+The Barco EC panel plugin's button table in src/core/ec-panel.js was generated from the showConsoleMap.csv the Event Master Toolset installs (identical in 9.2.68800 and 10.0.3.3021), and test/barco-ec.test.js checks it against whichever Toolset is installed. That file is a list of key numbers, lamp registers and display numbers; nothing else of Barco's is taken, and no part of their software is redistributed. LivePremier Plus is not affiliated with or endorsed by Barco.
 
 ## Inspirations
 
