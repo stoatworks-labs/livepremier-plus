@@ -61,7 +61,7 @@ import {
   documentKind, pagePixels, parsePages, formatPages, placedFit, pageStem, pageNumber, buildDeckPlan, buildSizePlan, deckPlanKey, sizeChoices, FITS, DOC_ACCEPT
 } from './deck.js';
 import { openDocument, closeDocument, drawPage, pageThumb, toPng, release } from './document.js';
-import { zipStore } from './zip.js';
+import { zipStore } from '../../src/core/zip.js';
 import { packFiles, templateList, templateShapes, TARGETS } from './exports.js';
 
 const POPOUT = new URL('./popout.html', import.meta.url).href;

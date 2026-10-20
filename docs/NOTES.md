@@ -20,11 +20,12 @@ VPU map on 6.1.60, the save race), 0.17.4 (the VPU map's pool said once), 0.17.5
 0.17.6 (**Surfaces**), 0.17.7 (**UMD Generator**, and the Pixelhue console suite in
 `test/console/`).
 
-**Off by default:** Preview lock, Surfaces, Aux follow, AoI from a custom format, and the UMD
-Generator, Dante, Thumbnail relay, Multiviewer thumbnails and Background Slicer previews. Surfaces,
-the UMD Generator, Aux follow and AoI from a custom format are in `OFF_UNTIL_TESTED`
-(`test/plugins.test.js`) until a real frame has seen them. Aux follow and AoI from a custom format
-(2026-10-20, unreleased) are at the end of this file. So is the **Barco EC panel** (2026-10-20, unreleased, in
+**Off by default:** Preview lock, Surfaces, Aux follow, AoI from a custom format, Image Library
+tools, and the UMD Generator, Dante, Thumbnail relay, Multiviewer thumbnails and Background Slicer
+previews. Surfaces, the UMD Generator, Aux follow, AoI from a custom format and Image Library tools
+are in `OFF_UNTIL_TESTED` (`test/plugins.test.js`) until a real frame has seen them. Aux follow,
+AoI from a custom format and Image Library tools (2026-10-20, unreleased) are at the end of this
+file. So is the **Barco EC panel** (2026-10-20, unreleased, in
 `OFF_UNTIL_TESTED`): never met a panel, only a pretend one and the 6.2.73 simulator.
 
 **What real hardware has seen**, all of it:
@@ -2625,7 +2626,73 @@ note) — the confirm button looked stuck until `__WRU.shell.refresh()`.
 **Not done:** README section screenshots, the user guide and its PDF, a release. README's feature
 list, Safety and Platforms rows, PLUGINS.md and AGENTS.md are current.
 
-## 2026-10-20 — Barco EC-30 / EC-40 / EC-50 panels (preview)
+## Image Library tools (2026-10-20, simulator only)
+
+Allan asked for a **Delete all** on the image library, a way to **select several images and delete
+them**, **uploading a .zip** of pictures that are unpacked into the library one per slot, and **a
+dropdown on each image slot for its capacity**, so it isn't a trip to Preconfig ▸ Images every time.
+Built as one plugin, `plugins/image-library/`, off by default. "Image slot" read as the stills on
+the Images page (`Image 1` … `Image 48`): that's what Preconfig ▸ Images sets a capacity for. A
+library slot's own capacity badge is only what its picture needs, and nothing sets it.
+
+Run on a private copy of the LivePremier Simulator 6.2.73 session (Aquilon Cmax), ports moved to
+3070 / 17606 under my scratchpad, with this worktree's proxy on 8571 and its own data directory, so
+nobody else's demo or simulator was touched.
+
+**Found on the simulator** (the bundle says nothing about any of it):
+
+- **A library delete empties every still showing that slot**, at once: `mode` stays IMAGE and
+  `source` stays the slot, `isValid` goes false, `imageWidth`/`imageHeight` 0. Single deletes and
+  a run of four in a row both did it. So a bulk delete keeps any picture a still on program or
+  preview shows, and names the stills it will leave empty.
+- **Uploading into an empty slot a still points at puts the picture on that still**: slot 3,
+  emptied by a delete with Image 1 still pointing at it, was refilled by a zip, and Image 1 showed
+  the new 192 × 108 picture. Hence `uploadSlots`: never a slot a still on a bus points at, and one
+  another still points at only after every clean slot. ⚠️ The Background Slicer and the UMD
+  Generator take "the first free library slot" without this check, so either could put a picture
+  on a still that's on air. Not changed here; worth its own look.
+- **Unexplained, twice:** after a Delete all and then a 13-picture zip, Image 1 (pointing at empty
+  slot 3) and Image 3 (empty slot 6) reported their *old* pictures as valid again (AWJ agreed:
+  `isValid` true, 192 and 3840 wide). Later, Images 5 and 6 did the same after another zip. I
+  couldn't make it happen again: a single delete followed by an unrelated upload, a byte-identical
+  copy uploaded with curl, two uploads through `uploadPictures`, and the full zip again all left
+  the emptied still empty. Whatever brings a still back, nothing in the plugin relies on it either
+  way.
+- **Capacities, put through the switcher's own check on still 1:** `HDTV_1080P`, `PROJ_1200P`,
+  WUXGA, 1920×1440, 2K and even 2560×1440 checked as **Dual**; `UHDTV_2160P`, `CINEMA_4K`,
+  3840×2400 and 4096×2160, and also 5760×1200, 7680×1080 and 7680×1200, as **4K** (taking still 2
+  out of service); 5120×2160, `COMPUTER_5120_2880_RB`, 8192×2160, 8640×1600, 12000×1200 and
+  16384×1080 as **5K** (taking 2, 3 and 4). Nothing checked as 8K, and the last two are the
+  largest formats on offer (custom formats aside), so the dropdown offers Dual, 4K and 5K. `likelyCapability`'s area guess is wrong at the edges (it calls 8192×2160 8K and
+  2560×1440 4K). The Background Slicer only uses it to pick what to ask for, and the switcher's
+  check is still the judge.
+- **Raising a still's capacity keeps its picture**, and **lowering it below the picture's need
+  keeps the picture with `outOfCapability` true**, which is how the vendor's card flags it.
+- A multi-file `POST /api/device/images/upload` (the vendor's own way) answers `{ name: status }`,
+  so two files of the same name come back as one key although both imported. The plugin uploads
+  one file per request into a named slot, which also keeps the order.
+- The 6.2.73 import takes JPEG, JPG, PNG, GIF, TIFF and TIF (`import/status/pp/fileTypeValidity`).
+  BMP isn't on the list, though Capture offers BMP as a file type.
+
+**Driven in the browser pane** (all on the sim): Select with click and shift-click (a real
+shift-click; the pane's own shift modifier didn't carry `shiftKey`); Delete selected over 2–5 with
+Image 2 on preview showing slot 4 and Image 1 showing slot 3 (3 deleted, 4 kept, Image 1 emptied,
+as the question said); Delete all (14 deleted, slot 4 kept); a Finder zip dropped on the vendor's
+own drop zone (13 pictures into 1–3, 5, 7–15 in name order, `notes.txt` and `old.bmp` passed over,
+`__MACOSX` in silence, 1.3 s); Image 3 Dual → 4K and back with a 3840 × 2160 picture in it; Image 1
+→ 4K refused because Image 2 held a picture, with nothing left staged.
+
+**Frame-only questions:**
+- Does a real frame empty a still the moment its library picture is deleted, as the sim does? And
+  what does a still on a bus show at that moment: black, or its last frame?
+- Does applying Preconfig ▸ Images disturb a still that's on air elsewhere, or anything else on
+  the frame? The sim can't say; the dropdown refuses a still on program, but not one on preview.
+- Are the capacities the same on an RS4, a C or a 6.1.x box? The formats came from a Cmax.
+
+**Not done:** README section screenshots, the user guide and its PDF, a release. README's feature
+list, Safety and Platforms rows, and AGENTS.md are current.
+
+## Barco EC-30, EC-40 and EC-50 panels (2026-10-20, pretend panel and simulator only)
 
 Allan asked for the Barco EC controllers, through the tray app rather than the browser. What I
 found, and what I built:

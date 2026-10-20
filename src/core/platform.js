@@ -285,12 +285,13 @@ export const CAPABILITIES = [
        on the Image Library page. Read off a LivePremier Simulator 6.2.73.
        No mng probe: a Midra keeps a library too (`stillLibrary/bankList`), but
        the pixel map is drawn into LivePremier's screen cards, and the Midra
-       page draws its cards differently (`ui/preset-lock.js`). */
+       page draws its cards differently (`ui/preset-lock.js`); Image Library
+       tools reads LivePremier's library, stills and still capacities. */
     probes: {
       nlc: [ROOT, 'stillList', 'library', 'bankList', 'items']
     },
     needs: 'the image library',
-    absent: 'Pixel maps are drawn into LivePremier’s screen cards; this switcher’s page is laid out differently.'
+    absent: 'Pixel maps are drawn into LivePremier’s screen cards, and the library tools into its Image Library and Images pages; this switcher keeps its pictures another way.'
   },
   {
     id: 'edidBank',

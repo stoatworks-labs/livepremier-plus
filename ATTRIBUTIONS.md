@@ -106,6 +106,16 @@ Compiled into the vendored Otter EDID editor build, otter-edid-embed.js, with ea
 
 The UI layer of the embedded EDID editor. The repo does not depend on React itself; it arrives only inside that one vendored file.
 
+### pdf.js — Mozilla
+
+<https://github.com/mozilla/pdf.js>  
+Licence: Apache-2.0  
+Copyright: Mozilla Foundation
+
+Vendored in src/vendor/pdfjs/ from pdfjs-dist 6.3.289, with MANIFEST.json recording every file's SHA-256 and each licence file kept beside the files it covers. What it bundles carries its own licences: the OpenJPEG decoder (BSD-2-Clause, Universite catholique de Louvain and others), PDFium's JBIG2 decoder (BSD-3-Clause, The PDFium Authors) and qcms colour management (MIT, Mozilla and Marti Maria), each compiled to WebAssembly inside Mozilla's own wrapper; the Foxit standard fonts (BSD-3-Clause, by way of PDFium) and Liberation Sans (GPL-2.0 with Red Hat's font exception); Adobe's CMaps (BSD-3-Clause); and one ICC profile (CC0).
+
+The Background Slicer draws each page of a PDF, or each slide of a PowerPoint deck once PowerPoint has exported it to PDF, at the size it is used, rather than scaling a picture of it.
+
 ### The Rust crate ecosystem
 
 <https://crates.io>  
