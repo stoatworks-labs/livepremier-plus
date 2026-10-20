@@ -13,7 +13,7 @@
  * service. Nothing is written while a page is merely open.
  */
 
-import { readLibrary } from '../../src/core/stills.js';
+import { readLibrary, emptySlots } from '../../src/core/stills.js';
 import { listZip, readEntry } from '../../src/core/zip.js';
 import {
   planDelete, deleteQuestion, filledSlots, zipPictures, loosePictures, placeUploads, uploadQuestion,
@@ -43,6 +43,9 @@ export default function activate(ctx, {
   let result = null;
   /** The still whose capacity is being changed, or null. */
   let capBusy = null;
+  /** Whether an upload may fill an empty slot a still points at. Off with
+      every page load: the still shows whatever goes in, maybe on air. */
+  let assigned = false;
 
   const enabled = () => Boolean(store.ready) && ctx.can('imageLibrary');
   const status = () => (busy ? { busy: true, text: busy.text, tone: null } : { busy: false, text: result ? result.text : '', tone: result ? result.tone : null });
@@ -124,16 +127,20 @@ export default function activate(ctx, {
     skipped.push(...looseTaken.skipped);
     for (const f of looseTaken.take) items.push({ name: f.name, size: f.size, blob: f });
 
-    const { placed, noRoom } = placeUploads(store, items);
+    const { placed, noRoom } = placeUploads(store, items, { assigned });
     const q = uploadQuestion({ placed, noRoom, skipped });
     if (!placed.length) {
-      finish(items.length ? 'Nothing uploaded: the library is full.' : 'Nothing uploaded: no pictures the switcher takes.', 'warn', q);
+      const waiting = !assigned && emptySlots(store).some((e) => e.stills.length);
+      finish(!items.length ? 'Nothing uploaded: no pictures the switcher takes.'
+        : waiting ? 'Nothing uploaded: every empty slot has a still pointing at it — tick “Use assigned slots”.'
+          : 'Nothing uploaded: the library is full.', 'warn', q);
       return false;
     }
     if (q && !(await ask(q))) { busy = null; tools.refresh(); return false; }
     const res = await uploadPictures({
       session,
       fetchImpl,
+      assigned,
       items: placed.map((p) => ({ slot: p.slot, name: p.file.name, blob: p.file.blob, read: p.file.read })),
       stopped: () => busy && busy.stop,
       onStep: (done, total, name) => progress(name ? `Uploading ${done + 1} of ${total}: ${name}` : `Uploaded ${done} of ${total}`)
@@ -178,6 +185,8 @@ export default function activate(ctx, {
       stop: () => { if (busy) { busy.stop = true; busy.text = `${busy.text} stopping…`; tools.refresh(); } },
       capacity: (key) => (store.ready ? capacityView(store, key) : null),
       capacityBusy: () => capBusy,
+      assigned: () => assigned,
+      setAssigned: (on) => { assigned = Boolean(on); tools.refresh(); },
       setCapacity
     }
   });

@@ -890,3 +890,70 @@ test('apply stills at a size: uploads and stills, with the still’s own rescale
   assert.equal(undone.ok, true, undone.problems.join('; '));
   assert.equal(store.get(['device', 'stillList', 'items', '2', 'control', 'pp', 'mode']), 'NONE');
 });
+
+/* ------------------------------------- empty library slots stills point at */
+
+/*
+ * A still keeps pointing at a library slot after its picture is deleted, and
+ * a picture uploaded into that slot shows on the still at once (6.2.73
+ * simulator, 2026-10-20). So such a slot is skipped unless the operator ticks
+ * "Use empty slots a still points at", and then used last and named.
+ */
+const pointAt = (store, still, slot) => {
+  store.set(['device', 'stillList', 'items', String(still), 'control', 'pp', 'mode'], 'IMAGE');
+  store.set(['device', 'stillList', 'items', String(still), 'control', 'pp', 'source'], slot);
+};
+const fill = (store, slot) => store.set(['device', 'stillList', 'library', 'bankList', 'items', String(slot), 'status', 'pp', 'isValid'], true);
+
+test('a plan skips an empty slot a still points at, unless allowed — then uses it last, and names the still', () => {
+  const store = simStore();
+  /* Clean: slot 3 only. Slot 1 is Image 5's, slot 2 Image 4's (both off air). */
+  fill(store, 4);
+  fill(store, 200);
+  pointAt(store, 5, 1);
+  pointAt(store, 4, 2);
+  const skipped = buildPlan(store, stillsJob());
+  assert.equal(skipped.ok, false);
+  assert.deepEqual(skipped.screens[0].outputs.map((o) => o.librarySlot), [3, null, null]);
+  assert.match(skipped.problems.join('\n'), /no free slot that no still points at \(2 assigned passed over — tick “Use empty slots a still points at” to use them\)/);
+  assert.equal(skipped.assignedSlots, false);
+
+  const used = buildPlan(store, stillsJob(), { assignedSlots: true });
+  assert.equal(used.ok, true, used.problems.join('; '));
+  assert.deepEqual(used.screens[0].outputs.map((o) => o.librarySlot), [3, 1, 2]);
+  assert.equal(used.assignedSlots, true);
+  assert.deepEqual(used.warnings.filter((w) => /library slot/.test(w)), [
+    'S1 Out 2: library slot 1 is empty, but Image 5 points at it and will show the picture.',
+    'S1 Out 3: library slot 2 is empty, but Image 4 points at it and will show the picture.'
+  ]);
+});
+
+test('a slot a still has come to point at since the plan is refused at write time, and nothing is written', async () => {
+  const store = simStore();
+  const { session, log, fetchImpl } = standIn(store);
+  const plan = buildPlan(store, stillsJob());
+  assert.equal(plan.ok, true, plan.problems.join('; '));
+  const slot = plan.screens[0].outputs[1].librarySlot;
+  pointAt(store, 5, slot);
+  const result = await applyPlan({ session, plan, images: imagesFor(plan), fetchImpl });
+  assert.equal(result.ok, false);
+  assert.match(result.error, new RegExp(`library slot ${slot} is empty, but a still points at it now — plan again`));
+  assert.equal(log.length, 0);
+});
+
+test('stills at a size: an empty slot a still points at is skipped unless allowed, and a page put there says which still', async () => {
+  const { buildSizePlan } = await import('../plugins/bg-slicer/deck.js');
+  const store = simStore();
+  fill(store, 3);
+  fill(store, 4);
+  fill(store, 200);
+  pointAt(store, 5, 1);
+  const job = (assignedSlots) => ({ options: { label: '', assignedSlots }, deck: { name: 'x.pdf', chosen: [0, 1], size: { width: 1920, height: 1080 }, stills: false, library: true } });
+  const skipped = buildSizePlan(store, job(false));
+  assert.equal(skipped.ok, false);
+  assert.match(skipped.problems.join('\n'), /2 pages need 2 library slots, and 1 is free \(1 more is empty but a still points at it — tick “Use empty slots a still points at” to use it\)/);
+  const used = buildSizePlan(store, job(true));
+  assert.equal(used.ok, true, used.problems.join('; '));
+  assert.deepEqual(used.screens.map((s) => s.outputs[0].librarySlot), [2, 1]);
+  assert.ok(used.warnings.includes('Page 2: library slot 1 is empty, but Image 5 points at it and will show the picture.'), used.warnings.join(' | '));
+});

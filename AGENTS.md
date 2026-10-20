@@ -1309,11 +1309,19 @@ or by a test first:
   take can land between the question and the delete.
 - ⚠️ **An empty slot is not always unclaimed.** A still keeps pointing at a
   slot after its picture goes, and a picture uploaded into that slot shows on
-  the still at once (Image 1 took the new slot 3 picture). `uploadSlots` never
-  offers a slot a still on a bus points at, and offers ones other stills point
-  at only after every clean slot, naming them in the question. The Background
-  Slicer and the UMD Generator still take the first free slot without asking
-  this; see `docs/NOTES.md` (2026-10-20).
+  the still at once (Image 1 took the new slot 3 picture). So every upload
+  into the library — this plugin's zip, the Background Slicer, the UMD
+  Generator — chooses through `core/stills.js`: `emptySlots` says which
+  stills point at each empty slot (and whether they're on a bus),
+  `orderSlots` offers clean slots only, unless the operator ticked the option
+  ("Use assigned slots" here, "Use empty library slots a still points at" in
+  the slicer, "Use an empty slot a still points at" in the UMD tab). Ticked,
+  those slots come after every clean one, on-bus ones last, and the question,
+  plan or steps name each still with `pointedText`. Allan asked for it to be
+  a choice, not a rule (2026-10-20): refilling a still's slot is sometimes the
+  point. The tick is page state, off at every load. The slicer's preflight
+  refuses a slot a still has come to point at since the plan unless the plan
+  was made with the option.
 - **A capacity is asked for by format** — Preconfig ▸ Images has no capacity
   control, only an "expected image resolution" per still (`helper/format`),
   which the switcher's check turns into one. `CAPACITY_FORMAT` holds the

@@ -54,7 +54,7 @@ import {
 } from './core.js';
 import { presetBanks } from '../../src/core/screens.js';
 import { until, send, sendAndEcho, IMPORT_MS } from '../../src/core/wire.js';
-import { uploadImage, UPLOAD_URL, applyCapacities } from '../../src/core/stills.js';
+import { uploadImage, UPLOAD_URL, applyCapacities, uploadSlots } from '../../src/core/stills.js';
 import { applyMngPlan, revertMng } from './apply-mng.js';
 
 export { until, uploadImage, UPLOAD_URL, applyCapacities };
@@ -181,6 +181,9 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
 function preflight(store, plan, options) {
   const lib = readLibrary(store);
   const stills = readStills(store);
+  /* An empty slot a still has come to point at since the plan is not free
+     for this upload, unless the plan was made allowing that. */
+  const usable = new Set(uploadSlots(store, { assigned: plan.assignedSlots === true }).map((s) => s.slot));
   for (const s of plan.screens) {
     if (s.assign) {
       const set = readSets(store, s.id).find((x) => x.index === s.setIndex);
@@ -191,6 +194,7 @@ function preflight(store, plan, options) {
       if (plan.source !== 'stills') continue;
       const slot = lib.slots.find((x) => x.slot === o.librarySlot);
       if (!slot || !slot.free) throw new Error(`library slot ${o.librarySlot} is no longer free — plan again`);
+      if (!usable.has(o.librarySlot)) throw new Error(`library slot ${o.librarySlot} is empty, but a still points at it now — plan again`);
       if (!o.still) continue;
       const still = stills.find((x) => x.key === o.still);
       if (!still || !still.free) throw new Error(`still ${o.still} is no longer free — plan again`);

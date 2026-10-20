@@ -247,6 +247,14 @@ export function createUmdPanel({ ready, doc, change, destinations, selected, mod
         }
       }));
       if (armed) lines.push(note('warn', update && p.onProgram ? 'This UMD is on program: the new one is on air the moment it lands.' : 'Program is on air: this goes straight to the output.'));
+      if (write && !update) {
+        lines.push(h('label', {
+          class: 'aw-flex-row-center-v aw-gap-col-small aw-font-caption',
+          title: 'Off: an empty library slot a still points at is skipped, because that still would show the UMD too. On: one is used once no clean slot is left, and the steps say which still.'
+        },
+        h('input', { type: 'checkbox', checked: actions.assignedSlots && actions.assignedSlots() ? 'checked' : null, onChange: (ev) => actions.setAssignedSlots(Boolean(ev.target.checked)) }),
+        h('span', { text: 'Use an empty slot a still points at' })));
+      }
       if (!write) lines.push(note('', 'Putting a UMD on the switcher is LivePremier only. Download the PNG and load it by hand.'));
     } else {
       const service = backgrounds();
@@ -284,7 +292,7 @@ export function createUmdPanel({ ready, doc, change, destinations, selected, mod
 
   function signature(d, dests, id, m) {
     return JSON.stringify([
-      ready(), d, id, confirming, canWrite(), !!backgrounds(), run(),
+      ready(), d, id, confirming, canWrite(), !!backgrounds(), run(), Boolean(actions.assignedSlots && actions.assignedSlots()),
       dests.map((x) => [x.id, x.label, x.canvas.width, x.canvas.height]),
       m && [m.target, m.auxChoice, m.entry.auxTarget, m.labels, m.layers, m.bank, m.rows, m.print, m.placed, m.plan.warnings, m.plan.items.map((i) => i.notes), m.templates.map((t) => t.id)]
     ]);

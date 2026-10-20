@@ -201,6 +201,100 @@ export function libraryUsers(store) {
   return users;
 }
 
+/** How the vendor's Images page names a still: `Image 3`, and its label when it has one. */
+export function stillName(still) {
+  const label = String((still && still.label) || '').trim();
+  return label ? `Image ${still.key} “${label}”` : `Image ${still.key}`;
+}
+
+/**
+ * The stills on a bus: `Map(key → 'program' | 'preview')`. The still's own
+ * tally first, and then any still a background set on program or preview
+ * names — the set is what puts it there, whatever the still's tally says.
+ */
+export function stillsOnBus(store, stills = readStills(store)) {
+  const out = new Map();
+  for (const s of stills) {
+    if (s.onProgram) out.set(s.key, 'program');
+    else if (s.onPreview) out.set(s.key, 'preview');
+  }
+  const screens = store.get([...BG, 'screenList', 'items']) || {};
+  for (const sid of Object.keys(screens)) {
+    for (const set of readSets(store, sid)) {
+      if (!set.onProgram && !set.onPreview) continue;
+      for (const c of Object.values(set.contents)) {
+        const m = /^STILL_(\d+)$/.exec(c);
+        if (!m) continue;
+        if (set.onProgram) out.set(m[1], 'program');
+        else if (!out.has(m[1])) out.set(m[1], 'preview');
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The empty library slots, each with the stills that point at it:
+ * `[{ slot, stills: [{ key, label, name, bus }] }]` in slot order, `bus`
+ * `'program'`, `'preview'` or null. A clean slot has no stills.
+ *
+ * ⚠️ **An empty slot is not always unclaimed.** A still keeps pointing at a
+ * slot after its picture is deleted, and a picture uploaded into that slot
+ * shows on the still at once — seen on the 6.2.73 simulator, 2026-10-20,
+ * when a zip refilled slot 3 and Image 1 took the new picture up. So an
+ * upload only uses such a slot when the operator has said it may
+ * (`uploadSlots`), and says which stills will show the picture.
+ */
+export function emptySlots(store) {
+  const stills = readStills(store);
+  const users = libraryUsers(store);
+  const bus = stillsOnBus(store, stills);
+  return readLibrary(store).slots
+    .filter((s) => s.free)
+    .sort((a, b) => a.slot - b.slot)
+    .map((s) => ({
+      slot: s.slot,
+      stills: (users.get(s.slot) || []).map((x) => ({ key: x.key, label: x.label, name: stillName(x), bus: bus.get(x.key) || null }))
+    }));
+}
+
+const BUS_RANK = { null: 0, preview: 1, program: 2 };
+const busOf = (entry) => entry.stills.reduce((worst, s) => (BUS_RANK[s.bus] > BUS_RANK[worst] ? s.bus : worst), null);
+
+/**
+ * The order an upload takes empty slots in (`emptySlots` entries): every
+ * clean slot first; then, only with `assigned`, the slots a still points at
+ * — those whose stills are on no bus first, then preview, then program.
+ * Without `assigned` a slot a still points at is never offered.
+ */
+export function orderSlots(empty, { assigned = false } = {}) {
+  const clean = empty.filter((e) => !e.stills.length);
+  if (!assigned) return clean;
+  const pointed = empty.filter((e) => e.stills.length)
+    .sort((a, b) => BUS_RANK[busOf(a)] - BUS_RANK[busOf(b)] || a.slot - b.slot);
+  return [...clean, ...pointed];
+}
+
+/** The empty slots an upload may use, in order: `orderSlots(emptySlots(store), opts)`. */
+export const uploadSlots = (store, opts = {}) => orderSlots(emptySlots(store), opts);
+
+/**
+ * What putting a picture into a slot stills point at does, in a sentence's
+ * tail: `Image 1 points at it and will show the picture`, louder for a still
+ * on a bus. Empty for a clean slot.
+ */
+export function pointedText(stills) {
+  if (!stills || !stills.length) return '';
+  const names = stills.map((s) => s.name || stillName(s));
+  const who = names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+  const verb = names.length === 1 ? 'points' : 'point';
+  const onProgram = stills.filter((s) => s.bus === 'program').map((s) => s.name || stillName(s));
+  const onPreview = stills.filter((s) => s.bus === 'preview').map((s) => s.name || stillName(s));
+  if (onProgram.length) return `${who} ${verb} at it, and ${onProgram.join(', ')} ${onProgram.length === 1 ? 'is' : 'are'} ON PROGRAM: the picture goes on air the moment it lands`;
+  if (onPreview.length) return `${who} ${verb} at it, and ${onPreview.join(', ')} ${onPreview.length === 1 ? 'is' : 'are'} on preview: the picture shows there the moment it lands`;
+  return `${who} ${verb} at it and will show the picture`;
+}
+
 /** Units of still capacity, as the manual counts them (p.99/p.100): DUAL is one slot. */
 export const CAPACITY_UNITS = { OFF: 0, DUAL: 1, '4K': 2, 3: 3, '5K': 4, 5: 5, 6: 6, 7: 7, '8K': 8 };
 

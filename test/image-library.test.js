@@ -17,9 +17,9 @@ import { deflateRawSync } from 'node:zlib';
 
 import { DeviceStore } from '../src/core/device-store.js';
 import { crc32, zipStore, listZip, readEntry } from '../src/core/zip.js';
-import { readStills, readLibrary, capacityChoices, libraryUsers } from '../src/core/stills.js';
+import { readStills, readLibrary, capacityChoices, libraryUsers, uploadSlots, emptySlots, orderSlots, pointedText } from '../src/core/stills.js';
 import {
-  planDelete, deleteQuestion, slotList, zipPictures, loosePictures, placeUploads, uploadSlots, uploadQuestion,
+  planDelete, deleteQuestion, slotList, zipPictures, loosePictures, placeUploads, uploadQuestion,
   capacityView, planCapacity, capacityQuestion, stillsOnBus, naturalCompare
 } from '../plugins/image-library/core.js';
 import { deleteSlots, uploadPictures, changeCapacity } from '../plugins/image-library/run.js';
@@ -267,25 +267,36 @@ test('slots as ranges', () => {
 
 /* ----------------------------------------------------------- the upload */
 
-test('an upload never refills a slot a still on a bus points at, and uses one another still points at last', () => {
+test('an upload skips empty slots a still points at, unless told it may use them — then last, on-air ones last of all, and named', () => {
   /* Slots 1 and 2 are empty, but stills point at them: Image 1 off air,
      Image 2 on preview. Slot 3 holds a picture. */
   const store = libStore({
     slots: { 3: { file: 'kept.png' } },
     stills: { 1: { mode: 'IMAGE', source: 1 }, 2: { mode: 'IMAGE', source: 2, preview: true } }
   });
-  const order = uploadSlots(store);
-  assert.deepEqual(order.slice(0, 3).map((s) => s.slot), [4, 5, 6]);
-  assert.ok(!order.some((s) => s.slot === 2), 'never the slot a still on preview points at');
-  assert.deepEqual(order.at(-1), { slot: 1, stills: ['Image 1'] });
+  const empty = emptySlots(store);
+  assert.deepEqual(empty.slice(0, 2), [
+    { slot: 1, stills: [{ key: '1', label: '', name: 'Image 1', bus: null }] },
+    { slot: 2, stills: [{ key: '2', label: '', name: 'Image 2', bus: 'preview' }] }
+  ]);
+  assert.deepEqual(uploadSlots(store).map((s) => s.slot), [4, 5, 6, 7, 8, 9, 10, 11, 12], 'by default, clean slots only');
+  assert.deepEqual(orderSlots(empty, { assigned: true }).map((s) => s.slot), [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2], 'then off-air, then on a bus');
+
   const files = Array.from({ length: 11 }, (_, i) => ({ name: `p${i + 1}.png`, size: 10 }));
-  const { placed, noRoom } = placeUploads(store, files);
-  assert.deepEqual(placed.map((p) => p.slot), [4, 5, 6, 7, 8, 9, 10, 11, 12, 1]);
-  assert.deepEqual(noRoom, [{ name: 'p11.png', why: 'no free slot left' }]);
-  const q = uploadQuestion({ placed, noRoom, skipped: [] });
-  assert.match(q, /Upload 10 pictures into slots 1, 4–12\?/);
-  assert.match(q, /Image 1 points at empty slot 1: that still shows the picture put there/);
-  assert.match(q, /No room for 1 more: p11\.png \(no free slot left\)/);
+  const skipped = placeUploads(store, files);
+  assert.deepEqual(skipped.placed.map((p) => p.slot), [4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  assert.deepEqual(skipped.noRoom.map((x) => x.name), ['p10.png', 'p11.png']);
+  assert.match(skipped.noRoom[0].why, /no free slot left that no still points at — 2 assigned slots passed over; tick “Use assigned slots” to fill them/);
+  assert.match(uploadQuestion({ ...skipped, skipped: [] }), /^Upload 9 pictures into slots 4–12\?/);
+
+  const used = placeUploads(store, files, { assigned: true });
+  assert.deepEqual(used.placed.map((p) => p.slot), [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2]);
+  assert.deepEqual(used.noRoom, []);
+  const q = uploadQuestion({ ...used, skipped: [] });
+  assert.match(q, /Upload 11 pictures into slots 1–2, 4–12\?/);
+  assert.match(q, /slot 1 \(p10\.png\) — Image 1 points at it and will show the picture/);
+  assert.match(q, /slot 2 \(p11\.png\) — Image 2 points at it, and Image 2 is on preview: the picture shows there the moment it lands/);
+  assert.match(pointedText([{ name: 'Image 5', bus: 'program' }]), /ON PROGRAM: the picture goes on air the moment it lands/);
 });
 
 test('an upload stops at the library’s room, and asks nothing when everything fits clean', () => {
@@ -457,6 +468,20 @@ test('uploading: each picture into its slot, read only when its turn comes; a sl
   assert.deepEqual(readLibrary(store).slots.filter((s) => !s.free).map((s) => s.slot), [1, 2, 3, 4]);
 });
 
+test('uploading: a slot a still has come to point at since the plan is swapped, unless assigned slots were allowed', async () => {
+  const run = async (assigned) => {
+    const store = libStore();
+    const { session, uploads, fetchImpl } = standIn(store);
+    const { placed } = placeUploads(store, [{ name: 'a.png', size: 1 }], { assigned });
+    store.set(['device', 'stillList', 'items', '4', 'control', 'pp', 'mode'], 'IMAGE');
+    store.set(['device', 'stillList', 'items', '4', 'control', 'pp', 'source'], placed[0].slot);
+    await uploadPictures({ session, fetchImpl, assigned, items: placed.map((p) => ({ slot: p.slot, name: p.file.name, blob: new Blob([png(1)]) })) });
+    return uploads.map(([slot]) => slot);
+  };
+  assert.deepEqual(await run(false), [2]);
+  assert.deepEqual(await run(true), [1]);
+});
+
 test('a capacity: staged, checked, asked about in the switcher’s words, then applied', async () => {
   const store = libStore({ stills: { 3: { label: 'Map' } } });
   const { session, log } = standIn(store);
@@ -576,6 +601,7 @@ test('the Image Library page gets a toolbar; Select puts a tick on each filled c
     const { installLibraryTools } = await import('../plugins/image-library/decorate.js');
     const { header, grid } = libraryPage(doc, [2, 3, 5]);
     const calls = [];
+    let assigned = false;
     const loc = { pathname: '/image-library' };
     const tools = installLibraryTools({
       enabled: () => true, doc, loc,
@@ -583,7 +609,8 @@ test('the Image Library page gets a toolbar; Select puts a tick on each filled c
         filled: () => [2, 3, 5], status: () => ({ busy: false, text: '' }),
         deleteSlots: async (slots, o) => { calls.push(['delete', slots, o.all]); return true; },
         upload: async (files) => { calls.push(['upload', files.map((f) => f.name)]); },
-        stop() {}, capacity: () => null, capacityBusy: () => null, setCapacity: async () => {}
+        stop() {}, capacity: () => null, capacityBusy: () => null, setCapacity: async () => {},
+        assigned: () => assigned, setAssigned: (on) => { assigned = on; }
       }
     });
     tools.sweepNow();
@@ -591,6 +618,11 @@ test('the Image Library page gets a toolbar; Select puts a tick on each filled c
     assert.ok(bar, 'the toolbar is on the end of the page header');
     const buttons = () => bar.querySelectorAll('button').map((b) => b.textContent);
     assert.deepEqual(buttons(), ['Select', 'Delete all', 'Upload .zip']);
+    const tick = bar.querySelector('input[data-lpp-assigned]');
+    assert.ok(tick, 'the “Use assigned slots” tick is on the bar');
+    tick.checked = true;
+    tick.dispatchEvent({ type: 'change', target: tick });
+    assert.equal(assigned, true);
     bar.querySelectorAll('button')[1].click();
     assert.deepEqual(calls[0], ['delete', [2, 3, 5], true]);
 

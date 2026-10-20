@@ -22,9 +22,9 @@
  * each one, and what was done up to there is reported.
  */
 
-import { readLibrary, libraryDeleteWrites, uploadImage, stageCapacities } from '../../src/core/stills.js';
+import { readLibrary, libraryDeleteWrites, uploadImage, stageCapacities, uploadSlots } from '../../src/core/stills.js';
 import { send, until, ECHO_MS } from '../../src/core/wire.js';
-import { planDelete, planCapacity, capacityQuestion, uploadSlots } from './core.js';
+import { planDelete, planCapacity, capacityQuestion } from './core.js';
 
 const isFree = (store, slot) => {
   const s = readLibrary(store).slots.find((x) => x.slot === Number(slot));
@@ -62,12 +62,12 @@ export async function deleteSlots({ session, slots, onStep = () => {}, stopped =
  * comes, so a 200-picture zip is never all in memory twice.
  *
  * A slot that is no longer one `uploadSlots` offers — filled since the plan
- * by another tab or the vendor's own upload, or pointed at by a still that
- * has gone on a bus since — is swapped for one it does offer that nobody in
- * the plan is waiting for. Resolves
+ * by another tab or the vendor's own upload, or (without `assigned`) pointed
+ * at by a still since — is swapped for one it does offer that nobody in the
+ * plan is waiting for. Resolves
  * `{ uploaded: [{ slot, name }], failed: [{ name, why }], stopped }`.
  */
-export async function uploadPictures({ session, items, fetchImpl = fetch, onStep = () => {}, stopped = () => false }) {
+export async function uploadPictures({ session, items, assigned = false, fetchImpl = fetch, onStep = () => {}, stopped = () => false }) {
   const { store } = session;
   const out = { uploaded: [], failed: [], stopped: false };
   const planned = new Set(items.map((i) => i.slot));
@@ -77,7 +77,7 @@ export async function uploadPictures({ session, items, fetchImpl = fetch, onStep
     onStep(done, items.length, item.name);
     planned.delete(item.slot);
     let slot = item.slot;
-    const usable = uploadSlots(store);
+    const usable = uploadSlots(store, { assigned });
     if (!usable.some((s) => s.slot === slot)) {
       const other = usable.find((s) => !planned.has(s.slot));
       if (!other) { out.failed.push({ name: item.name, why: 'no free slot left' }); done++; continue; }

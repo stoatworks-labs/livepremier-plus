@@ -26,7 +26,7 @@
  * takes back exactly what the journal holds.
  */
 
-import { readLibrary, readStills, stillWrites, stillRestoreWrites, libraryDeleteWrites, uploadImage } from '../../src/core/stills.js';
+import { readLibrary, readStills, stillWrites, stillRestoreWrites, libraryDeleteWrites, uploadImage, emptySlots, pointedText } from '../../src/core/stills.js';
 import { sendAndEcho, send, until, ECHO_MS, IMPORT_MS } from '../../src/core/wire.js';
 import { chooseSlot, chooseStill, umdLayerWrites, nativeWrites, templateWrites, before, fileName } from './core.js';
 
@@ -43,16 +43,18 @@ const HEARD = { inbound: true };
  *                             background (experimental: the still as its source, no placing)
  * @param {Blob} o.blob         the PNG
  * @param {object|null} o.placed what this app put there last time
+ * @param {boolean} [o.assignedSlots] may use an empty slot a still points at (`chooseSlot`)
  * @returns {Promise<{ok, journal, placed?, error?}>}
  */
-export async function putOnLayer({ session, dest, letter, layer, blob, placed = null, fetchImpl = fetch, onStep = () => {} }) {
+export async function putOnLayer({ session, dest, letter, layer, blob, placed = null, assignedSlots = false, fetchImpl = fetch, onStep = () => {} }) {
   const { store } = session;
   const journal = { id: dest.id, uploads: [], stills: [], writes: [] };
   const step = (text, state = 'done') => onStep(text, state);
   try {
     const lib = readLibrary(store);
-    const slotChoice = chooseSlot(lib, dest.id, placed);
+    const slotChoice = chooseSlot(lib, dest.id, placed, { empty: emptySlots(store), assigned: assignedSlots });
     if (!slotChoice.slot) throw new Error(slotChoice.reason);
+    if (slotChoice.stills && slotChoice.stills.length) step(`Library slot ${slotChoice.slot} is empty, but ${pointedText(slotChoice.stills)}`, 'note');
     const stillChoice = chooseStill(readStills(store), dest.canvas, placed && placed.slot === slotChoice.slot ? placed : null);
     if (!stillChoice.still) throw new Error(stillChoice.reason);
     const still = stillChoice.still;

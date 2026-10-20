@@ -65,7 +65,7 @@
 import { ROOT } from '../../src/core/paths.js';
 import {
   SET_COUNT, BG, readSets, firstFreeSet, stillsInSets, readLibrary, readStills, CAPACITY_UNITS, CAPACITY_FORMAT, likelyCapability, stillPath, libraryDeletePath, pulse, LABEL_MAX, stillWrites, stillRestoreWrites, libraryDeleteWrites,
-  preStillsNew, preStillsCurrent, stillFormatPath, preStillsTrigger
+  preStillsNew, preStillsCurrent, stillFormatPath, preStillsTrigger, emptySlots, orderSlots, pointedText
 } from '../../src/core/stills.js';
 import { listDestinations } from '../../src/core/screens.js';
 import { screenOutputs } from '../../src/core/pitch.js';
@@ -539,6 +539,12 @@ export function chooseStillFormat(validity, output, need = output.capability) {
  * nothing on the switcher is overwritten. A set on program is refused unless
  * `opts.allowProgram`; a set holding content is listed as overwritten.
  *
+ * An empty library slot a still points at is only chosen with
+ * `opts.assignedSlots`, and after every clean one: the still shows whatever
+ * is uploaded there (`core/stills.js` `emptySlots`), so each one chosen is a
+ * warning naming the stills, and without the option a plan short of slots
+ * says how many it passed over.
+ *
  * `opts.reserve` — `{ slots: Set<number>, stills: Set<string> }` — is what
  * plans made before this one have already taken: a document's pages are
  * planned one after another (`deck.js`), and two pages must never be handed
@@ -552,7 +558,12 @@ export function buildPlan(store, job, opts = {}) {
   if (!image) problems.push(source === 'live' ? 'Set the content size (or choose a picture) first.' : 'Choose a picture first.');
 
   const library = readLibrary(store);
-  const freeSlots = library.slots.filter((s) => s.free).map((s) => s.slot);
+  const assignedSlots = opts.assignedSlots === true;
+  const empty = emptySlots(store);
+  const usable = orderSlots(empty, { assigned: assignedSlots });
+  const freeSlots = usable.map((s) => s.slot);
+  const pointers = new Map(usable.filter((s) => s.stills.length).map((s) => [s.slot, s.stills]));
+  const passedOver = assignedSlots ? 0 : empty.filter((s) => s.stills.length).length;
   const stills = readStills(store);
   const freeStills = stills.filter((s) => s.free);
   const reserve = opts.reserve || {};
@@ -629,7 +640,8 @@ export function buildPlan(store, job, opts = {}) {
       }
       if (source === 'stills') {
         row.librarySlot = pickSlot();
-        if (row.librarySlot == null) problems.push(`${id} ${o.name}: the image library has no free slot.`);
+        if (row.librarySlot == null) problems.push(`${id} ${o.name}: the image library has no free slot${passedOver ? ` that no still points at (${passedOver} assigned passed over — tick “Use empty slots a still points at” to use ${passedOver === 1 ? 'it' : 'them'})` : ''}.`);
+        else if (pointers.has(row.librarySlot)) warnings.push(`${id} ${o.name}: library slot ${row.librarySlot} is empty, but ${pointedText(pointers.get(row.librarySlot))}.`);
         const still = pickStill(o.capability, o.device);
         row.still = still ? still.key : null;
         row.stillCapability = still ? still.capability : null;
@@ -677,6 +689,7 @@ export function buildPlan(store, job, opts = {}) {
     warnings,
     screens,
     capacityChanges: changes,
+    assignedSlots,
     library: { free: freeSlots.length, sizeKB: library.sizeKB, maxKB: library.maxKB }
   };
 }

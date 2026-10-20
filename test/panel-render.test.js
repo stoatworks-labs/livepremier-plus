@@ -649,6 +649,9 @@ test('the Background Slicer renders a job in each mode against the simulator’s
       assert.match(text, source === 'live' ? /IN 1/ : /slot 1/);
       assert.ok(root.querySelectorAll('.lpp-bgs-out').length >= 3, 'every output is drawn on the canvas');
       assert.ok(root.querySelectorAll('input[step]').length >= 4, 'the placement fields take arithmetic');
+      /* Stills only: the choice to fill an empty slot a still points at. */
+      if (source === 'stills') assert.match(text, /Use empty library slots a still points at/);
+      else assert.doesNotMatch(text, /Use empty library slots a still points at/);
       job.mode = 'span';
       renders(`bg-slicer (${source}, span)`, view);
     }

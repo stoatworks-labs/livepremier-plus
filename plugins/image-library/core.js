@@ -25,19 +25,18 @@
 
 import { ROOT } from '../../src/core/paths.js';
 import {
-  BG, readLibrary, readStills, readSets, libraryUsers, capacityChoices, CAPACITY_FORMAT, CAPACITY_UNITS
+  readLibrary, readStills, libraryUsers, capacityChoices, CAPACITY_FORMAT, CAPACITY_UNITS,
+  stillName, stillsOnBus, emptySlots, orderSlots, pointedText
 } from '../../src/core/stills.js';
+
+/* Shared with the Background Slicer and the UMD Generator, and exported
+   from here as they always were. */
+export { stillName, stillsOnBus };
 
 const pp = (node) => (node && typeof node === 'object' && node.pp) || {};
 
 /** Names and paths sort the way a person numbers files: `slide 2` before `slide 10`. */
 export const naturalCompare = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
-
-/** How the vendor's Images page names a still: `Image 3`, and its label when it has one. */
-export function stillName(still) {
-  const label = String((still && still.label) || '').trim();
-  return label ? `Image ${still.key} “${label}”` : `Image ${still.key}`;
-}
 
 /** A list of things in a sentence: `a`, `a and b`, `a, b and c`. */
 export function listed(items) {
@@ -54,34 +53,6 @@ export function sizeText(bytes) {
   if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(1)} MB`;
   if (bytes >= 1e3) return `${Math.round(bytes / 1e3)} kB`;
   return `${bytes} B`;
-}
-
-/* ------------------------------------------------------------- on a bus */
-
-/**
- * The stills on a bus: `Map(key → 'program' | 'preview')`. The still's own
- * tally first, and then any still a background set on program or preview
- * names — the set is what puts it there, whatever the still's tally says.
- */
-export function stillsOnBus(store, stills = readStills(store)) {
-  const out = new Map();
-  for (const s of stills) {
-    if (s.onProgram) out.set(s.key, 'program');
-    else if (s.onPreview) out.set(s.key, 'preview');
-  }
-  const screens = store.get([...BG, 'screenList', 'items']) || {};
-  for (const sid of Object.keys(screens)) {
-    for (const set of readSets(store, sid)) {
-      if (!set.onProgram && !set.onPreview) continue;
-      for (const c of Object.values(set.contents)) {
-        const m = /^STILL_(\d+)$/.exec(c);
-        if (!m) continue;
-        if (set.onProgram) out.set(m[1], 'program');
-        else if (!out.has(m[1])) out.set(m[1], 'preview');
-      }
-    }
-  }
-  return out;
 }
 
 /* --------------------------------------------------------------- delete */
@@ -221,47 +192,30 @@ export function loosePictures(files, { types, maxBytes }) {
 }
 
 /**
- * The empty slots an upload may use, in the order to use them:
- * `[{ slot, stills }]`, `stills` naming any still that points at it.
- *
- * ⚠️ **An empty slot is not always unclaimed.** A still keeps pointing at a
- * slot after its picture is deleted, and a picture uploaded into that slot
- * shows on the still at once — seen on the 6.2.73 simulator, 2026-10-20,
- * when a zip refilled slot 3 and Image 1, emptied by the delete before, took
- * the new picture up. So a slot a still on program or preview points at is
- * never used (that would be a new picture on a bus), and one another still
- * points at is used only after every clean slot, and said in the question.
- */
-export function uploadSlots(store) {
-  const users = libraryUsers(store);
-  const bus = stillsOnBus(store);
-  const clean = [];
-  const claimed = [];
-  for (const s of readLibrary(store).slots) {
-    if (!s.free) continue;
-    const showing = users.get(s.slot) || [];
-    if (showing.some((x) => bus.has(x.key))) continue;
-    (showing.length ? claimed : clean).push({ slot: s.slot, stills: showing.map(stillName) });
-  }
-  const bySlot = (a, b) => a.slot - b.slot;
-  return [...clean.sort(bySlot), ...claimed.sort(bySlot)];
-}
-
-/**
- * Where each picture goes: the slots `uploadSlots` offers, in its order,
- * while there is a slot and the library has room. `files` is
+ * Where each picture goes: the empty slots `orderSlots` offers, in its
+ * order, while there is a slot and the library has room. `files` is
  * `[{ name, size }]` in the order wanted; the answer
  * `{ placed: [{ file, slot, stills }], noRoom: [{ name, why }] }`.
+ *
+ * An empty slot a still points at is only used with `assigned` — the
+ * toolbar's "Use assigned slots" — because the still shows whatever goes
+ * into it (`core/stills.js` `emptySlots`). Without it, running out says how
+ * many such slots were passed over.
  */
-export function placeUploads(store, files) {
+export function placeUploads(store, files, { assigned = false } = {}) {
   const lib = readLibrary(store);
-  const free = uploadSlots(store);
+  const empty = emptySlots(store);
+  const free = orderSlots(empty, { assigned });
+  const passed = assigned ? 0 : empty.filter((e) => e.stills.length).length;
   /* `size` and `maxSize` are kilobytes (`readLibrary`); no budget read is no limit. */
   let room = lib.maxKB ? Math.max(0, (lib.maxKB - lib.sizeKB) * 1024) : Infinity;
   const placed = [];
   const noRoom = [];
   for (const file of files) {
-    if (!free.length) { noRoom.push({ name: file.name, why: 'no free slot left' }); continue; }
+    if (!free.length) {
+      noRoom.push({ name: file.name, why: passed ? `no free slot left that no still points at — ${plural(passed, 'assigned slot')} passed over; tick “Use assigned slots” to fill ${passed === 1 ? 'it' : 'them'}` : 'no free slot left' });
+      continue;
+    }
     if (file.size > room) { noRoom.push({ name: file.name, why: `the library has ${sizeText(room)} left` }); continue; }
     const { slot, stills } = free.shift();
     placed.push({ file, slot, stills });
@@ -282,9 +236,9 @@ export function uploadQuestion({ placed, noRoom, skipped }) {
     ? `Upload ${plural(placed.length, 'picture')} into slots ${slotList(placed.map((p) => p.slot))}?`
     : 'Nothing can be uploaded.'];
   if (pointed.length) {
-    lines.push(`Every other free slot is used first, but ${pointed.map((p) => `${listed(p.stills)} ${p.stills.length === 1 ? 'points' : 'point'} at empty slot ${p.slot}`).join('; ')}: ${pointed.length === 1 ? 'that still shows the picture' : 'those stills show the pictures'} put there.`);
+    lines.push(`Assigned slots, used after every clean one: ${pointed.map((p) => `slot ${p.slot} (${p.file.name}) — ${pointedText(p.stills)}`).join('; ')}.`);
   }
-  if (noRoom.length) lines.push(`No room for ${plural(noRoom.length, 'more')}: ${listed(noRoom.slice(0, 5).map((x) => x.name))}${noRoom.length > 5 ? ' …' : ''} (${noRoom[0].why}).`);
+  if (noRoom.length) lines.push(`No room for ${noRoom.length} more: ${listed(noRoom.slice(0, 5).map((x) => x.name))}${noRoom.length > 5 ? ' …' : ''} (${noRoom[0].why}).`);
   if (skipped.length) lines.push(`Passed over: ${skipped.slice(0, 8).map((x) => `${x.name} — ${x.why}`).join('; ')}${skipped.length > 8 ? ` … and ${skipped.length - 8} more` : ''}.`);
   return lines.join('\n\n');
 }

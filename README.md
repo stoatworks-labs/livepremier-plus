@@ -1895,9 +1895,11 @@ The three pages under Virtual RC400T are no exception; they're held back as *Con
 - **Image Library tools only writes when you press something, and asks first.** It starts off.
   Deleting a library image empties every still showing it, so a delete never takes one a still on
   program or preview is showing (it's asked again just before each slot, in case a take landed
-  meanwhile), and the question names the stills that will go empty. An upload never refills an
-  empty slot a still on a bus points at, because the still would pick the new picture straight
-  up. A capacity is staged and put through the switcher's own check before you're asked, and is
+  meanwhile), and the question names the stills that will go empty. An upload skips an empty
+  slot a still points at, because the still would pick the new picture straight up (on air, if
+  it's on a bus), unless you tick **Use assigned slots**; then those slots come after every clean
+  one and the question names each still. The Background Slicer and the UMD Generator have the
+  same tick, off every time the page loads. A capacity is staged and put through the switcher's own check before you're asked, and is
   refused if it would take a still that holds anything out of service. There's no Undo for a
   delete; the question says so.
 - **The send-to menu respects a padlock it could ignore.** The PGM lock on a screen card is state

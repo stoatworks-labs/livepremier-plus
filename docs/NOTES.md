@@ -2647,9 +2647,8 @@ nobody else's demo or simulator was touched.
 - **Uploading into an empty slot a still points at puts the picture on that still**: slot 3,
   emptied by a delete with Image 1 still pointing at it, was refilled by a zip, and Image 1 showed
   the new 192 × 108 picture. Hence `uploadSlots`: never a slot a still on a bus points at, and one
-  another still points at only after every clean slot. ⚠️ The Background Slicer and the UMD
-  Generator take "the first free library slot" without this check, so either could put a picture
-  on a still that's on air. Not changed here; worth its own look.
+  another still points at only after every clean slot. The Background Slicer and the UMD
+  Generator took "the first free library slot" without this check; fixed the same day, below.
 - **Unexplained, twice:** after a Delete all and then a 13-picture zip, Image 1 (pointing at empty
   slot 3) and Image 3 (empty slot 6) reported their *old* pictures as valid again (AWJ agreed:
   `isValid` true, 192 and 3840 wide). Later, Images 5 and 6 did the same after another zip. I
@@ -2690,3 +2689,27 @@ own drop zone (13 pictures into 1–3, 5, 7–15 in name order, `notes.txt` and 
 
 **Not done:** README section screenshots, the user guide and its PDF, a release. README's feature
 list, Safety and Platforms rows, and AGENTS.md are current.
+
+### Empty slots a still points at, as a choice (2026-10-20, later)
+
+The Background Slicer and the UMD Generator took the first free library slot (the UMD the last),
+so either could have put a picture on a still that was pointing at an empty slot, on air included.
+I'd made that a hard rule in Image Library tools; Allan wanted it to be the operator's call
+("give the user the option to upload to an empty slot that is assigned somewhere if they want to"),
+since refilling a still's own slot is sometimes exactly what's wanted.
+
+Now all three choose through `core/stills.js`: `emptySlots` (each empty slot with the stills that
+point at it, and their bus), `orderSlots` (clean only; with the option, then the pointed ones, those
+on no bus first, program last) and `pointedText` (the sentence). A tick in each place, off at every
+page load: **Use assigned slots** on the Image Library bar, **Use empty library slots a still points
+at** in the slicer's Write options (LivePremier stills only; a Midra's own check already refuses a
+slot a Background Image points at), **Use an empty slot a still points at** beside the UMD's first
+Put. Each pointed slot used is named: in the upload question, as a plan warning, as a step. Without
+the tick, running short says how many were passed over. The UMD keeps reusing its own slot when only
+its own still points at it.
+
+On the private sim: every clean slot filled, leaving 3, 6, 9 and 11 (Images 1, 3, 5, 6 pointing).
+The zip with the tick off uploaded nothing and said why; ticked, it asked, naming all four stills,
+filled the four slots, and Image 1 showed the new 160 × 90 picture. Slicer and UMD by offline tests
+only (their panels render the tick; their plan, preflight and slot choice are tested).
+

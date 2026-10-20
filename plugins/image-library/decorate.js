@@ -102,7 +102,9 @@ const intText = (el) => {
  *   `filled()` the filled slots; `status()` `{ busy, text, tone }`;
  *   `deleteSlots(slots, {all})`, `upload(files)`, `stop()`;
  *   `capacity(key)` the dropdown's view (`core.capacityView`) or null;
- *   `capacityBusy()` the still being changed, or null; `setCapacity(key, to)`
+ *   `capacityBusy()` the still being changed, or null; `setCapacity(key, to)`;
+ *   `assigned()` / `setAssigned(on)`, whether an upload may fill an empty
+ *   slot a still points at
  * @param {Document} [o.doc]
  * @param {{pathname: string}} [o.loc]
  */
@@ -178,8 +180,9 @@ export function installLibraryTools({ enabled, actions, doc = document, loc = (t
         ]
       };
     }
+    const assigned = Boolean(actions.assigned && actions.assigned());
     return {
-      sig: `idle|${filled.length}|${st.text}|${st.tone}`,
+      sig: `idle|${filled.length}|${st.text}|${st.tone}|${assigned}`,
       nodes: [
         status,
         button('Select', { disabled: !filled.length, onClick: () => setSelecting(true), title: 'Pick images to delete: click a card, shift-click for a run' }),
@@ -190,7 +193,13 @@ export function installLibraryTools({ enabled, actions, doc = document, loc = (t
         button('Upload .zip', {
           onClick: () => { const input = bar.querySelector('input[type="file"]'); if (input) input.click(); },
           title: 'A zip of pictures, unpacked here into the free slots in name order. Or drop it on this page.'
-        })
+        }),
+        h('label', {
+          class: 'lpp-libtools-status', style: { display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' },
+          title: 'An empty slot a still points at is skipped unless this is ticked: the still shows whatever goes into it, on air if it is on a bus. Ticked, those slots are used after every clean one, and the question names each still.'
+        },
+        h('input', { type: 'checkbox', 'data-lpp-assigned': '', checked: assigned ? 'checked' : null, onChange: (ev) => actions.setAssigned(Boolean(ev.target.checked)) }),
+        'Use assigned slots')
       ]
     };
   }

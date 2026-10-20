@@ -27,7 +27,7 @@ import { dirname, join } from 'node:path';
 import { DeviceStore } from '../src/core/device-store.js';
 import { listDestinations, anchorToTopLeft } from '../src/core/screens.js';
 import { same } from '../src/core/wire.js';
-import { readLibrary, readStills } from '../src/core/stills.js';
+import { readLibrary, readStills, emptySlots } from '../src/core/stills.js';
 import {
   TEMPLATES, templateRects, templatesFor, templateById, normalise, withDest, withStyle, layerPlan, targetOf, labelsFor,
   readBoxes, layout, borderBands, fingerprint, roughMeasure, placeWrites, cleanWrites, umdLayerWrites, templateWrites,
@@ -364,7 +364,7 @@ test('a template places the box layers, empties the ones it does not use, and le
 test('the picture takes the highest free slot and still, or reuses its own', () => {
   const store = auxStore();
   const lib = readLibrary(store);
-  assert.deepEqual(chooseSlot(lib, 'A1'), { slot: 200, reused: false, wasFree: true });
+  assert.deepEqual(chooseSlot(lib, 'A1'), { slot: 200, reused: false, wasFree: true, stills: [] });
   const stills = readStills(store);
   assert.equal(chooseStill(stills, CANVAS).still.key, '48');
   assert.match(chooseStill(stills, { width: 3840, height: 2160 }).reason, /too small/);
@@ -373,12 +373,38 @@ test('the picture takes the highest free slot and still, or reuses its own', () 
   store.set(['device', 'stillList', 'library', 'bankList', 'items', '199', 'status', 'pp', 'fileName'], fileName('A1'));
   store.set(['device', 'stillList', 'items', '46', 'control', 'pp', 'mode'], 'IMAGE');
   store.set(['device', 'stillList', 'items', '46', 'control', 'pp', 'source'], 199);
-  assert.deepEqual(chooseSlot(readLibrary(store), 'A1', ours), { slot: 199, reused: true, wasFree: false });
+  assert.deepEqual(chooseSlot(readLibrary(store), 'A1', ours), { slot: 199, reused: true, wasFree: false, stills: [] });
   const again = chooseStill(readStills(store), CANVAS, ours);
   assert.equal(again.still.key, '46');
   assert.equal(again.reused, true);
   store.set(['device', 'stillList', 'library', 'bankList', 'items', '199', 'status', 'pp', 'fileName'], 'someone-else.png');
   assert.equal(chooseSlot(readLibrary(store), 'A1', ours).slot, 200, 'a slot somebody refilled is theirs');
+});
+
+test('an empty slot a still points at is only taken when allowed, after every clean one, and says who will show the UMD', () => {
+  const store = auxStore();
+  const set = (n, prop, v) => store.set(['device', 'stillList', 'items', String(n), 'control', 'pp', prop], v);
+  const lib = readLibrary(store);
+  const pick = (placed = null, assigned = false) => chooseSlot(lib, 'A1', placed, { empty: emptySlots(store), assigned });
+  /* Image 46 points at empty slot 200, the one the UMD would take: 199 instead. */
+  set(46, 'mode', 'IMAGE');
+  set(46, 'source', 200);
+  assert.deepEqual(pick(), { slot: 199, reused: false, wasFree: true, stills: [] });
+  /* Both empty slots pointed at: refused without the option, taken with it. */
+  set(48, 'mode', 'IMAGE');
+  set(48, 'source', 199);
+  const none = pick();
+  assert.equal(none.slot, null);
+  assert.match(none.reason, /Every empty library slot has a still pointing at it.*Tick “Use an empty slot a still points at”/);
+  const allowed = pick(null, true);
+  assert.equal(allowed.slot, 199);
+  assert.deepEqual(allowed.stills.map((s) => s.name), ['Image 48']);
+  /* Our own slot, emptied since: ours again if only our still points at it… */
+  assert.deepEqual(pick({ slot: 199, still: 48 }), { slot: 199, reused: false, wasFree: true, stills: [] });
+  /* …and not if another still has come to point at it. */
+  set(46, 'source', 199);
+  assert.equal(pick({ slot: 199, still: 48 }).slot, 200, 'the clean slot instead');
+  assert.deepEqual(pick({ slot: 199, still: 48 }, true).stills.map((s) => s.key), ['46']);
 });
 
 /* ================================================================= apply */
@@ -531,6 +557,7 @@ test('the tab draws A1’s layers, names, look and preview, and a screen’s han
     assert.equal(names[0].getAttribute('placeholder'), 'Camera 1');
     assert.equal(names[3].getAttribute('placeholder'), 'empty — not drawn');
     assert.match(text, /Put on L8 · PRW/);
+    assert.match(text, /Use an empty slot a still points at/, 'the choice is offered beside the first put');
     assert.match(text, /1920×1080, transparent but for 3 boxes/);
     const options = root.querySelectorAll('option').map((o) => o.textContent);
     for (const t of ['7 · Three and four', '5 · Two over three', '3 · Two over one', '1 · Full']) assert.ok(options.includes(t), `${t} is offered`);
