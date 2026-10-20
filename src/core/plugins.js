@@ -211,6 +211,18 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'test-card',
+    name: 'Test Card',
+    where: 'A Test Card tab beside the switcher’s own Pattern tab, on Setup ▸ Outputs ▸ an output and on Preconfig ▸ Canvas (preview)',
+    description: 'Test Card’s patterns — SMPTE and EBU bars, grids, alignment, LED tiles, greyscale, pixel checks, rulers, life-size dinosaurs and a broken wall — drawn for the switcher’s own outputs and canvases and put on a screen’s or an aux’s top layer as a still, over everything, like the built-in patterns. While a card is on it follows: change the pattern, an option or an output’s format and it is drawn again into the same library slot. Off puts back exactly what was there. Never yet run against a real frame.',
+    requires: { capabilities: ['screens', 'imageLibrary'] },
+    /* Off until it has been: it uploads into the image library and writes a
+       still and a destination's top layer, on program if asked. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'aux-follow',
     name: 'Aux follow',
     where: 'A tab on Screens / Aux., behind ⋯ when the strip is full',

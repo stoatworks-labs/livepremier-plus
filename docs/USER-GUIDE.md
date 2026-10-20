@@ -36,6 +36,10 @@ than something bolted on.
 - **UMD Generator** *(preview)*: thin borders and dark name tabs for an aux laid out as a
   multiviewer, drawn as one transparent PNG from where each layer is and what it shows, and put on
   the aux's top layer, with 1, 3, 5 and 7-box layouts to start from. Off until you switch it on.
+- **Test Card** *(preview)*: Test Card's patterns (bars, grids, alignment, LED tiles, rulers,
+  life-size dinosaurs) in a tab beside the switcher's own Pattern tab, on an output and on a
+  canvas, drawn for the switcher's own outputs and put on the top layer as a still. While it's on
+  it follows every change. Off until you switch it on.
 - **Send to:** a `…` on every source card that routes it to a screen and layer, or to a whole
   group, in preview or program, without a drag.
 - **Matrix Routing:** patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
@@ -84,8 +88,8 @@ than something bolted on.
 - **Remote access:** the app served over Tailscale (with a real HTTPS certificate) or ZeroTier,
   without binding it to the venue LAN.
 - **Your setup in one file:** the cue stack, groups, names and locks, variables, pixel maps,
-  surfaces, UMDs and Companion triggers, the routers and the patch to them, HyperDecks, Dante
-  snapshots and settings, saved and restored together.
+  surfaces, UMDs, test cards and Companion triggers, the routers and the patch to them, HyperDecks,
+  Dante snapshots and settings, saved and restored together.
 - **Arithmetic in the vendor's own numeric fields:** type `1080-80` into a layer width and get
   1000.
 - **Variables:** `$S1.width` and friends for what the switcher reports, and `@names` of your own,
@@ -874,6 +878,112 @@ into the setup file under *UMDs*.
 > Proven on LivePremier Simulator 6.2.73 on 2026-10-16: a 7-box layout on an 8-layer aux; the UMD
 > put on its top layer and checked over AWJ; an update after a rename, on program; a screen's UMD
 > handed to the Background Slicer. Not yet run on a real frame.
+
+---
+
+## Test Card (preview)
+
+A **Test Card** tab beside the switcher's own **Pattern** tab, in two places:
+
+- **Setup ▸ Outputs ▸ an output**, after Format, Signal, Adjustments and Pattern: a card for that
+  one output.
+- **Preconfig ▸ Canvas**, after Canvas and Pattern, for whichever screen or aux is picked on the
+  left: a card for the whole canvas.
+
+Switch it on in **Preconfig ▸ LivePremier Plus → Plugins** first. It's off to start with because
+it uploads into the image library and writes a still and a layer, and it hasn't met a real frame
+yet.
+
+![Setup ▸ Outputs ▸ Output 1 on the simulator with the Test Card tab open between the vendor's Pattern tab and Router: the Enable switch, off, and sixteen pattern tiles drawn by Test Card itself, from SMPTE RP 219 (picked) and 75% bars to the volcano and the broken wall, the moving ones marked still](screenshots/test-card-output.png)
+
+The patterns are [Test Card](https://test-card.stoatworks-labs.com)'s, drawn by Test Card's own
+code: SMPTE RP 219 and EBU bars, a grid, alignment, LED tiles, a solid field, greyscale, a pixel
+check, rulers, a banana for scale, life-size dinosaurs, the hamster dance, ocean waves, the
+dinosaur scroll, the volcano and the broken wall. They're drawn for the switcher's own outputs,
+from what the switcher says about them (raster, place on the canvas, slices, turn and pitch), so
+there's nothing to import and nothing to type.
+
+### Why it isn't simply another pattern
+
+Because the switcher can't be given one. Its own patterns are generators with a fixed list (21
+on an output, 15 on a screen, none of them a picture), so a Test Card goes up the only way a
+picture can: as a still on the destination's **top layer**, over everything, which is where the
+switcher's own patterns appear too. The library slot and the still are free ones, taken when you
+switch it on and given back when you switch it off.
+
+What you get instead is the next best thing to drawing it on the switcher: **it follows.** While
+a card is on, pick another pattern, change an option, give an output a new format or a new name,
+or move it on the canvas, and the card is drawn again and uploaded into the same library slot.
+The still picks the new picture up by itself, and nothing else is written. On the simulator that
+takes a second or two.
+
+### Putting a card up
+
+1. **Pick a pattern.** The tiles are the patterns, drawn small. The ones marked *still* move in
+   Test Card itself, and here they're one frame of the loop (a switcher has no player); **Frame
+   at** picks which.
+2. **Set its options.** Each pattern has the handful that matter: a grid's cell size, an LED
+   tile's size, a solid field's colour and level. Every pattern has **Levels** (full or legal),
+   **Name and size** burnt into the corner, and a line of your own. The scale patterns are drawn
+   at real size from a pixel pitch, which the switcher doesn't know; they say *pitch assumed* on
+   the image until you've set it.
+3. **On the Canvas page, pick a layout.** **Per output** gives each output's footprint its own
+   pattern and its name, which is the quickest proof there is that the canvas map is what you
+   think. **Across the canvas** draws one pattern over the lot and outlines each output on top, so
+   seams and overlaps show.
+4. **Enable.** The card goes on the top layer in **preview**, so you can look at it and take it.
+   Tick **On program** first to put it straight on air instead; Enable then asks once more, and
+   the tick is off again the next time the page loads. A card already on program stays there, and
+   every change you make goes to air as you make it, which the tab says.
+
+On the outputs page, each output you switch on joins the others on the same screen: one picture,
+the size of the box round them, with each card in its own output's footprint and nothing
+anywhere else, so the outputs you haven't switched on carry on showing the show. Switching on the
+canvas card replaces the output cards, and the other way round.
+
+**Off** puts back exactly what was there before: the layer's source, position and size, anything
+it had cropped or keyed, the still, and the library slot. That's kept on disk, per switcher, so
+it still works after a reload or from another browser. It only takes back what's still the
+card's, though: if someone has put something else on the layer meanwhile, the card stops
+following and says so, and Off leaves the layer as they made it (and the same goes for a still or
+a library slot somebody has reused).
+
+If something goes wrong half way, the card shows as on, and Off takes back whatever of it landed;
+if Off itself can't put everything back, it says so and stays on, so you can press it again. When
+a screen has something up that the switch on the page you're on doesn't stand for (another
+output's card, say), **Take everything off** is there for it.
+
+**Download PNG** gives you the card as a file, and on the Canvas page **To the Background
+Slicer…** hands it over as a picture, if you'd rather have it as a background set under the
+layers, cut per output.
+
+### What to check
+
+- **The top layer has to be big enough.** A layer's capacity is judged the way a still's is, by
+  area: DUAL up to 1920 × 1200, 4K up to 4096 × 2160, 5K up to 5120 × 2880. A canvas card on a
+  wide canvas needs a big layer, and the tab says so before you try. Output cards are smaller,
+  one footprint each.
+- **A turned output** gets its card drawn upright on the canvas, and the switcher turns it into
+  the raster as it turns everything else.
+- **A pitched output** (a ratio other than 1.000) has a footprint that isn't its raster, so the
+  switcher resamples the card on the way out. The tab names the outputs that aren't pixel for
+  pixel.
+- **The image library's size counter** never dropped a replaced file on the simulator. A card
+  that's followed a lot of changes may be using more of the library than the slot count says.
+
+The pattern, its options, which cards are on and what Off puts back are kept per switcher by this
+app and go into the setup file under *Test cards*.
+
+> **LivePremier** only. On a Midra 4K or Alta 4K the tab says so, and Test Card itself gives you
+> the PNGs.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-20, every write on the switcher's own echo:
+> a card on one output and then on two of the same screen, a canvas card per output and across
+> the canvas, each on the top layer in preview; one on S2's program; a change of pattern, and a
+> rename on the switcher, each a re-upload into the same slot that the still followed with
+> nothing else written; and Off putting the layer, the still and the library slot back. The
+> simulator draws no pictures, so nothing here has been seen on an output. Not yet run on a
+> real frame.
 
 ---
 
@@ -1820,9 +1930,11 @@ touched.
 ## Switching features off
 
 **Preconfig ▸ LivePremier Plus → Plugins** lists every feature this app adds, each with a switch.
-Everything is on until you switch it off, except seven that start off: **Preview lock**,
-**Surfaces**, and the **UMD Generator**, **Dante**, **Thumbnail relay**, **Multiviewer thumbnails**
-and **Background Slicer** previews.
+Everything is on until you switch it off, except the ones that haven't met a real frame yet,
+which start off: **Preview lock**, **Image Library tools**, **Surfaces**, **Aux follow**, **AoI
+from a custom format**, **Aux backgrounds**, **Transitions**, **Experimental features**, and the
+**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **Thumbnail
+relay**, **Multiviewer thumbnails** and **Background Slicer** previews.
 
 ![Preconfig ▸ LivePremier Plus → Plugins: every feature with its switch, what it does and where it lives](screenshots/plugins.png)
 

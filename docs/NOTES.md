@@ -2969,3 +2969,93 @@ How far it's proven:
 
 Unchanged: the slot is still asked about once per connect. Nothing asks again when the
 transport's `slot id` changes, which was true before too.
+
+## Test Card on the outputs and Canvas pages (2026-10-20, simulator only)
+
+Allan asked for the Test Card pattern generator inside this app, "integrated into the outputs and
+preconfig - canvas pages in new tabs alongside the built in test patterns", with stills on the
+switcher if that's what it takes, and rendering on the fly if it can be done.
+
+**It can't be drawn by the switcher.** Read off the 6.2.73 bundle (`webapp-bundle/dist/client`,
+`nlc-platform` 6.2.1), the patterns are enums of generators: `OPATTERN_TYPE` on an output
+(NO_PATTERN, COLOR, the greyscales and colour bars, GRID_16_16, GRID_32_32, GRID_CUSTOM, SMPTE,
+the bursts and gradients, CROSSHATCH, CHECKERBOARD, MOVING, ID, SOFTEDGE, STEREOSCOPY),
+`SCREEN_PATTERN_TYPE` on a screen (NONE, GEOMETRIC, … THIRTY_BPP_1/2) and `IPATTERN_TYPE` on an
+input. Their parameters are sizes, colours and thicknesses. None takes a picture. So a Test Card
+goes up as a still on the top layer, through the UMD Generator's path (now `core/still-layer.js`).
+
+**What "on the fly" became.** Two things measured on a private copy of the 6.2.73 Cmax session
+(ports 3040 and 10646, `~/dev/sim-copies/testcard-6.2.73`, the AGENTS.md recipe):
+
+- an upload into a library slot that already holds a file is `FINISH` and changes its `hashName`
+  (slot 1: `d064c258…` → `23c77de4…`), as the UMD Generator found on 2026-10-16;
+- a still showing that slot reloads by itself: still 1's `status/pp/newSnaphot` went 4 → 5 when
+  its slot was replaced, with nothing written to the still. The simulator's still snapshot is a
+  256×256 black square either way, so the picture itself was not seen.
+
+So a card that is on follows: every couple of seconds the page compares a fingerprint of the
+settings and the switcher's output geometry with the one it last drew, and if they differ draws
+again and uploads into the same slot.
+
+**Run through the app against that copy, every write on the switcher's echo:**
+
+- Out 1 (Setup ▸ Outputs ▸ Output 1 ▸ Test Card ▸ Enable): `testcard-S1.png` 1920×1080 into slot
+  200, still 48 `IMAGE` / source 200 / `NO_RESCALE` / label `Test card S1`, S1 preview (B) L2
+  `STILL_48` at 960,540 1920×1080 (its MIDDLE_CENTER anchor), opacity 256. Program (A) untouched.
+- A pattern pick (SMPTE → Grid): one upload, slot 200's hash changed, still 48 `newSnaphot` 5 → 6,
+  the still not written; the layer writes went again with their unchanged values, which the
+  switcher doesn't echo and the send doesn't wait for.
+- Off: L2 back to `NONE` at the same place, still 48 back to `NONE` / `SCALE_TO_CAPABILITY` /
+  source 1, slot 200 emptied, the document's entry gone.
+- Preconfig ▸ Canvas ▸ S1 ▸ Test Card, *Across the canvas*, Enable; then Out 1 renamed `LEFT` on
+  the switcher: within the follower's two seconds a redraw and an upload (hash changed), nothing
+  else written. Renamed back, Off.
+- S2 with **On program** ticked: L1 of A (program) `STILL_48`, B untouched; Off put it back.
+- Out 3 on, then Out 1 on the same screen: one picture, outputs `['1', '3']`, the journal still
+  holding the values from before the first write; Out 1 off, Out 3 off, everything back.
+- The Router tab and the Test Card tab on the same strip close each other, and a vendor tab closes
+  both (Router used to close only for routed anchors, so it stayed open under ours).
+
+This session's two outputs on S1 both sit at 0,0 1920×1080 (the vendor shows its "outputs overlap
+too much" warning), so the bounding box of two different footprints was not seen on the
+simulator; it, a turned output and a pitched one are covered by `test/test-card.test.js` only.
+
+Found on the way:
+
+- **The library's size counter** never dropped a replaced file on the simulator (found by the
+  still-sequence frame-test kit in `~/dev/aquilon-field-test/still-sequence`, 2026-10-20: eight
+  replaces left 168 KB with every slot empty). A card that follows many changes may use more of
+  the library than its one slot suggests; check on a frame.
+- **Thumbnails can't be the real raster.** Test Card's pixel check at 1 px is one `fillRect` per
+  cell, about a million at 1080p; the tiles draw a small raster of their own.
+- **The Canvas page's pane is a Semantic `segment`** holding a panel, where an output page's pane
+  is the panel; the tab's host needs a panel inside, and a `min-height: 0` scroller, or it grows
+  past the page.
+
+**An independent review before landing found eight bugs**, each fixed and held by
+`test/test-card-client.test.js` (the page half against a stand-in switcher) or
+`test/test-card.test.js`:
+
+1. A failed Off saved the card as off with its journal, so it couldn't be retried, and a click
+   on the switch then redrew it onto program unasked. Now a failed Off stays on; a put that fails
+   half way shows as on too; **Take everything off** covers what no switch stands for.
+2. Off judged a still ours only by the placed slot: after a put tried twice it left the first
+   try's still pointing at an emptied slot, and with no placement it dropped every still. Now any
+   slot the journal filled counts, and a still half put back by a failed Off counts too.
+3. Settings edits saved the page's own copy of the document unread, and saves weren't awaited,
+   so one page could wipe another's journal. Now one queue, read first, saves awaited.
+4. The fight limit counted the operator's own edits, and "change anything to start again"
+   didn't reset it.
+5. React keeps an output page's tab strip from one output to the next, and the tab kept the
+   first output's key, so it closed itself on the second.
+6. A top-layer change re-put the card in the buffer the page's tick said, not the one it was in.
+7. The journal reached disk only after the whole put; now before each group of writes.
+8. The buffer was resolved before the render and upload; a take landing in between sent a
+   preview card to program. Now it is resolved again at the layer write.
+
+The restructured page half was run again on the simulator afterwards: Enable, a pattern change
+followed (one upload), Off, and program asking first and writing nothing until confirmed.
+
+Not done: a frame (hardware is ask-first), 6.1.60, a Midra (the tab says LivePremier only),
+screenshots of a real output. The engine is synced from test-card main; `npm run sync:test-card`
+again when Test Card's painters change, and `test/vendor.test.js` fails when they have.

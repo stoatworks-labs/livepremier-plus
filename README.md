@@ -87,6 +87,13 @@ bolted on afterwards:
   layer actually is and what it's showing. It goes on an aux's top layer through a still, or to the
   Background Slicer for a screen's background, and there are 1, 3, 5 and 7-box layouts to start an
   aux from.
+- **Test Card** *(preview, off by default)*: a Test Card tab beside the switcher's own Pattern
+  tab, on an output's page and on Preconfig ▸ Canvas. [Test Card](https://test-card.stoatworks-labs.com)'s
+  patterns (RP 219 bars, grids, alignment, LED tiles, rulers, a broken wall, life-size dinosaurs)
+  drawn for the switcher's own outputs from what the switcher says about them, and put on the top
+  layer as a still, over everything, like the built-in ones. While it's on it follows: change the
+  pattern, an option, an output's format, and it's drawn again into the same library slot. Off
+  puts back exactly what was there.
 - **Aux follow** (off until you switch it on): give an aux's layer a screen layer to follow and it
   takes whatever source that layer has, however it got there: the vendor's drag, a memory, a
   take, the front panel, Companion. In *Program* the aux's program cuts to match when the screen's
@@ -1639,6 +1646,47 @@ source's name. It's one PNG at the canvas's size, transparent everywhere else.
 > for writing. Not yet run on a real frame, so whether a frame keys the still's transparency over
 > the layers under it is the first thing to look at.
 
+## Test Card — preview
+
+A **Test Card** tab beside the switcher's own **Pattern** tab: on **Setup ▸ Outputs ▸ an output**
+for that output's card, and on **Preconfig ▸ Canvas** for the whole canvas of the screen or aux
+picked on the left. Off until you switch it on in Preconfig ▸ LivePremier Plus → Plugins, because
+it uploads into the image library and writes a still and a layer.
+
+![Setup ▸ Outputs ▸ Output 1 on the simulator with the Test Card tab open between the vendor's Pattern tab and Router: the Enable switch, off, and sixteen pattern tiles drawn by Test Card itself, from SMPTE RP 219 (picked) and 75% bars to the volcano and the broken wall, the moving ones marked still](docs/screenshots/test-card-output.png)
+
+The patterns are [Test Card](https://github.com/stoatworks-labs/test-card)'s own, drawn by its own
+code (vendored, below), so the RP 219 bars are the ones held to ffmpeg's to the code value there,
+not a second opinion of what 75 % yellow is. They're drawn for the outputs the switcher has, from
+what it says about them: raster, place on the canvas, slices, turn and pitch. Nothing to import.
+
+- **Why a still and not a pattern:** the switcher's own patterns are a fixed list of generators
+  (21 on an output, 15 on a screen in 6.2.73), none of them a picture. So a card is a still on the
+  destination's **top layer**, through the same path the UMD Generator uses, which puts it over
+  everything as the built-in patterns are. **Enable** takes a free library slot and a free still
+  and points the top layer at it, in preview, or straight to program if you've ticked **On
+  program** (it asks first; the tick is off at every page load).
+- **It follows.** While a card is on, a new pattern, a changed option, an output with a new
+  format or name, an output moved on the canvas: the card is drawn again and uploaded into the
+  same slot, and the still picks it up by itself. That's as close to drawing on the fly as a
+  switcher allows.
+- **On an output's page** each output you switch on joins the others of its screen in one picture,
+  the box round them, transparent elsewhere, so the rest of the screen carries on showing the
+  show. **On the Canvas page** it's the whole canvas: *Per output* gives each footprint its own
+  pattern and name, *Across the canvas* draws one pattern over the lot with every output
+  outlined.
+- **Off** puts back what the layer, the still and the slot held before, from a journal kept on
+  disk per switcher, and only what's still the card's: a layer somebody has reused since is left
+  as they made it.
+- **Download PNG** for the file, and **To the Background Slicer…** on the Canvas page to have it as
+  a background set under the layers instead.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-20, every write on the switcher's echo: cards
+> on one and then two outputs of a screen, a canvas card per output and across, one on program, a
+> pattern change and a rename on the switcher each one upload the still followed, and Off putting
+> everything back. The simulator draws no pictures, so nothing has been seen on an output, and a
+> rotated or pitched output is tested offline only. LivePremier only; not yet run on a real frame.
+
 ## Gallery
 
 The panels from the list above that don't have a section of their own, and the windows that pop
@@ -1748,8 +1796,9 @@ src/
     cuestack.js    the cue engine: GO, follow chains, delays, fade times
     session.js     snapshot + stream, folded into a store
     stills.js      the image library, stills, capacities and uploads (Background Slicer, UMD, Image Library tools)
+    still-layer.js a picture on a layer through a still, and taken off again (UMD, Test Card)
     zip.js         zips both ways: the Background Slicer's downloads, Image Library tools' uploads
-    backgrounds.js outputs as places on a canvas, and background-set writes (Background Slicer, Resolume Mapping)
+    backgrounds.js outputs as places on a canvas, and background-set writes (Background Slicer, Resolume Mapping, Test Card)
     wire.js        send a write and wait for the switcher's own echo
     plugins.js     every feature as a plugin: what it is, and whether it is on
     contributions.js  how plugins extend each other: contribution points, services
@@ -1759,10 +1808,10 @@ src/
     plugin-host.js loads each plugin's page half into the sidebar and tabs
     canvas-overlay.js  where Pixel Map and Surfaces draw on a screen card
   hook/          the WebSocket hook, inlined into the document by the proxy
-  vendor/        the seven vendored engines (below), never edited by hand
+  vendor/        the eight vendored engines (below), never edited by hand
 plugins/         every feature, one folder each - a server half, a page half,
   console/       or both: console, timeline, matrix-routing, companion, edit,
-  …              memories, layer, layer-groups, umd, surfaces and the rest
+  …              memories, layer, layer-groups, umd, test-card, surfaces and the rest
 devices/         the device host: USB and HID panels, its own package
 examples/plugins/hello-switcher/   the template for a plugin of your own
 tools/           the demo, the panel bench, the sync scripts, stand-in devices
@@ -1775,7 +1824,7 @@ is what the test suite does. (`stills.js` uploads with `fetch`, which Node has t
 panels are one front end over it. A standalone client talking AWJ over TCP 10606 is meant to be
 another, and only needs a second `transports/` module.
 
-## Seven things are vendored, not reimplemented
+## Eight things are vendored, not reimplemented
 
 | in `src/vendor/` | from | what it is |
 | --- | --- | --- |
@@ -1786,6 +1835,7 @@ another, and only needs a second `transports/` module.
 | `pitch-engine.js` | aquilon-pitch | the pitch-compensation arithmetic |
 | `otter-edid-embed.js` | otter-edid-editor | the EDID editor and encoder, React included |
 | `output-map/` | output-map | the Resolume Arena Advanced Output writer, bundled from its TypeScript |
+| `test-card/` | test-card | the test pattern engine, bundled from its TypeScript |
 
 Each one is copied rather than re-derived, for one reason: two implementations of one grammar,
 one device model or one decode table will disagree sooner or later, and both will look right.
@@ -1857,6 +1907,7 @@ device's store rather than by the model name:
 | Image Library tools | yes | no — a Midra keeps its library under `stillLibrary`, takes no slot on an upload and has no still capacities |
 | Surfaces | yes | not yet — the shaper reads LivePremier's layer paths, and a Midra's Screens page lays the cards out differently |
 | UMD Generator | yes | the PNG only — Download works; putting it on the switcher reads LivePremier's library and stills |
+| Test Card | yes | no — it hangs off LivePremier's output and Canvas pages and puts its cards on through LivePremier's stills |
 | Aux follow | yes | no — the layer paths it reads are LivePremier's, and the dialect has no aux layers there |
 | AoI from a custom format | yes | no — a Midra crops its outputs another way, and the section hangs off LivePremier's Canvas page |
 | Resolume Mapping | yes | no — it reads LivePremier's outputs, slices and background sets; a Midra keeps its sets on the screen, one picture per screen |
@@ -1922,8 +1973,9 @@ The three pages under Virtual RC400T are no exception; they're held back as *Con
   holds a TAKE or CUT sent from this page for at most 750 ms while it lines a locked layer up,
   then lets it go whatever happened. Surfaces rewrites the vendor's own geometry writes for a
   bound layer so they arrive inside its surface, and can add a write but never drops one.
-- **The UMD Generator and the Background Slicer write to the image library, and say so first.**
-  Both start off. Before anything goes they say which library slots, stills and layers or
+- **The UMD Generator, Test Card and the Background Slicer write to the image library, and say so
+  first.** All three start off. Test Card says on its tab which layer, slot and still Enable takes,
+  asks again before program, and its Off only takes back what's still its own. Before anything goes they say which library slots, stills and layers or
   background sets they'll take; each write waits for the switcher's echo, and **Undo** puts back
   what was there. **Pixel Map writes nothing at all**: the switcher never learns the map is there.
 - **Resolume Mapping writes nothing unless you ask it to fill a background set.** It starts off,

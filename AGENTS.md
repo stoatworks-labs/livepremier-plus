@@ -1401,6 +1401,130 @@ is a column of its own after the vendor's, not inside it: 6.1.60's page is
 an info box until a screen is in service. Whether a frame draws an aux
 background is the open question both stand on (`docs/NOTES.md`).
 
+Since 2026-10-20 the put-a-picture-on-a-layer half — `layerPath`,
+`placeWrites`, `cleanWrites`, `before`, `chooseStill`, `chooseSlot`, the put
+and the revert — is `core/still-layer.js`'s, because Test Card does the same
+thing; `plugins/umd/core.js` and `apply.js` wrap it and export what they
+always exported. `chooseSlot` there takes the file name (UMD passes
+`fileName(id)`) and a `what` for its refusal; both choices take a `skip`.
+
+### Test Card (`plugins/test-card/`, `core/still-layer.js`, `core/backgrounds.js`, `vendor/test-card/`) — **preview**
+
+Test Card's patterns (stoatworks-labs/test-card, vendored as its own engine)
+drawn for the switcher's own outputs and canvases, in a **Test Card** tab
+beside the vendor's Pattern tab on Setup ▸ Outputs ▸ an output and on
+Preconfig ▸ Canvas. Off by default: it uploads into the library and writes a
+still and a destination's top layer, on program if asked.
+
+- **There is no pattern the switcher can be given.** Its generators are fixed
+  enums — `OPATTERN_TYPE` (21 on an output), `SCREEN_PATTERN_TYPE` (15 on a
+  screen), `IPATTERN_TYPE` on an input — read off the 6.2.73 bundle, and none
+  is an image. So a card is a still on the destination's **top layer**,
+  through `core/still-layer.js`, exactly as the UMD Generator's aux UMD is.
+  "On the fly" is what the follower does with that: while a card is on,
+  `sync()` (every couple of seconds off the mirror's frames) compares a
+  `fingerprint` of the settings and the topology with the placed one and, if
+  it differs, draws again and uploads into the **same** slot. Replacing a
+  slot's file reloads a still showing it (`newSnaphot` stepped 4→5 on the
+  simulator, 2026-10-20, with nothing written to the still), so a redraw is
+  one upload and an unchanged layer write.
+- **Everything is drawn in canvas orientation.** `cardOutput` turns a 90/270
+  output's raster (`widthPx × heightPx` swapped) and places it at its
+  footprint; the switcher turns the layer into the raster as it turns any
+  layer. A pitch ratio ≠ 1 makes a footprint that is not the raster: drawn at
+  the raster and scaled into the footprint (`render.drawPlan`, smoothing off)
+  and resampled again by the switcher on the way out, which the panel says
+  (`plan.inexact`). An output card picture is the bounding box of the outputs
+  that have their card on, transparent elsewhere, so other outputs carry on
+  showing the show — one layer per destination, whatever the count.
+- **A layer's capacity is judged by area**, like a still's (`likelyCapability`):
+  `layerFor` refuses before anything is written. Whether a frame refuses a
+  bigger picture on a smaller layer, or scales it, is not known.
+- **The journal is on disk before the writes are.** Each destination's
+  `journal` (per switcher, `test-card-<dev>.json`) holds what the layer,
+  still and slot held before the **first** write; `mergeJournal` adds only new
+  paths after that, so a redraw's "before" (our own last value) never
+  replaces the original. `putStillOnLayer`'s `persist` saves it before each
+  group of writes goes out, and the wanted `mode` is saved before any: a put
+  that fails half way (or a page closed during one) shows as **on**, with Off
+  there to take back what landed; an Off that does not all go back stays on,
+  journal and all, so Off can be pressed again. **Take everything off** is
+  there whenever a destination has something up that the page's switch does
+  not stand for — another output's card, a card whose output has moved, a
+  failed put.
+- **Off reverts only what is still ours** (`trimJournal`), judged on what the
+  switcher holds now: a layer's writes while it shows any still the journal
+  took (or the placed one); a still while each of its fields is what this app
+  wrote or the journal's "before" — which covers one a failed Off half put
+  back — and a still already wholly back is skipped; a slot while it holds
+  `testcard-<id>.png`. A layer somebody has reused is left as they made it,
+  and the follower stops for a destination whose layer no longer shows the
+  card. A journal can outlive what it describes — the setup file carries it
+  under *Test cards* — which is why the trim is not optional. The first
+  version judged a still by the *placed* slot only, and after a put tried
+  twice left the first try's still pointing at an emptied slot.
+- **One queue, the document read first, saves awaited.** Each page holds its
+  own copy of the document; acting on stale copies, two pages would redraw
+  each other's card for ever, or a settings save from one would wipe the
+  other's journal. So every action, every settings edit and every follower
+  pass runs in one `serial` queue, `load()`s first and awaits its own save. A
+  destination the follower redraws more than six times in a minute without
+  anyone asking here is let go (`FIGHT`), as the display lock lets a fought
+  layout go; any edit or click here resets the count.
+- **Program asks once more, and the buffer is read at the layer write.**
+  Enable writes preview unless **On program** is ticked (page state, off at
+  every load), and then asks before writing, as UMD's Put on does. For a new
+  card the buffer is resolved by role again just before the layer write
+  (`letter` may be a function in `putStillOnLayer`), so a take that lands
+  during the upload does not turn preview into program under it. A card
+  already up stays in the buffer it went into — program after a take — even
+  when the top layer changes, and its redraws go to air as they land.
+- **The tabs** (`decorate.js`) copy Matrix Routing's Router tab: cloned off a
+  vendor tab, the vendor pane hidden not removed, the selected look lifted off
+  whichever vendor tab carries it. The outputs strip is routed anchors under
+  `/outputs/<n>/`; the Canvas page's is a pane switch with no hrefs, and the
+  destination is the `aw-preconfig-card--reference` card's `S1`/`A1`. On the
+  Canvas page the pane is a Semantic `segment` with a panel inside, so the
+  host carries a panel of its own (`data-lpp-testcard-inner`), and the body is
+  `display: contents` with a `min-height: 0` scroller, or it grows past the
+  page instead of scrolling. A click on any other tab in the strip closes
+  ours, and Router's now closes the same way (it used to close only for
+  routed anchors, so it stayed open under ours). React keeps the strip — and
+  our cloned tab — from one output's page to the next, so the tab reads the
+  page at click time, never from when it was cloned.
+- **The output model is `core/backgrounds.js`'s** (moved out of the
+  Background Slicer the same day for Resolume Mapping). Test Card adds
+  `readCanvases` and `canvasTopology` there, the same as `readScreens` and
+  `screenTopology` for screens **and** auxes, because an aux has outputs on a
+  canvas too (`usedInScreenAux` names either); the slicer's own readers are
+  unchanged.
+- **The engine is a bundle, never edited.** `tools/sync-test-card.mjs`
+  bundles test-card's `src/engine.ts` with test-card's own rolldown; the
+  commit must be on test-card's `origin/main` (public repo). `vendor.test.js`
+  checks the bundle against the MANIFEST and the sources in git at that
+  commit and against `origin/main`, so a stale working tree beside this repo
+  is not drift. In a worktree, point `LPP_TEST_CARD_REPO` at test-card's.
+- **Thumbnails are not the real raster.** A 1-pixel checkerboard at 1080p is a
+  million `fillRect`s; a tile draws a small raster of its own
+  (`render.thumbnail`). The preview is the real drawing through a scaled
+  context, cached by fingerprint.
+
+`test/test-card-client.test.js` drives the page half end to end over
+`umd.test.js`'s stand-in switcher: a refused layer write, a refused still
+restore and its retry, a take during the upload, two pages on one document.
+An independent review before landing found the eight bugs those tests now
+hold (docs/NOTES.md).
+
+Proven on the 6.2.73 simulator through the app (2026-10-20, a private copy on
+ports 3040/10646), every write on the switcher's echo: Out 3 then Out 1 of S1
+on together, off one at a time; S1's canvas card per output and across; S2's
+on program; a pattern change and a rename on the switcher each one upload
+into slot 200 that still 48 followed; Off putting L2, still 48 and slot 200
+back. Its outputs overlap at 0,0, so the bounding box of two different
+footprints, a rotated output and a pitched one are tested offline only. The
+simulator draws no pictures; nothing has been seen on an output. Not on
+6.1.60, not on a frame, not on Midra (the tab says LivePremier only).
+
 ### Image Library tools (`plugins/image-library/`, `core/stills.js`, `core/zip.js`) — off until tested on a frame
 
 Controls put into two vendor pages: on **Image Library**, a toolbar at the end
