@@ -120,8 +120,8 @@ export async function applyMngPlan({ session, plan, images = new Map(), options 
     if (plan.source === 'stills') {
       for (const s of plan.screens) {
         const row = s.outputs[0];
-        const img = images.get(`${s.id}/${row.key}`);
-        if (!img) throw new Error(`no image was generated for ${s.id}`);
+        const img = images.get(`${s.entry || s.id}/${row.key}`);
+        if (!img) throw new Error(`no image was generated for ${s.entry || s.id}`);
         /* Checked again at the moment it matters: an upload goes wherever the
            first empty slot is now, and shows on every frame pointing there. */
         const [expect] = nextSlots(readLibrary(store), 1);
@@ -143,8 +143,10 @@ export async function applyMngPlan({ session, plan, images = new Map(), options 
           throw new Error(`library slot ${up.slot} holds ${up.entry.width} × ${up.entry.height}, not ${row.raster.width} × ${row.raster.height}`);
         }
         step(`${img.name} is in library slot ${up.slot}, ${up.entry.width} × ${up.entry.height}`);
+        /* An image for the library alone (a document's pages at a size). */
+        if (row.frame == null) continue;
 
-        const label = (options.label || `${s.id} background`).slice(0, 16);
+        const label = (s.setLabel || options.label || `${s.id} background`).slice(0, 16);
         await write(frameWrites(store, s.id, row.frame, up.slot, label), `${s.id} Background Image ${row.frame} did not take library slot ${up.slot}`);
         const W = row.raster.width;
         const H = row.raster.height;
@@ -180,7 +182,7 @@ export async function applyMngPlan({ session, plan, images = new Map(), options 
 
     if (options.loadPreview) {
       for (const s of plan.screens) {
-        if (!s.assign) continue;
+        if (!s.assign || s.preview === false) continue;
         if (!s.display.ok) { step(`${s.id}: not loaded — ${s.display.why}`, 'note'); continue; }
         const banks = MNG.buffers(store, s.id);
         if (!banks.reported || !banks.settled) { step(`${s.id}: not loaded — a take is under way`, 'note'); continue; }
@@ -221,14 +223,15 @@ function preflight(store, plan, options, images) {
     }
     if (plan.source !== 'stills') continue;
     const row = s.outputs[0];
+    const img = images.get(`${s.entry || s.id}/${row.key}`);
+    if (img && img.blob && img.blob.size > library.limits.maxBytes) {
+      throw new Error(`${img.name} is ${Math.round(img.blob.size / 1048576)} MB; the library takes ${Math.round(library.limits.maxBytes / 1048576)} MB a file`);
+    }
+    if (row.frame == null) continue;
     const frame = readFrames(store, s.id, sets).find((f) => f.index === row.frame);
     if (!frame) throw new Error(`${s.id} has no Background Image ${row.frame}`);
     if (s.frame && s.frame.free && !frame.free) throw new Error(`${s.id} Background Image ${row.frame} is no longer free — plan again`);
     if (frame.onAir && !options.allowProgram) throw new Error(`${s.id} Background Image ${row.frame} is in a set on program`);
-    const img = images.get(`${s.id}/${row.key}`);
-    if (img && img.blob && img.blob.size > library.limits.maxBytes) {
-      throw new Error(`${img.name} is ${Math.round(img.blob.size / 1048576)} MB; the library takes ${Math.round(library.limits.maxBytes / 1048576)} MB a file`);
-    }
   }
   if (plan.source === 'stills') {
     const want = plan.screens.map((s) => s.outputs[0].librarySlot);

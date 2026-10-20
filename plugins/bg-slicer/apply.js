@@ -132,6 +132,12 @@ export async function applyCapacities({ session, changes, log, reserved = new Se
  * load each set into its screen's preview, `edids` to load the plugs' EDIDs
  * (live only), `allowProgram` for a set already on program.
  *
+ * A document's plan (`deck.js`) is the same shape with a screen once per
+ * page: each entry carries `entry` (its images are `<entry>/<out>`), its own
+ * `setLabel`, each output its `stillLabel` (and `rescale`), and `preview:
+ * false` on every page but the first. A still-less output (`still: null`)
+ * is an image for the library and nothing else.
+ *
  * Resolves `{ ok, journal, error? }`; `onStep(text, state)` hears progress.
  */
 export async function applyPlan({ session, plan, images = new Map(), options = {}, fetchImpl = fetch, onStep = () => {} }) {
@@ -158,24 +164,26 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
       }
       for (const s of plan.screens) {
         for (const o of s.outputs) {
-          const img = images.get(`${s.id}/${o.key}`);
-          if (!img) throw new Error(`no image was generated for ${s.id} ${o.name}`);
+          const img = images.get(`${s.entry || s.id}/${o.key}`);
+          if (!img) throw new Error(`no image was generated for ${s.entry || s.id} ${o.name}`);
           step(`Uploading ${img.name} → library slot ${o.librarySlot}`, 'running');
           await uploadImage({ session, fetchImpl, blob: img.blob, name: img.name, slot: o.librarySlot });
           journal.uploads.push(o.librarySlot);
           step(`${img.name} is in library slot ${o.librarySlot}`);
 
-          const label = (options.label || `${s.id} ${o.name}`).slice(0, 16);
+          if (!o.still) continue;
+          const label = (o.stillLabel || options.label || `${s.id} ${o.name}`).slice(0, 16);
+          const rescale = o.rescale || 'NO_RESCALE';
           /* Journalled before the echo: a write asked for and not confirmed
              may still have landed, and putting back what was there is
              harmless if it did not. */
           journal.stills.push({ still: o.still, before: o.stillBefore });
           /* `source` is often the slot already (every still on the simulator
              holds 1): unechoed, so not waited for — `wire.changedPaths`. */
-          if (!(await sendAndEcho(session, stillWrites(o.still, o.librarySlot, label), HEARD))) {
+          if (!(await sendAndEcho(session, stillWrites(o.still, o.librarySlot, label, rescale), HEARD))) {
             throw new Error(`still ${o.still} did not take library slot ${o.librarySlot} — the switcher did not echo it`);
           }
-          step(`Still ${o.still} shows slot ${o.librarySlot}, no rescale`);
+          step(`Still ${o.still} shows slot ${o.librarySlot}, ${rescale === 'NO_RESCALE' ? 'no rescale' : 'downscaled to its capacity'}`);
         }
       }
     } else if (options.edids) {
@@ -199,8 +207,9 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
         if (!(await sendAndEcho(session, writes, HEARD))) throw new Error(`${s.id} set ${s.setIndex} did not take ${o.content} on ${o.name} — the switcher did not echo it`);
         step(`${s.id} background set ${s.setIndex}: ${o.name} ← ${o.content}`);
       }
-      if (options.label) {
-        const w = setLabelWrite(s.id, s.setIndex, options.label);
+      const setLabel = s.setLabel != null ? s.setLabel : options.label;
+      if (setLabel) {
+        const w = setLabelWrite(s.id, s.setIndex, setLabel);
         journal.labels.push({ screen: s.id, set: s.setIndex, before: before.label });
         if (!(await sendAndEcho(session, [w], HEARD))) throw new Error(`${s.id} set ${s.setIndex} did not take the name “${w.value}” — the switcher did not echo it`);
         step(`${s.id} background set ${s.setIndex} named “${w.value}”`);
@@ -209,7 +218,7 @@ export async function applyPlan({ session, plan, images = new Map(), options = {
 
     if (options.loadPreview) {
       for (const s of plan.screens) {
-        if (!s.assign) continue;
+        if (!s.assign || s.preview === false) continue;
         const n = nativeLayer(store, s.id);
         if (!n.fitted) { step(`${s.id}: not loaded — its NATIVE layer is not allocated (Preconfig ▸ Resources), so no background set can show`, 'note'); continue; }
         const banks = presetBanks(store, s.id);
@@ -246,6 +255,7 @@ function preflight(store, plan, options) {
       if (plan.source !== 'stills') continue;
       const slot = lib.slots.find((x) => x.slot === o.librarySlot);
       if (!slot || !slot.free) throw new Error(`library slot ${o.librarySlot} is no longer free — plan again`);
+      if (!o.still) continue;
       const still = stills.find((x) => x.key === o.still);
       if (!still || !still.free) throw new Error(`still ${o.still} is no longer free — plan again`);
     }

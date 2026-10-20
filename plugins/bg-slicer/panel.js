@@ -21,6 +21,15 @@
  *   7. **Media server** — the live mode's map, as the files each media server
  *      can import and a universal pack for the rest.
  *
+ * **A document** — a PDF, or a PowerPoint or OpenDocument deck the server
+ * turns into one — opens in step 1 as a strip of pages to choose from, and
+ * makes one of two things (`deck.js`): **a background set per page**, the
+ * pages placed on the screens like a picture and each drawn at its
+ * placement's own size, so the cut is a copy and text stays sharp; or
+ * **stills at a size**, each page drawn at a width and height typed in, into
+ * the library (and free stills) or a zip. The steps are the same; only the
+ * plan has a row per page.
+ *
  * Immediate-mode like every panel here; the picture and what was generated
  * live in the shared job (`job.js`), not in the DOM, so a repaint loses
  * nothing and the popped-out window shows the same job. A drag holds repaints
@@ -45,9 +54,13 @@ import { panel } from '../../src/ui/shell.js';
 import { firstFreeSet, presetPlacement, spanLayout, placementFor, suggestInputs, sendingFormatOf, LABEL_MAX } from './core.js';
 import { modelFor } from './model.js';
 import { readFrames, TYPE_WORDS } from './mng.js';
-import { reconcile } from './job.js';
+import { reconcile, newDeck } from './job.js';
 import { applyPlan, revert } from './apply.js';
 import { decodePicture, renderOutput, renderTemplate, download } from './render.js';
+import {
+  documentKind, pagePixels, parsePages, formatPages, placedFit, pageStem, pageNumber, buildDeckPlan, buildSizePlan, deckPlanKey, sizeChoices, FITS, DOC_ACCEPT
+} from './deck.js';
+import { openDocument, closeDocument, drawPage, pageThumb, toPng, release } from './document.js';
 import { zipStore } from './zip.js';
 import { packFiles, templateList, templateShapes, TARGETS } from './exports.js';
 
@@ -84,6 +97,13 @@ const CSS = `
 .lpp-bgs-tag--bad { background: rgba(246,71,71,0.12); color: #F64747; }
 .lpp-bgs-targets { display: grid; grid-template-columns: max-content 1fr; gap: 0.333333rem 1rem; font-size: 0.916667rem; }
 .lpp-bgs-preview { color: #F39910; }
+.lpp-bgs-pages { display: flex; flex-wrap: wrap; gap: 0.5rem; max-height: 24rem; overflow-y: auto; }
+.lpp-bgs-page { all: unset; box-sizing: border-box; width: 8rem; cursor: pointer; display: flex; flex-direction: column; gap: 0.166667rem; align-items: center; padding: 0.25rem; border: 0.166667rem solid transparent; border-radius: 0.25rem; opacity: 0.45; font-size: 0.833333rem; color: #838B91; }
+.lpp-bgs-page img, .lpp-bgs-page-blank { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
+.lpp-bgs-page--on { opacity: 1; color: #fff; }
+.lpp-bgs-page--current { border-color: #F39910; }
+.lpp-bgs-thumbs--small .lpp-bgs-thumb { width: 8rem; }
+.lpp-bgs-busy { color: #2185D0; }
 `;
 
 const KIND_TAG = { import: ['imports', 'good'], partial: ['partly imports', 'warn'], manual: ['by hand', ''] };
@@ -139,6 +159,17 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
     if (!job) return panel({ toolbar, body: h('div', { class: 'wru-empty', text: 'The Background Slicer is not running in the Web RCS tab.' }) });
     if (!store || !store.ready) return panel({ toolbar, body: h('div', { class: 'wru-empty', text: 'Waiting for the device store…' }) });
     m = modelFor(store);
+    const deck = job.source === 'stills' ? job.deck : null;
+
+    /* Stills at a size: no screens and no placement — the size is the operator's. */
+    if (deck && deck.make === 'size') {
+      const plan = buildSizePlan(store, job);
+      const key = deckPlanKey(plan, { fit: deck.fit, size: deck.size });
+      if (job.generated && job.generated.key !== key) job.stale();
+      return panel({ toolbar, body: h('div', { class: 'aw-flex-col aw-gap-row-large' },
+        pictureSection(), sizeSection(store, deck), sizePlanSection(plan), generateSection(plan, key, '4'), writeSection(store, plan, key, '5'), notesSection()) });
+    }
+
     const screens = reconcile(job, store);
     if (!screens.length) {
       return panel({ toolbar, body: h('div', { class: 'wru-empty', text: 'No screen with a canvas is in service on this switcher — or it is not one with background sets (a LivePremier, Midra 4K or Alta 4K).' }) });
@@ -149,18 +180,21 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
     const topo = new Map(chosen.map((s) => [s.id, m.screenTopology(store, s.id)]));
     if (job.source === 'live') prepareLive(store, topo);
     const planJob = { ...job, image: size };
-    const plan = m.buildPlan(store, planJob, { allowProgram: job.options.allowProgram });
-    const key = planKey(plan);
+    /* A background set per page: one plan with a screen entry per page. */
+    const plan = deck
+      ? buildDeckPlan(m, store, job, { allowProgram: job.options.allowProgram })
+      : m.buildPlan(store, planJob, { allowProgram: job.options.allowProgram });
+    const key = deck ? deckPlanKey(plan) : planKey(plan);
     if (job.generated && job.generated.key !== key) job.stale();
 
     const body = h('div', { class: 'aw-flex-col aw-gap-row-large' },
       pictureSection(),
       screensSection(screens),
       chosen.length && size ? placementSection(chosen, topo, size) : null,
-      chosen.length ? (plan.platform === 'mng' ? planSectionMng(store, plan) : planSection(store, plan)) : null,
+      chosen.length ? (deck ? deckPlanSection(store, plan) : plan.platform === 'mng' ? planSectionMng(store, plan) : planSection(store, plan)) : null,
       chosen.length && job.source === 'stills' ? generateSection(plan, key) : null,
       chosen.length ? writeSection(store, plan, key) : null,
-      chosen.length && size ? exportSection(plan, size) : null,
+      chosen.length && size && !deck ? exportSection(plan, size) : null,
       notesSection());
     return panel({ toolbar, body });
   }
@@ -173,7 +207,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
 
   function pictureSection() {
     const input = h('input', {
-      type: 'file', accept: 'image/png,image/jpeg,image/gif,image/tiff,image/bmp,image/webp',
+      type: 'file', accept: `image/png,image/jpeg,image/gif,image/tiff,image/bmp,image/webp,application/pdf,${DOC_ACCEPT}`,
       onChange: (ev) => { const f = ev.target.files && ev.target.files[0]; if (f) loadPicture(f); }
     });
     const drop = h('div', {
@@ -186,13 +220,14 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
         const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
         if (f) loadPicture(f); else onRefresh();
       }
-    }, 'Drop a picture here, or ', input);
+    }, 'Drop a picture, a PDF or a PowerPoint deck here, or ', input);
     const p = job.picture;
     const live = job.source === 'live';
     return h('div', { class: 'aw-flex-col aw-gap-row-small' },
       h('div', { class: 'aw-font-subtitle-2', text: live ? '1 · Content' : '1 · Picture' }),
       drop,
-      p ? h('div', { class: 'lpp-bgs-row' },
+      job.busy ? h('div', { class: 'aw-font-caption lpp-bgs-busy', text: job.busy }) : null,
+      job.deck ? deckSection(job.deck) : p ? h('div', { class: 'lpp-bgs-row' },
         h('span', { class: 'aw-font-body-1-bold', text: p.name }),
         h('span', { class: 'aw-text-tertiary', text: `${p.width} × ${p.height} px` }),
         button('Forget it', { variant: 'ghost', onClick: () => { try { URL.revokeObjectURL(p.url); } catch { /* fine */ } job.picture = null; changed({ stale: true }); } }))
@@ -208,7 +243,9 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
   }
 
   async function loadPicture(file) {
+    if (documentKind(file)) return loadDocument(file);
     job.note = null;
+    forgetDeck();
     try {
       const { bitmap, width, height } = await decodePicture(file);
       if (job.picture) { try { URL.revokeObjectURL(job.picture.url); } catch { /* fine */ } }
@@ -219,6 +256,243 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       job.note = `That file could not be read as a picture: ${err.message}`;
     }
     changed({ stale: true });
+  }
+
+  /* ------------------------------------------------------------ document */
+
+  function forgetDeck() {
+    const d = job.deck;
+    if (!d) return;
+    job.deck = null;
+    closeDocument(d.doc);
+    for (const url of [...d.thumbs.values(), d.preview].filter(Boolean)) { try { URL.revokeObjectURL(url); } catch { /* fine */ } }
+  }
+
+  /**
+   * Open a PDF, or have the server turn a deck into one, and stand its pages
+   * in for the picture: the first page's size at 96 dpi is what is placed.
+   */
+  async function loadDocument(file) {
+    job.note = null;
+    job.busy = documentKind(file) === 'deck' ? `Sending ${file.name} to be turned into a PDF…` : `Opening ${file.name}…`;
+    job.changed();
+    try {
+      const doc = await openDocument(file, { convertUrl: job.convertUrl, onStage: (t) => { job.busy = t; job.changed(); } });
+      if (!doc.pages.length) throw new Error('it has no pages');
+      if (job.picture && job.picture.url && !job.picture.deck) { try { URL.revokeObjectURL(job.picture.url); } catch { /* fine */ } }
+      forgetDeck();
+      const deck = newDeck(doc);
+      const store = session.store;
+      const first = (store && store.ready ? m.readScreens(store) : [])[0];
+      deck.size = first ? { width: first.canvas.width, height: first.canvas.height } : { width: 1920, height: 1080 };
+      const nominal = pagePixels(doc.pages[0]);
+      job.deck = deck;
+      job.picture = { name: file.name, width: nominal.width, height: nominal.height, url: '', bitmap: null, deck: true };
+      job.place = {};
+      job.span.rect = null;
+      if (doc.engine) {
+        const hidden = doc.numbers ? Math.max(...doc.numbers) - doc.numbers.length : 0;
+        job.note = `Turned into a PDF by ${doc.engine === 'powerpoint' ? 'PowerPoint' : 'LibreOffice'}: ${doc.pages.length} page${doc.pages.length === 1 ? '' : 's'}.`
+          + (hidden ? ` ${hidden} hidden slide${hidden === 1 ? ' is' : 's are'} left out, as the export leaves ${hidden === 1 ? 'it' : 'them'}; each page goes by its slide number.` : '')
+          + (doc.numbers ? '' : ' Hidden slides, if any, are left out by the export, so pages go by their place in the PDF.');
+      }
+      thumbnails(deck);
+    } catch (err) {
+      job.note = `That file could not be opened: ${err.message}`;
+    }
+    job.busy = null;
+    changed({ stale: true });
+  }
+
+  /** Every page's thumbnail, in the background, a few at a time onto the strip. */
+  async function thumbnails(deck) {
+    const n = deck.doc.pages.length;
+    preview(deck, deck.current);
+    for (let i = 0; i < n; i++) {
+      if (job.deck !== deck) return;
+      try { deck.thumbs.set(i, (await pageThumb(deck.doc, i)).url); } catch { /* left blank */ }
+      if (i === deck.current && job.picture && job.picture.deck && !deck.preview) job.picture.url = deck.thumbs.get(i) || '';
+      if (i % 6 === 5 || i === n - 1) job.changed();
+    }
+  }
+
+  /*
+   * The page shown under the placement: drawn at 1280 wide rather than the
+   * strip's thumbnail stretched, so it can be placed by what is on it. Only
+   * a picture to place by — the images are drawn again at their own size.
+   */
+  async function preview(deck, i) {
+    try {
+      const p = await pageThumb(deck.doc, i, 1280);
+      if (job.deck !== deck || deck.current !== i) { URL.revokeObjectURL(p.url); return; }
+      if (deck.preview) URL.revokeObjectURL(deck.preview);
+      deck.preview = p.url;
+      if (job.picture && job.picture.deck) job.picture.url = p.url;
+      job.changed();
+    } catch { /* the thumbnail stands in */ }
+  }
+
+  function showPage(deck, i) {
+    if (deck.current === i) return;
+    deck.current = i;
+    if (job.picture && job.picture.deck) job.picture.url = deck.thumbs.get(i) || '';
+    if (deck.preview) { URL.revokeObjectURL(deck.preview); deck.preview = null; }
+    preview(deck, i);
+  }
+
+  function deckSection(deck) {
+    const n = deck.doc.pages.length;
+    const setPages = (list) => { deck.chosen = [...new Set(list)].sort((a, b) => a - b); changed({ stale: true }); };
+    const strip = h('div', { class: 'lpp-bgs-pages' }, deck.doc.pages.map((pg, i) => {
+      const on = deck.chosen.includes(i);
+      const thumb = deck.thumbs.get(i);
+      return h('button', {
+        type: 'button',
+        class: ['lpp-bgs-page', on ? 'lpp-bgs-page--on' : '', i === deck.current ? 'lpp-bgs-page--current' : ''],
+        title: `${pageName(deck, i)} · ${Math.round(pg.width)} × ${Math.round(pg.height)} pt — ${on ? 'click to leave it out' : 'click to take it'}`,
+        'data-lpp-key': `bgs-page-${i + 1}`,
+        onClick: () => { showPage(deck, i); setPages(on ? deck.chosen.filter((x) => x !== i) : [...deck.chosen, i]); }
+      }, thumb ? h('img', { src: thumb, alt: '' }) : h('div', { class: 'lpp-bgs-page-blank' }), h('span', { text: `${pageNumber(deck, i)}` }));
+    }));
+    const nominal = pagePixels(deck.doc.pages[0]);
+    return h('div', { class: 'aw-flex-col aw-gap-row-small' },
+      h('div', { class: 'lpp-bgs-row' },
+        h('span', { class: 'aw-font-body-1-bold', text: deck.name }),
+        h('span', { class: 'aw-text-tertiary', text: `${n} page${n === 1 ? '' : 's'} · ${nominal.width} × ${nominal.height} px at 96 dpi${deck.engine ? ` · converted by ${deck.engine === 'powerpoint' ? 'PowerPoint' : 'LibreOffice'}` : ''}` }),
+        button('Forget it', { variant: 'ghost', onClick: () => { forgetDeck(); job.picture = null; job.note = null; changed({ stale: true }); } })),
+      strip,
+      h('div', { class: 'lpp-bgs-fields' },
+        h('span', { class: 'aw-text-tertiary', text: deck.numbers ? 'Slides' : 'Pages' }),
+        h('input', {
+          type: 'text', class: 'wru-input', style: { width: '14rem' }, value: deck.chosen.length === n ? 'all' : formatPages(deck.chosen, deck.numbers), 'data-lpp-key': 'bgs-pages',
+          title: `${deck.numbers ? 'Slides' : 'Pages'} to take: 1-3, 5, 8- … or all`, placeholder: 'all',
+          onChange: (ev) => {
+            const r = parsePages(ev.target.value, n, deck.numbers);
+            if (r.error) { job.note = `Pages: ${r.error}.`; job.changed(); return; }
+            job.note = null;
+            setPages(r.pages);
+          }
+        }),
+        button('All', { variant: 'ghost', onClick: () => setPages(deck.doc.pages.map((_, i) => i)) }),
+        button('None', { variant: 'ghost', onClick: () => setPages([]) }),
+        h('span', { class: 'aw-text-tertiary', text: `${deck.chosen.length} chosen` })),
+      job.source === 'stills' ? h('div', { class: 'lpp-bgs-row' },
+        h('span', { class: 'aw-text-tertiary', text: 'Make:' }),
+        chip('A background set per page', deck.make === 'sets', () => { deck.make = 'sets'; changed({ stale: true }); },
+          'Each page placed on the screens and drawn at exactly that size, cut per output, into a background set of its own'),
+        chip('Stills at a size', deck.make === 'size', () => { deck.make = 'size'; changed({ stale: true }); },
+          'Each page drawn at a width and height you choose, into the image library (and free stills) or a zip'))
+        : null);
+  }
+
+  /** Stills at a size: the size, how a page goes into it, and where the images go. */
+  function sizeSection(store, deck) {
+    const choices = sizeChoices(m, store, deck.doc.pages[deck.current]);
+    const size = deck.size || { width: 1920, height: 1080 };
+    const pick = h('select', {
+      class: 'wru-select', 'data-lpp-key': 'bgs-size-pick',
+      onChange: (ev) => { const c = choices[Number(ev.target.value)]; if (c) { deck.size = { width: c.width, height: c.height }; changed({ stale: true }); } }
+    }, h('option', { value: '', text: 'A size of…' }),
+    choices.map((c, i) => h('option', { value: String(i), selected: c.width === size.width && c.height === size.height ? 'selected' : null, text: `${c.width} × ${c.height} — ${c.why.join(', ')}` })));
+    const mng = m.PLATFORM === 'mng';
+    return h('div', { class: 'aw-flex-col aw-gap-row-small lpp-bgs-section' },
+      h('div', { class: 'aw-font-subtitle-2', text: '2 · Size' }),
+      h('div', { class: 'lpp-bgs-fields' },
+        numField('size-w', size.width, (n) => { deck.size = { ...size, width: n }; changed({ stale: true }); }, 'Width of every still, in pixels'),
+        h('span', { text: '×' }),
+        numField('size-h', size.height, (n) => { deck.size = { ...size, height: n }; changed({ stale: true }); }, 'Height of every still, in pixels'),
+        h('span', { class: 'aw-text-tertiary', text: 'px' }),
+        pick),
+      h('div', { class: 'lpp-bgs-row' },
+        h('span', { class: 'aw-text-tertiary', text: 'Each page:' }),
+        FITS.map((f) => chip({ fit: 'Fit', fill: 'Fill', stretch: 'Stretch' }[f], deck.fit === f, () => { deck.fit = f; changed({ stale: true }); },
+          { fit: 'The whole page, with the background colour where it does not reach', fill: 'The whole image, losing what overhangs', stretch: 'Page to image, whatever the shapes' }[f])),
+        h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini', title: 'Round a page that does not fill the image' },
+          h('span', { class: 'aw-text-tertiary', text: 'Background' }),
+          h('input', { type: 'color', value: job.options.fill, onChange: (ev) => { job.options.fill = ev.target.value; changed({ stale: true }); } }))),
+      checkbox('Put them into the image library', deck.library !== false, (v) => { deck.library = v; changed({ stale: true }); },
+        mng ? 'The switcher puts each in its first empty slot' : 'Free slots only'),
+      deck.library !== false && !mng ? checkbox('And a free still each', deck.stills === true, (v) => { deck.stills = v; changed({ stale: true }); },
+        'So a layer can show it: STILL_n, named after the page') : null);
+  }
+
+  /** The plan for stills at a size: a row per page. */
+  function sizePlanSection(plan) {
+    const deck = job.deck;
+    const rows = plan.screens.map((s) => {
+      const o = s.outputs[0];
+      return h('tr', {},
+        h('td', {}, pageCell(deck, s.page)),
+        h('td', { text: `${o.raster.width} × ${o.raster.height}` }),
+        h('td', { text: o.librarySlot != null ? `slot ${o.librarySlot}` : (deck.library === false ? 'download only' : '—') }),
+        h('td', {}, o.still ? `IMG ${o.still}` : '—',
+          o.still ? h('div', { class: o.rescale === 'NO_RESCALE' ? 'aw-text-tertiary' : 'wru-warn', text: `${o.stillCapability || ''}${o.rescale === 'NO_RESCALE' ? ' · no rescale' : ' · downscaled to capacity'}` }) : null),
+        h('td', { text: o.stillLabel }));
+    });
+    return h('div', { class: 'aw-flex-col aw-gap-row-medium lpp-bgs-section' },
+      h('div', { class: 'aw-font-subtitle-2', text: '3 · Plan — nothing is written yet' }),
+      h('div', { class: 'aw-font-caption aw-text-tertiary', text: plan.platform === 'mng'
+        ? `The switcher puts each upload into its first empty library slot — ${plan.library.free} empty.`
+        : `Only free library slots and free stills are used — ${plan.library.free} slots free.` }),
+      plan.screens.length ? h('table', { class: 'wru-table' },
+        h('thead', {}, h('tr', {}, ['Page', 'Image', 'Library', 'Still', 'Name'].map((t) => h('th', { text: t })))),
+        h('tbody', {}, rows)) : null,
+      plan.problems.length ? h('ul', { class: 'wru-warnings lpp-bgs-problems' }, plan.problems.map((p) => h('li', { text: p }))) : null,
+      plan.warnings.length ? h('ul', { class: 'wru-warnings' }, plan.warnings.map((p) => h('li', { class: 'wru-warn', text: p }))) : null);
+  }
+
+  function pageCell(deck, page) {
+    const t = deck && deck.thumbs.get(page);
+    return h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
+      t ? h('img', { src: t, alt: '', style: { width: '4rem', height: 'auto', background: '#000' } }) : null,
+      h('span', { class: 'aw-font-body-1-bold', text: pageName(deck, page) }));
+  }
+
+  /** `Slide 4` when the deck said which slide a page is, else `Page 3`. */
+  const pageName = (deck, page) => (deck && deck.numbers ? `Slide ${pageNumber(deck, page)}` : `Page ${page + 1}`);
+
+  /** The plan for a background set per page: a row per page, a column per screen. */
+  function deckPlanSection(store, plan) {
+    const deck = job.deck;
+    const mng = plan.platform === 'mng';
+    const ids = job.screens.filter((id) => plan.screens.some((s) => s.id === id) || m.readSets(store, id).length);
+    const firstSet = ids.map((id) => {
+      const sets = m.readSets(store, id);
+      const first = (plan.screens.find((s) => s.id === id && s.assign) || {}).setIndex;
+      return h('label', { class: 'lpp-bgs-fields' },
+        h('span', { class: 'aw-text-tertiary', text: `${id}: first set` }),
+        h('select', {
+          class: 'wru-select', 'data-lpp-key': `bgs-first-set-${id}`,
+          onChange: (ev) => { deck.startSet = { ...deck.startSet, [id]: Number(ev.target.value) || null }; changed(); }
+        }, h('option', { value: '', text: 'the first free run' }),
+        sets.map((x) => h('option', { value: String(x.index), selected: deck.startSet[id] === x.index ? 'selected' : null,
+          text: `Set ${x.index}${x.label ? ` “${x.label}”` : ''}${x.onProgram ? ' · ON PROGRAM' : x.onPreview ? ' · on preview' : ''}${x.empty ? ' · free' : ' · holds something'}` }))),
+        first ? h('span', { class: 'aw-text-tertiary', text: `now set ${first}` }) : null);
+    });
+    const assign = job.options.assignSet !== false;
+    const rows = plan.pages.map((page) => h('tr', {},
+      h('td', {}, pageCell(deck, page)),
+      ids.map((id) => {
+        const s = plan.screens.find((x) => x.page === page && x.id === id);
+        if (!s) return h('td', { class: 'aw-text-tertiary', text: '—' });
+        return h('td', {},
+          s.assign ? h('div', { class: 'aw-font-body-1-bold', text: `Set ${s.setIndex}${s.set && !s.set.empty ? ' (holds something)' : ''}` }) : null,
+          s.outputs.map((o) => h('div', { class: o.capacityChange ? 'wru-warn' : 'aw-text-tertiary', text: mng
+            ? `BKG${o.frame ?? '—'} · slot ${o.librarySlot ?? '—'} · ${o.raster.width}×${o.raster.height}`
+            : `${o.name}: slot ${o.librarySlot ?? '—'} → IMG ${o.still ?? '—'}${o.capacityChange ? ` (${o.capacityChange.from} → ${o.capacityChange.to})` : ''}` })),
+          s.outputs.some((o) => o.covered) ? cutTags(s.outputs[0]) : null);
+      })));
+    return h('div', { class: 'aw-flex-col aw-gap-row-medium lpp-bgs-section' },
+      h('div', { class: 'aw-font-subtitle-2', text: '4 · Plan — nothing is written yet' }),
+      h('div', { class: 'aw-font-caption aw-text-tertiary', text: `Each page is drawn at the size it is placed — ${plan.units.map((u) => `${u.key} ${u.image.width} × ${u.image.height}`).join(', ')} — and cut per output: a copy, nothing resampled after drawing. `
+        + (mng ? 'A Midra or Alta has four Background Images a screen, so four pages at most.' : 'A LivePremier has eight background sets a screen, so eight pages at most; each output of each page takes a free still.') }),
+      assign ? h('div', { class: 'lpp-bgs-row' }, firstSet) : null,
+      plan.pages.length ? h('table', { class: 'wru-table' },
+        h('thead', {}, h('tr', {}, h('th', { text: 'Page' }), ids.map((id) => h('th', { text: id })))),
+        h('tbody', {}, rows)) : null,
+      plan.problems.length ? h('ul', { class: 'wru-warnings lpp-bgs-problems' }, plan.problems.map((p) => h('li', { text: p }))) : null,
+      plan.warnings.length ? h('details', {}, h('summary', { class: 'wru-warn', text: `${plan.warnings.length} note${plan.warnings.length === 1 ? '' : 's'}` }),
+        h('ul', { class: 'wru-warnings' }, plan.warnings.map((p) => h('li', { class: 'wru-warn', text: p })))) : null);
   }
 
   /* -------------------------------------------------------------- screens */
@@ -304,7 +578,8 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       inner.append(h('div', { class: 'lpp-bgs-screen', style: at(s), title: `${s.id} canvas ${s.w} × ${s.h}` },
         h('span', { class: 'lpp-bgs-screen-tag', text: `${s.id} · ${s.w}×${s.h}` })));
     }
-    const pic = job.picture
+    /* A document's page shows once its thumbnail is drawn; a box stands in till then. */
+    const pic = job.picture && job.picture.url
       ? h('img', { class: 'lpp-bgs-pic', src: job.picture.url, alt: '', draggable: 'false', style: at(picture) })
       : h('div', { class: 'lpp-bgs-pic lpp-bgs-pic--box', style: at(picture) });
     pic.setAttribute('data-lpp-drag', id);
@@ -551,6 +826,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
   function cutTags(o) {
     const tags = [];
     if (!o.covered) tags.push(tag('plain', '', 'The picture does not reach this output'));
+    else if (o.exact && job.deck) tags.push(tag('drawn to size', 'good', 'The page is drawn at exactly the size it is placed, from the document itself, and the cut is a copy of that drawing — nothing is resampled after it is drawn'));
     else if (o.exact) tags.push(tag('pixel copy', 'good', 'Whole pixels, nothing scaled: the image is a copy of the picture’s pixels'));
     else tags.push(tag('resampled', 'warn', 'Scaled (Fit, a stretch, a pitch ratio or a fractional placement): the image is resampled, not copied'));
     for (const a of o.assumptions) tags.push(tag(a, 'warn', m.NOTES[a] ? m.NOTES[a].text : a));
@@ -561,30 +837,93 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
 
   /* -------------------------------------------------------------- generate */
 
-  function generateSection(plan, key) {
+  function generateSection(plan, key, n = '5') {
     const g = job.generated;
-    const count = plan.screens.reduce((n, s) => n + s.outputs.length, 0);
+    const count = plan.screens.reduce((k, s) => k + s.outputs.length, 0);
+    const sized = plan.kind === 'size';
     const thumbs = g ? [...g.images.values()].map((img) => h('div', { class: 'lpp-bgs-thumb' },
       h('img', { src: img.url, alt: img.name }),
       h('span', { text: img.name }),
       h('span', { text: `${img.width} × ${img.height} · ${kb(img.blob.size)}` }))) : [];
     return h('div', { class: 'aw-flex-col aw-gap-row-small lpp-bgs-section' },
-      h('div', { class: 'aw-font-subtitle-2', text: '5 · Generate' }),
+      h('div', { class: 'aw-font-subtitle-2', text: `${n} · Generate` }),
       h('div', { class: 'lpp-bgs-row' },
-        button(g ? 'Generate again' : `Generate ${count} image${count === 1 ? '' : 's'}`, {
-          variant: g ? 'default' : 'go', disabled: !job.picture || !count || job.running,
-          title: job.picture ? 'Cut one PNG per output, in this page' : 'Choose a picture first',
+        button(g ? 'Generate again' : sized ? `Draw ${count} page${count === 1 ? '' : 's'}` : `Generate ${count} image${count === 1 ? '' : 's'}`, {
+          variant: g ? 'default' : 'go', disabled: !job.picture || !count || job.running || !!job.busy,
+          title: !job.picture ? 'Choose a picture first' : job.deck ? 'Draw each page at its size, in this page' : 'Cut one PNG per output, in this page',
           onClick: () => generate(plan, key)
         }),
         g ? button('Download images (.zip)', { onClick: () => downloadImages() }) : null,
-        h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini', title: 'What an output shows where the picture does not reach' },
+        sized ? null : h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini', title: 'What an output shows where the picture does not reach' },
           h('span', { class: 'aw-text-tertiary', text: 'Background' }),
           h('input', { type: 'color', value: job.options.fill, onChange: (ev) => { job.options.fill = ev.target.value; changed({ stale: true }); } }))),
-      thumbs.length ? h('div', { class: 'lpp-bgs-thumbs' }, thumbs) : null);
+      job.running && job.busy ? h('div', { class: 'aw-font-caption lpp-bgs-busy', text: job.busy }) : null,
+      thumbs.length ? h('div', { class: ['lpp-bgs-thumbs', job.deck ? 'lpp-bgs-thumbs--small' : ''] }, thumbs) : null);
+  }
+
+  /**
+   * A document's images: each page drawn at its size — once per placement
+   * unit, then cut per output as any picture is — or, for stills at a size,
+   * each page drawn at that size and nothing more.
+   */
+  async function generateDeck(plan, key) {
+    const deck = job.deck;
+    const images = new Map();
+    const fill = job.options.fill;
+    if (plan.kind === 'size') {
+      for (const [i, s] of plan.screens.entries()) {
+        const { width, height } = s.render;
+        job.busy = `Drawing page ${s.page + 1} at ${width} × ${height} (${i + 1} of ${plan.screens.length})…`;
+        job.changed();
+        const c = await drawPage(deck.doc, s.page, width, height, { fit: deck.fit, background: fill });
+        const blob = await toPng(c);
+        release(c);
+        images.set(`${s.entry}/${s.outputs[0].key}`, { blob, url: URL.createObjectURL(blob), name: `${pageStem(deck.name, pageNumber(deck, s.page), !!deck.numbers)}_${width}x${height}.png`, width, height, page: s.page });
+      }
+      return images;
+    }
+    const units = new Map();
+    for (const s of plan.screens) {
+      if (!units.has(s.unit)) units.set(s.unit, []);
+      units.get(s.unit).push(s);
+    }
+    let done = 0;
+    for (const entries of units.values()) {
+      const { page, render: size } = entries[0];
+      job.busy = `Drawing page ${page + 1} at ${size.width} × ${size.height} (${++done} of ${units.size})…`;
+      job.changed();
+      const c = await drawPage(deck.doc, page, size.width, size.height, { fit: placedFit(deck.doc.pages[page], size), background: fill });
+      try {
+        for (const s of entries) {
+          for (const o of s.outputs) {
+            const blob = await renderOutput({ source: c, blits: o.blits, width: o.raster.width, height: o.raster.height, fill });
+            images.set(`${s.entry}/${o.key}`, { blob, url: URL.createObjectURL(blob), name: m.imageName(s.id, o, pageStem(deck.name, pageNumber(deck, page), !!deck.numbers)), width: o.raster.width, height: o.raster.height, page });
+          }
+        }
+      } finally {
+        release(c);
+      }
+    }
+    return images;
   }
 
   async function generate(plan, key) {
     if (!job.picture) return;
+    if (job.deck && job.source === 'stills') {
+      job.stale();
+      job.running = true;
+      job.note = null;
+      job.changed();
+      try {
+        job.generated = { key, images: await generateDeck(plan, key) };
+      } catch (err) {
+        job.note = `Could not draw the pages: ${err.message}`;
+      }
+      job.busy = null;
+      job.running = false;
+      job.changed();
+      return;
+    }
     job.stale();
     job.running = true;
     job.note = null;
@@ -617,12 +956,14 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
 
   /* ----------------------------------------------------------------- write */
 
-  function writeSection(store, plan, key) {
+  function writeSection(store, plan, key, n = null) {
     const live = plan.source === 'live';
     const midra = plan.platform === 'mng';
-    const ready = plan.ok && (live || (job.generated && job.generated.key === key));
+    const sized = plan.kind === 'size';
+    const toSwitcher = !sized || (job.deck && job.deck.library !== false);
+    const ready = plan.ok && toSwitcher && (live || (job.generated && job.generated.key === key));
     const onProgram = plan.screens.some((s) => (s.set && s.set.onProgram) || (s.frame && s.frame.onAir));
-    const noDisplay = plan.screens.filter((s) => !s.display.ok).map((s) => s.id);
+    const noDisplay = [...new Set(plan.screens.filter((s) => !s.display.ok).map((s) => s.id))];
     const images = job.generated ? [...job.generated.images.values()] : [];
     const total = images.reduce((n, i) => n + i.blob.size, 0);
     /* A LivePremier library has a size budget; a Midra's states only a limit
@@ -644,21 +985,34 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
         edids: ['Load each input plug with the switcher’s EDID for its output’s format', 'The switcher builds the EDID itself (Inputs ▸ EDID ▸ load from template), so a media server offers exactly that mode'],
         tooBig: `The images come to ${kb(total)} and the library has ${kb(room)} free.`
       };
+    if (job.deck && !live) {
+      words.label = sized ? 'Name for the stills — the page number follows' : 'Name for the sets and stills — the page number follows';
+      words.assign = midra ? 'Off: each page goes into the library and a Background Image, and no set is touched' : 'Off: each page goes into the library and the stills, and no set is touched';
+    }
     const options = h('div', { class: 'aw-flex-col aw-gap-row-small' },
       h('label', { class: 'lpp-bgs-fields' },
         h('span', { class: 'aw-text-tertiary', text: words.label }),
         h('input', {
           type: 'text', class: 'wru-input', maxlength: String(LABEL_MAX), value: job.options.label, 'data-lpp-key': 'bgs-label',
-          placeholder: 'e.g. Act 1 BG', onChange: (ev) => { job.options.label = String(ev.target.value).slice(0, LABEL_MAX); changed(); }
+          placeholder: job.deck ? String(job.deck.name || '').replace(/\.[a-z0-9]+$/i, '').slice(0, LABEL_MAX) : 'e.g. Act 1 BG',
+          onChange: (ev) => { job.options.label = String(ev.target.value).slice(0, LABEL_MAX); changed(); }
         })),
-      live ? null : checkbox('Put them into a background set', job.options.assignSet !== false, (v) => { job.options.assignSet = v; changed(); }, words.assign),
-      !live && job.options.assignSet === false ? null : checkbox('Load each set into its screen’s preview afterwards', job.options.loadPreview, (v) => { job.options.loadPreview = v; changed(); }, words.preview),
+      live || sized ? null : checkbox(job.deck ? 'Put each page into a background set of its own' : 'Put them into a background set', job.options.assignSet !== false, (v) => { job.options.assignSet = v; changed({ stale: true }); }, words.assign),
+      sized || (!live && job.options.assignSet === false) ? null : checkbox(job.deck ? 'Load the first page’s set into each screen’s preview afterwards' : 'Load each set into its screen’s preview afterwards', job.options.loadPreview, (v) => { job.options.loadPreview = v; changed(); }, words.preview),
       live ? checkbox(words.edids[0], job.options.edids, (v) => { job.options.edids = v; changed(); }, words.edids[1]) : null,
       onProgram ? checkbox('A chosen set or image is ON PROGRAM — write it anyway, live', job.options.allowProgram, (v) => { job.options.allowProgram = v; changed(); }, 'The new background goes to air the moment it is written') : null);
 
-    const sets = plan.screens.filter((s) => s.assign).map((s) => `${s.id} set ${s.setIndex}`).join(', ');
+    const sets = job.deck ? setsSummary(plan) : plan.screens.filter((s) => s.assign).map((s) => `${s.id} set ${s.setIndex}`).join(', ');
+    const stillCount = plan.screens.reduce((k, s) => k + s.outputs.filter((o) => o.still).length, 0);
     let confirmText;
-    if (live) {
+    if (sized) {
+      const pages = plan.screens.length;
+      const { width, height } = plan.screens[0] ? plan.screens[0].render : { width: 0, height: 0 };
+      confirmText = `Upload ${pages} page${pages === 1 ? '' : 's'} at ${width} × ${height} (${kb(total)}) into ${midra ? `the first empty library slots (${plan.library.slots.join(', ')})` : 'free library slots'}`
+        + `${stillCount ? `, and show ${stillCount === 1 ? 'it' : 'them'} in ${stillCount} free still${stillCount === 1 ? '' : 's'}` : ''}?`;
+    } else if (job.deck && midra) {
+      confirmText = `Upload ${images.length} image${images.length === 1 ? '' : 's'} (${kb(total)}) — each into the switcher’s first empty library slot (${plan.library.slots.join(', ')}) — show them in Background Images ${[...new Set(plan.screens.map((s) => `${s.id} BKG${s.outputs[0].frame}`))].join(', ')} at 1:1${sets ? `, and write ${sets} as Auto Crop` : ''}?`;
+    } else if (live) {
       const n = plan.screens.reduce((k, s) => k + s.outputs.length, 0);
       confirmText = `Write ${sets}${midra ? ' as Custom' : ''} with ${n} live input${n === 1 ? '' : 's'}?`;
     } else if (midra) {
@@ -670,9 +1024,10 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
     }
 
     return h('div', { class: 'aw-flex-col aw-gap-row-small lpp-bgs-section' },
-      h('div', { class: 'aw-font-subtitle-2', text: live ? '5 · Write' : '6 · Write' }),
+      h('div', { class: 'aw-font-subtitle-2', text: `${n || (live ? '5' : '6')} · Write` }),
       options,
       tooBig ? h('div', { class: 'wru-warn', text: words.tooBig }) : null,
+      toSwitcher ? null : h('div', { class: 'aw-font-caption aw-text-tertiary', text: 'Not going into the library: download them from Generate above.' }),
       job.confirming
         ? h('div', { class: 'lpp-bgs-row' },
           h('span', { class: 'aw-font-body-1-bold', text: confirmText }),
@@ -681,7 +1036,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
         : h('div', { class: 'lpp-bgs-row' },
           button('Write to the switcher…', {
             variant: 'default', disabled: !ready || tooBig || job.running || (onProgram && !job.options.allowProgram),
-            title: !plan.ok ? plan.problems[0] : (!ready ? 'Generate the images first' : 'Shows what will be written, then asks'),
+            title: !plan.ok ? plan.problems[0] : !toSwitcher ? 'Tick “Put them into the image library” to write them' : (!ready ? 'Generate the images first' : 'Shows what will be written, then asks'),
             onClick: () => { job.confirming = true; changed(); }
           }),
           job.journal && !job.running ? button('Undo what was written', { variant: 'danger', onClick: () => undo() }) : null),
@@ -789,6 +1144,17 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
   }
 
   return { render, busy: () => dragging, stop: unlisten };
+}
+
+/** A document's sets in a few words: `S1 sets 1–4, S2 sets 3–6`. */
+function setsSummary(plan) {
+  const by = new Map();
+  for (const s of plan.screens) {
+    if (!s.assign) continue;
+    if (!by.has(s.id)) by.set(s.id, []);
+    by.get(s.id).push(s.setIndex - 1);
+  }
+  return [...by].map(([id, list]) => `${id} set${list.length === 1 ? '' : 's'} ${formatPages(list)}`).join(', ');
 }
 
 /** A fingerprint of everything a generated image depends on, so a stale one is never written. */

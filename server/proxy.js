@@ -55,7 +55,9 @@ const TYPES = {
   '.json': 'application/json; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
   '.png': 'image/png',
-  '.svg': 'image/svg+xml'
+  '.svg': 'image/svg+xml',
+  /* pdf.js's image decoders (src/vendor/pdfjs/wasm): instantiateStreaming refuses any other type. */
+  '.wasm': 'application/wasm'
 };
 
 /** Plain host or IP only, before anything reaches net.connect. */

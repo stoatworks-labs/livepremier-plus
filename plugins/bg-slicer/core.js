@@ -536,6 +536,11 @@ export function chooseStillFormat(validity, output, need = output.capability) {
  * Only free library slots and free stills are ever chosen, so by default
  * nothing on the switcher is overwritten. A set on program is refused unless
  * `opts.allowProgram`; a set holding content is listed as overwritten.
+ *
+ * `opts.reserve` — `{ slots: Set<number>, stills: Set<string> }` — is what
+ * plans made before this one have already taken: a document's pages are
+ * planned one after another (`deck.js`), and two pages must never be handed
+ * the same slot or still.
  */
 export function buildPlan(store, job, opts = {}) {
   const problems = [];
@@ -548,8 +553,9 @@ export function buildPlan(store, job, opts = {}) {
   const freeSlots = library.slots.filter((s) => s.free).map((s) => s.slot);
   const stills = readStills(store);
   const freeStills = stills.filter((s) => s.free);
-  const takenSlots = new Set();
-  const takenStills = new Set();
+  const reserve = opts.reserve || {};
+  const takenSlots = new Set(reserve.slots || []);
+  const takenStills = new Set(reserve.stills || []);
   const pickSlot = () => { const s = freeSlots.find((x) => !takenSlots.has(x)); if (s != null) takenSlots.add(s); return s ?? null; };
   /*
    * A still of the output's own capacity if there is a free one; else one

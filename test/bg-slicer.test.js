@@ -759,3 +759,134 @@ test('the Arena preset uses only shapes a real Arena wrote', async (t) => {
   assert.deepEqual(missing, [], 'every shape is one Arena wrote');
   assert.ok(ours.size > 30);
 });
+
+/* ------------------------------------------------------- a document's pages */
+
+/** The fixture has five free stills; a deck of several pages needs more, cut from still 1's shape. */
+function moreStills(store, upTo) {
+  const items = store.get(['device', 'stillList', 'items']);
+  const keys = store.get(['device', 'stillList', 'itemKeys']) || Object.keys(items);
+  const pre = ['device', 'preconfig', 'stills', 'current', 'stillList', 'items'];
+  for (let n = 6; n <= upTo; n++) {
+    store.set(['device', 'stillList', 'items', String(n)], JSON.parse(JSON.stringify(items['1'])));
+    const cur = store.get([...pre, '1']);
+    if (cur) store.set([...pre, String(n)], JSON.parse(JSON.stringify(cur)));
+    if (!keys.includes(String(n))) keys.push(String(n));
+  }
+  store.set(['device', 'stillList', 'itemKeys'], [...keys].sort((a, b) => Number(a) - Number(b)));
+  /* And library slots: the fixture holds only 1–4 and 200, all free. */
+  const bank = ['device', 'stillList', 'library', 'bankList'];
+  const slots = [...store.get([...bank, 'itemKeys'])];
+  for (let k = 5; k <= 20; k++) {
+    store.set([...bank, 'items', String(k)], JSON.parse(JSON.stringify(store.get([...bank, 'items', '1']))));
+    slots.push(String(k));
+  }
+  store.set([...bank, 'itemKeys'], slots.sort((a, b) => Number(a) - Number(b)));
+  return store;
+}
+
+const deckJob = (over = {}) => ({
+  source: 'stills',
+  screens: ['S1'],
+  mode: 'each',
+  place: { S1: { x: 0, y: 0, w: 1920, h: 1080 } },
+  span: { offsets: {}, rect: null },
+  image: { width: 1280, height: 720 },
+  options: { label: 'Keynote', assignSet: true },
+  deck: { name: 'Show deck.pptx', chosen: [0, 1], startSet: {} },
+  ...over
+});
+
+test('a background set per page: every page its own set, slots and stills, none shared, named after the page', async () => {
+  const { buildDeckPlan } = await import('../plugins/bg-slicer/deck.js');
+  const core = await import('../plugins/bg-slicer/core.js');
+  const store = moreStills(simStore(), 12);
+  const plan = buildDeckPlan(core, store, deckJob());
+  assert.equal(plan.ok, true, plan.problems.join('; '));
+  assert.equal(plan.kind, 'sets');
+  assert.deepEqual(plan.screens.map((s) => [s.entry, s.setIndex, s.setLabel, s.preview]), [
+    ['p1:S1', 1, 'Keynote 1', true], ['p2:S1', 2, 'Keynote 2', false]]);
+  const slots = plan.screens.flatMap((s) => s.outputs.map((o) => o.librarySlot));
+  const stills = plan.screens.flatMap((s) => s.outputs.map((o) => o.still));
+  assert.equal(new Set(slots).size, slots.length, 'no library slot twice');
+  assert.equal(new Set(stills).size, stills.length, 'no still twice');
+  assert.deepEqual(stills, ['1', '2', '3', '4', '5', '6']);
+  assert.ok(plan.screens.every((s) => s.outputs.every((o) => o.stillLabel === s.setLabel)));
+  /* Drawn at its placement, so the cut is a copy. */
+  assert.deepEqual(plan.screens[0].render, { width: 1920, height: 1080 });
+  assert.equal(plan.screens[0].outputs[0].exact, true);
+  assert.equal(plan.screens[0].outputs[0].blits[0].src.w, plan.screens[0].outputs[0].blits[0].lw, '1:1');
+});
+
+test('a deck plan says when the stills run out, once, with the pages it hits', async () => {
+  const { buildDeckPlan } = await import('../plugins/bg-slicer/deck.js');
+  const core = await import('../plugins/bg-slicer/core.js');
+  const plan = buildDeckPlan(core, simStore(), deckJob({ deck: { name: 'd.pdf', chosen: [0, 1, 2], startSet: {} } }));
+  assert.equal(plan.ok, false);
+  assert.ok(plan.problems.some((p) => /^Pages? 2(–3)?: S1 Out \d: no free still/.test(p)), plan.problems.join('\n'));
+  assert.ok(plan.problems.every((p) => !/^Page 1:/.test(p)), 'page 1 has its stills');
+});
+
+test('more pages than sets: refused, and a chosen first set is honoured', async () => {
+  const { buildDeckPlan } = await import('../plugins/bg-slicer/deck.js');
+  const core = await import('../plugins/bg-slicer/core.js');
+  const store = moreStills(simStore(), 40);
+  const nine = buildDeckPlan(core, store, deckJob({ deck: { name: 'd.pdf', chosen: [0, 1, 2, 3, 4, 5, 6, 7, 8], startSet: {} } }));
+  assert.ok(nine.problems.some((p) => /S1: 9 pages need 9 background sets, and only 8 are left from set 1/.test(p)), nine.problems.join('\n'));
+  const from6 = buildDeckPlan(core, store, deckJob({ deck: { name: 'd.pdf', chosen: [0, 1], startSet: { S1: 6 } } }));
+  assert.deepEqual(from6.screens.map((s) => s.setIndex), [6, 7]);
+});
+
+test('apply a deck plan: each page’s images, stills and set, its own name, the first page’s set alone loaded — and Undo takes all of it back', async () => {
+  const { buildDeckPlan } = await import('../plugins/bg-slicer/deck.js');
+  const core = await import('../plugins/bg-slicer/core.js');
+  const store = moreStills(simStore(), 12);
+  const { session, log, uploads, fetchImpl } = standIn(store);
+  const plan = buildDeckPlan(core, store, deckJob());
+  assert.equal(plan.ok, true, plan.problems.join('; '));
+  const images = new Map(plan.screens.flatMap((s) => s.outputs.map((o) => [`${s.entry}/${o.key}`, { blob: new Blob([new Uint8Array([1])], { type: 'image/png' }), name: `${s.entry.replace(':', '_')}_${o.key}.png` }])));
+  const result = await applyPlan({ session, plan, images, fetchImpl, options: { label: 'ignored', loadPreview: true } });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(uploads.length, 6);
+  assert.deepEqual(readSets(store, 'S1').slice(0, 2).map((x) => [x.label, Object.values(x.contents)]), [
+    ['Keynote 1', ['STILL_1', 'STILL_2', 'STILL_3']], ['Keynote 2', ['STILL_4', 'STILL_5', 'STILL_6']]]);
+  assert.equal(store.get(['device', 'stillList', 'items', '4', 'control', 'pp', 'label']), 'Keynote 2');
+  assert.ok(!log.some(([p]) => /NATIVE\/source/.test(p)), 'the simulator’s S1 has no NATIVE layer, so nothing is loaded');
+  const undone = await revert({ session, journal: result.journal });
+  assert.equal(undone.ok, true, undone.problems.join('; '));
+  assert.ok(readSets(store, 'S1').slice(0, 2).every((x) => x.empty), 'both sets empty again');
+  assert.equal(readStills(store).filter((s) => s.free).length, 12);
+});
+
+test('stills at a size: a free slot per page, a free still each when asked, a still too small set to downscale', async () => {
+  const { buildSizePlan } = await import('../plugins/bg-slicer/deck.js');
+  const store = moreStills(simStore(), 8);
+  const at = (size, stills = true) => buildSizePlan(store, { options: { label: '' }, deck: { name: 'Talk.pdf', chosen: [0, 2, 4], size, stills, library: true } });
+  const hd = at({ width: 1920, height: 1080 });
+  assert.equal(hd.ok, true, hd.problems.join('; '));
+  assert.deepEqual(hd.screens.map((s) => [s.entry, s.outputs[0].librarySlot, s.outputs[0].still, s.outputs[0].rescale, s.outputs[0].stillLabel]), [
+    ['p1:size', 1, '1', 'NO_RESCALE', 'Talk 1'], ['p3:size', 2, '2', 'NO_RESCALE', 'Talk 3'], ['p5:size', 3, '3', 'NO_RESCALE', 'Talk 5']]);
+  const uhd = at({ width: 3840, height: 2160 });
+  assert.ok(uhd.screens.every((s) => s.outputs[0].rescale === 'SCALE_TO_CAPABILITY'), 'every still is DUAL, and 4K wants 4K');
+  assert.match(uhd.warnings.join('\n'), /downscale to capacity/);
+  const noStills = at({ width: 1920, height: 1080 }, false);
+  assert.ok(noStills.screens.every((s) => s.outputs[0].still === null));
+  assert.match(at({ width: 20000, height: 1080 }).problems.join('\n'), /larger than the image library takes/);
+});
+
+test('apply stills at a size: uploads and stills, with the still’s own rescale; no set is touched; Undo empties them', async () => {
+  const { buildSizePlan } = await import('../plugins/bg-slicer/deck.js');
+  const store = moreStills(simStore(), 8);
+  const { session, log, uploads, fetchImpl } = standIn(store);
+  const plan = buildSizePlan(store, { options: { label: 'Act 2' }, deck: { name: 'x.pdf', chosen: [0, 1], size: { width: 3840, height: 2160 }, stills: true, library: true } });
+  const images = new Map(plan.screens.map((s) => [`${s.entry}/page`, { blob: new Blob([new Uint8Array([1])]), name: `p${s.page + 1}.png` }]));
+  const result = await applyPlan({ session, plan, images, fetchImpl, options: {} });
+  assert.equal(result.ok, true, result.error);
+  assert.deepEqual(uploads.map((u) => u[1]), [1, 2]);
+  assert.equal(store.get(['device', 'stillList', 'items', '2', 'control', 'pp', 'rescale']), 'SCALE_TO_CAPABILITY');
+  assert.equal(store.get(['device', 'stillList', 'items', '2', 'control', 'pp', 'label']), 'Act 2 2');
+  assert.ok(!log.some(([p]) => p.includes('backgroundSetList')));
+  const undone = await revert({ session, journal: result.journal });
+  assert.equal(undone.ok, true, undone.problems.join('; '));
+  assert.equal(store.get(['device', 'stillList', 'items', '2', 'control', 'pp', 'mode']), 'NONE');
+});
