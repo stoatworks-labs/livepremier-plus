@@ -16,7 +16,7 @@ Someone else solved this first, and this project would not exist in its current 
 Licence: Apache-2.0 (SPDX header in bmd.py; the repo has no LICENSE file, so GitHub does not detect it)  
 Copyright: 2021 Sylvain Munaut
 
-Blackmagic has never published the DaVinci Resolve Speed Editor's HID protocol, and the panel reports nothing until a challenge-response handshake completes. The handshake, the report formats and the jog modes in src/vendor/surface/hid/speed-editor.js (vendored from awj-surface) come from Munaut's reverse engineering in bmd.py.
+Blackmagic has never published the DaVinci Resolve Speed Editor's HID protocol, and the panel reports nothing until a challenge-response handshake completes. The handshake, the report formats and the jog modes in src/vendor/surface/hid/speed-editor.js (vendored from awj-surface) come from Munaut's reverse engineering in bmd.py. The ATEM Micro Panel answers the same challenge-response handshake, on feature report 5, and src/core/atem-micro-panel.js reuses that arithmetic.
 
 ### node-blackmagic-controller — Julian Waller
 
@@ -24,7 +24,7 @@ Blackmagic has never published the DaVinci Resolve Speed Editor's HID protocol, 
 Licence: MIT  
 Copyright: 2024 Julian Waller
 
-The Speed Editor's key and LED tables in src/vendor/surface/hid/speed-editor.js follow node-blackmagic-controller, the library Bitfocus Companion drives the panel with.
+The Speed Editor's key and LED tables in src/vendor/surface/hid/speed-editor.js, and the ATEM Micro Panel's key codes, lamp bits and report ids in src/core/atem-micro-panel.js, follow node-blackmagic-controller, the library Bitfocus Companion drives both panels with.
 
 ### netaudio (network-audio-controller) — Christopher Ritsen
 
