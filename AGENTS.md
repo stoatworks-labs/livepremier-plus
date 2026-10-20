@@ -778,9 +778,9 @@ own: `sourceCommands()` fans a source out when a caller asks, and
 member changes by any route. The gang was **the first thing in this app to
 put a write on the wire without an operator having asked for that write
 specifically**, so read `core/groups.js`'s head before changing it. It has
-company now — Layer Lock's follower, Surfaces' follower, Preview lock's padlock
-and the EDID builder's auto-fill — and the README's Safety section lists each
-with its fence.
+company now — Layer Lock's follower, Surfaces' follower, Aux follow's follower,
+Preview lock's padlock and the EDID builder's auto-fill — and the README's Safety
+section lists each with its fence.
 
 ⚠️ **You gang a ROLE, not a letter.** Two screens are routinely on opposite
 letters — S1 at `AT_UP` has program B while S2 at `AT_DOWN` has program A — so
@@ -1249,6 +1249,83 @@ program asked first, the value's echo and then its status waited for. It
 is a column of its own after the vendor's, not inside it: 6.1.60's page is
 an info box until a screen is in service. Whether a frame draws an aux
 background is the open question both stand on (`docs/NOTES.md`).
+
+### Aux follow (`plugins/aux-follow/`) — off until tested on a frame
+
+An aux layer that takes whatever source a screen layer has, by any route.
+`core.js` is the model and the follower; it uses `sourceCommands` from
+`core/groups.js` for the write, so role-not-letter is the gang's own code.
+Two modes: `program` (the aux's program cuts to the leader's program when the
+screen's take lands, or on a direct program edit; preview is the operator's)
+and `both` (role for role; an aux left out of the screen's take is put back
+in line, both roles, when it lands).
+
+Load-bearing, each found on the 6.2.73 simulator or by a test first:
+
+- **It cannot loop by construction, not by care.** Followers are `A<n>`
+  layers, leaders `S<n>` layers (`normalise` drops anything else), so nothing
+  it writes is anything it listens to. Do not let an aux lead, or a screen
+  follow, without bringing back the gang's echo map and settle window.
+- **It never acts on the aux.** An aux taken or edited by hand is not pulled
+  back; only a change on the leader moves it. That is what keeps it from
+  fighting an operator, and why there is no fight limit.
+- ⚠️ **A take is told from noise by the take state seen last** (program
+  letter, settled). The session applies a frame to the mirror *before*
+  dispatching it, so an index built lazily on a frame reads the state that
+  frame brought and misses the landing. The page calls `prime()` when the list
+  changes and when the store arrives; two unit tests failed until it did.
+- **Only inbound frames count** (`dir !== 'out'`): this page's own writes are
+  not the switcher's state until they echo.
+- **Mid-take on either end, a write is owed**, then made when both ends are at
+  rest from what the leader holds *then*. Setting a follow is the one time it
+  acts on found state — the operator asked — and a set that would change the
+  aux's program asks twice in the panel.
+- LivePremier only: the mng dialect has no aux layers (`fittedLayers` and
+  `layerParamPath` answer nothing for an `A` id there).
+
+Proven on a private copy of the 6.2.73 simulator (2026-10-20), output 5 made
+aux A1 (4K advanced, 2 layers), with the changes made from outside the page
+over AWJ: a preview edit left A1 alone in `program`; a take on S1 cut A1's
+program onto A1's own program letter while S1's was the other; a direct
+program edit followed; `both` mirrored preview role for role across opposite
+letters; taking A1 alone was not fought; taking S1 alone put A1 back in line;
+the second-click confirm cut A1 L2 and left its preview. No frame yet.
+
+### AoI from a custom format (`plugins/aoi-format/`) — off until tested on a frame
+
+A section in the vendor's own AoI panel on Preconfig ▸ Canvas (route
+`/preconfig/pixelspaces/…`): pick a custom format and where it sits, and the
+selected output's AoI becomes that size. For an LED wall over SDI: a standard
+format with the wall's pixels in a corner. `core.js`'s head has the model.
+
+- **The AoI is per slice** at `outputList/items/<o>/canvas/cmd/slices/aoi/
+  sliceList/items/<k>/pp` — `mode` `FIT_FORMAT`/`CUSTOM`, `left`/`top`/
+  `width`/`height` in thousandths of a percent (100000 = 100 %), applied by
+  pulsing `xUpdate` there. Same in 6.1.60 and 6.2.73. The switcher reports
+  pixels at `canvas/status/slices/sliceList/items/<k>/aoi/pp`.
+- **Pixels round up on the way in** (`toRaw`, the vendor's `revertFrom`) and
+  floor on the way out, which is exact for every pixel of every raster up to
+  8K — a test walks them all.
+- ⚠️ **An AoI off the edge is clamped silently** (left 8000 + width 92001 on
+  1920 came back 153 + 1766), so an oversize format is refused and the
+  switcher's own report is compared afterwards.
+- **The output's canvas footprint becomes the AoI** (`clampedWidth`,
+  `pitchedWidth`): that is the feature, not a side effect.
+- **Only a single-slice 1X1 output.** Groups, DP-box slices, clones and
+  followers in a group are refused with a sentence; the vendor's own fields
+  do those.
+- **Finding the panel**: the AoI picture's CSS-module class
+  (`pixelspaces-output-aoi-content__c…`, identical in 6.1.60 and 6.2.73) up to
+  its `form` and `.aw-panel`, with the `AOI` heading as fallback. The output
+  comes from the selection heading (`… - Output 3`; `+ (n)` beside it means
+  several are selected, and it says so).
+
+Proven on the private 6.2.73 simulator copy (2026-10-20): the sim's own
+`LEDwall` (3000×1000) refused on a 1080p output; with output 3 at 3840×1080,
+**Set AoI** centred wrote 78125 × 92593 at 10938, 3704, the switcher reported
+3000×1000 at 420, 40, the vendor's own fields and canvas redrew to match, and
+the footprint read 3000×1000. Not on 6.1.60, not on a frame, not over a real
+SDI card (the sim's output cards are HDMI).
 
 ### The popped-out panels (`ui/popout.js`, each plugin's `popout.html`)
 

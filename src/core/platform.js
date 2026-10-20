@@ -264,6 +264,19 @@ export const CAPABILITIES = [
     absent: 'This switcher has no background sets this app knows how to write.'
   },
   {
+    id: 'outputAoi',
+    label: 'Output AoI',
+    /* Each output's area of interest, per slice, under `canvas/cmd/slices/aoi`
+       — what the vendor's Canvas page edits, read off Web RCS 6.2.73 and
+       6.1.60 alike. A Midra crops its outputs another way, and the section
+       that writes it hangs off LivePremier's Canvas page. */
+    probes: {
+      nlc: [ROOT, 'outputList', 'items', '*', 'canvas', 'cmd', 'slices', 'aoi']
+    },
+    needs: 'the outputs’ areas of interest',
+    absent: 'This switcher crops its outputs in a way this app does not write.'
+  },
+  {
     id: 'imageLibrary',
     label: 'Image library',
     /* Two hundred slots under `stillList/library/bankList`, each with the

@@ -200,6 +200,29 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'aux-follow',
+    name: 'Aux follow',
+    where: 'A tab on Screens / Aux., behind ⋯ when the strip is full',
+    description: 'An aux layer that takes whatever source a screen layer has — on program, cutting when the screen’s take lands, or on program and preview, role for role. Kept by the page: with no page open, nothing follows.',
+    requires: { capabilities: ['layerGroups'] },
+    /* Off until tested on a frame: it writes an aux's layers by itself,
+       program included. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
+    id: 'aoi-format',
+    name: 'AoI from a custom format',
+    where: 'Preconfig ▸ Canvas, under an output’s AoI',
+    description: 'Give an output an AoI the size of a custom format — an LED wall over SDI, as a standard format with the wall’s pixels in its corner — top left, top centre or centred, written as the vendor’s own AoI fields write it.',
+    requires: { capabilities: ['outputAoi'] },
+    /* Off until tested on a frame: it writes an output's AoI, which changes
+       that output on air. */
+    enabledByDefault: false,
+    client: 'client.js'
+  },
+  {
     id: 'send-to',
     name: 'Send to',
     where: 'The … on every source card',

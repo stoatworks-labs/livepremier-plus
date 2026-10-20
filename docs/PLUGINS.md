@@ -23,9 +23,9 @@ and read [Adding your own](#adding-your-own) below.
 from the manifests in [`src/core/plugins.js`](../src/core/plugins.js), so it cannot drift from the
 app the way the hand-written one did.
 
-- **Every built-in is on unless you switch it off**, bar seven that start off (Preview lock,
-  Surfaces, and the Dante, Thumbnail relay, Multiviewer thumbnails, Background Slicer and UMD
-  Generator previews), so nobody upgrading loses anything.
+- **Every built-in is on unless you switch it off**, bar nine that start off (Preview lock,
+  Surfaces, Aux follow, AoI from a custom format, and the Dante, Thumbnail relay, Multiviewer
+  thumbnails, Background Slicer and UMD Generator previews), so nobody upgrading loses anything.
 - **Experimental features is a switch, and a gate.** It starts off, and a built-in whose manifest
   says `experimental: true` requires it, starts off itself, and is not listed on the Plugins card
   at all until the switch is on. It's for what the switcher accepts but no real frame has been
@@ -153,7 +153,7 @@ its menu has nothing to offer without one.
 gaps since: in PLUS, Edit 10, VPU Map 20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix
 Routing 50, Audio Matrix and HyperDecks 55, Variables 57, Dante 58, Background Slicer 59 — and
 Companion asks for 60. On the strip, Console 10, Timeline 20, Layer 30, Groups 40, Pixel Map 50,
-Surfaces 55, UMD 60. An entry with **`after`** is hung under the vendor's own item of that label
+Surfaces 55, UMD 60, Aux follow 65. An entry with **`after`** is hung under the vendor's own item of that label
 instead of in PLUS, and is left out where the switcher's sidebar has no such item. That happens
 silently, so an entry that knows its anchor may be missing should say so: ask for a capability
 that is false where the anchor is (MIDI Mapping and the Speed Editor require `controlSurfaces`,

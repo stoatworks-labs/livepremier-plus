@@ -77,6 +77,18 @@ bolted on afterwards:
   layer actually is and what it's showing. It goes on an aux's top layer through a still, or to the
   Background Slicer for a screen's background, and there are 1, 3, 5 and 7-box layouts to start an
   aux from.
+- **Aux follow** (off until you switch it on): give an aux's layer a screen layer to follow and it
+  takes whatever source that layer has, however it got there: the vendor's drag, a memory, a
+  take, the front panel, Companion. In *Program* the aux's program cuts to match when the screen's
+  take lands; in *Program and preview* it follows role for role, so an aux taken with the screen
+  transitions with it. The switcher has no such link, so it's kept by the page: with no
+  LivePremier Plus page open, nothing follows.
+- **AoI from a custom format** (off until you switch it on): an LED wall defined as a custom
+  format, say 3000×1000, can't go down SDI as one, because SDI only carries standard formats. So
+  the SDI output runs a standard format big enough to hold it, and its AoI is the wall: pick the
+  custom format under the output's AoI on Preconfig ▸ Canvas, top left, top centre or centred,
+  and it's set the way the vendor's own AoI fields set it. The output's footprint on the canvas
+  becomes the wall's size, so the canvas is laid out in the wall's own pixels.
 - **Send to:** a `…` on every source card that routes it without dragging: preview or program,
   then a screen and layer or a whole group. It respects the vendor's own PGM padlock and asks
   before it steps past one.
@@ -1782,6 +1794,8 @@ device's store rather than by the model name:
 | Pixel Map | yes | not yet — a Midra keeps an image library too, but its Screens page lays the cards out differently |
 | Surfaces | yes | not yet — the shaper reads LivePremier's layer paths, and a Midra's Screens page lays the cards out differently |
 | UMD Generator | yes | the PNG only — Download works; putting it on the switcher reads LivePremier's library and stills |
+| Aux follow | yes | no — the layer paths it reads are LivePremier's, and the dialect has no aux layers there |
+| AoI from a custom format | yes | no — a Midra crops its outputs another way, and the section hangs off LivePremier's Canvas page |
 | Arithmetic in fields, Variables, Settings | yes | yes — Variables are generated from whatever the box reports, so a Midra gets Midra's |
 
 Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step onto the wire
@@ -1830,6 +1844,16 @@ The three pages under Virtual RC400T are no exception; they're held back as *Con
     never opens one you shut yourself.
   - **The EDID builder's auto-fill**, if you switch it on, saves an EDID per custom format into
     an empty bank slot, and never overwrites a used one.
+  - **Aux follow** (off by default) only writes an aux layer's source, and only from a screen
+    layer someone told it to follow. It resolves program and preview on each end rather than
+    copying a preset letter, waits out a take in flight rather than guessing, never acts on an
+    aux being changed (so taking the aux by hand isn't fought), and only acts on a change made
+    while a page is open. Setting a follow that would change the aux's program asks twice,
+    because that's a cut on air.
+- **AoI from a custom format writes one output's AoI, when asked, and checks it landed.** It
+  refuses a format bigger than the output rather than letting the switcher clamp it quietly,
+  and reports what the switcher says afterwards. Like the vendor's own fields, it applies at
+  once, so an output on air changes on air.
 - **Two things sit between the vendor's page and its socket, and both are narrow.** Layer Lock
   holds a TAKE or CUT sent from this page for at most 750 ms while it lines a locked layer up,
   then lets it go whatever happened. Surfaces rewrites the vendor's own geometry writes for a

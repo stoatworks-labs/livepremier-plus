@@ -7,7 +7,7 @@ person and dated by when each thing was learned — that date is usually the use
 Cross-cutting notes that are not specific to this repo live in
 [fleet-notes](https://github.com/stoatworks-labs/fleet-notes).
 
-*LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, adding 35 built-in plugins to a real LivePremier (and, for most of them, Midra 4K / Alta 4K) Web RCS session in the vendor's own CSS; PUBLIC; verified through the proxy against simulators; the panels have written to real hardware twice (below)*
+*LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, adding 40 built-in plugins to a real LivePremier (and, for most of them, Midra 4K / Alta 4K) Web RCS session in the vendor's own CSS; PUBLIC; verified through the proxy against simulators; the panels have written to real hardware twice (below)*
 
 ## Where it stands (2026-10-16, v0.17.7)
 
@@ -20,9 +20,11 @@ VPU map on 6.1.60, the save race), 0.17.4 (the VPU map's pool said once), 0.17.5
 0.17.6 (**Surfaces**), 0.17.7 (**UMD Generator**, and the Pixelhue console suite in
 `test/console/`).
 
-**Off by default:** Preview lock, Surfaces, and the UMD Generator, Dante, Thumbnail relay,
-Multiviewer thumbnails and Background Slicer previews. Surfaces and the UMD Generator are in
-`OFF_UNTIL_TESTED` (`test/plugins.test.js`) until a real frame has seen them.
+**Off by default:** Preview lock, Surfaces, Aux follow, AoI from a custom format, and the UMD
+Generator, Dante, Thumbnail relay, Multiviewer thumbnails and Background Slicer previews. Surfaces,
+the UMD Generator, Aux follow and AoI from a custom format are in `OFF_UNTIL_TESTED`
+(`test/plugins.test.js`) until a real frame has seen them. Aux follow and AoI from a custom format
+(2026-10-20, unreleased) are at the end of this file.
 
 **What real hardware has seen**, all of it:
 
@@ -2511,3 +2513,68 @@ thirds of the take; the dip goes fully black (the background) at 2 s.
 - Only when T1, T4 and T8 pass on a frame: take Transitions and "Take only with" out from behind
   Experimental features, into `OFF_UNTIL_TESTED` (off by default, but listed), then the README and
   the guide.
+
+
+## AoI from a custom format, and Aux follow (2026-10-20, simulator only)
+
+Allan asked for two things: an option on Preconfig ▸ Canvas to give an output an AoI based on a
+custom format (an LED wall defined as a custom format, sent down SDI as a standard format with an
+AoI), and a setting for an aux to follow a given layer's source. Both built, both off by default,
+both proven on a **private copy** of the 6.2.73 simulator session (HTTP 5000, AWJ 12606, in a
+scratchpad) through the demo proxy, so the shared simulator and every frame stayed untouched.
+
+**The vendor already has per-output AoI**, which is most of the answer to "is it possible". Canvas
+is the vendor's `pixelspaces` page; a selected output gets an AOI panel with Mode (Fit Output
+Format / Custom) and, in Custom, H/V size and position in pixels. What it lacks is *from a custom
+format*: the sizes are typed by hand. The model (AGENTS.md "AoI from a custom format" has it all)
+is per slice, in thousandths of a percent, applied with an `xUpdate` pulse. Written over AWJ first:
+1728×576 in a 1080p raster at 0,0 and centred (96, 252) both reported exactly, and the output's
+`clampedWidth`/`pitchedWidth` became 1728×576, so the canvas is laid out in the wall's pixels.
+An overrun (8000 + 92001) came back clamped to 153 + 1766 with no error, which is why the plugin
+refuses rather than sends.
+
+Through the page: the section sits under the vendor's AoI fields. The sim's own custom format 1
+(`LEDwall`, 3000×1000, 49.998 Hz) was refused on output 3 at 1080p with the sentence; with output 3
+made 3840×1080 (`format/control` mode INTERNAL, `COMPUTER_3840_1080`, xUpdate), **Set AoI**
+centred reported 3000×1000 at 420, 40, the vendor's own fields went to Custom 3000 / 1000 / 420 /
+40, and the canvas card read 3000x1000.
+
+**Aux follow** needed an aux: output 5 staged as A1 (`preconfig/resources/new/outputList/items/5/
+control/pp` mode AUX, `useInScreenAux` A1, `auxCapability` 4K, `auxAdvanced` true; xCheck, xApply)
+gave two DUAL layers. A1 L1 set to follow S1 L1 from the tab, then S1 driven from *outside* the
+page over AWJ (the page's follower did the work):
+
+| step | S1 | A1 |
+|---|---|---|
+| preview edit, `program` mode | B ← LIVE_2 (preview) | untouched |
+| take S1 | AT_UP, program B = LIVE_2 | program **A** ← LIVE_2 (A1 was AT_DOWN) |
+| direct program edit | B ← LIVE_4 | A ← LIVE_4 |
+| switched to `both` | preview A = LIVE_6 | preview B ← LIVE_6 |
+| preview edit | A ← LIVE_7 | B ← LIVE_7 |
+| take A1 alone | — | AT_UP; not fought |
+| take S1 (both now agree) | AT_DOWN | nothing written |
+| take S1 alone | AT_UP | put back: B ← LIVE_4, A ← LIVE_7 |
+
+Then A1 L2 → S1 L1 in `program`: the button read **Follow**, then **Confirm — cuts to IN4** (red),
+and the second click wrote A1 L2's program only.
+
+**Found while building:** the follower tells a take landing from noise by the take state it saw
+last, and the session applies a frame to the mirror before dispatching it — so indexing lazily on
+the first frame after the list changed read the landed state and missed the landing. Two unit
+tests failed on it; `prime()` on list change and store `ready` fixed it. Also: in the Browser pane
+a panel's repaint can lag while the pane is in the background (AGENTS.md's `requestAnimationFrame`
+note) — the confirm button looked stuck until `__WRU.shell.refresh()`.
+
+**Frame-only questions:**
+- AoI: does a real SDI output carry the AoI with the rest black, and does an LED processor fed
+  12G-SDI at 3840×2160 see the wall's pixels 1:1 at the corner? Whether the AoI survives an output
+  format change (the vendor resets nothing that I saw, but the sim's outputs are HDMI only).
+- AoI on 6.1.60 (the RS4's page): same bundle model, not driven.
+- Aux follow: the cut lands at the end of the screen's take, as `status/transition` reaches
+  `AT_*`. On a frame that is take time + the echo (~60 ms on the Aquilon C); whether that reads as
+  late on an IMAG aux is a judgement for someone watching.
+- Both: nothing has been run with a real operator on the vendor's own buttons at the same time.
+
+**Not done:** README section screenshots, the user guide and its PDF, a release. README's feature
+list, Safety and Platforms rows, PLUGINS.md and AGENTS.md are current.
+
