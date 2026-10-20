@@ -1975,12 +1975,18 @@ graphics card is offered exactly the mode a live background has to match. The se
 undone; the EDIDs can't, and it says so.
 
 The preset is written by the same code that writes the Background Slicer's Arena export, and
-that code was checked against files real Arena 7.27 wrote. **Nobody has opened one of these
-presets in Arena yet**, though, so check the first one before a show depends on it.
+that code was checked against files real Arena 7.27 wrote. I've since opened these presets in
+Arena 7.28.1 and played a picture through them: every output, slice and rectangle arrived as
+written, the turned output included. Two things Arena leaves to you: it **doesn't take the
+composition size from the preset**, so set it to the size the panel gives (Composition ▸
+Settings), and the screens arrive Virtual, so bind each to its real output. Nobody has run one
+into a switcher yet, so check the first one before a show depends on it.
 
 > LivePremier only. Proven on LivePremier Simulator 6.2.73 on 2026-10-20: two screens made a
 > 3840 × 1080 composition (1920 × 2160 stacked), the preset parsed, and the background set was
-> written and undone, all read back from outside the page. Not opened in Arena; not on a frame.
+> written and undone, all read back from outside the page. Opened in Resolume Arena 7.28.1 on a
+> Mac the same day: both arrangements loaded as written and a picture played through landed where
+> the plan says. Not on a frame; not with a screen bound to a real output.
 
 ---
 
