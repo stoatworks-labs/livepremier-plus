@@ -200,13 +200,15 @@ export const LABEL_MAX = 16;
  * order the Web RCS's image picker sends them — `mode` IMAGE, then `source`
  * (the library slot, 1-based) — then `rescale` NO_RESCALE ("No rescale"; the
  * other choice, "Downscale to capacity", would resample a picture cut to be
- * pixel-exact) and the label.
+ * pixel-exact) and the label. `rescale` is SCALE_TO_CAPABILITY only for a
+ * picture made at a size of the operator's choosing that may be larger than
+ * the still holds (`deck.js`).
  */
-export function stillWrites(still, slot, label) {
+export function stillWrites(still, slot, label, rescale = 'NO_RESCALE') {
   return [
     { path: stillPath(still, 'mode'), value: 'IMAGE' },
     { path: stillPath(still, 'source'), value: Number(slot) },
-    { path: stillPath(still, 'rescale'), value: 'NO_RESCALE' },
+    { path: stillPath(still, 'rescale'), value: rescale },
     { path: stillPath(still, 'label'), value: String(label || '').slice(0, LABEL_MAX) }
   ];
 }

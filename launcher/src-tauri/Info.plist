@@ -24,5 +24,17 @@
   -->
   <key>NSLocalNetworkUsageDescription</key>
   <string>LivePremier Plus talks to an Analog Way LivePremier processor on your local network.</string>
+  <!--
+    Apple events to PowerPoint.
+
+    The Background Slicer turns a PowerPoint deck into a PDF by asking
+    PowerPoint to export it over AppleScript (plugins/bg-slicer/convert.js).
+    The first time, macOS asks whether this app may control PowerPoint, and
+    shows this sentence; without it a hardened-runtime app's request is
+    refused with -1743 and no prompt at all. The matching entitlement is
+    com.apple.security.automation.apple-events in entitlements.plist.
+  -->
+  <key>NSAppleEventsUsageDescription</key>
+  <string>LivePremier Plus asks PowerPoint to export a deck as a PDF, so its slides can be made into stills and backgrounds for your switcher.</string>
 </dict>
 </plist>

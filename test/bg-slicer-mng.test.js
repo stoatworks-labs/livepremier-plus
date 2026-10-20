@@ -584,3 +584,60 @@ test('a write the switcher refuses is a failure, though the page mirror shows it
   assert.ok(Date.now() - t0 >= 5000, 'it waited for the echo rather than reading the mirror');
   assert.equal(bad.journal.writes.length, 2, 'journalled, so Undo puts back what may have landed');
 });
+
+/* ------------------------------------------------------- a document's pages */
+
+test('a background set per page on a Midra: a Background Image and a set each, the uploads predicted slot after slot', async () => {
+  const { buildDeckPlan } = await import('../plugins/bg-slicer/deck.js');
+  const store = midraClear();
+  const job = { source: 'stills', screens: ['S2'], mode: 'each', place: { S2: { x: 0, y: 0, w: 1024, h: 640 } }, span: { offsets: {}, rect: null },
+    image: { width: 1280, height: 800 }, options: { label: 'Deck', assignSet: true }, deck: { name: 'Deck.pdf', chosen: [0, 1, 2], startSet: {} } };
+  const plan = buildDeckPlan(mng, store, job);
+  assert.equal(plan.ok, true, plan.problems.join('; '));
+  assert.equal(plan.platform, 'mng');
+  assert.deepEqual(plan.screens.map((s) => [s.entry, s.setIndex, s.outputs[0].frame, s.outputs[0].librarySlot, s.setLabel]), [
+    ['p1:S2', 1, 1, 1, 'Deck 1'], ['p2:S2', 2, 2, 2, 'Deck 2'], ['p3:S2', 3, 3, 3, 'Deck 3']]);
+  assert.deepEqual(plan.library.slots, [1, 2, 3]);
+  const five = buildDeckPlan(mng, store, { ...job, deck: { ...job.deck, chosen: [0, 1, 2, 3, 4] } });
+  assert.ok(five.problems.some((p) => /^Page 5: S2: no free Background Image/.test(p)), five.problems.join('\n'));
+});
+
+test('apply a Midra deck plan: three uploads, three frames, three Auto Crop sets, the first loaded — and Undo takes them back', async () => {
+  const { buildDeckPlan } = await import('../plugins/bg-slicer/deck.js');
+  const store = midraClear();
+  const job = { source: 'stills', screens: ['S2'], mode: 'each', place: { S2: { x: 0, y: 0, w: 1024, h: 640 } }, span: { offsets: {}, rect: null },
+    image: { width: 1280, height: 800 }, options: { label: 'Deck', assignSet: true }, deck: { name: 'Deck.pdf', chosen: [0, 1, 2], startSet: {} } };
+  const plan = buildDeckPlan(mng, store, job);
+  const images = new Map(plan.screens.map((s) => [`${s.entry}/canvas`, { blob: new Blob([new Uint8Array([1])]), name: `${s.entry.replace(':', '_')}.png` }]));
+  const sizes = Object.fromEntries(plan.screens.map((s) => [`${s.entry.replace(':', '_')}.png`, [s.outputs[0].raster.width, s.outputs[0].raster.height]]));
+  const { session, uploads, fetchImpl } = standIn(store, { sizes });
+  const result = await applyPlan({ session, plan, images, fetchImpl, options: { loadPreview: true } });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(uploads.length, 3);
+  assert.deepEqual([1, 2, 3].map((k) => [store.get(mng.framePath('S2', k, 'librarySlot')), store.get(mng.framePath('S2', k, 'label')), store.get(mng.setPath('S2', k, 'singleContent'))]), [
+    ['1', 'Deck 1', 'PRESET_FRAME_1'], ['2', 'Deck 2', 'PRESET_FRAME_2'], ['3', 'Deck 3', 'PRESET_FRAME_3']]);
+  assert.equal(store.get(mng.presetSetPath('S2', 'UP')), '1', 'the first page’s set, and only that, in preview');
+  const undone = await revert({ session, journal: result.journal });
+  assert.equal(undone.ok, true, undone.problems.join('; '));
+  assert.ok(mng.readLibrary(store).slots.every((s) => s.free));
+  assert.equal(store.get(mng.setPath('S2', 2, 'singleContent')), 'NONE');
+});
+
+test('stills at a size on a Midra: the library alone, into the slots the switcher will choose; no frame, no set', async () => {
+  const { buildSizePlan } = await import('../plugins/bg-slicer/deck.js');
+  const store = midraClear();
+  const plan = buildSizePlan(store, { options: { label: '' }, deck: { name: 'Talk.pdf', chosen: [0, 1], size: { width: 1920, height: 1080 }, stills: true, library: true } });
+  assert.equal(plan.ok, true, plan.problems.join('; '));
+  assert.equal(plan.platform, 'mng');
+  assert.deepEqual(plan.screens.map((s) => [s.outputs[0].librarySlot, s.outputs[0].still, s.outputs[0].frame]), [[1, null, null], [2, null, null]], 'a Midra has no stills to fill');
+  const images = new Map(plan.screens.map((s) => [`${s.entry}/page`, { blob: new Blob([new Uint8Array([1])]), name: `p${s.page + 1}.png` }]));
+  const { session, log, uploads, fetchImpl } = standIn(store, { sizes: { 'p1.png': [1920, 1080], 'p2.png': [1920, 1080] } });
+  const result = await applyPlan({ session, plan, images, fetchImpl, options: {} });
+  assert.equal(result.ok, true, result.error);
+  assert.equal(uploads.length, 2);
+  assert.equal(log.length, 0, 'nothing written but the uploads');
+  assert.deepEqual(result.journal.uploads, [1, 2]);
+  /* A frame pointing at the next empty slot would show the page: refused. */
+  const risky = buildSizePlan(midra(), { options: {}, deck: { name: 't.pdf', chosen: [0], size: { width: 1920, height: 1080 }, library: true } });
+  assert.match(risky.problems.join('\n'), /S1 BKG1 already points at slot 1/);
+});

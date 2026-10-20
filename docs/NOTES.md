@@ -40,6 +40,10 @@ both thumbnail previews and the Background Slicer included, has run on simulator
 Pixelhue panel has never met a console; the console suite has only run against its stand-in
 (`LPP_CONSOLE=stand-in`, 31 pass, 3 skip).
 
+**Background Slicer slides (2026-10-20, unreleased):** a PDF or a PowerPoint deck as a background
+set per page, or every page as a still at any size. Simulator only (6.2.73, both kinds written and
+undone); "Slides in the Background Slicer" below.
+
 **Open:** whether a frame draws a still on an aux's background. The RS4 (6.1.60) took and
 reported one on 2026-10-17 but was factory reset before anyone looked at the output ("The
 UMD Generator" below has the run); the next free frame needs someone watching the aux. MIDI Mapping and the Speed Editor still have no home
@@ -55,6 +59,48 @@ payload, the page half on the Midra simulator went from Screens / Aux. to LIVE �
 SOURCE BACKUP is refused on Midra and Alta with the reason: their inputs have no backup (no
 `backup` node in either bundle's input object; the card's ⋮ is plug, Setup, Freeze, Capture).
 Neither key has been pressed on a console.
+
+## Slides in the Background Slicer (2026-10-20)
+
+Allan asked for stills from PowerPoint and PDF files: open one, save a still of each slide, at a
+resolution of the operator's choosing or as native background sets per screen, probably inside the
+frame cutter. The frame cutter is the Background Slicer, so it went there: step 1 takes a document,
+and **Make** is *A background set per page* or *Stills at a size*. Design and the run are in
+docs/BACKGROUNDS.md "Documents"; the invariants in AGENTS.md under the Background Slicer.
+
+What I found on the way, each one tried rather than assumed:
+
+- **PowerPoint exports unattended over AppleScript** (16.112.3), as long as the deck sits in its
+  own sandbox container (`~/Library/Containers/com.microsoft.Powerpoint/Data/tmp/`) and the script
+  finds it by its own unique name. A save to anywhere else would stop on "Grant File Access". With
+  one of Allan's decks open the whole time, nothing of his was touched. ~1–2 s a small deck.
+- **Saving as .pptx renames the open presentation**, so a reference held from before the save
+  stops resolving (-1728). Saving as PDF doesn't. Found making the test deck, whose close failed
+  and left it open until closed by name.
+- **PowerPoint's PDF drops hidden slides**: five slides, third hidden, four pages. The server now
+  reads which slides show from the package and the panel names pages by slide number.
+- **Keynote is a dead end here.** The first `Application('com.apple.iWork.Keynote')` lost its
+  connection (-609), and Keynote Creator Studio (15.3.1, `com.apple.Keynote`) was running after
+  it; the second launched the old Keynote 14.5, which sat on a "Use the New Version of Keynote" modal until the
+  script was killed. Creator Studio addressed by its own id opened the deck twice and then answered
+  -1728 / -1700 to every question. presentation-converter's Keynote engine (`engines/keynote.ts`)
+  will meet the same on this Mac; worth telling it. Both Keynotes were quit afterwards.
+- **pdf.js needs `wasmUrl`** or JPEG 2000 / JBIG2 images draw as nothing (Presentation Commander
+  74a0e35), and `instantiateStreaming` needs `application/wasm`, which the proxy did not serve
+  until now.
+
+**Run on the local LivePremier Simulator** (Session 1, Aquilon Cmax 6.2.73) through the demo on
+:8547: a deck PowerPoint made (five slides, slide 3 hidden) to stills at 2560 × 1440 in slots 1–4
+and stills 1–4, and to S1 + S2 sets 1–4 with stills 1–12; each read back over AWJ and undone. The
+same PDF opened directly and spanned across both screens, continuous at the seam. The Midra side is
+unit-tested on the Midra 4K simulator's store only: the Midra simulator on :5000 was another
+session's at the time. Another session's demo also had :8545, so mine moved to :8547.
+
+**Not done:** a frame; LibreOffice; Windows; a packaged launcher build with the Apple-events
+entitlement; README / guide screenshots and the
+guide PDF; pdf.js in ATTRIBUTIONS.md (generated from stoatworks-backend, so it goes in there).
+No Automation prompt has been seen at all: every conversion ran from a terminal that already had
+permission to control PowerPoint.
 
 ## The live suite, against the rack simulator (2026-10-13)
 

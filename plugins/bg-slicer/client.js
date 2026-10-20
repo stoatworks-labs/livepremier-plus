@@ -17,9 +17,11 @@
  *
  * Everything happens here in the page: the cuts are drawn in a canvas, the
  * images go to the switcher over its own upload route through this page's
- * origin, and every other write rides the page's socket — so there is no
- * server half: the server keeps no mirror (AGENTS.md, "Ride the app's
- * socket"), and nothing here needs one.
+ * origin, and every other write rides the page's socket. The server keeps no
+ * mirror (AGENTS.md, "Ride the app's socket"); its half (`server.js`) does
+ * one thing, turning a PowerPoint deck into a PDF, because only an
+ * application on that machine can draw one. A PDF — or the one it sends
+ * back — is opened and drawn here, page by page, with pdf.js.
  *
  * ⚠️ Preview, off by default: the switcher's side was proved on a LivePremier
  * Simulator 6.2.73, never on a frame (see `test/plugins.test.js`'s
@@ -32,6 +34,8 @@ import { decodePicture } from './render.js';
 
 export default function activate(ctx) {
   const job = createJob();
+  /* A deck goes to the server half to be turned into a PDF (`server.js`). */
+  job.convertUrl = ctx.url('/convert');
   const view = createBgSlicerPanel({ session: ctx.session, job, onRefresh: ctx.refresh });
   ctx.ui.sidebar({
     id: 'bg-slicer',
@@ -58,6 +62,7 @@ export default function activate(ctx) {
       const { bitmap, width, height } = await decodePicture(file);
       if (job.picture) { try { URL.revokeObjectURL(job.picture.url); } catch { /* fine */ } }
       job.stale();
+      if (job.deck) { try { job.deck.doc.pdf.destroy(); } catch { /* gone */ } job.deck = null; }
       job.source = 'stills';
       job.mode = 'each';
       job.picture = { name: file.name || 'picture.png', width, height, bitmap, url: URL.createObjectURL(file) };

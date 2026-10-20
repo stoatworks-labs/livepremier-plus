@@ -69,7 +69,8 @@ than something bolted on.
   **Pixelhue Mapping** to give any key, fader or encoder a different job.
 - **Background Slicer** *(preview)*: one picture cut into a pixel-exact background for every
   output of one or more screens, uploaded and put into a background set, or each output fed live
-  from an input, with the output map for the media server behind it. Off until you switch it on.
+  from an input, with the output map for the media server behind it. A PDF or a PowerPoint deck
+  becomes a background set per page, or a still per page at any size. Off until you switch it on.
 - **Thumbnail relay** and **Multiviewer thumbnails** *(preview)*: lighter source thumbnails, or
   live ones cut from a multiviewer. Both are off until you switch them on.
 - **Remote access:** the app served over Tailscale (with a real HTTPS certificate) or ZeroTier,
@@ -1582,6 +1583,54 @@ Good to know:
   has other changes waiting in Preconfig ▸ Images.
 - A screen shows a background set through its **NATIVE layer**. If the screen has none allocated
   (Preconfig ▸ Resources), the set is built but can't be loaded, and the panel says so.
+
+**Slides: a PDF or a PowerPoint deck**
+
+Drop a PDF, or a PowerPoint (`.pptx`, `.ppt`, `.ppsx`, `.pps`, `.potx`) or OpenDocument (`.odp`)
+deck, on the **Picture** box instead of a picture.
+
+1. **The pages** appear as a strip. Every page is taken to start with; click one to leave it out
+   (or back in), or type them in the box (`1-3, 5, 8-`, or `all`). The orange outline is the page
+   shown under the placement.
+2. **Make:** **A background set per page** or **Stills at a size**.
+
+*A background set per page* goes on exactly as a picture does: screens, placement, plan, Generate,
+Write. The plan has a row per page and a column per screen. Each page gets the next background set
+(**first set** chooses where they start), and on a LivePremier each output of each page takes a
+free still, so a deck uses stills quickly. A LivePremier has eight sets a screen, so eight pages at
+most go at once; a Midra 4K or Alta 4K has four Background Images a screen, so four. **Load the
+first page's set into each screen's preview** does that for page 1 only.
+
+*Stills at a size* skips the screens:
+
+1. **Size:** type the width and height in pixels, or pick one from the list (each screen's canvas,
+   each output's resolution, HD and UHD). **Fit** shows the whole page with the **Background**
+   colour round it, **Fill** fills the image and loses what overhangs, **Stretch** doesn't care
+   about shapes. **Put them into the image library** (on) and, on a LivePremier, **And a free still
+   each**. Untick the library to just download them.
+2. **Plan:** the slot, still and name for each page. A still too small for your size is set to
+   downscale to its capacity, and the plan says so.
+3. **Generate** draws the pages; **Download images** zips them. **Write** puts them on the
+   switcher, and **Undo** takes them off again.
+
+Good to know:
+
+- **Each page is drawn at the size it's going to be**, not drawn once and stretched, so text stays
+  sharp. The plan marks the cut **drawn to size**.
+- **A deck is turned into a PDF by PowerPoint** on the machine LivePremier Plus runs on, or by
+  LibreOffice if that's installed and PowerPoint isn't. The first time, macOS asks whether
+  LivePremier Plus may control PowerPoint. Say yes, or allow it later in System Settings ▸ Privacy &
+  Security ▸ Automation. PowerPoint opens a copy, exports it and closes it, and leaves any deck you
+  have open alone. Each page is the slide as PowerPoint exports it to PDF, fonts and all.
+  Animations aren't played, so a build you step through on the night is one still here.
+- **Hidden slides** aren't in PowerPoint's PDF, so pages go by **slide number**: hide slide 3 and
+  the strip reads 1, 2, 4, 5, and the stills are named to match.
+- **Keynote decks** aren't opened (Keynote wouldn't be driven unattended when I tried). Export a
+  PDF from Keynote, File ▸ Export To ▸ PDF, and drop that. The same goes for a macro-enabled
+  `.pptm`, or anything you'd rather PowerPoint didn't open.
+
+> Slides have run on the LivePremier Simulator only (2026-10-20): both kinds written, read back and
+> undone. Not on a Midra, not with LibreOffice, not from the packaged app, not on a frame.
 
 **Live inputs: a media server as the background**
 

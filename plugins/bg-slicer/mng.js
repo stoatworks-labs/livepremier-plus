@@ -569,6 +569,12 @@ export function imageName(screenId, output, stem = 'bg') {
  * Image the operator chose. Only a free Background Image and an empty set
  * are chosen by default; a set on program is refused unless
  * `opts.allowProgram`, and so is a frame a set on program shows.
+ *
+ * `opts.reserve` — `{ uploads: n, frames: { S1: Set<frame> } }` — is what
+ * plans made before this one have taken (a document's pages, `deck.js`):
+ * `uploads` images go up first and fill the first empty slots, so this
+ * plan's land in the ones after; and a Background Image another page holds
+ * is not free for this one.
  */
 export function buildPlan(store, job, opts = {}) {
   const problems = [];
@@ -581,8 +587,10 @@ export function buildPlan(store, job, opts = {}) {
   const inService = readScreens(store);
   const spanned = (job.screens || []).map((id) => inService.find((s) => s.id === id)).filter(Boolean);
   const stillsScreens = source === 'stills' ? spanned.length : 0;
+  const reserve = opts.reserve || {};
+  const before = Number(reserve.uploads) || 0;
   /* Uploads go in plan order, each into the first empty slot at the time. */
-  const slots = nextSlots(library, stillsScreens);
+  const slots = nextSlots(library, before + stillsScreens).slice(before);
   let slotAt = 0;
 
   const screens = [];
@@ -610,7 +618,8 @@ export function buildPlan(store, job, opts = {}) {
     let frame = null;
     let crops = [];
     if (source === 'stills') {
-      const frames = readFrames(store, id, sets);
+      const held = (reserve.frames && reserve.frames[id]) || new Set();
+      const frames = readFrames(store, id, sets).filter((f) => !held.has(f.index));
       const chosen = Number((job.frames || {})[id]) || null;
       frame = chosen ? frames.find((f) => f.index === chosen) || null : firstFreeFrame(frames);
       if (!frame) problems.push(`${id}: no free Background Image — clear one in Images, or choose one to overwrite.`);

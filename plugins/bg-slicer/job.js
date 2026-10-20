@@ -20,8 +20,23 @@ export function createJob() {
   const job = {
     /** `stills` cuts images; `live` maps inputs and exports a media-server map. */
     source: 'stills',
-    /** The picture: `{ name, width, height, url, bitmap, bytes }`, or null. */
+    /**
+     * The picture: `{ name, width, height, url, bitmap, bytes }`, or null. For
+     * a document it stands for the pages — `width × height` the first page's
+     * size at 96 dpi, `url` the shown page's thumbnail — and `deck` is set.
+     */
     picture: null,
+    /**
+     * A document's pages (`deck.js`, `document.js`), or null for a picture:
+     * `{ doc, name, kind, engine, current, chosen, make, size, fit, library,
+     * stills, startSet, thumbs }`. `make` is `sets` (a background set per
+     * page) or `size` (each page as a still at `size`).
+     */
+    deck: null,
+    /** Where the server turns a deck into a PDF — the page half's `ctx.url('/convert')`. */
+    convertUrl: '/__lpp/bg-slicer/convert',
+    /** What a long job (opening a deck, drawing pages) is doing now, for the panel. */
+    busy: null,
     /** The content size the live mode works in when there is no picture. */
     content: null,
     screens: [],
@@ -63,6 +78,29 @@ export function createJob() {
     }
   };
   return job;
+}
+
+/** A fresh document state for a just-opened document. */
+export function newDeck(doc) {
+  return {
+    doc,
+    name: doc.name,
+    kind: doc.kind,
+    engine: doc.engine,
+    /** Each page's slide number, when it is not its place (hidden slides), else null. */
+    numbers: doc.numbers || null,
+    current: 0,
+    chosen: doc.pages.map((_, i) => i),
+    make: 'sets',
+    size: null,
+    fit: 'fit',
+    library: true,
+    stills: false,
+    startSet: {},
+    thumbs: new Map(),
+    /** The shown page drawn larger, for the placement view. */
+    preview: null
+  };
 }
 
 /**

@@ -3,7 +3,8 @@
 One picture, cut into a background for every output of one or more screens, pixel for pixel — and
 put into the image library, the stills and a background set. Or, in the live-input mode, each
 output's background fed from an input, with the output map the media server behind those inputs
-needs to feed them, as files it can import.
+needs to feed them, as files it can import. Or a PDF or a PowerPoint deck: a background set per
+page, or every page as a still at a size of your choosing.
 
 **PLUS ▸ Background Slicer** (it pops out). The plugin is `plugins/bg-slicer/`.
 
@@ -16,7 +17,9 @@ needs to feed them, as files it can import.
 
 ## Doing it
 
-1. **Picture.** Choose an image or drop one; its pixel size is shown. In the live mode a content
+1. **Picture.** Choose an image or drop one; its pixel size is shown. A PDF or a PowerPoint deck
+   opens as pages instead, each drawn at the size it's wanted
+   ([Documents](#documents-a-pdf-or-a-powerpoint-deck)). In the live mode a content
    size stands in when there is none (the media server's canvas). The UMD Generator hands a
    screen's UMD over through the `backgrounds` service: stills mode, *On each screen*, its screens
    picked, and a note saying where it came from.
@@ -364,6 +367,107 @@ taken against the raster or that area is not established, and the plan marks it.
 | **Proven** — simulator | every write above but the EDID, end to end, and its Undo; the auto slot landing on a slot a frame points at; the frame reporting 1:1 at the canvas; inbound echo of accepted writes and silence for a refused one |
 | **Assumed** — shown on the output | Auto Crop gives each output its own rectangle of the canvas, as drawn; a pitch other than 1.000 (scaled by the switcher); an area of interest smaller than the raster; Custom's alignment against an area of interest |
 | **Not handled** | auxiliaries (an aux has no background set); Foreground Images; one input across a whole screen in Auto Crop (the vendor offers it; the live mode here is an input per output) |
+
+## Documents: a PDF or a PowerPoint deck
+
+Step 1 takes a document as well as a picture: a **PDF**, or a **PowerPoint** (`.pptx`, `.ppt`,
+`.ppsx`, `.pps`, `.potx`) or **OpenDocument** (`.odp`) deck. It opens as a strip of pages, each
+one clicked in or out (or typed: `1-3, 5, 8-`), and it makes one of two things:
+
+- **A background set per page.** Steps 2 to 6 as for a picture, with every chosen page taking its
+  own images, stills and set on every chosen screen: page 1 the first set, page 2 the next. The
+  plan has a row per page and a column per screen.
+- **Stills at a size.** No screens and no placement: a width and height of the operator's choosing
+  (anything the library takes, with each screen's canvas, each output's raster, HD and UHD offered),
+  each page put into it by **Fit**, **Fill** or **Stretch** with a background colour round it,
+  then into free library slots, and on a LivePremier a free still each if asked. Or just the zip.
+
+### A page is drawn at its size, not scaled to it
+
+A picture has pixels; a page doesn't. The page half draws each page with **pdf.js**
+(`src/vendor/pdfjs/`, 6.3.289, synced by `npm run sync:pdfjs` from the package PDF Presenter's
+lockfile pins) straight into a canvas of exactly the size it's wanted at. For a background set
+that size is the page's placement on the screen, in whole pixels (`deck.placementUnits`: one per
+screen, or one for spanned screens), and the slicer then cuts the drawing as it cuts any picture
+placed 1:1. So every cut is a copy of a drawing made at that size, and the plan says **drawn to
+size** rather than *resampled*. The placement is made for the first page; a page of another shape
+(a portrait page in a landscape PDF) is fitted inside it rather than squashed (`placedFit`). Its
+nominal size, which **1:1** places it at, is 96 pixels to the inch: PowerPoint's own pixel, so a
+13.333 × 7.5 inch widescreen slide is 1280 × 720.
+
+### A deck becomes a PDF on the machine the app runs on
+
+`plugins/bg-slicer/server.js` takes the deck (`POST /__lpp/bg-slicer/convert`, the bytes as
+`application/octet-stream`, up to 1 GB, streamed to a temporary file) and `convert.js` hands it to
+the first engine here that takes its type:
+
+| Engine | Takes | How | Proven |
+|---|---|---|---|
+| **Microsoft PowerPoint** (macOS) | `.pptx .ppt .ppsx .pps .potx` | AppleScript: open a copy in PowerPoint's own sandbox container under a name nothing else has, find it by that name, `save … as save as PDF`, close only it, quit PowerPoint only if this started it | PowerPoint 16.112.3, macOS 26.4.1, 2026-10-20, with another deck of the operator's open the whole time and untouched |
+| **LibreOffice** (anywhere) | the PowerPoint types and `.odp` | `soffice --headless --convert-to pdf`, a profile of its own per run; found by `LPP_SOFFICE`, then `PATH`, then where installers put it. presentation-converter's arguments | **not run**: not installed on the machine this was written on |
+
+With neither, the panel says which would have done it and to export a PDF instead. Not taken:
+**Keynote** (below) and **`.pptm`**, whose macro warning would stop PowerPoint with nobody there.
+The route answers no CORS preflight and takes only `application/octet-stream`, which a page on
+another site can't send without one, so a browser never lets another site make this machine open a
+file in PowerPoint.
+
+**PowerPoint leaves hidden slides out of its PDF.** Five slides with the third hidden came back as
+four pages, the third being slide 4 (2026-10-20). So the server reads the deck's own slide list
+(`ppt/presentation.xml`, each slide's `show="0"`) and sends the slide numbers its pages are
+(`x-lpp-slides: 1,2,4,5`); when they account for every page, the strip, the page field and every
+name go by slide number (`Show 4`, `Show_s04_…png`), and typing a hidden slide says it's hidden.
+Otherwise pages go by their place.
+
+The packaged launcher has to be allowed to ask: `NSAppleEventsUsageDescription` in its Info.plist
+and `com.apple.security.automation.apple-events` in its entitlements, added with this. The first
+conversion asks for Automation permission for PowerPoint; refused, AppleScript answers -1743 and
+the panel says where to allow it. **The packaged app has not been built and run with them yet**;
+the conversions above ran from a terminal, which has its own permission.
+
+### Keynote: a dead end on this Mac (2026-10-20)
+
+presentation-converter drives Keynote over JXA, so it was the obvious second engine. Neither Keynote
+here would do it unattended. **Keynote 14.5** (`com.apple.iWork.Keynote`) opens to a modal "Use the
+New Version of Keynote" and waits there, so the script hangs. **Keynote Creator Studio 15.3.1**
+(`com.apple.Keynote`) opens the deck, twice, then answers every question about it with -1728 ("Can't
+get every document") or -1700 ("Can't make unmerge id … into type specifier"). A `.key` is refused
+with the way round: export a PDF from Keynote. (presentation-converter's Keynote engine is likely to
+meet the same on this Mac.)
+
+### What it writes
+
+Nothing new. A document's plan is the slicer's own shape (`deck.buildDeckPlan`,
+`deck.buildSizePlan`) with a screen entry per page: `entry` (its images are `<entry>/<out>`),
+`setLabel` and each output's `stillLabel` (the name and the page's number, inside 16 characters),
+`preview: false` on every page but the first. Each page's plan is built knowing what the pages
+before it took (`buildPlan`'s `opts.reserve`): LivePremier slots and stills, Midra uploads (which
+move the predicted slots on) and Background Images. So `apply.js`, `apply-mng.js`, the journal and
+Undo are the slicer's, with four small changes: the image key, the per-page names, the first page's
+set alone loaded into preview, and an image with no still (or no Background Image) is the library's
+alone. A still for stills at a size takes a capacity that holds the size when there is one and is
+set to **No rescale**; otherwise **Downscale to capacity**, and the plan says so. Which capacity
+holds which size is `likelyCapability`'s guess.
+
+### What was run (2026-10-20)
+
+On the LivePremier Simulator 6.2.73 (the app's Session 1, S1 and S2), through the demo and the
+browser, each write read back over AWJ:
+
+- A five-slide PowerPoint deck made by PowerPoint, slide 3 hidden, opened through the server:
+  four pages, numbered 1, 2, 4, 5.
+- **Stills at a size**, 2560 × 1440, Fit, a still each: four uploads into slots 1–4, stills 1–4
+  `IMAGE` on them with *Downscale to capacity* (every still there is DUAL), named `LPP test deck 1`,
+  `2`, `4`, `5`. Undo: stills `NONE`, slots empty.
+- **A background set per page** on S1 and S2, each screen: twelve images (three outputs a page),
+  stills 1–12 at *No rescale*, S1 and S2 sets 1–4 holding them and named after their slides, set 5
+  untouched. Undo: every set empty, every still `NONE`.
+- The same deck's PDF opened directly, spanned across S1 and S2: the cut continuous across the seam.
+- A `.key` refused with its reason.
+
+The Midra plans and writes are tested against the Midra 4K simulator's store
+(`test/bg-slicer-mng.test.js`), not run live: the Midra simulator was another session's that day.
+Nothing here has met a frame, nor LibreOffice, nor Windows.
 
 ## Proving it on a frame
 
