@@ -127,13 +127,18 @@ test('the host says hello with its modules, and answers want and write for them'
 test('without node-hid the host still says hello, and says why nothing will open', async () => {
   const sent = [];
   const core = createHostCore({ hid: null, reason: 'node-hid is not installed', modules: [speedEditorModule], send: (m) => sent.push(m) });
-  assert.deepEqual(sent[0], { type: 'hello', available: false, reason: 'node-hid is not installed', modules: [{ id: 'speed-editor', name: 'DaVinci Resolve Speed Editor', transport: 'hid', state: null }] });
+  assert.deepEqual(sent[0], {
+    type: 'hello',
+    available: false,
+    reason: 'node-hid is not installed',
+    modules: [{ id: 'speed-editor', name: 'DaVinci Resolve Speed Editor', transport: 'hid', state: null, available: false, reason: 'node-hid is not installed' }],
+  });
   await core.handle({ op: 'want', id: 1, module: 'speed-editor', wanted: true });
   assert.equal(sent[1].error, 'node-hid is not installed');
 });
 
 test('modules are the folders under modules/, and a folder that is not one is skipped with a reason', async () => {
-  assert.deepEqual((await loadModules(join(ROOT, 'devices/modules'))).map((m) => m.id), ['speed-editor']);
+  assert.deepEqual((await loadModules(join(ROOT, 'devices/modules'))).map((m) => m.id), ['barco-ec', 'speed-editor']);
   const dir = await mkdtemp(join(tmpdir(), 'lpp-modules-'));
   try {
     await mkdir(join(dir, 'wrong-id'));

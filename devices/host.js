@@ -9,12 +9,15 @@
  * it stops. The channel closing is the end: a host whose app has gone exits,
  * so there is never an orphan holding a panel.
  *
- *   --hid <module>   load this in place of node-hid — the tests' fake panel
+ *   --hid <module>    load this in place of node-hid — the tests' fake panel
+ *   --ftdi <module>   load this in place of the FTDI transport — its default
+ *                     export is the backend (the tests' fake EC panel)
  */
 
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHostCore, loadModules } from './core.js';
+import { loadFtdi } from './transports/ftdi.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +29,8 @@ if (!process.send) {
 const argv = process.argv.slice(2);
 const at = argv.indexOf('--hid');
 const hidPath = at >= 0 ? argv[at + 1] : null;
+const ftdiAt = argv.indexOf('--ftdi');
+const ftdiPath = ftdiAt >= 0 ? argv[ftdiAt + 1] : null;
 
 async function loadHid() {
   try {
@@ -42,11 +47,22 @@ async function loadHid() {
   }
 }
 
+async function loadFtdiTransport() {
+  if (!ftdiPath) return loadFtdi();
+  try {
+    const mod = await import(pathToFileURL(resolve(ftdiPath)).href);
+    return { ftdi: mod.default ?? mod, reason: null };
+  } catch (err) {
+    return { ftdi: null, reason: `the FTDI stand-in did not load: ${err.message}` };
+  }
+}
+
 const send = (msg) => { try { process.send(msg); } catch { /* the app has gone; disconnect ends us */ } };
 const log = (text) => send({ type: 'log', text });
 
 const { hid, reason } = await loadHid();
-const core = createHostCore({ hid, reason, modules: await loadModules(join(HERE, 'modules'), log), send, log });
+const { ftdi, reason: ftdiReason } = await loadFtdiTransport();
+const core = createHostCore({ hid, reason, ftdi, ftdiReason, modules: await loadModules(join(HERE, 'modules'), log), send, log });
 
 process.on('message', (msg) => { void core.handle(msg); });
 

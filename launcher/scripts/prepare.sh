@@ -4,10 +4,13 @@
 # This is nearly the simplest prepare.sh in the fleet, and deliberately so:
 # LivePremier Plus has no dependencies and no build step. Its device host —
 # devices/, the separate program that holds USB panels such as the Speed
-# Editor (devices/README.md) — has one, node-hid. Staging the app is a copy of
-# four directories and an `npm ci` in devices/, trimmed to the prebuilt addon
-# for the target. node-hid ships N-API prebuilds for every platform, so nothing
-# is compiled here; if this script ever grows a build, something has gone wrong.
+# Editor and the Barco EC panels (devices/README.md) — has three: node-hid,
+# usb (libusb, for the EC panel on macOS and Linux) and koffi (FTDI's D2XX, for
+# it on Windows). Staging the app is a copy of four directories and an `npm ci`
+# in devices/, trimmed to the prebuilt addons for the target. node-hid and usb
+# ship N-API prebuilds for every platform inside the package, and koffi one
+# optional package per platform, so nothing is compiled here; if this script
+# ever grows a build, something has gone wrong.
 #
 # Produces src-tauri/node[.exe] and src-tauri/livepremier-plus-app/ (both
 # git-ignored; they ship inside the bundle). Run before `npm run tauri build`.
@@ -63,7 +66,7 @@ mkdir -p "$APP/devices"
 ( cd "$REPO/devices" && tar -cf - --exclude ./node_modules . ) | ( cd "$APP/devices" && tar -xf - )
 cp "$REPO/package.json" "$APP/package.json"
 
-echo "==> installing the device host (node-hid, for USB panels)"
+echo "==> installing the device host (node-hid, usb and koffi, for USB panels)"
 # --ignore-scripts: its install script only checks for a prebuild and falls back
 # to node-gyp; the prebuilds are in the package, and a fallback compile on a
 # release runner would build for the wrong target when cross-staging.
@@ -80,8 +83,17 @@ for __d in "$APP/devices/node_modules/node-hid/prebuilds"/*; do
   done
   [ -n "$__ok" ] || rm -rf "$__d"
 done
+# usb's macOS prebuild is one fat binary, darwin-x64+arm64; it serves either Mac.
+for __d in "$APP/devices/node_modules/usb/prebuilds"/*; do
+  __name="$(basename "$__d")"; __ok=""
+  for __k in $__keep; do
+    case "$__name" in "$__k") __ok=1 ;; darwin-*) case "$__k" in darwin-*) __ok=1 ;; esac ;; esac
+  done
+  [ -n "$__ok" ] || rm -rf "$__d"
+done
 # Headers and C sources, needed only to compile what is already prebuilt.
 rm -rf "$APP/devices/node_modules/node-addon-api" "$APP/devices/node_modules/node-hid/src" "$APP/devices/node_modules/node-hid/hidapi"
+rm -rf "$APP/devices/node_modules/usb/libusb" "$APP/devices/node_modules/usb/src" "$APP/devices/node_modules/usb/test"
 # npm's .bin links point into the sources just removed (hid-showdevices ->
 # node-hid/src/show-devices.js), and Tauri refuses a resource that is a dangling
 # link: v0.16.0's first build failed on exactly that. Nothing here runs them.
@@ -91,6 +103,9 @@ __dangling="$(find "$APP" -type l ! -exec test -e {} \; -print)"
 __left="$(ls "$APP/devices/node_modules/node-hid/prebuilds" | tr '\n' ' ')"
 [ -n "$__left" ] || { echo "no node-hid prebuild for $PLATFORM" >&2; exit 1; }
 echo "    node-hid prebuilds: $__left"
+__left="$(ls "$APP/devices/node_modules/usb/prebuilds" | tr '\n' ' ')"
+[ -n "$__left" ] || { echo "no usb prebuild for $PLATFORM" >&2; exit 1; }
+echo "    usb prebuilds: $__left"
 
 echo "==> fetching self-contained Node $NODE_VERSION ($PLATFORM)"
 # nodejs.org publishes no universal macOS build, so the single universal macOS
