@@ -40,6 +40,16 @@ than something bolted on.
   life-size dinosaurs) in a tab beside the switcher's own Pattern tab, on an output and on a
   canvas, drawn for the switcher's own outputs and put on the top layer as a still. While it's on
   it follows every change. Off until you switch it on.
+- **Image Library tools:** Delete all, delete a selection, a zip of pictures uploaded into the
+  free slots in name order, and a capacity dropdown on every still's card. Off until you switch
+  it on.
+- **Aux follow:** an aux's layer that takes whatever source a screen layer has, however it got
+  there, in program or role for role. Off until you switch it on.
+- **AoI from a custom format:** an LED wall's custom format as an SDI output's AoI, set in one go
+  from Preconfig ▸ Canvas. Off until you switch it on.
+- **Resolume Mapping:** a Resolume Arena Advanced Output preset made from the switcher's own
+  screens and outputs, and, if you like, the inputs it feeds into a background set. Off until you
+  switch it on.
 - **Send to:** a `…` on every source card that routes it to a screen and layer, or to a whole
   group, in preview or program, without a drag.
 - **Matrix Routing:** patch the frame's own SDI and HDMI sockets to ports on a Blackmagic
@@ -142,6 +152,13 @@ connection of their own when they act, which is worth knowing, because the switc
 > **0.15.0 adds Layer Lock, HyperDecks, the EDID builder, Mosaic inputs, Pixelhue Mapping and the
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
+>
+> **0.18.0 adds Test Card, Resolume Mapping, Image Library tools, Aux follow, AoI from a custom
+> format, the Barco EC and ATEM Micro panels, and slides in the Background Slicer** (PDF,
+> PowerPoint and Keynote), every one of them off until you switch it on. Transitions and Layer
+> Lock's timed take-only arrive behind Experimental features. HyperDecks now ask Mitti for its
+> slot the way it answers. Proven on simulators and pretend panels only; none of it has run on a
+> real frame or a real panel.
 >
 > **0.17.8 is fixes**, mostly for a Midra 4K or Alta 4K: icons that drew blank, the MVR key,
 > SOURCE BACKUP's refusal, Pixelhue Mapping at the foot of PLUS, and Preview lock shutting PRW on
@@ -987,6 +1004,94 @@ app and go into the setup file under *Test cards*.
 
 ---
 
+## Image Library tools (off by default)
+
+Switch on **Image Library tools** in **Preconfig ▸ LivePremier Plus → Plugins**. It's off to
+start with because it deletes library images and applies still capacities, and it hasn't met a
+real frame yet.
+
+The vendor's **Image Library** page gives every card a bin and nothing else, which is fine until
+there are two hundred of them. This puts three things on the end of the page's header:
+
+- **Delete all** empties the library.
+- **Select** lets you click cards (shift-click for a run) and then delete just those.
+- **Upload .zip** takes a zip of pictures, unpacks it in the browser and puts them into the free
+  slots in name order, so `slide 9` comes before `slide 10`. Dropping a zip on the page does the
+  same. The litter macOS and Windows put in zips (`__MACOSX`, `._` files, `.DS_Store`,
+  `Thumbs.db`) is passed over quietly; anything else it can't take is named, with the reason.
+
+On the **Images** page every still's card gets a **capacity dropdown** (Dual, 4K, 5K) beside its
+tally, so you don't have to trek off to Preconfig ▸ Images.
+
+Everything asks first, and the questions use the switcher's own answers. Two of them matter more
+than the rest:
+
+- **Deleting a library image empties every still showing it**, there and then, as the vendor's
+  own bin does. The question names those stills. A picture a still is showing on program or
+  preview is never deleted, and that's checked again just before each slot, in case a take landed
+  while you were reading.
+- **An empty slot isn't always unclaimed.** A still keeps pointing at a slot after its picture
+  goes, and a picture uploaded into that slot turns up on the still at once. So an upload skips
+  those slots unless you tick **Use assigned slots**; then they're used after every clean slot,
+  and the question names each still. The tick is off again every time the page loads. The
+  Background Slicer, the UMD Generator and Test Card follow the same rule.
+
+A capacity change is staged and put through the switcher's own check before you're asked, and
+it's refused if it would take a still that holds a picture out of service. There's no Undo for a
+delete; the question says so.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-20: selecting and deleting, Delete all, a zip
+> dropped on the page (thirteen pictures in name order round two filled slots, the litter left
+> out), assigned slots left alone, and capacities changed and refused. Not yet on a real frame.
+
+---
+
+## Aux follow (off by default)
+
+Give an aux's layer a screen layer to follow and it takes whatever source that layer has, however
+it got there: the vendor's drag, a memory, a take, the front panel, Companion. The switcher has no
+such link, so it's kept by the page. With no LivePremier Plus page open, nothing follows.
+
+There are two ways to follow:
+
+- **Program**: the aux's program cuts to match when the screen's take lands, or when somebody
+  edits the screen's program directly. The aux's preview stays yours.
+- **Program and preview**: role for role, so an aux taken with the screen transitions with it,
+  and an aux left out of a take is put back in line when the take lands.
+
+It only ever acts on a change at the screen end. Take or edit the aux by hand and it isn't pulled
+back. Setting up a follow that would change the aux's program asks twice, because that's the one
+time it acts on what it finds rather than on a change.
+
+> LivePremier only. Proven on LivePremier Simulator 6.2.73 on 2026-10-20, with the changes made
+> from outside the page: preview edits left alone, a take followed onto the aux's own program
+> letter, a direct program edit followed, both roles mirrored, and an aux taken alone not fought.
+> Not yet on a real frame.
+
+---
+
+## AoI from a custom format (off by default)
+
+An LED wall defined as a custom format, say 3000×1000, can't go down SDI as one, because SDI only
+carries standard formats. So the output runs a standard format big enough to hold it, and its
+**AoI** (area of interest) is the wall.
+
+On **Preconfig ▸ Canvas**, select the output, and under its AoI pick the custom format and where
+it sits: top left, top centre or centred. **Set AoI** writes it the way the vendor's own AoI fields
+do, then reads back what the switcher made of it. The output's footprint on the canvas becomes the
+wall's size, so the canvas is laid out in the wall's own pixels.
+
+A format bigger than the output is refused rather than written, because the switcher would quietly
+clamp it. Groups, DP-box slices and clones are refused with the reason; the vendor's own fields
+still do those.
+
+> Proven on LivePremier Simulator 6.2.73 on 2026-10-20: the simulator's own 3000×1000 `LEDwall`
+> refused on a 1080p output, then centred on a 3840×1080 output, with the switcher reporting
+> 3000×1000 at 420, 40 and its own fields and canvas redrawn to match. Not yet over a real SDI
+> card, or on a real frame.
+
+---
+
 ## Matrix Routing
 
 **PLUS ▸ Matrix Routing.** Patch the switcher's own sockets to ports on an external router (a
@@ -1564,6 +1669,41 @@ dot, and **Reset** puts everything back.
 
 ---
 
+## Barco EC panel (preview, off by default)
+
+A Barco **EC-30**, **EC-40** or **EC-50**, plugged into the machine this app runs on, driving the
+switcher with no browser open: screens on the destination keys, layers on the layer keys, inputs,
+stills or memories on the labelled rows, ALL TRANS, CUT and the T-bar.
+
+Switch on **Barco EC panel** in **Preconfig ▸ LivePremier Plus → Plugins**, then tick **Drive a
+Barco EC panel** on its card. The panel takes one program at a time, so quit Barco's Event Master
+Toolset first; if the card says *in use by another program*, that's what's holding it. The EC-200
+and EC-210 aren't supported.
+
+Everything else, from what each key does to the platform notes, is in
+[BARCO-EC.md](BARCO-EC.md).
+
+> ⚠️ **Never run against a real panel.** The protocol comes from captures of Barco's own software
+> driving a real EC-50; here it has only met a pretend panel that keeps that protocol's rules, and
+> a simulator at the far end. Try it in rehearsal, not in a show.
+
+---
+
+## ATEM Micro Panel (preview, off by default)
+
+A Blackmagic **ATEM Micro Panel**, plugged in or paired over Bluetooth, driving the switcher the
+way it drives an ATEM, with no browser open: the M/E keys pick screens, the preview row puts input
+*n* in preview, CUT, AUTO and the T-bar take, and the program row shows tally.
+
+The program row only cuts to air if you tick that on the card, and the tick isn't kept: it's off
+again next time. Quit ATEM Software Control first, or every press switches your ATEM as well.
+
+The key map and the rest are in [ATEM-MICRO-PANEL.md](ATEM-MICRO-PANEL.md).
+
+> ⚠️ **Never run against a real panel**, only against a pretend one and a simulator.
+
+---
+
 ## Thumbnail relay (preview)
 
 It's off until you switch it on in **Preconfig ▸ LivePremier Plus → Plugins**.
@@ -1817,6 +1957,33 @@ The same steps, with the platform's own model:
 
 ---
 
+## Resolume Mapping (off by default)
+
+**Preconfig ▸ Resolume Mapping**, just under Canvas. Tick the screens, side by side or one above
+another, and it writes a **Resolume Arena Advanced Output preset**:
+
+- The screens' canvases are the composition, each at its own pixels.
+- Every switcher output gets an Arena output the size of its raster, with a slice per connector
+  reading exactly its rectangle of the composition.
+- Rotated, pitched and grouped outputs are worked out as the Background Slicer works them out,
+  and marked where that's the switcher's arithmetic rather than something seen on a device.
+
+Say which switcher input each Arena output is cabled into and the output is named after the cable
+(`IN 5 → S1 Out 1`). Then, if you like, **Write** puts those inputs into a background set per
+screen, and loads each plug with the switcher's own EDID for its output's format, so Arena's
+graphics card is offered exactly the mode a live background has to match. The set's writes can be
+undone; the EDIDs can't, and it says so.
+
+The preset is written by the same code that writes the Background Slicer's Arena export, and
+that code was checked against files real Arena 7.27 wrote. **Nobody has opened one of these
+presets in Arena yet**, though, so check the first one before a show depends on it.
+
+> LivePremier only. Proven on LivePremier Simulator 6.2.73 on 2026-10-20: two screens made a
+> 3840 × 1080 composition (1920 × 2160 stacked), the preset parsed, and the background set was
+> written and undone, all read back from outside the page. Not opened in Arena; not on a frame.
+
+---
+
 ## Arithmetic in numeric fields
 
 Type an expression into one of Web RCS's own numeric fields and it's worked out when you commit, on
@@ -1927,12 +2094,38 @@ touched.
 
 ---
 
+## Experimental features
+
+Some things the switcher accepts, and reports back as done, haven't been seen to *happen* on a
+real frame. Those are behind **Experimental features** in **Preconfig ▸ LivePremier Plus →
+Plugins**, which is off, and their own switches don't appear on the Plugins card until it's on.
+Use them on a simulator or a spare box, not in a show.
+
+- **Transitions** *(a tab on Screens / Aux.)*: every layer's opening and closing effect and its
+  timing in seconds of the take, the same effect on several layers at once, kept styles, and moves
+  the switcher doesn't have: a wipe across the whole screen, a cascade, a dip through the
+  background. Seconds are worked out from the next take's time every time it's drawn, because a
+  memory recall changes that time. Everything is written to preview unless you choose program,
+  which warns you first.
+- **Layer Lock's "Take only with"** a time and an effect: the layers moving in a take-only get
+  their own effect and take time, and the screen's own time is put back afterwards, landed or not.
+- **Aux backgrounds** *(Preconfig ▸ Backgrounds, under the screens)*: a still or a live input on an
+  aux's background, in preview or program.
+- **The UMD Generator on an aux's background**, so every layer is a box.
+
+> Proven on LivePremier Simulator 6.2.73 (and the aux background on an Aquilon RS4's control
+> software too), every write read back. What a frame actually shows for any of them is the open
+> question, and [NOTES.md](NOTES.md) has the tests that would answer it.
+
+---
+
 ## Switching features off
 
 **Preconfig ▸ LivePremier Plus → Plugins** lists every feature this app adds, each with a switch.
 Everything is on until you switch it off, except the ones that haven't met a real frame yet,
 which start off: **Preview lock**, **Image Library tools**, **Surfaces**, **Aux follow**, **AoI
-from a custom format**, **Aux backgrounds**, **Transitions**, **Experimental features**, and the
+from a custom format**, **Resolume Mapping**, **Aux backgrounds**, **Transitions**, **Experimental
+features**, and the
 **UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **Thumbnail
 relay**, **Multiviewer thumbnails** and **Background Slicer** previews.
 
