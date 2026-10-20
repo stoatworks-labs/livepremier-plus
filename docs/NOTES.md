@@ -48,8 +48,9 @@ Pixelhue panel has never met a console; the console suite has only run against i
 set per page, or every page as a still at any size. Simulators only: both kinds written, read back
 and undone on the LivePremier 6.2.73 and Midra 4K 3.2.29 simulators; pages drawn in the pop-out;
 an unsigned build of the desktop app converted a deck after macOS asked for App Data and
-Automation. "Slides in the Background Slicer" and "Slides: the Midra, the pop-out and the desktop
-app" below.
+Automation. Keynote decks too, since later the same day, through Keynote Creator Studio.
+"Slides in the Background Slicer", "Slides: the Midra, the pop-out and the desktop app" and
+"Keynote after all" below.
 
 **Open:** whether a frame draws a still on an aux's background. The RS4 (6.1.60) took and
 reported one on 2026-10-17 but was factory reset before anyone looked at the output ("The
@@ -92,6 +93,9 @@ What I found on the way, each one tried rather than assumed:
   script was killed. Creator Studio addressed by its own id opened the deck twice and then answered
   -1728 / -1700 to every question. presentation-converter's Keynote engine (`engines/keynote.ts`)
   will meet the same on this Mac; worth telling it. Both Keynotes were quit afterwards.
+  *(Correction, later on 2026-10-20: wrong about Creator Studio. The -1700 was my script handing
+  the sandboxed app a `POSIX file` it couldn't read; Keynote drives fine. See "Keynote after all".
+  The 14.5 modal stands.)*
 - **pdf.js needs `wasmUrl`** or JPEG 2000 / JBIG2 images draw as nothing (Presentation Commander
   74a0e35), and `instantiateStreaming` needs `application/wasm`, which the proxy did not serve
   until now.
@@ -154,6 +158,52 @@ on the Pulse 4K that day, and everything here used private copies of the simulat
 
 Still not done: a frame, LibreOffice, Windows, a hardened-runtime build of the launcher. (pdf.js
 went into ATTRIBUTIONS.md the same day, 8d9ec07.)
+
+## Keynote after all (2026-10-20)
+
+The morning's entry above says Keynote is a dead end. It isn't, or not the half that matters. That
+afternoon presentation-converter (main 6adce79) drove Keynote Creator Studio 15.3.1 from JXA and
+AppleScript without trouble, and worked out what had gone wrong here: `open (POSIX file p)` written
+inside the `tell` hands the sandboxed app a path it may not read, so it says the file "can't be
+imported", `open` answers missing value and the next line is -1700. Make the reference before the
+`tell` and the same script works. The -1728 is Creator Studio mid-save or mid-rename. So Keynote is
+an engine in `convert.js` now, after PowerPoint and ahead of LibreOffice, and a `.key` opens in the
+slicer. Design in docs/BACKGROUNDS.md "Keynote"; invariants in AGENTS.md.
+
+What I found doing it, each tried rather than assumed:
+
+- **No container needed.** With the references made before the `tell`, Keynote read a deck from
+  `/var/folders/…/T/` and exported the PDF beside it, cold and warm. PowerPoint's container copy is
+  why macOS asks PowerPoint users about App Data; Keynote users get only the Automation question.
+- **Keynote's own `skipped` is reliable** and cheaper than parsing a `.key` (snappy-compressed
+  protobuf, no thanks): `skipped of every slide of d` before the export gives the slide numbers the
+  pages are. A five-slide deck with slide 3 skipped: `1,2,4,5`, four pages. The same for a `.pptx`
+  imported into Keynote.
+- **A password-protected `.key` has `.iwpv2` at the root of its zip.** Found by giving a copy a
+  password (`set password … to d`) and diffing the file lists. Keynote would otherwise sit on a
+  password prompt on the operator's screen, so the server refuses it before Keynote starts.
+- **Keynote's pixel is the PDF's point.** A 1920 × 1080 Keynote slide exports as a 1920 × 1080
+  point page, which the 96 dpi rule called 2560 × 1440. A `.key` is now called at 72 dpi. A
+  PowerPoint deck converted by Keynote keeps its size in inches, so it stays at 96.
+- **`before` is an AppleScript reserved word.** `set before to …` fails to compile with "Expected
+  expression but found “to”" (-2741). It's `openBefore`.
+- **Opening a copy of a deck that's already open** gives a second document; opening the same file
+  gives the open one back with the same id, which is then left open. Allan's decks weren't
+  touched: Keynote wasn't running when I started, and my own test deck stood in for one.
+- **Never launched Keynote 14.5.** Compiling a script that names `com.apple.iWork.Keynote` reads
+  its dictionary without starting it (checked: still not running afterwards).
+
+**Run** through this worktree's demo on :8577 against a private copy of the 6.2.73 simulator's
+Session 1 (3077 / 10677, in a scratchpad, deleted after), never the installed app on :8536 or any
+frame (a show was on the Pulse 4K): the route cold 6.9 s and warm 1.6 s, a `.pptx` through Keynote
+4.3 s, the password-protected and junk decks refused without Keynote starting, and the `.key`
+dropped on the panel in the browser opening as pages 1, 2, 4, 5 at 1920 × 1080. Keynote quit after
+every run that started it.
+
+**Not done:** Keynote 14 on a Mac without Creator Studio; a slideshow playing (would have taken
+over a screen during a show); the packaged app's Automation prompt for Keynote; `.ppt`, `.ppsx`,
+`.pps`, `.potx` through Keynote. ATTRIBUTIONS.md's pdf.js line (generated from
+stoatworks-backend) still says a deck is exported by PowerPoint.
 
 ## The live suite, against the rack simulator (2026-10-13)
 

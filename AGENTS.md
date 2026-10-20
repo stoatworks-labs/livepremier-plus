@@ -686,8 +686,8 @@ matches) and proved on that simulator:
 - No still capacity, no claims, no set label, no rotation, slices or groups on
   this platform — the panel shows none of them there.
 
-**A document — a PDF, or a PowerPoint or OpenDocument deck — is a picture with
-no pixels** (`deck.js` pure, `document.js` page, `convert.js` + `server.js`
+**A document — a PDF, or a PowerPoint, Keynote or OpenDocument deck — is a
+picture with no pixels** (`deck.js` pure, `document.js` page, `convert.js` + `server.js`
 the server half; `docs/BACKGROUNDS.md` "Documents"). Run on the 6.2.73
 simulator through the browser, every write read back over AWJ (2026-10-20):
 
@@ -696,27 +696,41 @@ simulator through the browser, every write read back over AWJ (2026-10-20):
   paints each page into a canvas of its placement's whole-pixel size, and the
   cut of that is 1:1 — so a document's plan must give `buildPlan` the
   placement's own size as `image` (`placementUnits`), not the page's nominal
-  96 dpi one, or every cut becomes a resample.
+  96 dpi one, or every cut becomes a resample. (Nominal is 72 dpi for a `.key`,
+  `pageDpi`: Keynote's pixel is a PDF point.)
 - **A deck's plan is the slicer's plan with a screen entry per page**, each
   page planned knowing what the pages before it took (`opts.reserve` in both
   `buildPlan`s). The apply, the journal and Undo are the slicer's; do not
   write a second apply for pages. `entry` keys the images, `setLabel` /
   `stillLabel` name them, `preview: false` keeps all but page 1 out of preview,
   and an output with no still (or no frame) is a library upload alone.
-- ⚠️ **PowerPoint is the converter, Keynote is not.** PowerPoint over
-  AppleScript, the deck copied into its sandbox container under a unique name
-  and found by that name — never `active presentation`, which is whatever the
-  operator last clicked (one of Allan's decks was open throughout). Keynote
-  14.5 hangs on a "Use the New Version" modal and Keynote Creator Studio 15.3.1
-  answers -1728/-1700 to scripting (2026-10-20); `.key` is refused with the way
-  round. LibreOffice is wired (presentation-converter's arguments) and has
-  never run.
+- ⚠️ **PowerPoint, then Keynote, then LibreOffice** (`ENGINES`). PowerPoint
+  over AppleScript, the deck copied into its sandbox container under a unique
+  name and found by that name — never `active presentation`, which is whatever
+  the operator last clicked (one of Allan's decks was open throughout).
+  LibreOffice is wired (presentation-converter's arguments) and has never run.
+- ⚠️ **Keynote is driven by bundle id, Creator Studio first** (`KEYNOTE_IDS`,
+  found through `NSWorkspace`, no Apple event). Keynote 14.x
+  (`com.apple.iWork.Keynote`) installed beside Creator Studio launches to a
+  "Use the New Version" modal and answers nothing, so never launch it while
+  `com.apple.Keynote` is installed, and never address Keynote by name. This
+  file once said Keynote couldn't be scripted (-1700/-1728, 2026-10-20 morning);
+  that was the script: **make `POSIX file` references before the `tell`**, or
+  the sandboxed app is handed a path it may not read and `open` answers missing
+  value. Documents are told apart by **id** (never `front document`); close
+  only a new id, quit only if Keynote wasn't running and nothing is left open;
+  give the first question a minute so a dialog is reported, not waited on; open
+  nothing while `playing`. `keynoteRefusal` keeps out files that would leave a
+  dialog on the operator's screen (password `.iwpv2`, not-a-zip). Proved on
+  Creator Studio 15.3.1 cold and warm; 14.x alone never run.
 - ⚠️ **Hidden slides are not pages.** PowerPoint's PDF leaves them out, so
   the server reads `show="0"` from the package and sends `x-lpp-slides`; names
-  go by slide number only when those account for every page.
+  go by slide number only when those account for every page. Keynote leaves
+  skipped slides out too and its script reports them itself (`{ pdf, slides }`
+  from `convert`), which wins over the package's: it describes Keynote's PDF.
 - **The convert route takes `application/octet-stream` only**, which needs a
   CORS preflight this server never answers: no other site can make this
-  machine open a file in PowerPoint. Not an Origin check — behind `tailscale
+  machine open a file in PowerPoint or Keynote. Not an Origin check — behind `tailscale
   serve` the Host differs from what the browser used.
 - **The launcher must be allowed Apple events** (`NSAppleEventsUsageDescription`,
   `com.apple.security.automation.apple-events`). An unsigned local build asked

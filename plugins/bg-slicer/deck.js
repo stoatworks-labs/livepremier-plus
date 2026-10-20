@@ -37,10 +37,9 @@ import { dialectFor, MNG } from '../../src/core/dialect.js';
 /** What pdf.js opens in the page. */
 export const PDF_EXTENSIONS = ['pdf'];
 /** What the server has to turn into a PDF first — `convert.js`'s `DECK_TYPES`, which a test holds this to. */
-export const DECK_EXTENSIONS = ['pptx', 'ppt', 'ppsx', 'pps', 'potx', 'odp'];
+export const DECK_EXTENSIONS = ['pptx', 'ppt', 'ppsx', 'pps', 'potx', 'key', 'odp'];
 /** Decks that are recognised and not opened, and what to do instead (`convert.js` says why). */
 export const REFUSED = {
-  key: 'A Keynote deck is not opened here — Keynote would not export one unattended when it was tried. Export a PDF from Keynote (File ▸ Export To ▸ PDF) and open that.',
   pptm: 'A macro-enabled deck is not opened — PowerPoint would stop on its macro warning. Save it as .pptx, or export a PDF, and open that.'
 };
 
@@ -67,11 +66,20 @@ export const DOC_ACCEPT = [...PDF_EXTENSIONS, ...DECK_EXTENSIONS, ...Object.keys
  * 1280 × 720, and PowerPoint's own "export at 1×" gives the same. PDF sizes
  * are in points, 72 to the inch. It is only the picture's nominal size for
  * placing it (1:1 is this); a page is always drawn at its placement.
+ *
+ * A Keynote deck is the exception: Keynote's pixel is the PDF's point, so a
+ * 1920 × 1080 slide exports as a page of 1920 × 1080 points (Keynote 15.3.1,
+ * 2026-10-20) and is called 1920 × 1080 here, at 72. A PowerPoint deck stays
+ * at 96 whichever app made its PDF: Keynote kept a 26.67-inch slide's size
+ * in inches when it imported one.
  */
 export const PAGE_DPI = 96;
-export const pagePixels = (page) => ({
-  width: Math.max(1, Math.round((page.width * PAGE_DPI) / 72)),
-  height: Math.max(1, Math.round((page.height * PAGE_DPI) / 72))
+export const KEYNOTE_DPI = 72;
+/** The dpi a document's pages are called at, by its file name. */
+export const pageDpi = (name) => (extOf({ name }) === 'key' ? KEYNOTE_DPI : PAGE_DPI);
+export const pagePixels = (page, dpi = PAGE_DPI) => ({
+  width: Math.max(1, Math.round((page.width * dpi) / 72)),
+  height: Math.max(1, Math.round((page.height * dpi) / 72))
 });
 
 /** How a page is fitted into an image of another shape. */
@@ -309,7 +317,7 @@ export function buildDeckPlan(model, store, job, opts = {}) {
 }
 
 /** The sizes the size field offers: each screen's canvas, each output's raster, and the usual ones. */
-export function sizeChoices(model, store, page = null) {
+export function sizeChoices(model, store, page = null, dpi = PAGE_DPI) {
   const out = [];
   const add = (width, height, why) => {
     if (!(width > 0 && height > 0)) return;
@@ -317,7 +325,7 @@ export function sizeChoices(model, store, page = null) {
     if (hit) { if (!hit.why.includes(why)) hit.why.push(why); return; }
     out.push({ width, height, why: [why] });
   };
-  if (page) { const p = pagePixels(page); add(p.width, p.height, 'the page at 96 dpi'); }
+  if (page) { const p = pagePixels(page, dpi); add(p.width, p.height, `the page at ${dpi} dpi`); }
   for (const s of model.readScreens(store)) {
     add(s.canvas.width, s.canvas.height, `${s.id} canvas`);
     const topo = model.screenTopology(store, s.id);

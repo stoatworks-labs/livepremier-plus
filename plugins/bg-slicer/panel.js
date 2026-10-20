@@ -21,8 +21,8 @@
  *   7. **Media server** — the live mode's map, as the files each media server
  *      can import and a universal pack for the rest.
  *
- * **A document** — a PDF, or a PowerPoint or OpenDocument deck the server
- * turns into one — opens in step 1 as a strip of pages to choose from, and
+ * **A document** — a PDF, or a PowerPoint, Keynote or OpenDocument deck the
+ * server turns into one — opens in step 1 as a strip of pages to choose from, and
  * makes one of two things (`deck.js`): **a background set per page**, the
  * pages placed on the screens like a picture and each drawn at its
  * placement's own size, so the cut is a copy and text stays sharp; or
@@ -58,7 +58,7 @@ import { reconcile, newDeck } from './job.js';
 import { applyPlan, revert } from './apply.js';
 import { decodePicture, renderOutput, renderTemplate, download } from './render.js';
 import {
-  documentKind, pagePixels, parsePages, formatPages, placedFit, pageStem, pageNumber, buildDeckPlan, buildSizePlan, deckPlanKey, sizeChoices, FITS, DOC_ACCEPT
+  documentKind, pagePixels, pageDpi, parsePages, formatPages, placedFit, pageStem, pageNumber, buildDeckPlan, buildSizePlan, deckPlanKey, sizeChoices, FITS, DOC_ACCEPT
 } from './deck.js';
 import { openDocument, closeDocument, drawPage, pageThumb, toPng, release } from './document.js';
 import { zipStore } from '../../src/core/zip.js';
@@ -107,6 +107,8 @@ const CSS = `
 `;
 
 const KIND_TAG = { import: ['imports', 'good'], partial: ['partly imports', 'warn'], manual: ['by hand', ''] };
+/** `convert.js`'s engines, by the id the server sends back. */
+const ENGINE_NAMES = { powerpoint: 'PowerPoint', keynote: 'Keynote', libreoffice: 'LibreOffice' };
 const PRESET_LABELS = [['fit', 'Fit'], ['fill', 'Fill'], ['stretch', 'Stretch'], ['native', '1:1'], ['centre', 'Centre']];
 const pct = (n) => `${(n * 100).toFixed(4)}%`;
 const kb = (bytes) => `${Math.max(1, Math.round(bytes / 1024)).toLocaleString()} KB`;
@@ -220,7 +222,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
         const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0];
         if (f) loadPicture(f); else onRefresh();
       }
-    }, 'Drop a picture, a PDF or a PowerPoint deck here, or ', input);
+    }, 'Drop a picture, a PDF, or a PowerPoint or Keynote deck here, or ', input);
     const p = job.picture;
     const live = job.source === 'live';
     return h('div', { class: 'aw-flex-col aw-gap-row-small' },
@@ -285,14 +287,14 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       const store = session.store;
       const first = (store && store.ready ? m.readScreens(store) : [])[0];
       deck.size = first ? { width: first.canvas.width, height: first.canvas.height } : { width: 1920, height: 1080 };
-      const nominal = pagePixels(doc.pages[0]);
+      const nominal = pagePixels(doc.pages[0], pageDpi(doc.name));
       job.deck = deck;
       job.picture = { name: file.name, width: nominal.width, height: nominal.height, url: '', bitmap: null, deck: true };
       job.place = {};
       job.span.rect = null;
       if (doc.engine) {
         const hidden = doc.numbers ? Math.max(...doc.numbers) - doc.numbers.length : 0;
-        job.note = `Turned into a PDF by ${doc.engine === 'powerpoint' ? 'PowerPoint' : 'LibreOffice'}: ${doc.pages.length} page${doc.pages.length === 1 ? '' : 's'}.`
+        job.note = `Turned into a PDF by ${ENGINE_NAMES[doc.engine] || doc.engine}: ${doc.pages.length} page${doc.pages.length === 1 ? '' : 's'}.`
           + (hidden ? ` ${hidden} hidden slide${hidden === 1 ? ' is' : 's are'} left out, as the export leaves ${hidden === 1 ? 'it' : 'them'}; each page goes by its slide number.` : '')
           + (doc.numbers ? '' : ' Hidden slides, if any, are left out by the export, so pages go by their place in the PDF.');
       }
@@ -354,11 +356,12 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
         onClick: () => { showPage(deck, i); setPages(on ? deck.chosen.filter((x) => x !== i) : [...deck.chosen, i]); }
       }, thumb ? h('img', { src: thumb, alt: '' }) : h('div', { class: 'lpp-bgs-page-blank' }), h('span', { text: `${pageNumber(deck, i)}` }));
     }));
-    const nominal = pagePixels(deck.doc.pages[0]);
+    const dpi = pageDpi(deck.name);
+    const nominal = pagePixels(deck.doc.pages[0], dpi);
     return h('div', { class: 'aw-flex-col aw-gap-row-small' },
       h('div', { class: 'lpp-bgs-row' },
         h('span', { class: 'aw-font-body-1-bold', text: deck.name }),
-        h('span', { class: 'aw-text-tertiary', text: `${n} page${n === 1 ? '' : 's'} · ${nominal.width} × ${nominal.height} px at 96 dpi${deck.engine ? ` · converted by ${deck.engine === 'powerpoint' ? 'PowerPoint' : 'LibreOffice'}` : ''}` }),
+        h('span', { class: 'aw-text-tertiary', text: `${n} page${n === 1 ? '' : 's'} · ${nominal.width} × ${nominal.height} px at ${dpi} dpi${deck.engine ? ` · converted by ${ENGINE_NAMES[deck.engine] || deck.engine}` : ''}` }),
         button('Forget it', { variant: 'ghost', onClick: () => { forgetDeck(); job.picture = null; job.note = null; changed({ stale: true }); } })),
       strip,
       h('div', { class: 'lpp-bgs-fields' },
@@ -387,7 +390,7 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
 
   /** Stills at a size: the size, how a page goes into it, and where the images go. */
   function sizeSection(store, deck) {
-    const choices = sizeChoices(m, store, deck.doc.pages[deck.current]);
+    const choices = sizeChoices(m, store, deck.doc.pages[deck.current], pageDpi(deck.name));
     const size = deck.size || { width: 1920, height: 1080 };
     const pick = h('select', {
       class: 'wru-select', 'data-lpp-key': 'bgs-size-pick',

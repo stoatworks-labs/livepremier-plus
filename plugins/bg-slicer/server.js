@@ -2,16 +2,17 @@
  * Background Slicer — the plugin's server half: turning a deck into a PDF.
  *
  * Everything else the slicer does happens in the page (`client.js`). A PDF
- * is opened there too; only a PowerPoint or OpenDocument deck comes here,
- * because drawing one takes an application on this machine (`convert.js`).
+ * is opened there too; only a PowerPoint, Keynote or OpenDocument deck comes
+ * here, because drawing one takes an application on this machine
+ * (`convert.js`).
  *
  *   GET  /__lpp/bg-slicer/engines         what can convert what, here
  *   POST /__lpp/bg-slicer/convert?name=…  the deck's bytes in, a PDF out
  *
  * ⚠️ This route makes the machine LivePremier Plus runs on open a file
- * somebody sent it in PowerPoint or LibreOffice — so it is held to more than
- * the app's other routes, which share the app's open exposure (README, "On
- * binding wide"):
+ * somebody sent it in PowerPoint, Keynote or LibreOffice — so it is held to
+ * more than the app's other routes, which share the app's open exposure
+ * (README, "On binding wide"):
  *
  *   - **No cross-site POST.** The body must be `application/octet-stream`,
  *     which a page on another site cannot send without a CORS preflight, and
@@ -47,7 +48,7 @@ export default function activate(ctx, { convert = convertDeck, probe = probeAll 
     }
     const name = String(h.url.searchParams.get('name') || '');
     const ext = extOf(name);
-    if (!DECK_TYPES[ext]) throw new ctx.HttpError(415, `a .${ext || '?'} file is not a deck this can convert — open a PDF, or a PowerPoint or OpenDocument deck`);
+    if (!DECK_TYPES[ext]) throw new ctx.HttpError(415, `a .${ext || '?'} file is not a deck this can convert — open a PDF, or a PowerPoint, Keynote or OpenDocument deck`);
     const declared = Number(req.headers['content-length']);
     if (declared > MAX_BYTES) throw new ctx.HttpError(413, `the deck is over ${MAX_BYTES / 1024 / 1024 / 1024} GB`);
 

@@ -72,8 +72,9 @@ than something bolted on.
   Toolset first: the panel takes one program at a time. Not yet tried on a real panel.
 - **Background Slicer** *(preview)*: one picture cut into a pixel-exact background for every
   output of one or more screens, uploaded and put into a background set, or each output fed live
-  from an input, with the output map for the media server behind it. A PDF or a PowerPoint deck
-  becomes a background set per page, or a still per page at any size. Off until you switch it on.
+  from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a
+  Keynote deck becomes a background set per page, or a still per page at any size. Off until you
+  switch it on.
 - **Thumbnail relay** and **Multiviewer thumbnails** *(preview)*: lighter source thumbnails, or
   live ones cut from a multiviewer. Both are off until you switch them on.
 - **Remote access:** the app served over Tailscale (with a real HTTPS certificate) or ZeroTier,
@@ -1587,10 +1588,10 @@ Good to know:
 - A screen shows a background set through its **NATIVE layer**. If the screen has none allocated
   (Preconfig ▸ Resources), the set is built but can't be loaded, and the panel says so.
 
-**Slides: a PDF or a PowerPoint deck**
+**Slides: a PDF, a PowerPoint deck or a Keynote deck**
 
-Drop a PDF, or a PowerPoint (`.pptx`, `.ppt`, `.ppsx`, `.pps`, `.potx`) or OpenDocument (`.odp`)
-deck, on the **Picture** box instead of a picture.
+Drop a PDF, or a PowerPoint (`.pptx`, `.ppt`, `.ppsx`, `.pps`, `.potx`), Keynote (`.key`) or
+OpenDocument (`.odp`) deck, on the **Picture** box instead of a picture.
 
 1. **The pages** appear as a strip. Every page is taken to start with; click one to leave it out
    (or back in), or type them in the box (`1-3, 5, 8-`, or `all`). The orange outline is the page
@@ -1624,24 +1625,33 @@ Good to know:
 
 - **Each page is drawn at the size it's going to be**, not drawn once and stretched, so text stays
   sharp. The plan marks the cut **drawn to size**.
-- **A deck is turned into a PDF by PowerPoint** on the machine LivePremier Plus runs on, or by
-  LibreOffice if that's installed and PowerPoint isn't. The first time, macOS asks twice: whether
+- **A PowerPoint deck is turned into a PDF by PowerPoint** on the machine LivePremier Plus runs
+  on, or by Keynote if PowerPoint isn't there, or by LibreOffice if neither is. The first time, macOS asks twice: whether
   LivePremier Plus may **access data from other apps** (the copy goes in PowerPoint's own folder,
   the one place PowerPoint opens a file without asking you), and whether it may **control
   PowerPoint**. Say yes to both. If you said no, allow it in System Settings ▸ Privacy &
   Security ▸ Automation (and App Data). PowerPoint opens a copy, exports it and closes it, and
   leaves any deck you have open alone. Each page is the slide as PowerPoint exports it to PDF, fonts and all.
   Animations aren't played, so a build you step through on the night is one still here.
-- **Hidden slides** aren't in PowerPoint's PDF, so pages go by **slide number**: hide slide 3 and
-  the strip reads 1, 2, 4, 5, and the stills are named to match.
-- **Keynote decks** aren't opened (Keynote wouldn't be driven unattended when I tried). Export a
-  PDF from Keynote, File ▸ Export To ▸ PDF, and drop that. The same goes for a macro-enabled
-  `.pptm`, or anything you'd rather PowerPoint didn't open.
+- **A Keynote deck is turned into a PDF by Keynote**: Keynote Creator Studio if you have it, the
+  older Keynote only if you don't. The first time, macOS asks whether LivePremier Plus may
+  **control Keynote**; say yes (or allow it later in Privacy & Security ▸ Automation). Keynote
+  opens the deck, exports it and closes it, leaves any deck you have open alone, and is quit
+  afterwards only if it wasn't running before. It won't be touched while a slideshow is playing in
+  it: try again when the show's over. A Keynote slide's pixels are its own, so a 1920 × 1080 deck
+  is 1920 × 1080 here.
+- **Hidden slides** aren't in PowerPoint's or Keynote's PDF, so pages go by **slide number**: hide
+  slide 3 and the strip reads 1, 2, 4, 5, and the stills are named to match.
+- **Not opened:** a password-protected deck (the app would sit there asking for the password),
+  a `.key` saved as a package rather than a single file, and a macro-enabled `.pptm`. Remove the
+  password, save it as a single file or a `.pptx`, or export a PDF and drop that.
 
 > Slides have run on simulators only (2026-10-20): both kinds written, read back and undone on the
 > LivePremier Simulator 6.2.73 and the Midra 4K simulator 3.2.29, and drawn in the pop-out window.
 > An unsigned test build of the desktop app converted a PowerPoint deck, after macOS had asked
-> both questions above. Not yet tried: a signed release, LibreOffice, Windows, a real frame.
+> both questions above. A Keynote deck went through Keynote Creator Studio into the slicer the
+> same day, from a terminal that could already control Keynote. Not yet tried: a signed release,
+> LibreOffice, Windows, the older Keynote on its own, a real frame.
 
 **Live inputs: a media server as the background**
 

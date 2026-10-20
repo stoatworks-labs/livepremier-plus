@@ -19,7 +19,7 @@
  * images go to the switcher over its own upload route through this page's
  * origin, and every other write rides the page's socket. The server keeps no
  * mirror (AGENTS.md, "Ride the app's socket"); its half (`server.js`) does
- * one thing, turning a PowerPoint deck into a PDF, because only an
+ * one thing, turning a PowerPoint or Keynote deck into a PDF, because only an
  * application on that machine can draw one. A PDF — or the one it sends
  * back — is opened and drawn here, page by page, with pdf.js.
  *

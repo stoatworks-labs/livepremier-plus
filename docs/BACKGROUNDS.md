@@ -3,8 +3,8 @@
 One picture, cut into a background for every output of one or more screens, pixel for pixel — and
 put into the image library, the stills and a background set. Or, in the live-input mode, each
 output's background fed from an input, with the output map the media server behind those inputs
-needs to feed them, as files it can import. Or a PDF or a PowerPoint deck: a background set per
-page, or every page as a still at a size of your choosing.
+needs to feed them, as files it can import. Or a PDF, a PowerPoint deck or a Keynote deck: a
+background set per page, or every page as a still at a size of your choosing.
 
 **PLUS ▸ Background Slicer** (it pops out). The plugin is `plugins/bg-slicer/`.
 
@@ -17,9 +17,9 @@ page, or every page as a still at a size of your choosing.
 
 ## Doing it
 
-1. **Picture.** Choose an image or drop one; its pixel size is shown. A PDF or a PowerPoint deck
-   opens as pages instead, each drawn at the size it's wanted
-   ([Documents](#documents-a-pdf-or-a-powerpoint-deck)). In the live mode a content
+1. **Picture.** Choose an image or drop one; its pixel size is shown. A PDF, a PowerPoint deck or
+   a Keynote deck opens as pages instead, each drawn at the size it's wanted
+   ([Documents](#documents-a-pdf-a-powerpoint-deck-or-a-keynote-deck)). In the live mode a content
    size stands in when there is none (the media server's canvas). The UMD Generator hands a
    screen's UMD over through the `backgrounds` service: stills mode, *On each screen*, its screens
    picked, and a note saying where it came from.
@@ -368,11 +368,12 @@ taken against the raster or that area is not established, and the plan marks it.
 | **Assumed** — shown on the output | Auto Crop gives each output its own rectangle of the canvas, as drawn; a pitch other than 1.000 (scaled by the switcher); an area of interest smaller than the raster; Custom's alignment against an area of interest |
 | **Not handled** | auxiliaries (an aux has no background set); Foreground Images; one input across a whole screen in Auto Crop (the vendor offers it; the live mode here is an input per output) |
 
-## Documents: a PDF or a PowerPoint deck
+## Documents: a PDF, a PowerPoint deck or a Keynote deck
 
 Step 1 takes a document as well as a picture: a **PDF**, or a **PowerPoint** (`.pptx`, `.ppt`,
-`.ppsx`, `.pps`, `.potx`) or **OpenDocument** (`.odp`) deck. It opens as a strip of pages, each
-one clicked in or out (or typed: `1-3, 5, 8-`), and it makes one of two things:
+`.ppsx`, `.pps`, `.potx`), **Keynote** (`.key`) or **OpenDocument** (`.odp`) deck. It opens as a
+strip of pages, each one clicked in or out (or typed: `1-3, 5, 8-`), and it makes one of two
+things:
 
 - **A background set per page.** Steps 2 to 6 as for a picture, with every chosen page taking its
   own images, stills and set on every chosen screen: page 1 the first set, page 2 the next. The
@@ -393,7 +394,11 @@ placed 1:1. So every cut is a copy of a drawing made at that size, and the plan 
 size** rather than *resampled*. The placement is made for the first page; a page of another shape
 (a portrait page in a landscape PDF) is fitted inside it rather than squashed (`placedFit`). Its
 nominal size, which **1:1** places it at, is 96 pixels to the inch: PowerPoint's own pixel, so a
-13.333 × 7.5 inch widescreen slide is 1280 × 720.
+13.333 × 7.5 inch widescreen slide is 1280 × 720. A Keynote deck's is 72 (`deck.pageDpi`):
+Keynote's pixel is the PDF's point, so a 1920 × 1080 slide comes out as a 1920 × 1080 point page
+and is called 1920 × 1080, where 96 would have made it 2560 × 1440. It goes by the file's type, not
+the engine: a PowerPoint deck Keynote converted keeps its inches (a 26.67-inch slide came back
+26.67 inches), so it stays at 96.
 
 ### A deck becomes a PDF on the machine the app runs on
 
@@ -404,25 +409,31 @@ the first engine here that takes its type:
 | Engine | Takes | How | Proven |
 |---|---|---|---|
 | **Microsoft PowerPoint** (macOS) | `.pptx .ppt .ppsx .pps .potx` | AppleScript: open a copy in PowerPoint's own sandbox container under a name nothing else has, find it by that name, `save … as save as PDF`, close only it, quit PowerPoint only if this started it | PowerPoint 16.112.3, macOS 26.4.1, 2026-10-20, with another deck of the operator's open the whole time and untouched |
+| **Keynote** (macOS) | `.key`, and the PowerPoint types where there's no PowerPoint | AppleScript to Keynote Creator Studio (`com.apple.Keynote`), or to the iWork Keynote (`com.apple.iWork.Keynote`) only where Creator Studio isn't installed, both found by bundle id without an Apple event: the deck opened where it arrived, its skipped slides read, `export … as PDF` without them, closed only if this opened it, Keynote quit only if this started it and nothing else is open in it ([Keynote](#keynote)) | Keynote Creator Studio 15.3.1, macOS 26.4.1, 2026-10-20: a `.key` cold (about 6.5 s, Keynote quit after) and with another deck open in Keynote (1.6 s, that deck untouched, Keynote left running); a `.pptx` the same way. Keynote 14 on its own: **not run** |
 | **LibreOffice** (anywhere) | the PowerPoint types and `.odp` | `soffice --headless --convert-to pdf`, a profile of its own per run; found by `LPP_SOFFICE`, then `PATH`, then where installers put it. presentation-converter's arguments | **not run**: not installed on the machine this was written on |
 
-With neither, the panel says which would have done it and to export a PDF instead. Not taken:
-**Keynote** (below) and **`.pptm`**, whose macro warning would stop PowerPoint with nobody there.
-The route answers no CORS preflight and takes only `application/octet-stream`, which a page on
-another site can't send without one, so a browser never lets another site make this machine open a
-file in PowerPoint.
+With none, the panel says which would have done it and to export a PDF instead. Not taken:
+**`.pptm`**, whose macro warning would stop PowerPoint with nobody there. Keynote goes ahead of
+LibreOffice for a PowerPoint deck because its import keeps more of a deck than LibreOffice's does,
+though it may swap fonts it hasn't got (presentation-converter saw Canva's embedded font become
+Helvetica). The route answers no CORS preflight and takes only `application/octet-stream`, which a
+page on another site can't send without one, so a browser never lets another site make this
+machine open a file in PowerPoint or Keynote.
 
 **PowerPoint leaves hidden slides out of its PDF.** Five slides with the third hidden came back as
 four pages, the third being slide 4 (2026-10-20). So the server reads the deck's own slide list
 (`ppt/presentation.xml`, each slide's `show="0"`) and sends the slide numbers its pages are
 (`x-lpp-slides: 1,2,4,5`); when they account for every page, the strip, the page field and every
 name go by slide number (`Show 4`, `Show_s04_…png`), and typing a hidden slide says it's hidden.
-Otherwise pages go by their place.
+Otherwise pages go by their place. **Keynote leaves skipped slides out too**, and is asked rather
+than read: its script takes every slide's `skipped` before the export and sends the numbers of the
+rest, whatever the deck's type, since they describe the PDF Keynote made.
 
 The packaged launcher has to be allowed to ask: `NSAppleEventsUsageDescription` in its Info.plist
 and `com.apple.security.automation.apple-events` in its entitlements, added with this. The first
-conversion asks for Automation permission for PowerPoint; refused, AppleScript answers -1743 and
-the panel says where to allow it.
+conversion asks for Automation permission for PowerPoint (and the first through Keynote, for
+Keynote); refused, AppleScript answers -1743 and the panel says where to allow it. Keynote is never
+sent into a container, so it asks no App Data question.
 
 **It asks a second question first: App Data.** Writing the copy into PowerPoint's container is
 another app's data, so macOS asks whether LivePremier Plus may "access data from other apps"
@@ -445,15 +456,66 @@ the installed v0.17.x app is signed (team 3G7USP8N73) with the hardened runtime,
 where an app without the entitlement is refused -1743 with no prompt at all. A hardened-runtime
 build, signed or ad hoc with `entitlements.plist`, has not been run.
 
-### Keynote: a dead end on this Mac (2026-10-20)
+### Keynote
 
-presentation-converter drives Keynote over JXA, so it was the obvious second engine. Neither Keynote
-here would do it unattended. **Keynote 14.5** (`com.apple.iWork.Keynote`) opens to a modal "Use the
-New Version of Keynote" and waits there, so the script hangs. **Keynote Creator Studio 15.3.1**
-(`com.apple.Keynote`) opens the deck, twice, then answers every question about it with -1728 ("Can't
-get every document") or -1700 ("Can't make unmerge id … into type specifier"). A `.key` is refused
-with the way round: export a PDF from Keynote. (presentation-converter's Keynote engine is likely to
-meet the same on this Mac.)
+**Corrected the same day.** This section was called "Keynote: a dead end on this Mac" and said
+neither Keynote would export unattended: Keynote 14.5 sat on a modal, and Keynote Creator Studio
+15.3.1 answered every question with -1728 or -1700, so a `.key` was refused. Half of that was the
+script. presentation-converter found it that afternoon (`engines/keynote.ts`, main 6adce79), and
+Keynote is an engine here now (`convert.js`, `keynote`). What makes it work, each tried on Keynote
+Creator Studio 15.3.1 and macOS 26.4.1 on 2026-10-20:
+
+- **By bundle id, Creator Studio first.** Creator Studio installs beside the iWork Keynote rather
+  than replacing it. With both installed the old one launches to "Use the New Version of Keynote:
+  Keynote 14.5 is out of date and can be deleted" and answers nothing until somebody clicks, which
+  is the hang seen first. So `findKeynote` asks Launch Services (`NSWorkspace`, no Apple event, no
+  Automation prompt) for `com.apple.Keynote`, then `com.apple.iWork.Keynote`, and the old one is
+  only ever driven where Creator Studio isn't installed. Never by name: two apps are called Keynote.
+- **The file references are made before the `tell`.** `open (POSIX file p)` written inside it hands
+  the sandboxed Keynote a path it may not read: it says the file "can't be imported", `open` answers
+  missing value, and the next line fails with -1700. That was the other half of the morning's
+  failure. Made by the script, the references carry the sandbox's permission with them, so the deck
+  is opened where the server put it and the PDF exported to a temporary folder. No container copy,
+  so no App Data question either. (The -1728 "Can't get every document" is what Creator Studio says
+  while it saves or renames a document, as when it autosaves an edited import into iCloud Drive; the
+  engine never edits a deck.)
+- **Documents are told apart by id**, never `front document`. The ids open before are noted; the
+  deck is closed unsaved only if its id is new. Opening a `.key` that's already open hands back the
+  open one, which stays open. Keynote is quit only if it wasn't running before and nothing else is
+  open in it.
+- **The first question has a minute.** If Keynote doesn't answer `id of every document` within 60 s
+  it's sitting on a dialog, and every Apple event queues behind one, so the conversion fails and
+  says so (naming the "Use the New Version" modal when the iWork Keynote is the one driven) instead
+  of waiting out the ten-minute limit. Open has four minutes and the export five.
+- **Nothing is opened in a Keynote playing a slideshow** (its `playing`). Somebody could be
+  presenting from it on this machine. Not tried with a show running: that would have meant taking
+  over the screen of a Mac in use during a show.
+- **Files that would put a dialog up aren't sent** (`keynoteRefusal`), because the dialog would sit
+  on the operator's screen and hold every conversion after it: a `.key` that isn't a zip (damaged,
+  or a package, a folder a browser can't send as one file); a password-protected `.key`, which
+  carries `.iwpv2` at the zip's root (seen on a deck given a password by Keynote itself); and a
+  `.pptx`, `.ppsx` or `.potx` that isn't a zip, which is what an encrypted one is. Each is a 422 with
+  the way round.
+
+Run through this worktree's demo on :8577 against a private copy of the LivePremier Simulator 6.2.73
+Session 1 (web 3077, AWJ 10677, under a scratchpad, thrown away after), with a five-slide deck made
+by Keynote itself, 1920 × 1080, slide 3 skipped:
+
+- `POST /__lpp/bg-slicer/convert`, Keynote not running: 200 in 6.9 s, `x-lpp-engine: keynote`,
+  `x-lpp-slides: 1,2,4,5`, a four-page PDF reading Slide 1, 2, 4, 5. Keynote quit afterwards;
+  Keynote 14.5 was never launched.
+- The same with the test deck open in Keynote: 1.6 s; and the same deck exported to `.pptx` and
+  sent with `engine=keynote`: 4.3 s, the same four pages. The open deck stayed open and Keynote
+  stayed running.
+- The password-protected and junk `.key` came back refused, without Keynote being started.
+- The `.key` dropped on the panel in the browser: *Turned into a PDF by Keynote: 4 pages. 1 hidden
+  slide is left out…*, the strip numbered 1, 2, 4, 5, *1920 × 1080 px at 72 dpi*. Nothing written
+  to the switcher; the writes are the slicer's, already proved above.
+
+Not run: Keynote 14 on a Mac without Creator Studio (whether it shows the modal without a newer
+Keynote to point at is unknown; if it does, the minute's wait says so), a slideshow playing, the
+packaged app's first Automation prompt for Keynote, and `.ppt`, `.ppsx`, `.pps` or `.potx` through
+Keynote (its Info.plist says it opens them all).
 
 ### What it writes
 
@@ -483,7 +545,7 @@ browser, each write read back over AWJ:
   stills 1–12 at *No rescale*, S1 and S2 sets 1–4 holding them and named after their slides, set 5
   untouched. Undo: every set empty, every still `NONE`.
 - The same deck's PDF opened directly, spanned across S1 and S2: the cut continuous across the seam.
-- A `.key` refused with its reason.
+- A `.key` refused with its reason. (Taken since: [Keynote](#keynote).)
 
 Later the same day, on a private copy of the **Midra 4K simulator 3.2.29** (Pulse 4K, its own
 ports) through `npm run demo`, the panel in the browser and each write read back over AWJ
@@ -518,7 +580,7 @@ generated images' names spilling over each other under their tiles; they wrap no
 
 **The desktop app**: above, under "A deck becomes a PDF".
 
-Nothing here has met a frame, nor LibreOffice, nor Windows.
+Nothing here has met a frame, nor LibreOffice, nor Windows, nor Keynote 14 on its own.
 
 ## Proving it on a frame
 

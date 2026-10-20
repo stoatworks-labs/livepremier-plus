@@ -16,9 +16,10 @@
   <key>com.apple.security.cs.allow-dyld-environment-variables</key>
   <true/>
   <!--
-    The Background Slicer asks PowerPoint, over AppleScript, to export a deck
-    as a PDF (plugins/bg-slicer/convert.js). Under the hardened runtime that
-    needs this entitlement, and NSAppleEventsUsageDescription in Info.plist.
+    The Background Slicer asks PowerPoint or Keynote, over AppleScript, to
+    export a deck as a PDF (plugins/bg-slicer/convert.js). Under the hardened
+    runtime that needs this entitlement, and NSAppleEventsUsageDescription in
+    Info.plist.
   -->
   <key>com.apple.security.automation.apple-events</key>
   <true/>

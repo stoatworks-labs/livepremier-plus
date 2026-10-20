@@ -3,9 +3,10 @@
  * Browser only; nothing runs at import.
  *
  * A PDF is read here by pdf.js (`src/vendor/pdfjs/`, Mozilla's, as PDF
- * Presenter ships it). A PowerPoint or OpenDocument deck goes to this app's
- * server first (`server.js` → `convert.js`), which hands it to PowerPoint or
- * LibreOffice and sends back the PDF they export; from there it is the same.
+ * Presenter ships it). A PowerPoint, Keynote or OpenDocument deck goes to
+ * this app's server first (`server.js` → `convert.js`), which hands it to
+ * PowerPoint, Keynote or LibreOffice and sends back the PDF they export;
+ * from there it is the same.
  *
  * A page is drawn at the size it is wanted, never drawn once and scaled:
  * `drawPage(doc, index, width, height, { fit })` paints the page's own vector
@@ -73,7 +74,7 @@ export async function convertDeck(file, { url, fetchImpl = fetch, signal } = {})
 export async function openDocument(file, { convertUrl, fetchImpl = fetch, onStage = () => {} } = {}) {
   const kind = documentKind(file);
   if (kind === 'refused') throw new Error(refusedWhy(file));
-  if (!kind) throw new Error('not a PDF, or a PowerPoint or OpenDocument deck');
+  if (!kind) throw new Error('not a PDF, or a PowerPoint, Keynote or OpenDocument deck');
   let bytes;
   let engine = null;
   let slides = null;

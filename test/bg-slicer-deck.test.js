@@ -5,9 +5,9 @@
  *
  * The plans and their writes are in `bg-slicer.test.js` (LivePremier) and
  * `bg-slicer-mng.test.js` (Midra 4K), beside the slicer's own. Nothing here
- * starts PowerPoint or LibreOffice: the engines run against a stand-in
- * `run` that writes the PDF the real one would. The real ones were run by
- * hand (docs/BACKGROUNDS.md, "Documents").
+ * starts PowerPoint, Keynote or LibreOffice: the engines run against a
+ * stand-in `run` that writes the PDF the real one would. The real ones were
+ * run by hand (docs/BACKGROUNDS.md, "Documents").
  */
 
 import test from 'node:test';
@@ -20,12 +20,13 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 
 import {
-  documentKind, refusedWhy, DECK_EXTENSIONS, DOC_ACCEPT, pagePixels, fitInto, placedFit, parsePages, formatPages,
+  documentKind, refusedWhy, DECK_EXTENSIONS, DOC_ACCEPT, pagePixels, pageDpi, fitInto, placedFit, parsePages, formatPages,
   pageLabel, pageStem, pageNumber, setsForPages, placementUnits
 } from '../plugins/bg-slicer/deck.js';
 import {
   DECK_TYPES, powerpoint, libreoffice, pickEngine, noEngineWords, sofficeArgs, findSoffice, powerpointWords,
-  convertDeck, queue, POWERPOINT_SCRIPT, visibleSlides, readZip, containerWords
+  convertDeck, queue, POWERPOINT_SCRIPT, visibleSlides, readZip, containerWords,
+  keynote, keynoteScript, keynoteWords, keynoteRefusal, findKeynote, zipNames, KEYNOTE_IDS, ENGINES
 } from '../plugins/bg-slicer/convert.js';
 import { zipStore } from '../src/core/zip.js';
 import { deflateRawSync } from 'node:zlib';
@@ -36,21 +37,25 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /* ------------------------------------------------------------- deck.js */
 
-test('what opens: a PDF in the page, a PowerPoint or OpenDocument deck through the server; Keynote and macro decks say why not', () => {
+test('what opens: a PDF in the page, a PowerPoint, Keynote or OpenDocument deck through the server; a macro deck says why not', () => {
   assert.equal(documentKind({ name: 'Talk.PDF' }), 'pdf');
   assert.equal(documentKind({ name: 'scan', type: 'application/pdf' }), 'pdf');
-  for (const ext of ['pptx', 'ppt', 'ppsx', 'pps', 'potx', 'odp']) assert.equal(documentKind({ name: `d.${ext}` }), 'deck', ext);
-  assert.equal(documentKind({ name: 'd.key' }), 'refused');
-  assert.match(refusedWhy({ name: 'd.key' }), /Export a PDF from Keynote/);
+  for (const ext of ['pptx', 'ppt', 'ppsx', 'pps', 'potx', 'key', 'odp']) assert.equal(documentKind({ name: `d.${ext}` }), 'deck', ext);
+  assert.equal(refusedWhy({ name: 'd.key' }), null);
   assert.equal(documentKind({ name: 'd.pptm' }), 'refused');
+  assert.match(refusedWhy({ name: 'd.pptm' }), /macro/);
   assert.equal(documentKind({ name: 'photo.png' }), null);
   assert.deepEqual([...DECK_EXTENSIONS].sort(), Object.keys(DECK_TYPES).sort(), 'the page offers exactly what the server converts');
   assert.match(DOC_ACCEPT, /\.pdf,.*\.pptx,.*\.key/);
 });
 
-test('a page is 96 pixels to the inch when nothing says otherwise: a widescreen slide is 1280 × 720', () => {
+test('a page is 96 pixels to the inch when nothing says otherwise: a widescreen slide is 1280 × 720; a Keynote deck’s 72', () => {
   assert.deepEqual(pagePixels({ width: 960, height: 540 }), { width: 1280, height: 720 });
   assert.deepEqual(pagePixels({ width: 612, height: 792 }), { width: 816, height: 1056 }, 'US Letter');
+  assert.equal(pageDpi('Show.KEY'), 72, 'Keynote’s pixel is a point');
+  assert.deepEqual(pagePixels({ width: 1920, height: 1080 }, pageDpi('Show.key')), { width: 1920, height: 1080 }, 'a 1920 × 1080 Keynote slide is 1920 × 1080');
+  assert.equal(pageDpi('Show.pptx'), 96);
+  assert.equal(pageDpi('Show.pdf'), 96);
 });
 
 test('fit, fill and stretch a page into a box', () => {
@@ -112,19 +117,25 @@ test('placement units: one per screen, or one for spanned screens, each drawn at
 
 /* ----------------------------------------------------------- convert.js */
 
-test('engines: PowerPoint first for a PowerPoint deck, LibreOffice for OpenDocument, and a sentence when there is neither', () => {
+test('engines: PowerPoint first for a PowerPoint deck, then Keynote, then LibreOffice; Keynote for Keynote; a sentence when there is none', () => {
+  assert.deepEqual(ENGINES.map((e) => e.id), ['powerpoint', 'keynote', 'libreoffice']);
   const probes = [
     { id: 'powerpoint', label: 'Microsoft PowerPoint', formats: powerpoint.formats, available: true },
+    { id: 'keynote', label: 'Keynote Creator Studio', formats: keynote.formats, available: true },
     { id: 'libreoffice', label: 'LibreOffice', formats: libreoffice.formats, available: true }
   ];
   assert.equal(pickEngine(probes, 'pptx').id, 'powerpoint');
   assert.equal(pickEngine(probes, 'pptx', 'libreoffice').id, 'libreoffice');
   assert.equal(pickEngine(probes, 'odp').id, 'libreoffice');
-  assert.equal(pickEngine(probes, 'key'), null);
+  assert.equal(pickEngine(probes, 'key').id, 'keynote');
+  const noPowerPoint = probes.map((p) => (p.id === 'powerpoint' ? { ...p, available: false } : p));
+  assert.equal(pickEngine(noPowerPoint, 'pptx').id, 'keynote', 'Keynote imports a PowerPoint deck on a Mac without PowerPoint');
+  assert.equal(pickEngine(noPowerPoint, 'odp').id, 'libreoffice', 'Keynote does not take OpenDocument');
   const none = probes.map((p) => ({ ...p, available: false, reason: `${p.label} is not installed` }));
   assert.equal(pickEngine(none, 'pptx'), null);
-  assert.match(noEngineWords(none, 'pptx'), /Nothing on the machine .* PowerPoint deck .* Microsoft PowerPoint \(Microsoft PowerPoint is not installed\); LibreOffice .* Export a PDF/);
-  assert.equal(powerpoint.formats.includes('pptm'), false, 'never a macro-enabled deck');
+  assert.match(noEngineWords(none, 'pptx'), /Nothing on the machine .* PowerPoint deck .* Microsoft PowerPoint \(Microsoft PowerPoint is not installed\); Keynote .*; LibreOffice .* Export a PDF/);
+  assert.match(noEngineWords(none, 'key'), /a Keynote deck into a PDF: Keynote Creator Studio \(.*\)\. Export a PDF/);
+  for (const e of [powerpoint, keynote]) assert.equal(e.formats.includes('pptm'), false, `${e.id}: never a macro-enabled deck`);
 });
 
 test('PowerPoint: the deck is copied into its sandbox under a name of its own, found by that name, and only it is closed', async () => {
@@ -182,6 +193,121 @@ test('PowerPoint’s container refused (macOS App Data said no): the copy or the
   const left = await readdir(join(home, 'Library', 'Containers', 'com.microsoft.Powerpoint', 'Data', 'tmp'));
   assert.deepEqual(left, [], 'cleaned up either way');
   await rm(home, { recursive: true, force: true });
+});
+
+/**
+ * A stand-in `run` for a Mac with the given Keynotes installed: it answers
+ * the bundle-id lookups (`osascript -l JavaScript …`) from `installed`, and
+ * for the conversion writes the PDF where the script was told to and says
+ * the slide numbers, as the real script does.
+ */
+function keynoteMac(installed, { said = '1,2,4,5', calls = [] } = {}) {
+  return async (cmd, args) => {
+    calls.push([cmd, args]);
+    if (args[0] === '-l') return { stdout: `${installed[args[args.length - 1]] || ''}\n`, stderr: '' };
+    await writeFile(args[3], '%PDF-1.7 keynote');
+    return { stdout: `${said}\n`, stderr: '' };
+  };
+}
+const BOTH_KEYNOTES = { 'com.apple.Keynote': '/Applications/Keynote Creator Studio.app', 'com.apple.iWork.Keynote': '/Applications/Keynote.app' };
+/** A single-file Keynote deck's outline: a zip with an Index. */
+const keyFile = (extra = []) => Buffer.from(zipStore([{ name: 'Index/Document.iwa', data: new Uint8Array([1, 2, 3]) }, ...extra]));
+
+test('Keynote: Creator Studio by bundle id when it is installed, the iWork Keynote only when it is alone, found without an Apple event', async () => {
+  assert.deepEqual(KEYNOTE_IDS, ['com.apple.Keynote', 'com.apple.iWork.Keynote']);
+  const calls = [];
+  assert.deepEqual(await findKeynote(keynoteMac(BOTH_KEYNOTES, { calls })), { id: 'com.apple.Keynote', path: '/Applications/Keynote Creator Studio.app', name: 'Keynote Creator Studio' });
+  assert.ok(calls.length && calls.every(([cmd, args]) => cmd === 'osascript' && args[0] === '-l' && /URLForApplicationWithBundleIdentifier/.test(args[3])), 'a Launch Services lookup, nothing sent to Keynote');
+  assert.equal((await findKeynote(keynoteMac({ 'com.apple.iWork.Keynote': '/Applications/Keynote.app' }))).id, 'com.apple.iWork.Keynote');
+  assert.equal(await findKeynote(keynoteMac({})), null);
+  assert.deepEqual(await keynote.probe({ platform: 'darwin', runImpl: keynoteMac(BOTH_KEYNOTES) }), { available: true, where: '/Applications/Keynote Creator Studio.app', label: 'Keynote Creator Studio' });
+  assert.match((await keynote.probe({ platform: 'darwin', runImpl: keynoteMac({}) })).reason, /not installed/);
+  assert.match((await keynote.probe({ platform: 'linux' })).reason, /Mac only/);
+});
+
+test('Keynote: the deck goes to Creator Studio, never the 14.x beside it, and comes back as a PDF and the slides its pages are', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'lpp-kn-'));
+  const src = join(dir, 'deck.key');
+  await writeFile(src, keyFile());
+  const calls = [];
+  const out = await keynote.convert({ input: src, ext: 'key', runImpl: keynoteMac(BOTH_KEYNOTES, { calls }) });
+  assert.equal(out.pdf.toString(), '%PDF-1.7 keynote');
+  assert.deepEqual(out.slides, [1, 2, 4, 5], 'slide 3 skipped');
+  const sent = calls.filter(([, args]) => args[0] === '-e');
+  assert.equal(sent.length, 1);
+  const [, script, input, pdf] = sent[0][1];
+  assert.equal(script, keynoteScript('com.apple.Keynote'));
+  assert.doesNotMatch(script, /iWork/, 'the old Keynote is never addressed');
+  assert.equal(input, src, 'the deck where it arrived: no container copy, so no App Data question');
+  await assert.rejects(readFile(pdf), /ENOENT/, 'the PDF is cleaned up');
+  const silent = await keynote.convert({ input: src, ext: 'key', runImpl: keynoteMac(BOTH_KEYNOTES, { said: '' }) });
+  assert.equal(silent.slides, null, 'nothing said: pages go by place');
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('Keynote’s script: file references before the tell, documents told apart by id, a minute for the first answer, quit only what it started', () => {
+  const s = keynoteScript('com.apple.Keynote');
+  const tell = s.indexOf('tell application id "com.apple.Keynote"');
+  assert.ok(s.indexOf('set inFile to POSIX file') < tell && s.indexOf('set outFile to POSIX file') < tell, 'made by the script, so the sandboxed app may read and write them');
+  assert.doesNotMatch(s, /open \(POSIX file/);
+  assert.doesNotMatch(s, /front document|document 1\b/, 'never whatever the operator last clicked');
+  assert.match(s, /with timeout of 60 seconds\s+set openBefore to id of every document/, 'a Keynote on a dialog is said, not waited on');
+  assert.match(s, /set mine to \(id of d\) is not in openBefore/);
+  assert.match(s, /if mine then\s+try\s+tell application id "com\.apple\.Keynote"\s+with timeout of 60 seconds\s+close d saving no/, 'only a deck this opened is closed');
+  assert.match(s, /if wasRunning then return/);
+  assert.match(s, /if \(count of documents\) is 0 then quit/, 'and Keynote quit only if nothing else is open in it');
+  assert.match(s, /set showing to playing/);
+  assert.match(s, /set sk to skipped of every slide of d/);
+  assert.match(s, /skipped slides:false/);
+});
+
+test('Keynote is not handed a deck that would put a dialog up: a password, a package, a damaged file', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'lpp-kn-'));
+  const put = async (name, data) => { const p = join(dir, name); await writeFile(p, data); return p; };
+  const plain = await put('a.key', keyFile());
+  const locked = await put('b.key', keyFile([{ name: '.iwpv2', data: new Uint8Array([0]) }]));
+  const junk = await put('c.key', Buffer.from('not a zip, nor a Keynote deck'));
+  const ole = await put('d.pptx', Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]));
+  assert.deepEqual(await zipNames(locked), ['Index/Document.iwa', '.iwpv2']);
+  assert.equal(await zipNames(junk), null);
+  assert.equal(await keynoteRefusal(plain, 'key'), null);
+  assert.match(await keynoteRefusal(locked, 'key'), /password-protected/);
+  assert.match(await keynoteRefusal(junk, 'key'), /package/);
+  assert.match(await keynoteRefusal(ole, 'pptx'), /password-protected/, 'an encrypted .pptx is not a zip');
+  assert.equal(await keynoteRefusal(ole, 'ppt'), null, 'a 97–2003 deck never is');
+  let ran = false;
+  await assert.rejects(keynote.convert({ input: locked, ext: 'key', runImpl: async () => { ran = true; return { stdout: '' }; } }),
+    (err) => err.status === 422 && /password-protected/.test(err.message), 'the file is the trouble, not the machine: a 422');
+  assert.equal(ran, false, 'Keynote is not even looked for');
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('Keynote’s refusals in words: Automation, a dialog (the old Keynote’s modal named), a slideshow playing, a deck it could not open', async () => {
+  const cs = { id: 'com.apple.Keynote', name: 'Keynote Creator Studio' };
+  const old = { id: 'com.apple.iWork.Keynote', name: 'Keynote' };
+  assert.match(keynoteWords('execution error: Not authorized to send Apple events to Keynote Creator Studio. (-1743)', cs), /control Keynote Creator Studio .*Automation/);
+  assert.match(keynoteWords('execution error: Keynote got an error: AppleEvent timed out. (-1712)', cs), /did not answer in time — is a dialog open in it\?$/);
+  assert.match(keynoteWords('execution error: Keynote got an error: AppleEvent timed out. (-1712)', old), /Use the New Version of Keynote/);
+  assert.match(keynoteWords('x: execution error: Keynote is playing a slideshow (1001)', cs), /playing a slideshow.*when the show has stopped/);
+  assert.match(keynoteWords('x: execution error: Keynote could not open the deck (1002)', cs), /could not open the deck .*Export a PDF/);
+  assert.match(keynoteWords('execution error: Connection is invalid. (-609)', cs), /quit, or stopped answering/);
+  assert.match(keynoteWords('osascript did not finish in 600 s', cs), /is a dialog open in Keynote Creator Studio\?/);
+  const dir = await mkdtemp(join(tmpdir(), 'lpp-kn-'));
+  const src = join(dir, 'deck.key');
+  await writeFile(src, keyFile());
+  const lookup = (args) => ({ stdout: BOTH_KEYNOTES[args[args.length - 1]] || '' });
+  await assert.rejects(keynote.convert({ input: src, ext: 'key', runImpl: async (c, a) => { if (a[0] === '-l') return lookup(a); throw new Error('x: execution error: Keynote is playing a slideshow (1001)'); } }),
+    /Keynote Creator Studio is playing a slideshow/);
+  await assert.rejects(keynote.convert({ input: src, ext: 'key', runImpl: async (c, a) => (a[0] === '-l' ? lookup(a) : { stdout: '1' }) }), /no PDF appeared/);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('convertDeck: the slides an engine reports of its own PDF are the ones sent', async () => {
+  const kn = { id: 'kn', label: 'kn', formats: ['key'], probe: async () => ({ available: true }), convert: async () => ({ pdf: Buffer.from('%PDF'), slides: [1, 3] }) };
+  const out = await convertDeck({ input: '/nowhere.key', ext: 'key', engines: [kn] });
+  assert.deepEqual([out.pdf.toString(), out.slides, out.engine], ['%PDF', [1, 3], 'kn']);
+  const bare = { ...kn, convert: async () => Buffer.from('%PDF') };
+  assert.equal((await convertDeck({ input: '/nowhere.key', ext: 'key', engines: [bare] })).slides, null);
 });
 
 test('LibreOffice: found by the override, then PATH; headless with a profile of its own', async () => {
@@ -281,6 +407,9 @@ test('the convert route: a deck in, a PDF out, the engine named; the deck on dis
     assert.equal(res.headers.get('x-lpp-slides'), '1,2,4', 'the slide each page is');
     assert.equal(await res.text(), '%PDF-x');
     assert.deepEqual([seen.ext, seen.body], ['pptx', 'the deck']);
+    const key = await fetch(`${s.base}/convert?name=${encodeURIComponent('Show.key')}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: 'a keynote' });
+    assert.equal(key.status, 200, 'a Keynote deck is taken now');
+    assert.equal(seen.ext, 'key');
     await assert.rejects(readFile(seen.input), /ENOENT/, 'the temporary copy is gone');
     const engines = await (await fetch(`${s.base}/engines`)).json();
     assert.equal(engines.engines[0].id, 'powerpoint');
@@ -296,9 +425,9 @@ test('the convert route refuses: a simple (cross-site) content type, a type it d
   try {
     const post = (name, body, type = 'application/octet-stream') => fetch(`${s.base}/convert?name=${name}`, { method: 'POST', headers: { 'content-type': type }, body });
     assert.equal((await post('d.pptx', 'x', 'text/plain')).status, 415, 'text/plain is what a page on another site may send without asking');
-    const key = await post('d.key', 'x');
-    assert.equal(key.status, 415);
-    assert.match((await key.json()).error, /not a deck this can convert/);
+    const docx = await post('d.docx', 'x');
+    assert.equal(docx.status, 415);
+    assert.match((await docx.json()).error, /not a deck this can convert — open a PDF, or a PowerPoint, Keynote or OpenDocument deck/);
     assert.equal((await post('d.pptm', 'x')).status, 415, 'no macro-enabled decks');
     assert.equal((await post('d.pptx', '')).status, 400);
     const failed = await post('d.pptx', 'x');

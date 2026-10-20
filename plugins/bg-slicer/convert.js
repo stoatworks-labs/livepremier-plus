@@ -3,28 +3,30 @@
  * on, so the page can draw its slides with pdf.js. Server only; nothing here
  * runs in the page, and importing it does nothing.
  *
- * A PDF needs none of this: the page opens one itself. A PowerPoint or
- * OpenDocument deck has no renderer a browser can use, so the deck is handed
- * to an application that draws it as its author saw it, and the PDF it
- * exports comes back. Two engines, tried in this order:
+ * A PDF needs none of this: the page opens one itself. A PowerPoint, Keynote
+ * or OpenDocument deck has no renderer a browser can use, so the deck is
+ * handed to an application that draws it as its author saw it, and the PDF
+ * it exports comes back. Three engines, tried in this order:
  *
  *   1. **Microsoft PowerPoint** (macOS), driven over AppleScript — the
  *      reference renderer for a PowerPoint deck: its fonts, its effects, its
  *      layout. Proved on PowerPoint 16.112.3, macOS 26.4.1 (2026-10-20).
- *   2. **LibreOffice**, headless, anywhere it is installed — the engine for
- *      OpenDocument, and for a PowerPoint deck on a machine with no
- *      PowerPoint (a Linux box, the Docker image if LibreOffice is added).
+ *   2. **Keynote** (macOS), driven over AppleScript — the only renderer for a
+ *      Keynote deck, and a PowerPoint deck's on a Mac with no PowerPoint
+ *      (Keynote imports one; its fonts may be substituted). Proved on Keynote
+ *      Creator Studio 15.3.1, macOS 26.4.1 (2026-10-20), cold and with a deck
+ *      already open in it.
+ *   3. **LibreOffice**, headless, anywhere it is installed — the engine for
+ *      OpenDocument, and for a PowerPoint deck on a machine with neither
+ *      (a Linux box, the Docker image if LibreOffice is added).
  *      The arguments are presentation-converter's (`engines/libreoffice.ts`),
  *      a private profile per run included. Not run here: LibreOffice is not
  *      installed on the machine this was written on.
  *
- * **Not Keynote.** presentation-converter drives Keynote over JXA, and on
- * this Mac (macOS 26.4.1, 2026-10-20) neither Keynote would do it: Keynote
- * 14.5 opens to a modal "Use the New Version of Keynote" and waits there,
- * and Keynote Creator Studio 15.3.1 (`com.apple.Keynote`) opens the deck and
- * then answers every scripting question about it with -1728 / -1700 ("Can't
- * get every document", "Can't make unmerge id … into type specifier"). A
- * Keynote deck is exported to PDF from Keynote by hand and opened as a PDF.
+ * Keynote was left out at first, wrongly: on 2026-10-20 it answered -1700 /
+ * -1728 to every question, and the cause turned out to be the script, not
+ * Keynote (see Keynote's section below). presentation-converter
+ * (`engines/keynote.ts`, main 6adce79) found that out the same day.
  *
  * ## PowerPoint, and the four things that make it work unattended
  *
@@ -52,14 +54,15 @@
  * of the launcher (2026-10-20): App Data, Automation, then App Data again for
  * the read-back. Refused, the copy or the read fails with EPERM, which
  * `containerWords` puts into words; Full Disk Access covers it too (tccd
- * checks that first).
+ * checks that first). Keynote has no container step, so no App Data
+ * question: only Automation, once, for Keynote.
  */
 
 import { spawn } from 'node:child_process';
-import { mkdtemp, mkdir, rm, copyFile, readFile, access } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, copyFile, readFile, access, open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
-import { join, extname, delimiter } from 'node:path';
+import { join, extname, delimiter, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { inflateRawSync } from 'node:zlib';
@@ -71,6 +74,7 @@ export const DECK_TYPES = {
   ppsx: 'PowerPoint show',
   pps: 'PowerPoint 97–2003 show',
   potx: 'PowerPoint template',
+  key: 'Keynote',
   odp: 'OpenDocument presentation'
 };
 
@@ -226,6 +230,244 @@ export function powerpointWords(message) {
   return `PowerPoint could not export the deck: ${m.replace(/^.*execution error:\s*/s, '')}`;
 }
 
+/* ------------------------------------------------------------- Keynote */
+
+/**
+ * The Keynotes driven, by bundle id, the one to prefer first. Keynote
+ * Creator Studio (`com.apple.Keynote`, 15.x) installs beside the iWork
+ * Keynote (`com.apple.iWork.Keynote`, 14.x) rather than replacing it, and
+ * with both installed the old one launches to a modal "Use the New Version
+ * of Keynote" that answers nothing until someone clicks it. So the old one
+ * is driven only where Creator Studio is not installed. Always by id: two
+ * apps are called Keynote, and which one a name finds is Launch Services'
+ * choice, not this file's.
+ */
+export const KEYNOTE_IDS = ['com.apple.Keynote', 'com.apple.iWork.Keynote'];
+
+/** The Keynote to drive, `{ id, path, name }` — the first of `KEYNOTE_IDS` installed — found without talking to either. */
+export async function findKeynote(runImpl = run) {
+  for (const id of KEYNOTE_IDS) {
+    const path = await macAppPath(id, runImpl);
+    if (path) return { id, path, name: basename(path).replace(/\.app$/i, '') };
+  }
+  return null;
+}
+
+/*
+ * Open the deck, note which slides are skipped, export the rest as pages,
+ * close the deck unsaved only if this opened it, and quit Keynote only if
+ * this started it and nothing else is open in it. Proved line by line on
+ * Keynote Creator Studio 15.3.1: cold, and with another deck open in it.
+ *
+ *   - **The file references are made before the `tell`.** Made inside it,
+ *     the sandboxed Keynote is handed a path it may not read: it says the
+ *     file "can't be imported", `open` answers missing value, and the next
+ *     line fails with -1700 — the failure that kept Keynote out at first.
+ *     Made by the script, they carry the sandbox's permission with them, so
+ *     the deck and its PDF sit in an ordinary temporary folder and Keynote
+ *     needs no container copy (and macOS asks no App Data question).
+ *   - **Documents are told apart by id.** Opening a `.key` that is already
+ *     open hands back the open one, which is then left open.
+ *   - **The first question has a minute.** A Keynote that does not answer it
+ *     is sitting on a dialog, and every Apple event queues behind one; better
+ *     to say so than wait ten minutes.
+ *   - **Nothing is opened in a Keynote playing a slideshow.**
+ *
+ * Errors 1001 and 1002 are this script's own; `keynoteWords` reads them.
+ */
+export const keynoteScript = (id) => `on run argv
+  set inFile to POSIX file (item 1 of argv)
+  set outFile to POSIX file (item 2 of argv)
+  set wasRunning to application id "${id}" is running
+  try
+    tell application id "${id}"
+      with timeout of 60 seconds
+        set openBefore to id of every document
+      end timeout
+    end tell
+  on error msg number n
+    my finish(wasRunning)
+    error msg number n
+  end try
+  if wasRunning then
+    set showing to false
+    try
+      tell application id "${id}" to set showing to playing
+    end try
+    if showing then error "Keynote is playing a slideshow" number 1001
+  end if
+  set d to missing value
+  try
+    tell application id "${id}"
+      with timeout of 240 seconds
+        set d to open inFile
+      end timeout
+    end tell
+  on error msg number n
+    my finish(wasRunning)
+    error msg number n
+  end try
+  if d is missing value then
+    my finish(wasRunning)
+    error "Keynote could not open the deck" number 1002
+  end if
+  set mine to false
+  try
+    tell application id "${id}"
+      with timeout of 300 seconds
+        set mine to (id of d) is not in openBefore
+        set sk to skipped of every slide of d
+        export d to outFile as PDF with properties {export style:IndividualSlides, all stages:false, skipped slides:false, PDF image quality:Best}
+      end timeout
+    end tell
+  on error msg number n
+    my shut(d, mine)
+    my finish(wasRunning)
+    error msg number n
+  end try
+  my shut(d, mine)
+  my finish(wasRunning)
+  set shown to {}
+  repeat with i from 1 to count of sk
+    if item i of sk is false then set end of shown to i
+  end repeat
+  set AppleScript's text item delimiters to ","
+  return shown as text
+end run
+
+on shut(d, mine)
+  if mine then
+    try
+      tell application id "${id}"
+        with timeout of 60 seconds
+          close d saving no
+        end timeout
+      end tell
+    end try
+  end if
+end shut
+
+on finish(wasRunning)
+  if wasRunning then return
+  try
+    tell application id "${id}"
+      with timeout of 20 seconds
+        if (count of documents) is 0 then quit
+      end timeout
+    end tell
+  end try
+end finish`;
+
+/**
+ * The names in a zip on disk, from its central directory alone (a deck can
+ * be a gigabyte). Null when that cannot be read: not a zip, or zip64.
+ */
+export async function zipNames(path) {
+  const fh = await open(path, 'r');
+  try {
+    const { size } = await fh.stat();
+    const tail = Buffer.alloc(Math.min(size, 65557));
+    await fh.read(tail, 0, tail.length, size - tail.length);
+    let eocd = -1;
+    for (let i = tail.length - 22; i >= 0; i--) if (tail.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) return null;
+    const count = tail.readUInt16LE(eocd + 10);
+    const cdSize = tail.readUInt32LE(eocd + 12);
+    const cdStart = tail.readUInt32LE(eocd + 16);
+    if (cdStart + cdSize > size) return null;
+    const cd = Buffer.alloc(cdSize);
+    await fh.read(cd, 0, cdSize, cdStart);
+    const names = [];
+    for (let p = 0, n = 0; n < count; n++) {
+      if (p + 46 > cd.length || cd.readUInt32LE(p) !== 0x02014b50) return null;
+      const nameLen = cd.readUInt16LE(p + 28);
+      names.push(cd.toString('utf8', p + 46, p + 46 + nameLen));
+      p += 46 + nameLen + cd.readUInt16LE(p + 30) + cd.readUInt16LE(p + 32);
+    }
+    return names;
+  } finally {
+    await fh.close();
+  }
+}
+
+/**
+ * Why Keynote is not handed a file, or null. Each of these would put a
+ * dialog up in Keynote — a password to type, "the file format is invalid" —
+ * that stays on the operator's screen and holds every conversion after it.
+ * A password-protected `.key` carries `.iwpv2` (seen 2026-10-20, Keynote
+ * 15.3.1); a password-protected PowerPoint deck is not a zip at all.
+ */
+export async function keynoteRefusal(input, ext) {
+  const fh = await open(input, 'r');
+  const head = Buffer.alloc(4);
+  try { await fh.read(head, 0, 4, 0); } finally { await fh.close(); }
+  const zip = head.readUInt32LE(0) === 0x04034b50;
+  if (ext === 'key') {
+    if (!zip) return 'This .key is not a Keynote file that can be sent on — it may be damaged, or saved as a package (a folder). Save it as a single file in Keynote, or export a PDF, and open that.';
+    if ((await zipNames(input) || []).some((n) => /^\.iwpv/.test(n))) {
+      return 'This Keynote deck is password-protected, and Keynote would stop to ask for the password with nobody there. Remove the password in Keynote (or export a PDF) and open that.';
+    }
+  } else if (['pptx', 'ppsx', 'potx'].includes(ext) && !zip) {
+    return 'This deck is password-protected or damaged, and Keynote would stop to ask about it with nobody there. Remove the password (or export a PDF) and open that.';
+  }
+  return null;
+}
+
+/** Keynote's errors and the script's own, in words an operator can act on. */
+export function keynoteWords(message, app = { id: KEYNOTE_IDS[0], name: 'Keynote' }) {
+  const m = String(message || '').replace(/^.*execution error:\s*/s, '').trim();
+  const { name } = app;
+  if (/-1743|Not authori[sz]ed to send Apple events/i.test(m)) {
+    return `macOS has not let LivePremier Plus control ${name} — allow it in System Settings ▸ Privacy & Security ▸ Automation, then try again`;
+  }
+  if (/\(1001\)/.test(m)) return `${name} is playing a slideshow, and opening a deck in it could interrupt the show — try again when the show has stopped`;
+  if (/\(1002\)/.test(m)) return `${name} could not open the deck — it may be damaged, or made by a newer Keynote. Export a PDF from Keynote and open that.`;
+  const old = app.id === 'com.apple.iWork.Keynote' ? ' (Keynote 14 waits on “Use the New Version of Keynote” while a newer Keynote is installed.)' : '';
+  if (/-1712|timed out/i.test(m)) return `${name} did not answer in time — is a dialog open in it?${old}`;
+  if (/did not finish in/.test(m)) return `${m} — is a dialog open in ${name}?${old}`;
+  if (/\((-609|-600)\)/.test(m)) return `${name} quit, or stopped answering, part-way through — try again`;
+  return `${name} could not export the deck: ${m}`;
+}
+
+export const keynote = {
+  id: 'keynote',
+  label: 'Keynote',
+  /* Keynote's own, and the PowerPoint types it imports (its Info.plist), never a macro-enabled one. */
+  formats: ['key', 'pptx', 'ppt', 'ppsx', 'pps', 'potx'],
+  async probe({ platform = process.platform, runImpl = run } = {}) {
+    if (platform !== 'darwin') return { available: false, reason: 'Keynote is driven on a Mac only' };
+    const app = await findKeynote(runImpl);
+    return app ? { available: true, where: app.path, label: app.name } : { available: false, reason: 'Keynote is not installed' };
+  },
+  /* Resolves `{ pdf, slides }`: the slide number of each page, Keynote's own skipped slides left out. */
+  async convert({ input, ext, runImpl = run }) {
+    const refused = await keynoteRefusal(input, ext);
+    if (refused) throw Object.assign(new Error(refused), { status: 422 });
+    const app = await findKeynote(runImpl);
+    if (!app) throw new Error('Keynote is not installed');
+    const dir = await mkdtemp(join(tmpdir(), 'lpp-keynote-'));
+    const pdf = join(dir, 'deck.pdf');
+    try {
+      let said;
+      try {
+        ({ stdout: said } = await runImpl('osascript', ['-e', keynoteScript(app.id), input, pdf]));
+      } catch (err) {
+        throw new Error(keynoteWords(err.message, app));
+      }
+      let bytes;
+      try {
+        bytes = await readFile(pdf);
+      } catch {
+        throw new Error(`${app.name} said it exported the deck, and no PDF appeared — it may be damaged`);
+      }
+      const slides = String(said || '').trim().split(',').filter(Boolean).map(Number);
+      return { pdf: bytes, slides: slides.length && slides.every((n) => n > 0) ? slides : null };
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+};
+
 /* ---------------------------------------------------------- LibreOffice */
 
 /** Overrides discovery, as presentation-converter's `PRESENTATION_CONVERTER_SOFFICE` does. */
@@ -351,7 +593,8 @@ export function visibleSlides(buf) {
 
 /* ------------------------------------------------------------ choosing */
 
-export const ENGINES = [powerpoint, libreoffice];
+/* PowerPoint draws its own decks best; Keynote's import beats LibreOffice's on a Mac with no PowerPoint. */
+export const ENGINES = [powerpoint, keynote, libreoffice];
 
 /** Every engine and whether it is here: `[{ id, label, formats, available, reason }]`. */
 export async function probeAll(opts = {}, engines = ENGINES) {
@@ -370,21 +613,26 @@ export function pickEngine(probes, ext, wanted = null) {
  */
 export function noEngineWords(probes, ext) {
   const kind = DECK_TYPES[ext];
-  if (!kind) return `A .${ext} file is not a deck this can open — open a PDF, or a PowerPoint or OpenDocument deck.`;
+  if (!kind) return `A .${ext} file is not a deck this can open — open a PDF, or a PowerPoint, Keynote or OpenDocument deck.`;
   const could = probes.filter((p) => p.formats.includes(ext)).map((p) => `${p.label} (${p.reason || 'not here'})`);
   return `Nothing on the machine LivePremier Plus runs on can turn a ${kind} deck into a PDF: ${could.join('; ')}. Export a PDF from the presentation app and open that instead.`;
 }
 
 /**
  * Convert one deck file: `{ input, ext, engine? }`, the file already on
- * disk. Resolves `{ pdf: Buffer, engine }`. Queued behind any other.
+ * disk. Resolves `{ pdf: Buffer, engine, label, slides }`. Queued behind
+ * any other. `slides` is the slide number of each page: what the engine
+ * says of its own PDF (Keynote reads its skipped slides), else what a
+ * PowerPoint package says, else null.
  */
 export async function convertDeck({ input, ext, engine = null, engines = ENGINES, probeOpts = {}, runImpl } = {}) {
   const probes = await probeAll(probeOpts, engines);
   const pick = pickEngine(probes, ext, engine);
   if (!pick) throw Object.assign(new Error(noEngineWords(probes, ext)), { status: 422 });
   const impl = engines.find((e) => e.id === pick.id);
-  const pdf = await queue(() => impl.convert({ input, ext, ...(runImpl ? { runImpl } : {}), ...probeOpts }));
-  const slides = ['pptx', 'ppsx', 'potx'].includes(ext) ? visibleSlides(await readFile(input).catch(() => null)) : null;
+  const out = await queue(() => impl.convert({ input, ext, ...(runImpl ? { runImpl } : {}), ...probeOpts }));
+  const pdf = Buffer.isBuffer(out) ? out : out.pdf;
+  const slides = (!Buffer.isBuffer(out) && out.slides)
+    || (['pptx', 'ppsx', 'potx'].includes(ext) ? visibleSlides(await readFile(input).catch(() => null)) : null);
   return { pdf, engine: pick.id, label: pick.label, slides };
 }

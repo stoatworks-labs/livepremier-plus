@@ -171,8 +171,8 @@ bolted on afterwards:
   preset, disguise, Pixera, Hippotizer, Millumin and TouchDesigner files, and a pixel-map pack
   for everything else. On a Midra 4K or Alta 4K it cuts one picture per screen instead (the
   canvas, through a Background Image shown 1:1, which an Auto Crop set has the switcher crop for
-  each output), or fills a Custom set with an input per output. Only proven on simulators. It opens a PDF or a PowerPoint deck too, and makes a background set per
-  page, or every page a still at whatever size you type.
+  each output), or fills a Custom set with an input per output. Only proven on simulators. It opens a PDF, a PowerPoint deck or a Keynote deck too, and makes a
+  background set per page, or every page a still at whatever size you type.
 - **Your setup in one file:** the cue stack, layer groups, names and locks, your variables,
   pixel maps, surfaces, UMDs and Companion triggers, the routers and the patch to them,
   HyperDecks, Dante snapshots and settings, written as one plain JSON file and read back the same
@@ -1179,18 +1179,20 @@ points at that slot, because the upload would turn up there too. The live mode f
 Undo, with each write confirmed by the switcher's own echo; see
 [docs/BACKGROUNDS.md](docs/BACKGROUNDS.md#midra-4k-and-alta-4k).
 
-**Slides.** Drop a PDF or a PowerPoint deck on it instead of a picture and you get a strip of
-pages to pick from. Pick **A background set per page** and each page goes on the screens like a
+**Slides.** Drop a PDF, a PowerPoint deck or a Keynote deck on it instead of a picture and you get
+a strip of pages to pick from. Pick **A background set per page** and each page goes on the screens like a
 picture and into a set of its own, page 1 in the first free set, page 2 in the next. Pick
 **Stills at a size** and every page is drawn at whatever width and height you type, Fit, Fill or
 Stretch, and goes into the library (and a free still each, if you like) or a zip. A page isn't a
 picture with pixels to scale, so each one is drawn at exactly the size it's going to be, and text
 on a 4K output is as sharp as a 4K output can make it. A PDF is opened in the browser. A deck is
-turned into one by PowerPoint on the machine LivePremier Plus runs on, or by LibreOffice where
-that's installed. PowerPoint leaves hidden slides out of its PDF, so the stills are named after
-the slides they actually are. Keynote wouldn't be driven unattended when I tried it, so for a
-Keynote deck, export a PDF and drop that.
-[docs/BACKGROUNDS.md](docs/BACKGROUNDS.md#documents-a-pdf-or-a-powerpoint-deck) has the detail.
+turned into one on the machine LivePremier Plus runs on: a Keynote deck by Keynote, a PowerPoint
+deck by PowerPoint, or by Keynote if there's no PowerPoint, or by LibreOffice where that's
+installed. PowerPoint and Keynote both leave hidden slides out of their PDFs, so the stills are
+named after the slides they actually are. (This paragraph used to say Keynote couldn't be driven unattended. It can; my
+script was the problem.)
+[docs/BACKGROUNDS.md](docs/BACKGROUNDS.md#documents-a-pdf-a-powerpoint-deck-or-a-keynote-deck)
+has the detail.
 
 ![PLUS ▸ Background Slicer with a six-page PDF open: pages 1 to 4 chosen as a background set per page on S1 and S2, and the plan giving each page its own set on each screen, with a library slot and a still for every output, each drawn to size](docs/screenshots/background-slicer-slides.png)
 
@@ -1201,7 +1203,9 @@ Keynote deck, export a PDF and drop that.
 > and drawn in the pop-out window too. A test build of the desktop app turned a PowerPoint deck
 > into a PDF, and macOS asked first, three times: twice to let it reach PowerPoint's data and once
 > to let it control PowerPoint. That build was unsigned; a signed release, LibreOffice and a real
-> frame haven't been tried.
+> frame haven't been tried. A Keynote deck went through Keynote Creator Studio 15.3.1 into the
+> slicer the same day, with Keynote closed and with another deck open in it; Keynote 14 on its own
+> hasn't been tried.
 
 ## Pixelhue panel — preview
 
