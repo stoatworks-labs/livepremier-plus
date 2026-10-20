@@ -18,12 +18,22 @@
  * - **The upload is HTTP**, single-flight: `POST /api/device/images/upload`
  *   answers 503 while another runs, and `FINISH` is the only success.
  *
+ * - **A library delete empties every still showing it** (`mode` stays IMAGE,
+ *   `isValid` goes false and the picture goes) — seen on the 6.2.73
+ *   simulator, 2026-10-20. So a delete is a write to whatever those stills
+ *   are on, and Image Library tools keeps the ones on a bus. (Twice a still
+ *   emptied like this reported its old picture again after a later upload;
+ *   it would not happen a third time — `docs/NOTES.md`, 2026-10-20.)
+ * - **A still's capacity is preconfig**, staged and checked before it is
+ *   applied (`stageCapacities`). The capacity routine was the Background
+ *   Slicer's and moved here when Image Library tools needed it too.
+ *
  * LivePremier only: a Midra keeps its pictures elsewhere (`bg-slicer/mng.js`).
  * No DOM; the upload's `fetch` and the session are handed in.
  */
 
 import { ROOT } from './paths.js';
-import { until, sleep, IMPORT_MS } from './wire.js';
+import { until, sleep, send, sendAndEcho, ECHO_MS, IMPORT_MS } from './wire.js';
 
 const pp = (node) => (node && typeof node === 'object' && node.pp) || {};
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -83,7 +93,7 @@ export function stillsInSets(store) {
   return used;
 }
 
-/** The image library: `{ slots: [{ slot, free, fileName, width, height, size }], sizeKB, maxKB, limits }`. */
+/** The image library: `{ slots: [{ slot, free, used, fileName, width, height, size, capability }], sizeKB, maxKB, limits }`. */
 export function readLibrary(store) {
   const bank = store.get([...LIBRARY, 'bankList']) || {};
   const items = bank.items || {};
@@ -97,7 +107,9 @@ export function readLibrary(store) {
       fileName: String(st.fileName || ''),
       width: num(st.width) || 0,
       height: num(st.height) || 0,
-      size: num(st.fileSize) || 0
+      size: num(st.fileSize) || 0,
+      /* The capacity the picture needs, in the switcher's words. */
+      capability: st.capability || null
     };
   }).filter((s) => Number.isInteger(s.slot));
   const status = pp(bank.status);
@@ -112,7 +124,11 @@ export function readLibrary(store) {
       maxWidth: num(limits.maxWidth) || 16384,
       maxHeight: num(limits.maxHeight) || 8192,
       maxPixels: num(limits.maxTotalPixel) || 39321600,
-      maxBytes: num(limits.maxFileSize) || 157286400
+      maxBytes: num(limits.maxFileSize) || 157286400,
+      /* The file types it imports, lower case: JPEG, JPG, PNG, GIF, TIFF and
+         TIF on the 6.2.73 simulator. */
+      types: (Array.isArray(limits.fileTypeValidity) && limits.fileTypeValidity.length
+        ? limits.fileTypeValidity : ['PNG', 'JPG', 'JPEG']).map((t) => String(t).toLowerCase())
     }
   };
 }
@@ -159,13 +175,57 @@ export function readStills(store) {
       inSet: inSets.has(k),
       onOutput,
       onAir: st.isOnProgram === true || st.isOnPreview === true,
+      onProgram: st.isOnProgram === true,
+      onPreview: st.isOnPreview === true,
+      /* Out of service in the applied preconfig: a larger capacity beside it
+         has its memory. Fitted stills only — an unfitted one was never in. */
+      outOfService: fitted && pre.global === 'DISABLE',
+      outOfCapacity: st.outOfCapability === true,
       free: fitted && enabled && !holding && st.isValid !== true && st.isUsed !== true && !inSets.has(k) && !onOutput
     };
   });
 }
 
+/**
+ * Which stills show each library slot: `Map(slot → [still])`, the stills as
+ * `readStills` gives them. A still shows a slot when its `mode` is IMAGE and
+ * its `source` is the slot — whether or not the picture is there now.
+ */
+export function libraryUsers(store) {
+  const users = new Map();
+  for (const s of readStills(store)) {
+    if (s.mode !== 'IMAGE' || !Number.isInteger(s.source)) continue;
+    if (!users.has(s.source)) users.set(s.source, []);
+    users.get(s.source).push(s);
+  }
+  return users;
+}
+
 /** Units of still capacity, as the manual counts them (p.99/p.100): DUAL is one slot. */
 export const CAPACITY_UNITS = { OFF: 0, DUAL: 1, '4K': 2, 3: 3, '5K': 4, 5: 5, 6: 6, 7: 7, '8K': 8 };
+
+/**
+ * The format that is each capacity beyond doubt: what to give a still's
+ * capacity helper to ask for that capacity. Each was put through the
+ * switcher's own check on the LivePremier Simulator 6.2.73 (Aquilon Cmax,
+ * 2026-10-20): 1080p is Dual, UHD 2160p is 4K and takes the next still out of
+ * service, 5120 × 2880 is 5K and takes the next three. 8K is missing because
+ * not even the largest formats the helper offers came back as 8K there —
+ * 16384 × 1080 and 8192 × 2160 both checked as 5K (custom formats untried).
+ */
+export const CAPACITY_FORMAT = { DUAL: 'HDTV_1080P', '4K': 'UHDTV_2160P', '5K': 'COMPUTER_5120_2880_RB' };
+
+/**
+ * The capacities a still can be asked for: those whose format its helper
+ * offers (`formats`, from `readStills`), smallest first —
+ * `[{ capability, units, format }]`.
+ */
+export function capacityChoices(formats) {
+  const offered = new Set(Array.isArray(formats) ? formats : []);
+  return Object.entries(CAPACITY_FORMAT)
+    .filter(([, format]) => offered.has(format))
+    .map(([capability, format]) => ({ capability, units: CAPACITY_UNITS[capability], format }));
+}
 
 /**
  * The capacity a format probably gives a still, by its size — DUAL up to
@@ -232,6 +292,111 @@ export function stillRestoreWrites(still, before) {
 
 /** Empty a library slot: the vendor card's bin, pulsed. */
 export const libraryDeleteWrites = (slot) => pulse(libraryDeletePath(slot));
+
+/** The staged still-capacity preconfig, and the applied one. */
+export const preStillsNew = (...tail) => [...PRE_STILLS, 'new', ...tail];
+export const preStillsCurrent = (...tail) => [...PRE_STILLS, 'current', ...tail];
+/** A still's capacity helper format, staged in `preconfig/stills/new`. */
+export const stillFormatPath = (still) => preStillsNew('stillList', 'items', String(still), 'control', 'helper', 'pp', 'format');
+/** The staged side's own triggers: `xCopyFromCurrent`, `xCheck`, `xApply`. */
+export const preStillsTrigger = (name) => preStillsNew('control', 'pp', name);
+
+/* ------------------------------------------------------ the capacities */
+
+const PRECONFIG_MS = 20000;
+/** Only the switcher's own echo counts (`wire.js`). */
+const HEARD = { inbound: true };
+
+/**
+ * Stage still-capacity changes and have the switcher check them, as
+ * Preconfig ▸ Images does — the helper format per still, an `xCheck` pulse,
+ * the verdict in `new/…/status` — and stop there, so the caller can show the
+ * verdict before anything is applied. `changes` is `[{ still, format, to,
+ * from?, before? }]`.
+ *
+ * Refuses (throws, with the staged side put back) when Preconfig ▸ Images
+ * already has changes staged — somebody is half way through editing it —
+ * when the check says error, when a still would come out a capacity other
+ * than `to`, or when the change would take a still out of service that holds
+ * something (or is in `reserved`, about to).
+ *
+ * Resolves `{ before, lost, regained, commit, discard }`: `lost` and
+ * `regained` are the still keys the change takes out of service and gives
+ * back, in the switcher's own words; `commit()` applies and resolves `before`
+ * (the formats it replaced, for undo); `discard()` puts the staged side back.
+ */
+export async function stageCapacities({ session, changes, reserved = new Set() }) {
+  const { store } = session;
+  const status = () => pp(store.get(preStillsNew('status')));
+  if (status().hasChanged === true) {
+    throw new Error('Preconfig ▸ Images has changes staged and not applied — apply or reset them there first');
+  }
+  const before = changes.map((c) => ({ still: c.still, format: c.before, capability: c.from }));
+  const discard = () => send(session, pulse(preStillsTrigger('xCopyFromCurrent')));
+  /* The triggers and the formats wait for their inbound echo — the simulator
+     echoed both edges of every pulse. The echo says the reset arrived, not
+     that the copy is done, so the settle after it stays. */
+  if (!(await sendAndEcho(session, pulse(preStillsTrigger('xCopyFromCurrent')), HEARD))) {
+    throw new Error('the switcher did not take the reset of Preconfig ▸ Images — nothing was staged');
+  }
+  await sleep(400);
+  const formats = changes.map((c) => ({ path: stillFormatPath(c.still), value: c.format }));
+  if (!(await sendAndEcho(session, formats, HEARD))) { discard(); throw new Error('the switcher did not stage the still formats'); }
+  if (!(await sendAndEcho(session, pulse(preStillsTrigger('xCheck')), HEARD))) { discard(); throw new Error('the switcher did not take the capacity check'); }
+  /* The verdict is read off the store: `new/status` is only the switcher's. */
+  await until(store, () => status().hasChanged === true || status().error === true, ECHO_MS);
+  if (status().error === true) { discard(); throw new Error('the switcher’s check refused the still capacities'); }
+
+  /* What the change would do, in the switcher's own words. */
+  const stills = readStills(store);
+  const staged = store.get(preStillsNew('stillList', 'items')) || {};
+  const stagedGlobal = (key) => pp(staged[key] && staged[key].status).global;
+  const lost = stills.filter((s) => s.enabled && stagedGlobal(s.key) === 'DISABLE');
+  const regained = stills.filter((s) => s.fitted && !s.enabled && stagedGlobal(s.key) === 'USED');
+  /* In use, or about to be: a still this same plan gives another output. */
+  const busy = lost.filter((s) => !s.free || reserved.has(s.key));
+  if (busy.length) {
+    discard();
+    throw new Error(`raising the capacity would take ${busy.map((s) => `still ${s.key}`).join(', ')} out of service, and ${busy.length === 1 ? 'it holds' : 'they hold'} something — refused`);
+  }
+  for (const c of changes) {
+    const cap = pp(staged[c.still] && staged[c.still].status).capability;
+    if (cap !== c.to) { discard(); throw new Error(`still ${c.still} would become ${cap || 'nothing'}, not ${c.to} — refused`); }
+  }
+
+  async function commit() {
+    /* Applied when `current` says so — a status only the switcher writes,
+       and a stronger word than the trigger's echo. */
+    send(session, pulse(preStillsTrigger('xApply')));
+    const ok = await until(store, () => changes.every((c) => pp(store.get(preStillsCurrent('stillList', 'items', String(c.still), 'status'))).capability === c.to), PRECONFIG_MS);
+    if (!ok) {
+      /* Applied or not, it was asked for: the journal keeps what to put back. */
+      const err = new Error('the switcher did not apply the still capacities');
+      err.before = before;
+      throw err;
+    }
+    /* The switcher reports `current` a moment before it clears the staged
+       side's `hasChanged` (simulator, 2026-10-06): returned any sooner, an
+       Undo pressed at once would refuse it as "changes staged". */
+    await until(store, () => status().hasChanged !== true, ECHO_MS);
+    return before;
+  }
+
+  return { before, lost: lost.map((s) => s.key), regained: regained.map((s) => s.key), commit, discard };
+}
+
+/**
+ * The still-capacity changes, staged, checked and applied in one go — the
+ * Background Slicer's way, which has already shown its plan. Refuses as
+ * `stageCapacities` does, before applying anything. Returns the formats it
+ * replaced, for undo.
+ */
+export async function applyCapacities({ session, changes, log = () => {}, reserved = new Set() }) {
+  if (!changes.length) return [];
+  const staged = await stageCapacities({ session, changes, reserved });
+  if (staged.lost.length) log(`the switcher takes ${staged.lost.join(', ')} out of service for the larger capacity (all empty)`);
+  return staged.commit();
+}
 
 /* ------------------------------------------------------------ the upload */
 

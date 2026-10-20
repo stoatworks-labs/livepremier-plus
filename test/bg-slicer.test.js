@@ -35,7 +35,7 @@ import {
   regionRows, toCsv, toJson, toResolume, outputQuad, templateShapes, templateSvg, packFiles, TARGETS,
   toDisguiseTable, toPixeraFeeds, toHippoCsv, toMilluminSvgs, toTouchDesignerTable, mediaOutputs
 } from '../plugins/bg-slicer/exports.js';
-import { zipStore, unzipStore, crc32 } from '../plugins/bg-slicer/zip.js';
+import { zipStore, unzipStore, crc32 } from '../src/core/zip.js';
 import { applyPlan, revert } from '../plugins/bg-slicer/apply.js';
 import { sendAndEcho, changedPaths } from '../src/core/wire.js';
 

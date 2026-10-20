@@ -49,82 +49,18 @@
 
 import {
   contentWrites, setLabelWrite, stillWrites, stillRestoreWrites, libraryDeleteWrites, pulse,
-  stillFormatPath, preStillsTrigger, preStillsNew, preStillsCurrent, nativeSourcePath, edidWrites,
+  nativeSourcePath, edidWrites,
   readLibrary, readStills, readSets, nativeLayer
 } from './core.js';
 import { presetBanks } from '../../src/core/screens.js';
-import { until, send, sendAndEcho, sleep, ECHO_MS, IMPORT_MS } from '../../src/core/wire.js';
-import { uploadImage, UPLOAD_URL } from '../../src/core/stills.js';
+import { until, send, sendAndEcho, IMPORT_MS } from '../../src/core/wire.js';
+import { uploadImage, UPLOAD_URL, applyCapacities } from '../../src/core/stills.js';
 import { applyMngPlan, revertMng } from './apply-mng.js';
 
-export { until, uploadImage, UPLOAD_URL };
+export { until, uploadImage, UPLOAD_URL, applyCapacities };
 
-const PRECONFIG_MS = 20000;
 /** Only the switcher's own echo counts (see the head of this file). */
 const HEARD = { inbound: true };
-
-const pp = (n) => (n && n.pp) || {};
-
-/**
- * The still-capacity changes, through the staged preconfig. Refuses — before
- * applying anything — when another change is already staged, when the
- * switcher's check says error, or when the check would take a still that
- * holds something out of service. Returns the formats it replaced, for undo.
- */
-export async function applyCapacities({ session, changes, log, reserved = new Set() }) {
-  const { store } = session;
-  if (!changes.length) return [];
-  const status = () => pp(store.get(preStillsNew('status')));
-  if (status().hasChanged === true) {
-    throw new Error('Preconfig ▸ Images has changes staged and not applied — apply or reset them there first');
-  }
-  const before = changes.map((c) => ({ still: c.still, format: c.before, capability: c.from }));
-  const discard = () => send(session, pulse(preStillsTrigger('xCopyFromCurrent')));
-  /* The triggers and the formats wait for their inbound echo — the simulator
-     echoed both edges of every pulse. The echo says the reset arrived, not
-     that the copy is done, so the settle after it stays. */
-  if (!(await sendAndEcho(session, pulse(preStillsTrigger('xCopyFromCurrent')), HEARD))) {
-    throw new Error('the switcher did not take the reset of Preconfig ▸ Images — nothing was staged');
-  }
-  await sleep(400);
-  const formats = changes.map((c) => ({ path: stillFormatPath(c.still), value: c.format }));
-  if (!(await sendAndEcho(session, formats, HEARD))) { discard(); throw new Error('the switcher did not stage the still formats'); }
-  if (!(await sendAndEcho(session, pulse(preStillsTrigger('xCheck')), HEARD))) { discard(); throw new Error('the switcher did not take the capacity check'); }
-  /* The verdict is read off the store: `new/status` is only the switcher's. */
-  await until(store, () => status().hasChanged === true || status().error === true, ECHO_MS);
-  if (status().error === true) { discard(); throw new Error('the switcher’s check refused the still capacities'); }
-
-  /* What the change would do, in the switcher's own words. */
-  const stills = readStills(store);
-  const staged = store.get(preStillsNew('stillList', 'items')) || {};
-  const lost = stills.filter((s) => s.enabled && pp(staged[s.key] && staged[s.key].status).global === 'DISABLE');
-  /* In use, or about to be: a still this same plan gives another output. */
-  const busy = lost.filter((s) => !s.free || reserved.has(s.key));
-  if (busy.length) {
-    discard();
-    throw new Error(`raising the capacity would take ${busy.map((s) => `still ${s.key}`).join(', ')} out of service, and ${busy.length === 1 ? 'it holds' : 'they hold'} something — refused`);
-  }
-  for (const c of changes) {
-    const cap = pp(staged[c.still] && staged[c.still].status).capability;
-    if (cap !== c.to) { discard(); throw new Error(`still ${c.still} would become ${cap || 'nothing'}, not ${c.to} — refused`); }
-  }
-  if (lost.length) log(`the switcher takes ${lost.map((s) => s.key).join(', ')} out of service for the larger capacity (all empty)`);
-  /* Applied when `current` says so — a status only the switcher writes, and
-     a stronger word than the trigger's echo. */
-  send(session, pulse(preStillsTrigger('xApply')));
-  const ok = await until(store, () => changes.every((c) => pp(store.get(preStillsCurrent('stillList', 'items', String(c.still), 'status'))).capability === c.to), PRECONFIG_MS);
-  if (!ok) {
-    /* Applied or not, it was asked for: the journal keeps what to put back. */
-    const err = new Error('the switcher did not apply the still capacities');
-    err.before = before;
-    throw err;
-  }
-  /* The switcher reports `current` a moment before it clears the staged
-     side's `hasChanged` (simulator, 2026-10-06): returned any sooner, an
-     Undo pressed at once would refuse it as "changes staged". */
-  await until(store, () => status().hasChanged !== true, ECHO_MS);
-  return before;
-}
 
 /**
  * Put a plan on the switcher. `images` maps `<screen>/<out>` to `{ blob, name }`

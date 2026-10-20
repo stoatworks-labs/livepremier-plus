@@ -64,7 +64,8 @@
 
 import { ROOT } from '../../src/core/paths.js';
 import {
-  SET_COUNT, BG, PRE_STILLS, readSets, firstFreeSet, stillsInSets, readLibrary, readStills, CAPACITY_UNITS, likelyCapability, stillPath, libraryDeletePath, pulse, LABEL_MAX, stillWrites, stillRestoreWrites, libraryDeleteWrites
+  SET_COUNT, BG, readSets, firstFreeSet, stillsInSets, readLibrary, readStills, CAPACITY_UNITS, CAPACITY_FORMAT, likelyCapability, stillPath, libraryDeletePath, pulse, LABEL_MAX, stillWrites, stillRestoreWrites, libraryDeleteWrites,
+  preStillsNew, preStillsCurrent, stillFormatPath, preStillsTrigger
 } from '../../src/core/stills.js';
 import { listDestinations } from '../../src/core/screens.js';
 import { screenOutputs } from '../../src/core/pitch.js';
@@ -99,7 +100,8 @@ export const NOTES = {
 /* The library and the stills are read and written in `src/core/stills.js`,
    shared with the UMD generator; these are what this plugin always exported. */
 export {
-  SET_COUNT, readSets, firstFreeSet, stillsInSets, readLibrary, readStills, CAPACITY_UNITS, likelyCapability, stillPath, libraryDeletePath, pulse, LABEL_MAX, stillWrites, stillRestoreWrites, libraryDeleteWrites
+  SET_COUNT, readSets, firstFreeSet, stillsInSets, readLibrary, readStills, CAPACITY_UNITS, likelyCapability, stillPath, libraryDeletePath, pulse, LABEL_MAX, stillWrites, stillRestoreWrites, libraryDeleteWrites,
+  preStillsNew, preStillsCurrent, stillFormatPath, preStillsTrigger
 };
 
 /* ------------------------------------------------------------------ topology */
@@ -492,8 +494,8 @@ export function formatSize(name) {
   return m ? { width: Number(m[1]), height: Number(m[2]) } : null;
 }
 
-/** The format that is each capacity beyond doubt. */
-const CANONICAL_FORMAT = { DUAL: 'HDTV_1080P', '4K': 'UHDTV_2160P', '5K': 'COMPUTER_5120_2880_RB' };
+/** The format that is each capacity beyond doubt (`core/stills.js`, where it is shared). */
+const CANONICAL_FORMAT = CAPACITY_FORMAT;
 
 /**
  * The format to give a still's capacity helper so it can hold an output's
@@ -696,9 +698,6 @@ export const setLabelPath = (screenId, set) =>
 /** A preset buffer's NATIVE layer source. */
 export const nativeSourcePath = (screenId, letter) =>
   [ROOT, 'screenList', 'items', screenId, 'presetList', 'items', letter, 'layerList', 'items', 'NATIVE', 'source', 'pp', 'inputNum'];
-/** The staged still-capacity preconfig. */
-export const preStillsNew = (...tail) => [...PRE_STILLS, 'new', ...tail];
-export const preStillsCurrent = (...tail) => [...PRE_STILLS, 'current', ...tail];
 
 const bgClaimPath = (source, out) => {
   const live = /^LIVE_(\d+)$/.exec(source);
@@ -758,11 +757,6 @@ function otherOutputUsing(store, source, screenId, set, outKey) {
 /** A background set's label write, cut to what the switcher keeps. */
 export const setLabelWrite = (screenId, set, label) =>
   ({ path: setLabelPath(screenId, set), value: String(label || '').slice(0, LABEL_MAX) });
-
-/** A still's capacity helper format, staged in `preconfig/stills/new`. */
-export const stillFormatPath = (still) => preStillsNew('stillList', 'items', String(still), 'control', 'helper', 'pp', 'format');
-/** The staged side's own triggers: `xCopyFromCurrent`, `xCheck`, `xApply`. */
-export const preStillsTrigger = (name) => preStillsNew('control', 'pp', name);
 
 /** File name of an output's image: screen, output, raster — what the library card will show. */
 export function imageName(screenId, output, stem = 'bg') {
