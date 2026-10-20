@@ -90,6 +90,14 @@ Copyright: 2026 Stoatworks Labs
 
 Same fleet, bundled rather than re-derived: src/vendor/output-map/resolume.js is output-map's src/lib/resolume.ts and the geometry it uses, built by tools/sync-output-map.mjs. Every element and parameter it writes was read off files Resolume Arena 7.27 wrote; the Background Slicer's live-input export uses it.
 
+### Test pattern engine — Stoatworks Test Card
+
+<https://github.com/stoatworks-labs/test-card>  
+Licence: MIT  
+Copyright: 2026 Stoatworks Labs
+
+Same fleet, bundled rather than re-derived: src/vendor/test-card/engine.js is Test Card's src/engine.ts and the painters, settings and canvas limits behind it, built by tools/sync-test-card.mjs. Its SMPTE RP 219 bars are held to ffmpeg's there; the Test Card plugin draws every card with it.
+
 ## Third-party code this project uses
 
 Libraries, SDKs and frameworks the project is built on or bundles.
