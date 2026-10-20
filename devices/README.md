@@ -6,7 +6,8 @@ and supervised by the app, with one **module** per kind of device.
 
 The first was the DaVinci Resolve Speed Editor; the second is the Barco EC-30 /
 EC-40 / EC-50 desk panel (*preview*, never yet run against a panel —
-`docs/BARCO-EC.md`).
+`docs/BARCO-EC.md`); the third is the ATEM Micro Panel (*preview*, never yet run
+against a panel — `docs/ATEM-MICRO-PANEL.md`).
 
 ## Why a program of its own
 
@@ -58,7 +59,12 @@ purpose (`server/awj.js`).
 
 A module says which library it needs as `transport`:
 
-- **`hid`**: node-hid. The Speed Editor.
+- **`hid`**: node-hid. The Speed Editor and the ATEM Micro Panel, which are one
+  family on the wire and share one driver, `blackmagic-hid.js`: found by vendor
+  and product id over USB or Bluetooth, silent until a challenge on a feature
+  report is answered, and answered again at half the lease it grants. A module
+  gives it a model — `{ vendorId, productId, authenticate, battery }` — and
+  nothing else differs.
 - **`ftdi`**: `transports/ftdi.js`, an FTDI chip in MPSSE mode. The Barco EC
   panels are an FT232H behind a CPLD. On **macOS and Linux** it goes through
   libusb (the `usb` package, v2 — the libusb binding; v3 is a rewrite on another

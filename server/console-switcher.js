@@ -21,6 +21,7 @@ import { exchange, AWJ_PORT } from './awj.js';
 import { NLC, MNG } from '../src/core/dialect.js';
 import { letterFor } from '../src/vendor/surface/preset.js';
 import { toAwj } from '../src/core/paths.js';
+import { layerSourcePath, readSource } from '../src/core/console-intents.js';
 
 /* How much of a switcher to ask about. Bounded on purpose: these are `get`s in
    one burst, and a LivePremier has 24 screens, 20-odd inputs and a thousand
@@ -305,6 +306,51 @@ export class ConsoleSwitcher {
         status: { pp: { transition: byPath.get(toAwj(dialect.takeStatus(id, 'transition'))) } },
       };
       out.set(id, letterFor(buffer, group));
+    }
+    return out;
+  }
+
+  /**
+   * What is on one layer in program and in preview, per destination — the
+   * tally an ATEM-style bus shows. Two bursts: the letters, as `lettersFor`
+   * reads them, then the layer's source under each. `{program, preview}` are
+   * `readSource`'s `{kind, number}` or null; a destination whose letters could
+   * not be read is left out rather than guessed.
+   */
+  async tallyFor(ids, layer) {
+    const dialect = this.dialect;
+    const spec = dialect ? layerSourcePath(dialect) : null;
+    if (!dialect || !spec || !ids.length) return new Map();
+    const props = ['presetUp', 'presetDown', 'presetPrevious'];
+    const first = [];
+    for (const id of ids) {
+      for (const p of props) first.push(dialect.takeControl(id, p));
+      first.push(dialect.takeStatus(id, 'transition'));
+    }
+    const got = await this.read(first);
+    const letters = new Map();
+    for (const id of ids) {
+      const group = {
+        control: { pp: Object.fromEntries(props.map((p) => [p, got.get(toAwj(dialect.takeControl(id, p)))])) },
+        status: { pp: { transition: got.get(toAwj(dialect.takeStatus(id, 'transition'))) } },
+      };
+      const program = letterFor('PROGRAM', group);
+      const preview = letterFor('PREVIEW', group);
+      if (program && preview) letters.set(id, { program, preview });
+    }
+    const second = [];
+    for (const [id, l] of letters) {
+      second.push(dialect.layerParamPath(id, l.program, layer, spec));
+      second.push(dialect.layerParamPath(id, l.preview, layer, spec));
+    }
+    const sources = await this.read(second);
+    const out = new Map();
+    for (const [id, l] of letters) {
+      out.set(id, {
+        layer,
+        program: readSource(sources.get(toAwj(dialect.layerParamPath(id, l.program, layer, spec)))),
+        preview: readSource(sources.get(toAwj(dialect.layerParamPath(id, l.preview, layer, spec)))),
+      });
     }
     return out;
   }

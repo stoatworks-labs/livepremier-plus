@@ -69,7 +69,10 @@ export function fakeHid(panels) {
     present: [...panels],
     opened: [],
     async devicesAsync() {
-      return hid.present.map((p, i) => ({ vendorId: VENDOR_ID, productId: PRODUCT_ID, path: `panel-${i}`, product: 'DaVinci Resolve Speed Editor' }));
+      /* A panel of another model (the ATEM Micro Panel's fake) says its own ids. */
+      return hid.present.map((p, i) => ({
+        vendorId: p.vendorId ?? VENDOR_ID, productId: p.productId ?? PRODUCT_ID, path: `panel-${i}`, product: p.product ?? 'DaVinci Resolve Speed Editor',
+      }));
     },
     HIDAsync: {
       async open(path, opts) {

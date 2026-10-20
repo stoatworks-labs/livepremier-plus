@@ -138,7 +138,7 @@ test('without node-hid the host still says hello, and says why nothing will open
 });
 
 test('modules are the folders under modules/, and a folder that is not one is skipped with a reason', async () => {
-  assert.deepEqual((await loadModules(join(ROOT, 'devices/modules'))).map((m) => m.id), ['barco-ec', 'speed-editor']);
+  assert.deepEqual((await loadModules(join(ROOT, 'devices/modules'))).map((m) => m.id), ['atem-micro-panel', 'barco-ec', 'speed-editor']);
   const dir = await mkdtemp(join(tmpdir(), 'lpp-modules-'));
   try {
     await mkdir(join(dir, 'wrong-id'));

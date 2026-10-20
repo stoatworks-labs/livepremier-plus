@@ -74,7 +74,7 @@ export function writesFor(intent, ctx) {
       break;
     case 'source': {
       if (!intent.input) return { ...out, note: 'a source change with no input' };
-      const spec = sourceSpec(dialect);
+      const spec = layerSourcePath(dialect);
       if (!spec) return { ...out, note: 'this platform has no source parameter' };
       /* SIGNAL SOURCE moves the input bus between live inputs, stills and
          screens; the key's id is the number within whichever it shows. */
@@ -265,6 +265,40 @@ export function tbarWrites(report, ctx) {
   return { writes, progress };
 }
 
+/**
+ * How far a stroke has gone, 0…1, for a T-bar that reports where the lever IS
+ * (`tbarWrites` wants how far through a take it is, and maps that onto each
+ * screen's own rest). A stroke from the bottom counts up, from the top counts
+ * down; which end it started from is wherever the lever rested before it
+ * moved, nearest end. So the second throw — back the way it came — is a take
+ * too, as on an Event Master Toolset or an ATEM.
+ *
+ * Moved here from the Barco EC panel (2026-10-20) when the ATEM Micro Panel,
+ * whose T-bar reports its position the same way, arrived.
+ */
+export function strokeProgress(startFraction, nowFraction) {
+  const fromBottom = startFraction < 0.5;
+  const p = fromBottom ? nowFraction : 1 - nowFraction;
+  return Math.max(0, Math.min(1, p));
+}
+
+/* A lever within this of an end has arrived: the last few counts of travel
+   are mechanical slack. */
+export const STROKE_END = 0.995;
+
+/**
+ * A layer's source as the switcher spells it, read back: `{kind, number}`, or
+ * null for anything that is not an input, a still or a screen (no source, a
+ * colour). The inverse of how `writesFor`'s `source` spells it — `LIVE_3`,
+ * `STILL_2`, `SCREEN_1` on a LivePremier, `INPUT_3` on a Midra or Alta — kept
+ * beside it so the two cannot drift.
+ */
+export function readSource(value) {
+  const m = /^(LIVE|STILL|SCREEN|INPUT)_(\d+)$/.exec(String(value ?? ''));
+  if (!m) return null;
+  return { kind: m[1] === 'INPUT' ? 'LIVE' : m[1], number: Number(m[2]) };
+}
+
 /* ------------------------------------------------------------ layer steps */
 
 /**
@@ -282,8 +316,12 @@ export function stepLayer(fitted, current, to) {
   return keys[Math.min(keys.length - 1, Math.max(0, i + (to === 'next' ? 1 : -1)))];
 }
 
-/** The path tail of the layer parameter naming a source, from the catalogue. */
-function sourceSpec(dialect) {
+/**
+ * The path tail of the layer parameter naming a source, from the catalogue.
+ * Exported for reading a layer's source back (`ConsoleSwitcher.tallyFor`),
+ * so the write and the read cannot name different parameters.
+ */
+export function layerSourcePath(dialect) {
   const list = (dialect.catalogue && dialect.catalogue.layer) || [];
   const found = list.find((p) => p.id === dialect.sourceParam);
   return found ? found.path : null;

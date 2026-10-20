@@ -70,6 +70,10 @@ than something bolted on.
 - **Barco EC panel** *(preview, off by default)*: a Barco EC-30, EC-40 or EC-50, plugged into the
   machine this app runs on, driving the switcher with no browser open. Quit the Event Master
   Toolset first: the panel takes one program at a time. Not yet tried on a real panel.
+- **ATEM Micro Panel** *(preview, off by default)*: a Blackmagic ATEM Micro Panel, plugged into or
+  paired with the machine this app runs on, driving the switcher like an ATEM, with no browser
+  open. Quit ATEM Software Control first, or it switches your ATEM on every press too. Not yet
+  tried on a real panel.
 - **Background Slicer** *(preview)*: one picture cut into a pixel-exact background for every
   output of one or more screens, uploaded and put into a background set, or each output fed live
   from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a

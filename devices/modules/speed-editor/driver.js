@@ -47,215 +47,32 @@
  * challenge and hear the same keys, so both apps would act on every press.
  */
 
-import { EventEmitter } from 'node:events';
 /* The protocol is awj-surface's, vendored once for the whole repo; the page's
    adapter reads the same file. */
 import { VENDOR_ID, PRODUCT_ID, REPORT, authenticate, decodeReport } from '../../../src/vendor/surface/hid/speed-editor.js';
+/* The finding, opening, handshaking and renewing are shared with the ATEM
+   Micro Panel since 2026-10-20 — moved there unchanged. */
+import { BlackmagicHidDriver } from '../../blackmagic-hid.js';
 
-/* How often to look for a panel that is not there. Enumerating HID devices
-   is cheap, and a panel plugged in should be answered within a breath. */
-const SCAN_MS = 2000;
-/* After a failed handshake: soon, but not so soon it hammers a panel that is
-   still coming up after being plugged in. */
-const RETRY_MS = 5000;
-
-const toBytes = (data) => Uint8Array.from(data);
+/** The Speed Editor, as `BlackmagicHidDriver` takes a model. */
+export const SPEED_EDITOR = Object.freeze({
+  vendorId: VENDOR_ID,
+  productId: PRODUCT_ID,
+  authenticate,
+  /* The one thing decoded here: the page is told the battery. */
+  battery(bytes) {
+    if (bytes[0] !== REPORT.IN_BATTERY) return null;
+    const report = decodeReport(bytes);
+    return report ? { charging: report.charging, level: report.level } : null;
+  },
+});
 
 /**
  * @param hid   node-hid's module: `devicesAsync()` and `HIDAsync.open(path, opts)`
  * @param log   fn(message)
  */
-export class SpeedEditorDriver extends EventEmitter {
-  constructor({ hid, log = () => {}, scanMs = SCAN_MS, retryMs = RETRY_MS } = {}) {
-    super();
-    this.hid = hid;
-    this.log = log;
-    this.scanMs = scanMs;
-    this.retryMs = retryMs;
-    this.wanted = false;
-    this.present = null;     // what the last scan found, open or not
-    this.device = null;
-    this.info = null;
-    this.authed = false;
-    this.lease = null;
-    this.battery = null;
-    this.error = null;
-    this.handshakes = 0;
-    this.stopped = true;
-    this.timer = null;
-    this.scanning = false;
-  }
-
-  start() {
-    if (!this.stopped) return;
-    this.stopped = false;
-    void this.scan();
-  }
-
-  async stop() {
-    this.stopped = true;
-    clearTimeout(this.timer);
-    this.timer = null;
-    await this.drop();
-  }
-
-  /** Open the panel (a page is driving it), or let it go (none is). */
-  async want(wanted) {
-    if (this.wanted === wanted) return;
-    this.wanted = wanted;
-    if (!wanted && this.device) {
-      this.log('let the panel go: no page is driving it');
-      await this.drop();
-      this.changed();
-    }
-    if (!this.stopped) void this.scan();
-  }
-
-  /** What the page is told. */
-  get state() {
-    return {
-      present: !!this.present || !!this.device,
-      connected: !!this.device,
-      authed: this.authed,
-      lease: this.lease,
-      product: (this.info ?? this.present)?.product ?? null,
-      battery: this.battery,
-      error: this.error,
-      handshakes: this.handshakes,
-    };
-  }
-
-  changed() { this.emit('state', this.state); }
-
-  schedule(fn, ms) {
-    clearTimeout(this.timer);
-    if (this.stopped) return;
-    this.timer = setTimeout(fn, ms);
-    this.timer.unref?.();
-  }
-
-  /* ------------------------------------------------------------ finding */
-
-  async scan() {
-    if (this.stopped || this.device || this.scanning) return;
-    this.scanning = true;
-    try {
-      const all = await this.hid.devicesAsync();
-      const info = all.find((d) => d.vendorId === VENDOR_ID && d.productId === PRODUCT_ID && d.path);
-      if (!!this.present !== !!info) { this.present = info ?? null; this.changed(); } else this.present = info ?? null;
-      if (info && this.wanted && !this.stopped) await this.open(info);
-    } catch (err) {
-      this.fail(`could not list HID devices: ${err.message}`);
-    } finally {
-      this.scanning = false;
-    }
-    if (!this.device) this.schedule(() => this.scan(), this.scanMs);
-  }
-
-  async open(info) {
-    let device;
-    try {
-      device = await this.hid.HIDAsync.open(info.path, { nonExclusive: true });
-    } catch (err) {
-      this.fail(`could not open the panel: ${err.message}`);
-      return;
-    }
-    if (this.stopped || !this.wanted) { await device.close().catch(() => {}); return; }
-    this.device = device;
-    this.info = info;
-    this.error = null;
-    device.on('data', (data) => this.onData(data));
-    device.on('error', (err) => { void this.lost(err); });
-    this.log(`opened ${info.product || 'the panel'}`);
-    this.changed();
-    await this.handshake();
-  }
-
-  /** Unplugged, or the panel went to sleep: let go and look again. */
-  async lost(err) {
-    if (!this.device) return;
-    this.log(`panel gone (${err?.message || 'closed'})`);
-    await this.drop();
-    this.changed();
-    this.schedule(() => this.scan(), this.scanMs);
-  }
-
-  async drop() {
-    const device = this.device;
-    this.device = null;
-    this.info = null;
-    this.authed = false;
-    this.lease = null;
-    this.battery = null;
-    if (device) {
-      device.removeAllListeners('data');
-      /* An 'error' after close must not throw as an unhandled event. */
-      device.removeAllListeners('error');
-      device.on('error', () => {});
-      await device.close().catch(() => {});
-    }
-  }
-
-  fail(message) {
-    if (this.error !== message) this.log(message);
-    this.error = message;
-    this.changed();
-  }
-
-  /* ---------------------------------------------------------- handshake */
-
-  async handshake() {
-    const device = this.device;
-    if (!device) return;
-    try {
-      const lease = await authenticate({
-        sendFeature: (bytes) => device.sendFeatureReport([...bytes]),
-        /* At the report's own length — the whole reason this is not WebHID. */
-        getFeature: async (id, length) => toBytes(await device.getFeatureReport(id, length)),
-      });
-      if (device !== this.device) return;
-      this.authed = true;
-      this.lease = lease;
-      this.error = null;
-      this.handshakes++;
-      /* Renew at half the lease, as node-blackmagic-controller does. */
-      this.schedule(() => this.handshake(), (lease || 600) * 500);
-      this.emit('authed', this.state);
-      this.changed();
-    } catch (err) {
-      if (device !== this.device) return;
-      this.authed = false;
-      this.fail(`the panel would not authenticate: ${err.message}`);
-      this.schedule(() => this.handshake(), this.retryMs);
-    }
-  }
-
-  /* ---------------------------------------------------------- the bytes */
-
-  onData(data) {
-    const bytes = toBytes(data);
-    if (bytes[0] === REPORT.IN_BATTERY) {
-      const report = decodeReport(bytes);
-      if (report) {
-        const next = { charging: report.charging, level: report.level };
-        const was = this.battery;
-        this.battery = next;
-        if (!was || was.level !== next.level || was.charging !== next.charging) this.changed();
-      }
-    }
-    this.emit('report', bytes);
-  }
-
-  /** One output report, id in byte 0. Refused while nobody could hear it. */
-  async write(bytes) {
-    const device = this.device;
-    if (!device || !this.authed) return false;
-    try {
-      await device.write([...bytes]);
-      return true;
-    } catch (err) {
-      this.log(`a write failed: ${err.message}`);
-      return false;
-    }
+export class SpeedEditorDriver extends BlackmagicHidDriver {
+  constructor(options = {}) {
+    super({ ...options, model: SPEED_EDITOR });
   }
 }

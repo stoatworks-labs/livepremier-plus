@@ -368,6 +368,19 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'atem-micro-panel',
+    name: 'ATEM Micro Panel',
+    where: 'Settings (preview)',
+    description: 'A Blackmagic ATEM Micro Panel, plugged into or paired with this machine, driving the switcher the way it drives an ATEM, with no browser open. Never yet run against a panel.',
+    /* Off until it has been: it writes to a switcher, and ATEM Software
+       Control on the same machine would act on every press too. Nothing in
+       `requires`: it reads and writes through the dialect, as the other
+       consoles do. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'snapshot-relay',
     name: 'Thumbnail relay',
     where: 'Settings (preview), and every source thumbnail',

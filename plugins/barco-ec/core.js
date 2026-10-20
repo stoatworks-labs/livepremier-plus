@@ -342,20 +342,11 @@ export function paintCommand(next, prev) {
 
 /* ------------------------------------------------------------- the T-bar */
 
-/**
- * How far a stroke has gone, 0…1. The EC T-bar reports where the lever IS;
- * `tbarWrites` (console-intents.js) wants how far through a take it is, and
- * maps that onto each screen's own rest. A stroke from the bottom counts up,
- * from the top counts down; which end it started from is wherever the lever
- * rested before it moved, nearest end. So the second throw of an Event Master
- * T-bar — back the way it came — is a take too, as it is on the Toolset.
+/*
+ * How far a stroke has gone. The EC T-bar reports where the lever IS, and
+ * `strokeProgress` turns that into how far through a take it is. It lives in
+ * `src/core/console-intents.js` since the ATEM Micro Panel's T-bar, which
+ * reports the same way, arrived (2026-10-20); re-exported so nothing that
+ * imported it from here had to move.
  */
-export function strokeProgress(startFraction, nowFraction) {
-  const fromBottom = startFraction < 0.5;
-  const p = fromBottom ? nowFraction : 1 - nowFraction;
-  return Math.max(0, Math.min(1, p));
-}
-
-/* A lever within this of an end has arrived: the last few counts of travel
-   are mechanical slack (TBAR_MIN/MAX are measured, not guaranteed). */
-export const STROKE_END = 0.995;
+export { strokeProgress, STROKE_END } from '../../src/core/console-intents.js';

@@ -25,8 +25,8 @@ tools, and the UMD Generator, Dante, Thumbnail relay, Multiviewer thumbnails and
 previews. Surfaces, the UMD Generator, Aux follow, AoI from a custom format and Image Library tools
 are in `OFF_UNTIL_TESTED` (`test/plugins.test.js`) until a real frame has seen them. Aux follow,
 AoI from a custom format and Image Library tools (2026-10-20, unreleased) are at the end of this
-file. So is the **Barco EC panel** (2026-10-20, unreleased, in
-`OFF_UNTIL_TESTED`): never met a panel, only a pretend one and the 6.2.73 simulator.
+file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-20, unreleased, in
+`OFF_UNTIL_TESTED`): neither has met a panel, only a pretend one and the 6.2.73 simulator.
 
 **What real hardware has seen**, all of it:
 
@@ -2846,6 +2846,51 @@ found, and what I built:
   private simulator: `locks.sim` (three layers fitted on S1 in that session), `panels.sim`
   (`aoi-format registered nothing`) and `screen.sim` (something staged in the VPU). Not this work's;
   noted so nobody chases them as mine.
+
+## The ATEM Micro Panel (2026-10-20, pretend panel and simulator only)
+
+Allan asked how fixed-function Blackmagic's ATEM panels are, with a view to using them as
+LivePremier surfaces, then for the Micro Panel first ("we can loop back to the other panels down
+the line"). What I found, and what I built:
+
+- **The panels, from the ATEM Setup 10.2.1 bundle.** Its `data-<USB PID>.bin` packages are an
+  integrity checksum, `0xBDBD` resource headers and zlib — no encryption at that layer. Inside: the
+  old Broadcast Panels are AVR32 firmware, the 1 M/E Advanced Panel and Camera Control Panel are
+  Zynq images with encrypted parts, the D2 Advanced Panels (20/30/40) are opaque ~62 MB images,
+  and the Micro Panels' are signed and encrypted. So replacing any panel's firmware is out. I
+  stopped at the encrypted parts.
+- **The Micro Panel is host-driven.** ATEM Software Control carries its driver (`PanelDevice`,
+  `MicroPanelModel`: scan codes in, LED colours out), and node-blackmagic-controller (MIT, Julian
+  Waller) already drives it for Companion: `1edb:bef0` over USB or Bluetooth, the Speed Editor's
+  handshake on feature report 5, keys on input report 3, the T-bar on 8 (0–4096), the battery on
+  6, and one 32-byte lamp report (id 2) with three RGB bits a key and a sixteen-segment meter.
+  That is the Barco EC panel's situation on the Speed Editor's wire.
+- **The Ethernet panels** (Advanced, Camera Control, Broadcast) connect to a switcher as clients on
+  UDP 9910, so reaching them means emulating an ATEM. Prior art exists for the server end
+  (OpenSwitcher, Swift-Atem, LibAtem's AtemProxy) but none has been shown working with a hardware
+  panel, and panels refuse a mismatched firmware version. Parked: the next step is a capture of a
+  real panel and switcher talking, through a proxy.
+- **Built:** `src/core/atem-micro-panel.js` (the bytes), `devices/blackmagic-hid.js` (the Speed
+  Editor's driver, moved and given a model; its module is a subclass now), the
+  `atem-micro-panel` device module, and a server-side plugin on the Barco EC panel's terms.
+  `console-intents.js` gained `strokeProgress`/`STROKE_END` (moved from the EC plugin),
+  `layerSourcePath` and `readSource`; `console-switcher.js` gained `tallyFor`.
+- **Decisions:** key *n* is source *n*, as on an ATEM; MACRO's memories are by slot; M/E and layer
+  keys are positional; with nothing selected, the first screen is driven. The program row is tally
+  only unless ticked, and the tick is never saved (it goes when the panel is switched off or the
+  app restarts) — per Allan's opt-in-over-refusal preference, since an ATEM program row cuts to
+  air and that is sometimes exactly what an operator wants. Tally is read every 5 s and after each
+  press (a burst of a dozen `get`s), not followed.
+- **Tested:** `test/atem-micro-panel.test.js` (16 offline: the key table against
+  node-blackmagic-controller's shape, the lamp report's bits, decoding, the handshake, the driver
+  alone and beside a Speed Editor, the host, every key's meaning, the paint, and the supervisor end
+  to end against a pretend switcher), and `test/sim/atem-micro-panel.sim.test.js` (3 live tests on
+  a private copy of Session 1, 6.2.73 C MAX, web 3079, AWJ 10606, deleted after; the Barco EC sim
+  tests passed beside it, 3/3, after the stroke move). `npm test`: 1316 tests, 1307 pass, 9 skip.
+- **Found by the test:** letting go could leave the panel lit, because a tally read in flight
+  repainted after the dark report. `#letGo` now stops painting first.
+- **Not done:** `ATTRIBUTIONS.md` is generated from stoatworks-backend; its node-blackmagic-controller
+  and blackmagic-misc entries still describe only the Speed Editor's use.
 
 ## HyperDecks: Mitti never answers a bare `slot info` (2026-10-20)
 

@@ -590,6 +590,51 @@ every key means, every label, every lamp. Load-bearing:
   from whichever end it rested at, so the second throw is a take back, as on the Toolset. The first
   reading after connecting is only where it rests, never a stroke.
 
+### An ATEM Micro Panel (`plugins/atem-micro-panel/`) — **preview**
+
+A Blackmagic ATEM Micro Panel plugged into (or paired with) this machine, driving the switcher the
+way it drives an ATEM, with no browser open. `docs/ATEM-MICRO-PANEL.md` is the operator's page and
+the proven/not-proven list. **It has never met a panel**: the key table, lamp bits and report ids
+are node-blackmagic-controller's (MIT, Julian Waller; what Companion drives real panels with), the
+handshake is the Speed Editor's on feature report 5, and here it has met only
+`test/helpers/fake-atem-micro-panel.js` and a simulator.
+
+**It is the Barco EC panel's shape on the Speed Editor's wire.** The panel is host-driven — ATEM
+Software Control normally reads its keys and lights every key — so this plugin is ATEM Software
+Control, with a LivePremier behind it. Load-bearing:
+
+- **The panel's bytes are `src/core/atem-micro-panel.js`**, for the reason the EC panel's are in
+  `core/`. Its handshake reuses the vendored Speed Editor `authResponse`; only the report id
+  differs (5, not 6). `test/atem-micro-panel.test.js` holds the key table to
+  node-blackmagic-controller's own shape: fifty keys, codes 1–50, lamp at 13 + 3 × code. **Never
+  edit it from a photo of a panel**; a real panel that disagrees goes in NOTES.md first.
+- **One driver for the family: `devices/blackmagic-hid.js`.** It was `SpeedEditorDriver`, moved
+  unchanged but for taking a model (`{vendorId, productId, authenticate, battery}`); the Speed
+  Editor's module is now a subclass and its hardware-proven tests run untouched. A behaviour
+  change there changes both panels — the Speed Editor's is the one that has been proven.
+- **Runs in the server, on the Barco EC panel's terms** (`plugins/barco-ec/supervisor.js`): the
+  host knows only the panel, the meaning is in this process, the switcher is read in bursts.
+  Presses go through `src/core/console-intents.js`. The T-bar's stroke arithmetic moved there from
+  the EC plugin (`strokeProgress`, `STROKE_END`, re-exported from `plugins/barco-ec/core.js`).
+- **Tally is read, every 5 s and after each press** — `ConsoleSwitcher.tallyFor`, a burst of a
+  dozen `get`s for the active screen's selected layer, using `layerSourcePath` (the write's own
+  catalogue lookup) and `readSource` (the write's spelling, inverted) from `console-intents.js` so
+  the read and the write cannot name different things. Still a burst, never a subscription; the
+  Pixelhue supervisor's argument stands.
+- **The program row is tally only unless the operator ticks it, and the tick is never saved**
+  (`setHotCut`, `POST /hot-cut`): it is forgotten when the panel is switched off and when the app
+  restarts. An ATEM program row cuts to air; a LivePremier's program buffer is a live wall. Keep it
+  out of the settings.
+- **Key n is source n**, as on an ATEM, not the nth valid source: an unmapped input leaves a gap.
+  MACRO's memories are by slot for the same reason. M/E keys and layer keys are positional (the
+  screens in service, the fitted layers), because those numbers mean nothing to an ATEM operator.
+- ⚠️ **ATEM Software Control on the same machine acts on every press too.** The panel has to be
+  opened non-exclusively on macOS, as the Speed Editor does. The card and the doc say to quit it;
+  nothing here can detect it.
+- **Letting go leaves the panel dark, and nothing paints after that starts** — `#letGo` stops
+  painting before it sends the dark report, because a tally read still in flight used to relight
+  the panel after it (found by `test/atem-micro-panel.test.js`, 2026-10-20).
+
 ### The Background Slicer (`plugins/bg-slicer/`) — **preview**
 
 One picture cut into a background per output, put into the image library, the
@@ -1725,7 +1770,7 @@ the expected answer until someone writes the module.
 
 ## The device host (`devices/`, `server/device-host.js`)
 
-USB and HID panels — the Speed Editor, then the Barco EC panels — are held by a
+USB and HID panels — the Speed Editor, the Barco EC panels and the ATEM Micro Panel — are held by a
 **program of its own**, `devices/host.js`, which the server starts with `fork` and
 supervises (restarts with a backoff, stops on shutdown). `devices/README.md` is the
 design; the load-bearing parts:
@@ -1753,6 +1798,9 @@ design; the load-bearing parts:
   console that must work with no page open — the Barco EC panel — whose meaning
   lives in its plugin's server half on the Pixelhue supervisor's terms, never in
   the host.
+- **Blackmagic's HID panels share `devices/blackmagic-hid.js`** — the Speed Editor and the ATEM
+  Micro Panel are one family on the wire (found by id, silent until a feature-report handshake,
+  renewed at half the lease). A module gives it a model; see the Micro Panel's section.
 - **A module names its transport** (`hid` is node-hid; `ftdi` is
   `devices/transports/ftdi.js`: libusb through `usb` v2 on macOS and Linux, FTDI's
   D2XX through `koffi` on Windows). A module whose library did not load is not
