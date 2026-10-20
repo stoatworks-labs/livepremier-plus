@@ -334,10 +334,12 @@ Remote access opens one per ZeroTier or tailnet address.
 **`devices`** — the device host (`devices/README.md`), the process that holds USB and HID panels.
 `status()` is `{ installed, running, available, reason, restarts, modules }`, and `onStatus(fn)`
 hears it change. `module(id)` is a handle on one device module that outlives the host restarting:
-`state` (the driver's own, `present` and `connected` at least), `available`, `want(bool)` to have
-the host open the device or let it go, `write(reports)` for output reports, each a list of bytes
-with the report id first (resolving how many went), and `on('state' | 'report', fn)`, which
-answers its own unsubscribe. Open a device only while your page is using it. The Speed Editor is
+`state` (the driver's own, `present` and `connected` at least), `available` (this module's
+library loaded and the host started it), `reason` (why not, when the host has said),
+`want(bool)` to have the host open the device or let it go, `write(reports)` for output reports,
+each a list of bytes with the report id first (resolving how many went), `command(object)` for a
+module that takes more than reports (the Barco EC panel's labels and lamps), and
+`on('state' | 'report', fn)`, which answers its own unsubscribe. Open a device only while your page is using it. The Speed Editor is
 the example: its `/driver` lease says when. With no host installed it answers all of this with
 `available: false` and a `reason` to show.
 **`companion`**, from Companion — `press(locations)`, each `{ pageNumber, row, column }`, pressed

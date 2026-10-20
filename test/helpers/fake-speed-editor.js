@@ -88,7 +88,7 @@ export function fakeHid(panels) {
  * process, over a pretend IPC channel — the supervisor, the core and the
  * driver together, without a process to wait for.
  */
-export function inProcessFork({ hid, modules, reason = null }) {
+export function inProcessFork({ hid, modules, reason = null, ftdi = null, ftdiReason = null }) {
   const children = [];
   const fork = () => {
     const child = new EventEmitter();
@@ -105,7 +105,7 @@ export function inProcessFork({ hid, modules, reason = null }) {
     child.kill = (signal = 'SIGTERM') => { void end(signal); };
     children.push(child);
     queueMicrotask(() => {
-      core = createHostCore({ hid, reason, modules, send: (m) => { if (child.connected) child.emit('message', m); } });
+      core = createHostCore({ hid, reason, ftdi, ftdiReason, modules, send: (m) => { if (child.connected) child.emit('message', m); } });
     });
     return child;
   };

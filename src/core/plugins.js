@@ -345,6 +345,18 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'barco-ec',
+    name: 'Barco EC panel',
+    where: 'Settings (preview)',
+    description: 'A Barco EC-30, EC-40 or EC-50 plugged into this machine driving the switcher, with no browser open. Never yet run against a panel.',
+    /* Off until it has been: it writes to a switcher, and while it holds the
+       panel the Event Master Toolset cannot. Nothing in `requires`: it reads
+       and writes through the dialect, as the Pixelhue panel does. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'snapshot-relay',
     name: 'Thumbnail relay',
     where: 'Settings (preview), and every source thumbnail',

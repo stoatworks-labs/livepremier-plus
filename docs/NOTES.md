@@ -24,7 +24,8 @@ VPU map on 6.1.60, the save race), 0.17.4 (the VPU map's pool said once), 0.17.5
 Generator, Dante, Thumbnail relay, Multiviewer thumbnails and Background Slicer previews. Surfaces,
 the UMD Generator, Aux follow and AoI from a custom format are in `OFF_UNTIL_TESTED`
 (`test/plugins.test.js`) until a real frame has seen them. Aux follow and AoI from a custom format
-(2026-10-20, unreleased) are at the end of this file.
+(2026-10-20, unreleased) are at the end of this file. So is the **Barco EC panel** (2026-10-20, unreleased, in
+`OFF_UNTIL_TESTED`): never met a panel, only a pretend one and the 6.2.73 simulator.
 
 **What real hardware has seen**, all of it:
 
@@ -2623,4 +2624,38 @@ note) — the confirm button looked stuck until `__WRU.shell.refresh()`.
 
 **Not done:** README section screenshots, the user guide and its PDF, a release. README's feature
 list, Safety and Platforms rows, PLUGINS.md and AGENTS.md are current.
+
+## 2026-10-20 — Barco EC-30 / EC-40 / EC-50 panels (preview)
+
+Allan asked for the Barco EC controllers, through the tray app rather than the browser. What I
+found, and what I built:
+
+- **The EC-30/40/50 have no PC.** They're one USB device, `0600:0336`, an FT232H in MPSSE mode
+  clocking SPI into a CPLD. qubered/ec50-panel (MIT, 2026) had already worked the protocol out from
+  USB captures and proved it on an EC-50 under Windows; I ported it. The Event Master Toolsets
+  installed here (9.2.68800, 9.2.68334, 10.0.3.3021) agree: their unstripped binaries name
+  `libipconsole/ShowConsole.cpp` and `FtdiIoLinux.cpp`, bundle libftdi and libusb on the Mac, and
+  ship the button map as `showConsoleMap.csv`, the same file in every version. 10.x's release
+  notes say the EC-200/210 aren't supported there; those two are Linux kiosks and out of reach.
+- **Where it runs:** the device host gained an FTDI transport (libusb via `usb` 2.18.0 on macOS and
+  Linux, D2XX via `koffi` 3.3.2 on Windows) and a `command` op; the meaning is a server-side plugin
+  on the Pixelhue supervisor's terms, so it works with no page open.
+- **Shared with Pixelhue now:** `src/core/console-intents.js` (what a press writes) and
+  `server/console-switcher.js` (the switcher read in bursts). Pixelhue's console suite on the
+  6.2.73 simulator after the move: 31 pass, 3 skip, as recorded on 10-16. The move found
+  `labelPath` throwing on a Midra (`split()` answers an object, it was read as a pair).
+- **Tested:** `test/barco-ec.test.js` (25 offline tests: the table against the installed Toolsets'
+  CSV, the captured blank framebuffer, the driver against a pretend panel that enforces latching,
+  double buffering, the header and the one-late reply, libusb against a pretend `usb`, D2XX through
+  koffi against a stand-in `ftd2xx` compiled with the system `cc`) and `test/sim/barco-ec.sim.test.js`
+  (3 live tests, passed three runs in a row on a private copy of the 6.2.73 session).
+- **Trap:** in this Mac's zsh, `cc` is a shell function that starts Claude Code, not the compiler.
+  The test runs the compiler with `execFile`, which never sees the function; by hand, use
+  `/usr/bin/cc`.
+- **Trap:** the simulator shows no in-between T-bar position, so a live test can only witness the
+  takes a throw makes, not the throw.
+- **The live suite had three failures before this change**, on clean origin/main against the same
+  private simulator: `locks.sim` (three layers fitted on S1 in that session), `panels.sim`
+  (`aoi-format registered nothing`) and `screen.sim` (something staged in the VPU). Not this work's;
+  noted so nobody chases them as mine.
 

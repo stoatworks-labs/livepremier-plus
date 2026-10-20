@@ -546,6 +546,46 @@ Four things are load-bearing:
   `0x00101307` as business data — it is the *command* report, and the
   correction belongs upstream rather than in a vendored file.
 
+### A Barco EC panel (`plugins/barco-ec/`) — **preview**
+
+An EC-30, EC-40 or EC-50 plugged into this machine, driving the switcher with no browser open.
+`docs/BARCO-EC.md` is the operator's page and the proven/not-proven list. **It has never met a
+panel**: the protocol is qubered/ec50-panel's (MIT; proved on a real EC-50 under Windows), and here
+it has met only `test/helpers/fake-ec-panel.js` and a simulator.
+
+**It is the Pixelhue panel's opposite.** A Pixelhue console is a peer that is handed a model; an EC
+panel is a CPLD behind an FTDI chip that reports key numbers and shows whatever pixels it is sent.
+The Toolset is where its meaning lives, so here `plugins/barco-ec/core.js` is the Toolset: what
+every key means, every label, every lamp. Load-bearing:
+
+- **The panel's bytes are `src/core/ec-panel.js`, not the device host's.** The device driver and
+  the plugin both read the key table, and Docker has no `devices/`, so it lives in `core/` (no I/O)
+  the way the Speed Editor's lives in `src/vendor/`. The table is Barco's own `showConsoleMap.csv`
+  (identical in Event Master 9.2.68800 and 10.0.3.3021); `test/barco-ec.test.js` checks it against
+  any Toolset installed in /Applications. **Never edit it by hand from a photo of a panel.**
+- ⚠️ **Nothing written takes effect until latched** (`0x3828`: 1 lamps, 2 framebuffer), **the
+  framebuffer goes out twice** (double buffered — one pass leaves a torn panel), its 4-byte header
+  overlays cell 0 and **zeroing it discards the whole write**, and **every read reply is one
+  transaction late**, so the driver polls one register and throws its first reply away. The
+  pretend panel enforces all four; a driver change that breaks one fails there.
+- **It runs in the server, as the Pixelhue supervisor does**, because a desk panel must work with no
+  page open. That is the one exception to "a device's controls become switcher writes in the page"
+  (below): the device host still knows only the panel; the meaning is in this process; the
+  switcher is read in bursts and nothing is held open on it. The price is the Pixelhue panel's: no
+  live tally (a reread every 15 s and after each press that changes the switcher).
+- **What a press writes is `src/core/console-intents.js`, and how the switcher is read is
+  `server/console-switcher.js`** — both moved out of the Pixelhue plugin on 2026-10-20 so the two
+  consoles cannot drift. Pixelhue's console suite was rerun on the 6.2.73 simulator after the move:
+  31 pass, 3 skip, as before. The move also fixed `labelPath` on a Midra (it read `split()`'s object
+  as a pair and threw).
+- **The panel takes one program at a time.** While this holds it the Toolset cannot. Turning the
+  setting off clears the panel and lets it go. ⚠️ On Windows the panel belongs to FTDI's driver,
+  installed by the Toolset; D2XX is its API. **Never suggest Zadig/WinUSB** to reach it through
+  libusb instead — the Toolset would stop seeing the panel.
+- **The T-bar reports where the lever is**, not progress through a take; `strokeProgress` counts
+  from whichever end it rested at, so the second throw is a take back, as on the Toolset. The first
+  reading after connecting is only where it rests, never a stroke.
+
 ### The Background Slicer (`plugins/bg-slicer/`) — **preview**
 
 One picture cut into a background per output, put into the image library, the
@@ -1581,10 +1621,10 @@ the expected answer until someone writes the module.
 
 ## The device host (`devices/`, `server/device-host.js`)
 
-USB and HID panels — the Speed Editor first — are held by a **program of its
-own**, `devices/host.js`, which the server starts with `fork` and supervises
-(restarts with a backoff, stops on shutdown). `devices/README.md` is the design;
-the load-bearing parts:
+USB and HID panels — the Speed Editor, then the Barco EC panels — are held by a
+**program of its own**, `devices/host.js`, which the server starts with `fork` and
+supervises (restarts with a backoff, stops on shutdown). `devices/README.md` is the
+design; the load-bearing parts:
 
 - **A page cannot hold the Speed Editor.** Chrome on macOS reads every feature
   report at the largest declared length (33 bytes) and the panel refuses its
@@ -1605,7 +1645,16 @@ the load-bearing parts:
 - **The host knows panels, not the switcher.** A device's controls become
   switcher writes in the page, on the same Engine as MIDI Mapping, because the
   store mirror is there. So this is not the second source of truth
-  `server/awj.js` argues against. Keep it that way.
+  `server/awj.js` argues against. Keep it that way. The one exception is a desk
+  console that must work with no page open — the Barco EC panel — whose meaning
+  lives in its plugin's server half on the Pixelhue supervisor's terms, never in
+  the host.
+- **A module names its transport** (`hid` is node-hid; `ftdi` is
+  `devices/transports/ftdi.js`: libusb through `usb` v2 on macOS and Linux, FTDI's
+  D2XX through `koffi` on Windows). A module whose library did not load is not
+  started, and `hello` says why per module, so a host without node-hid still holds
+  an EC panel. A module whose output is more than reports takes `command` (an
+  object, ≤ 64 KB) — the EC panel's labels and lamps.
 - **A module is a folder, `devices/modules/<id>/module.js`**, and gets a page
   as a plugin, `plugins/<id>/`, reaching it through `ctx.use('devices')`. The
   Device host plugin is only the settings card; switching it off stops nothing.

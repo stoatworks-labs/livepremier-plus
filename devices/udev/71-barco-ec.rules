@@ -1,0 +1,9 @@
+# Barco EC-30 / EC-40 / EC-50 control surface: an FTDI FT232H re-badged as 0600:0336
+# ("Show Console Board"). Lets the logged-in user's LivePremier Plus reach it through
+# libusb. Nothing in the kernel claims vendor 0x0600, so this is all it needs.
+#
+#   sudo cp 71-barco-ec.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# then unplug the panel and plug it back in. See docs/BARCO-EC.md.
+SUBSYSTEM=="usb", ATTR{idVendor}=="0600", ATTR{idProduct}=="0336", MODE="0660", TAG+="uaccess"

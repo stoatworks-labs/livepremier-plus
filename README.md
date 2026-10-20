@@ -137,6 +137,10 @@ bolted on afterwards:
   model of it rather than from a key map, and **Pixelhue Mapping** draws the console so you can
   give every key, fader and encoder a different job. It hasn't been run against a real console
   yet.
+- **Barco EC panel** *(preview, off by default)*: a Barco EC-30, EC-40 or EC-50 plugged into the
+  machine this app runs on drives the switcher with no browser open. Screens on the destination
+  keys, layers on the layer keys, inputs, stills or memories on the labelled rows, ALL TRANS, CUT
+  and the T-bar. It hasn't been run against a real panel yet. [docs/BARCO-EC.md](docs/BARCO-EC.md)
 - **Thumbnail relay** *(preview, off by default)*: the switcher's source thumbnails re-encoded
   as JPEG and shared between pages. That's a twentieth or less of the bytes the vendor's pages
   would otherwise pull, and every Web RCS tab gets it without a change to the vendor's code. It
