@@ -25,7 +25,7 @@ import {
 } from '../plugins/bg-slicer/deck.js';
 import {
   DECK_TYPES, powerpoint, libreoffice, pickEngine, noEngineWords, sofficeArgs, findSoffice, powerpointWords,
-  convertDeck, queue, POWERPOINT_SCRIPT, visibleSlides, readZip
+  convertDeck, queue, POWERPOINT_SCRIPT, visibleSlides, readZip, containerWords
 } from '../plugins/bg-slicer/convert.js';
 import { zipStore } from '../plugins/bg-slicer/zip.js';
 import { deflateRawSync } from 'node:zlib';
@@ -161,6 +161,26 @@ test('PowerPoint’s refusals in words: Automation not allowed, a dialog in the 
   const src = join(home, 'in.pptx');
   await writeFile(src, 'deck');
   await assert.rejects(powerpoint.convert({ input: src, ext: 'pptx', home, runImpl: async () => ({ stdout: 'ok' }) }), /no PDF appeared/);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('PowerPoint’s container refused (macOS App Data said no): the copy or the read-back says so, and nothing is left', async () => {
+  const eperm = () => Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' });
+  assert.match(containerWords(eperm()), /access data from other apps/);
+  assert.match(containerWords(Object.assign(new Error('disk full'), { code: 'ENOSPC' })), /could not put the deck .*disk full/);
+  const home = await mkdtemp(join(tmpdir(), 'lpp-home-'));
+  const src = join(home, 'in.pptx');
+  await writeFile(src, 'deck');
+  let ran = false;
+  await assert.rejects(powerpoint.convert({
+    input: src, ext: 'pptx', home, copyImpl: async () => { throw eperm(); }, runImpl: async () => { ran = true; return { stdout: 'ok' }; }
+  }), /access data from other apps/);
+  assert.equal(ran, false, 'PowerPoint is not asked to open a copy that is not there');
+  await assert.rejects(powerpoint.convert({
+    input: src, ext: 'pptx', home, readImpl: async () => { throw eperm(); }, runImpl: async () => ({ stdout: 'ok' })
+  }), /access data from other apps/);
+  const left = await readdir(join(home, 'Library', 'Containers', 'com.microsoft.Powerpoint', 'Data', 'tmp'));
+  assert.deepEqual(left, [], 'cleaned up either way');
   await rm(home, { recursive: true, force: true });
 });
 

@@ -677,8 +677,16 @@ simulator through the browser, every write read back over AWJ (2026-10-20):
   machine open a file in PowerPoint. Not an Origin check — behind `tailscale
   serve` the Host differs from what the browser used.
 - **The launcher must be allowed Apple events** (`NSAppleEventsUsageDescription`,
-  `com.apple.security.automation.apple-events`); added, not yet seen in a
-  packaged build.
+  `com.apple.security.automation.apple-events`). An unsigned local build asked
+  for Automation and converted (2026-10-20); an unsigned build has no hardened
+  runtime, so the entitlement itself is still unproven in a signed release.
+- **The copy in PowerPoint's container is another app's data**: macOS asks for
+  App Data before Automation, and a refusal is EPERM on the copy or the
+  read-back. `containerWords` says so; keep any new file access there behind it.
+- ⚠️ **Never `GET /api/device/images/download/<slot>` for an empty slot on a
+  Midra simulator.** Its export never finishes and the route answers 503 until
+  the web server restarts (uploads carry on). Read a slot back only while it
+  holds a file.
 
 ### `docs/OSC.md` is generated — `npm run gen:osc-docs`
 

@@ -1601,6 +1601,8 @@ free still, so a deck uses stills quickly. A LivePremier has eight sets a screen
 most go at once; a Midra 4K or Alta 4K has four Background Images a screen, so four. **Load the
 first page's set into each screen's preview** does that for page 1 only.
 
+![PLUS ▸ Background Slicer with a six-page PDF open: pages 1 to 4 as a background set per page on S1 and S2, and the plan giving each page its own set on each screen, with a library slot and a still for every output, each drawn to size](screenshots/background-slicer-slides.png)
+
 *Stills at a size* skips the screens:
 
 1. **Size:** type the width and height in pixels, or pick one from the list (each screen's canvas,
@@ -1613,15 +1615,19 @@ first page's set into each screen's preview** does that for page 1 only.
 3. **Generate** draws the pages; **Download images** zips them. **Write** puts them on the
    switcher, and **Undo** takes them off again.
 
+![PLUS ▸ Background Slicer, Stills at a size: pages 1 to 4 at 1920 × 1080, Fit, into the image library with a free still each, the plan naming each slot and still, and the four pages drawn](screenshots/background-slicer-stills.png)
+
 Good to know:
 
 - **Each page is drawn at the size it's going to be**, not drawn once and stretched, so text stays
   sharp. The plan marks the cut **drawn to size**.
 - **A deck is turned into a PDF by PowerPoint** on the machine LivePremier Plus runs on, or by
-  LibreOffice if that's installed and PowerPoint isn't. The first time, macOS asks whether
-  LivePremier Plus may control PowerPoint. Say yes, or allow it later in System Settings ▸ Privacy &
-  Security ▸ Automation. PowerPoint opens a copy, exports it and closes it, and leaves any deck you
-  have open alone. Each page is the slide as PowerPoint exports it to PDF, fonts and all.
+  LibreOffice if that's installed and PowerPoint isn't. The first time, macOS asks twice: whether
+  LivePremier Plus may **access data from other apps** (the copy goes in PowerPoint's own folder,
+  the one place PowerPoint opens a file without asking you), and whether it may **control
+  PowerPoint**. Say yes to both. If you said no, allow it in System Settings ▸ Privacy &
+  Security ▸ Automation (and App Data). PowerPoint opens a copy, exports it and closes it, and
+  leaves any deck you have open alone. Each page is the slide as PowerPoint exports it to PDF, fonts and all.
   Animations aren't played, so a build you step through on the night is one still here.
 - **Hidden slides** aren't in PowerPoint's PDF, so pages go by **slide number**: hide slide 3 and
   the strip reads 1, 2, 4, 5, and the stills are named to match.
@@ -1629,8 +1635,10 @@ Good to know:
   PDF from Keynote, File ▸ Export To ▸ PDF, and drop that. The same goes for a macro-enabled
   `.pptm`, or anything you'd rather PowerPoint didn't open.
 
-> Slides have run on the LivePremier Simulator only (2026-10-20): both kinds written, read back and
-> undone. Not on a Midra, not with LibreOffice, not from the packaged app, not on a frame.
+> Slides have run on simulators only (2026-10-20): both kinds written, read back and undone on the
+> LivePremier Simulator 6.2.73 and the Midra 4K simulator 3.2.29, and drawn in the pop-out window.
+> An unsigned test build of the desktop app converted a PowerPoint deck, after macOS had asked
+> both questions above. Not yet tried: a signed release, LibreOffice, Windows, a real frame.
 
 **Live inputs: a media server as the background**
 

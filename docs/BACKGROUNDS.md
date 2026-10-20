@@ -422,8 +422,28 @@ Otherwise pages go by their place.
 The packaged launcher has to be allowed to ask: `NSAppleEventsUsageDescription` in its Info.plist
 and `com.apple.security.automation.apple-events` in its entitlements, added with this. The first
 conversion asks for Automation permission for PowerPoint; refused, AppleScript answers -1743 and
-the panel says where to allow it. **The packaged app has not been built and run with them yet**;
-the conversions above ran from a terminal, which has its own permission.
+the panel says where to allow it.
+
+**It asks a second question first: App Data.** Writing the copy into PowerPoint's container is
+another app's data, so macOS asks whether LivePremier Plus may "access data from other apps"
+(TCC's `kTCCServiceSystemPolicyAppData`). Seen 2026-10-20 from an unsigned local build of the
+launcher (`launcher/README.md`, bundled as `.app` only, under a test bundle id so it shared
+nothing with the installed app), converting a four-slide deck with slide 3 hidden through its own
+server on loopback: tccd prompted for App Data (the copy), then PowerPoint asked tccd about Apple
+Events from the app and waited 3.3 s for the Automation answer, then App Data again (the read-back;
+the first grant was keyed to the executable's path, the second to the bundle id, as an unsigned
+build's Info.plist isn't bound to its signature). All three were allowed and the conversion took
+7.5 s: three pages, `x-lpp-slides: 1,2,4`, the temporary folder in the container gone afterwards.
+tccd checks Full Disk Access before App Data, so an app with Full Disk Access isn't asked. Refused,
+the copy or the read fails with EPERM, and the panel now says which question to answer
+(`containerWords`).
+
+**What that build did not test is the entitlement.** Without a signing identity `tauri build`
+leaves the app linker-signed ad hoc, with no hardened runtime and no entitlements applied, so the
+apple-events entitlement plays no part; the Info.plist sentence does. Releases are another matter:
+the installed v0.17.x app is signed (team 3G7USP8N73) with the hardened runtime, which is exactly
+where an app without the entitlement is refused -1743 with no prompt at all. A hardened-runtime
+build, signed or ad hoc with `entitlements.plist`, has not been run.
 
 ### Keynote: a dead end on this Mac (2026-10-20)
 
@@ -465,8 +485,39 @@ browser, each write read back over AWJ:
 - The same deck's PDF opened directly, spanned across S1 and S2: the cut continuous across the seam.
 - A `.key` refused with its reason.
 
-The Midra plans and writes are tested against the Midra 4K simulator's store
-(`test/bg-slicer-mng.test.js`), not run live: the Midra simulator was another session's that day.
+Later the same day, on a private copy of the **Midra 4K simulator 3.2.29** (Pulse 4K, its own
+ports) through `npm run demo`, the panel in the browser and each write read back over AWJ
+(`server/awj.js`'s `exchange`, store paths through `toAwj`):
+
+- A five-page PDF, all five chosen, on S1: the plan refused, as it should. S1's BKG1 pointed at
+  empty library slot 1, which the first upload would land in, and with BKG1 taken only three
+  Background Images were left for five pages. **Write** stayed disabled. BKG1 was cleared for the
+  run.
+- **A background set per page**, pages 1–4 on S1 (set 1 on program, so sets 2–5), first page's
+  set into preview: four uploads into slots 1–4, each 1920 × 1080 and `FINISH`; BKG1–4 at `1_1`
+  reporting 1920 × 1080, labelled `lpp-slides-tes 1`…`4` (the file's stem cut to 16 characters
+  with the page number); sets 2–5 `SINGLE_AUTOCROP` ← `PRESET_FRAME_1`…`4`; preview `UP` ← set 2,
+  its content 1920 × 1080. Slot 4 downloaded back was page 4. Undo: every frame, set and preset
+  back as it was, slots 1–4 `isValid` false and their files gone from `AW_FRAME_LIB`.
+- **Stills at a size**, all five pages at 2560 × 1440, Fit, library only: five uploads into slots
+  1–5, `FINISH`, 2560 × 1440 each; no frame, set or preset touched. Undo emptied all five.
+- The simulator keeps an emptied slot's `fileName`, `width` and `height` (only `isValid` goes
+  false), so a before/after read differs there and nowhere else.
+- ⚠️ **Never download an empty slot from a Midra simulator.** `GET
+  /api/device/images/download/<slot>` sets a busy flag, asks for an export and waits for its
+  status to finish; for an emptied slot it never does, and from then on every download answers
+  503 until the web server restarts. Uploads have a flag of their own and carry on working. Found
+  by reading a slot back after Undo; the panel itself never downloads.
+
+**The pop-out window** draws pages too, which wasn't a given: the deck and pdf.js belong to the
+opener's window, and the pop-out runs its own copy of the panel. In headless Chromium (Playwright,
+which opens a real pop-up, unlike the Browser pane) a PDF opened in the main tab showed its page
+strip in the pop-out; **Generate** there made five 1920 × 1080 images with real content, and
+**Stills at a size** drew there too, with the main tab showing the same job. It also showed the
+generated images' names spilling over each other under their tiles; they wrap now.
+
+**The desktop app**: above, under "A deck becomes a PDF".
+
 Nothing here has met a frame, nor LibreOffice, nor Windows.
 
 ## Proving it on a frame

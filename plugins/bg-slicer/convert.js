@@ -46,6 +46,13 @@
  * (`NSAppleEventsUsageDescription`) and is entitled to ask
  * (`com.apple.security.automation.apple-events`); refused, AppleScript
  * answers -1743 and the panel says where to allow it.
+ *
+ * Before that, writing into PowerPoint's container asks whether this app may
+ * "access data from other apps" (TCC's App Data). Seen from an unsigned build
+ * of the launcher (2026-10-20): App Data, Automation, then App Data again for
+ * the read-back. Refused, the copy or the read fails with EPERM, which
+ * `containerWords` puts into words; Full Disk Access covers it too (tccd
+ * checks that first).
  */
 
 import { spawn } from 'node:child_process';
@@ -165,27 +172,48 @@ export const powerpoint = {
     const path = await macAppPath(POWERPOINT_ID, runImpl);
     return path ? { available: true, where: path } : { available: false, reason: 'PowerPoint is not installed' };
   },
-  async convert({ input, ext, runImpl = run, home = homedir() }) {
+  async convert({ input, ext, runImpl = run, home = homedir(), copyImpl = copyFile, readImpl = readFile }) {
     const base = join(home, 'Library', 'Containers', POWERPOINT_ID, 'Data', 'tmp');
-    await mkdir(base, { recursive: true });
-    const dir = await mkdtemp(join(base, 'lpp-'));
+    let dir;
+    try {
+      await mkdir(base, { recursive: true });
+      dir = await mkdtemp(join(base, 'lpp-'));
+    } catch (err) {
+      throw new Error(containerWords(err));
+    }
     const name = `lpp-${randomBytes(6).toString('hex')}.${ext}`;
     const deck = join(dir, name);
     const pdf = join(dir, name.replace(/\.[a-z]+$/, '.pdf'));
     try {
-      await copyFile(input, deck);
+      try {
+        await copyImpl(input, deck);
+      } catch (err) {
+        throw new Error(containerWords(err));
+      }
       try {
         await runImpl('osascript', ['-e', POWERPOINT_SCRIPT, deck, pdf, name]);
       } catch (err) {
         throw new Error(powerpointWords(err.message));
       }
-      if (!(await exists(pdf))) throw new Error('PowerPoint said it exported the deck, and no PDF appeared — it may be password-protected or damaged');
-      return await readFile(pdf);
+      try {
+        return await readImpl(pdf);
+      } catch (err) {
+        if (err.code === 'ENOENT') throw new Error('PowerPoint said it exported the deck, and no PDF appeared — it may be password-protected or damaged');
+        throw new Error(containerWords(err));
+      }
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   }
 };
+
+/** A refusal in PowerPoint's container, in words: macOS's App Data question, answered no. */
+export function containerWords(err) {
+  if (err && (err.code === 'EPERM' || err.code === 'EACCES')) {
+    return 'macOS has not let LivePremier Plus use PowerPoint’s own folder, where the copy of the deck goes — it asks once whether LivePremier Plus may access data from other apps. Allow that (Full Disk Access for LivePremier Plus in System Settings ▸ Privacy & Security also does), then try again';
+  }
+  return `could not put the deck where PowerPoint opens it: ${err && err.message ? err.message : err}`;
+}
 
 /** AppleScript's errors, in words an operator can act on. */
 export function powerpointWords(message) {

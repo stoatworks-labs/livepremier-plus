@@ -84,7 +84,7 @@ const CSS = `
 .lpp-bgs-fields { display: flex; flex-wrap: wrap; gap: 0.333333rem 0.666667rem; align-items: center; }
 .lpp-bgs-fields label { display: flex; gap: 0.25rem; align-items: center; }
 .lpp-bgs-thumbs { display: flex; flex-wrap: wrap; gap: 0.666667rem; }
-.lpp-bgs-thumb { width: 12rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.833333rem; color: #838B91; }
+.lpp-bgs-thumb { width: 12rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.833333rem; color: #838B91; overflow-wrap: anywhere; }
 .lpp-bgs-thumb img { width: 100%; height: auto; background: #000; border: 0.083333rem solid #283239; }
 .lpp-bgs-steps { margin: 0; padding: 0 0 0 1rem; font-size: 0.916667rem; line-height: 1.5; }
 .lpp-bgs-step--failed { color: #F64747; }

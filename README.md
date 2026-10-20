@@ -1178,9 +1178,16 @@ the slides they actually are. Keynote wouldn't be driven unattended when I tried
 Keynote deck, export a PDF and drop that.
 [docs/BACKGROUNDS.md](docs/BACKGROUNDS.md#documents-a-pdf-or-a-powerpoint-deck) has the detail.
 
-> ⚠️ **Slides are newer still:** run on the LivePremier Simulator only, both kinds written and
-> undone (2026-10-20). Not on a Midra simulator, not with LibreOffice, not from the packaged app
-> (which has to be allowed to control PowerPoint the first time), and not on a frame.
+![PLUS ▸ Background Slicer with a six-page PDF open: pages 1 to 4 chosen as a background set per page on S1 and S2, and the plan giving each page its own set on each screen, with a library slot and a still for every output, each drawn to size](docs/screenshots/background-slicer-slides.png)
+
+![PLUS ▸ Background Slicer, Stills at a size: the same PDF's pages 1 to 4 at 1920 × 1080, Fit, into the image library with a free still each, the plan naming each slot and still, and the four pages drawn](docs/screenshots/background-slicer-stills.png)
+
+> ⚠️ **Slides are newer still:** run on simulators only (2026-10-20): both kinds written, read
+> back over AWJ and undone on the LivePremier Simulator 6.2.73 and the Midra 4K simulator 3.2.29,
+> and drawn in the pop-out window too. A test build of the desktop app turned a PowerPoint deck
+> into a PDF, and macOS asked first, three times: twice to let it reach PowerPoint's data and once
+> to let it control PowerPoint. That build was unsigned; a signed release, LibreOffice and a real
+> frame haven't been tried.
 
 ## Pixelhue panel — preview
 

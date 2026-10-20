@@ -43,8 +43,11 @@ Pixelhue panel has never met a console; the console suite has only run against i
 (`LPP_CONSOLE=stand-in`, 31 pass, 3 skip).
 
 **Background Slicer slides (2026-10-20, unreleased):** a PDF or a PowerPoint deck as a background
-set per page, or every page as a still at any size. Simulator only (6.2.73, both kinds written and
-undone); "Slides in the Background Slicer" below.
+set per page, or every page as a still at any size. Simulators only: both kinds written, read back
+and undone on the LivePremier 6.2.73 and Midra 4K 3.2.29 simulators; pages drawn in the pop-out;
+an unsigned build of the desktop app converted a deck after macOS asked for App Data and
+Automation. "Slides in the Background Slicer" and "Slides: the Midra, the pop-out and the desktop
+app" below.
 
 **Open:** whether a frame draws a still on an aux's background. The RS4 (6.1.60) took and
 reported one on 2026-10-17 but was factory reset before anyone looked at the output ("The
@@ -102,7 +105,53 @@ session's at the time. Another session's demo also had :8545, so mine moved to :
 entitlement; README / guide screenshots and the
 guide PDF; pdf.js in ATTRIBUTIONS.md (generated from stoatworks-backend, so it goes in there).
 No Automation prompt has been seen at all: every conversion ran from a terminal that already had
-permission to control PowerPoint.
+permission to control PowerPoint. *(Later that day: the Midra, the pop-out, an unsigned launcher
+build, screenshots and the guide PDF were done; the next entry.)*
+
+## Slides: the Midra, the pop-out and the desktop app (2026-10-20)
+
+The gaps the slides left, closed on simulators. No real switcher was touched: a show was running
+on the Pulse 4K that day, and everything here used private copies of the simulators.
+
+- **Midra 4K simulator 3.2.29**, a private copy of the session (web 3090, AWJ 10690, under
+  `~/dev/sim-copies`, not `/tmp`), through `npm run demo` on :8547. Both kinds written, each write
+  read back over AWJ, and undone; BACKGROUNDS.md "What was run" has the values. No code changed for
+  it: the plan refused while S1's BKG1 pointed at the slot the first upload would take, and once
+  that was cleared everything landed where the plan said.
+- **The Midra simulator's download route wedges** on an emptied slot: `GET
+  /api/device/images/download/<slot>` sets a module-level busy flag, starts an export and waits for
+  a status that never comes, so every later download answers 503 until the web server restarts.
+  Uploads have their own flag. Read out of `server.app.js` (`Zd` for downloads, `jd` for uploads).
+- **The pop-out** draws a document's pages, generated in its own window from the opener's deck:
+  checked in headless Chromium with Playwright, since the Browser pane opens a pop-up in the same
+  tab. The generated images' long names overlapped under their tiles; `overflow-wrap: anywhere`.
+- **The desktop app**, built locally (`prepare.sh`, `npm install`, `npx tauri build --bundles
+  app`, with `--config '{"identifier":"…slidestest"}'` and a temporary `LPP_DATA` in
+  launcher.toml so it shared neither TCC entries, settings nor a remembered switcher with the
+  installed app). Bound to loopback on :8549, no switcher. A four-slide deck, slide 3 hidden, sent
+  to its convert route came back in 7.5 s as three pages, slides 1, 2 and 4. On the way, macOS
+  asked three questions, all answered Allow at the Mac (not by me): **App Data**, for writing the
+  copy into PowerPoint's container, which nobody had noticed before; **Automation**, the one this
+  was for (PowerPoint's own TCC request waited 3.3 s for it); and App Data again for the read-back,
+  keyed this time by bundle id instead of the executable path. Refused, App Data would have
+  surfaced as a bare EPERM; it now says which question to answer (`containerWords`, tested).
+- **That build doesn't exercise the entitlement.** `tauri build` with no signing identity leaves
+  the app linker-signed ad hoc: no hardened runtime, no entitlements, Info.plist not bound. The
+  installed release is signed (team 3G7USP8N73) with the hardened runtime, the case the
+  entitlement is for. Not run: a hardened-runtime build. It would ask the same questions again,
+  and with a show on, nobody was asked to answer more prompts.
+- **Killing the launcher with SIGTERM orphans its server.** `pkill` on `av-launcher` left the
+  embedded node (and its child) running on :8549 with parent 1; Quit stops them. A launcher killed
+  any other way than its own Quit leaves the port taken.
+- **Screenshots** (`background-slicer-slides.png`, `background-slicer-stills.png`): headless
+  Chromium at 1440 × 900 and 1.5×, 8-bit palette PNGs, from `npm run demo` on :8548 against a
+  private copy of the LivePremier Simulator 6.2.73 Session 1 (Aquilon Cmax, web 3076, AWJ 10676),
+  the Background Slicer switched on in the demo's temporary settings only. A six-page "Gala
+  evening" PDF made for the shot; stills at 1920 × 1080, because a DUAL still holds up to
+  1920 × 1200 and 4K would have shown the downscale warning instead.
+
+Still not done: a frame, LibreOffice, Windows, a hardened-runtime build of the launcher. (pdf.js
+went into ATTRIBUTIONS.md the same day, 8d9ec07.)
 
 ## The live suite, against the rack simulator (2026-10-13)
 
