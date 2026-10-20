@@ -1,0 +1,35 @@
+{
+  "upstream": "test-card",
+  "published": false,
+  "repository": "https://github.com/stoatworks-labs/test-card",
+  "version": "0.1.0",
+  "entry": "src/engine.ts",
+  "commit": "37e3077afacc8e63358e5922cbaa3f3cc8618f2a",
+  "synced": "2026-10-20",
+  "license": "MIT",
+  "sources": {
+    "src/engine.ts": "e139f26bb2d3e322471de5ef3c87dcce3ff11dd873a7e75f7bdc73b08508cee5",
+    "src/lib/colour.ts": "aa612c2a0a554af6d180c2aae97533d09987b60b73adef2052ddd5f3319c2669",
+    "src/patterns/art/bananas.ts": "a49e9b97d361510dd234449167e7509471f262eb134ba93219f886ce584c1321",
+    "src/patterns/art/dinosaurs.ts": "531e3ec295d530fd3c428f1645b30d62dad32209b2bac397e614523f9c1f13d6",
+    "src/patterns/art/hamster.ts": "f7a50b2849b296d147a3c9097e32c73194e9eb74179d1df64d27a97055f0bb3e",
+    "src/patterns/art/scenery.ts": "6eb990f1b9712f104bd74b8f1d217a46868cb31a563963824e1d2504a5a6c2f0",
+    "src/patterns/art/shapes.ts": "d337015b82de629d7eab5d3d07235ff73a1376fd01e627dadfd51e0646ba5a5b",
+    "src/patterns/broken.ts": "5cfc20a5554b58b522be788afdb315b9206f409b67d8e617f2d7cbb3c385eef8",
+    "src/patterns/draw.ts": "91f26b782e3a4928cd420465b689e0ca1ce79696aeec7f88f01ed9e674ef0ab8",
+    "src/patterns/env.ts": "885ea79805a76885194d70a76b84dfba7638bd24c0fd11bcc94010d83f1ad0a1",
+    "src/patterns/image.ts": "a64db0635e8cf8328aa41c523335ef3ed1df8872ac4342da5bdbe8a8798a5c79",
+    "src/patterns/loop.ts": "0facc5d3e35d9942e12e2038aee599b0a78d0fe70e9b85719747432f823c057d",
+    "src/patterns/novelty.ts": "db2d325fe4c2a99e4daead296758ed1458d972d782c5cefdb546dfff44de9ce3",
+    "src/patterns/random.ts": "100671cea1723f0b39ff4449736dc1af008ad63c41197651b23aefc4eb567ab8",
+    "src/patterns/render.ts": "8dbecd6064d3e6e93d63d6bdf23aa1f65325fb7101a8659dac0009f49bb01d12",
+    "src/patterns/rp219.ts": "b55dce8f844255b02cc8afae74e9114330d87dfeee84c0e75ab1db2435bfebe8",
+    "src/patterns/scale.ts": "5baa64afffddc105c80deb80e5e9d6787275610c285376c44cac6b1c61999f54",
+    "src/patterns/scenes.ts": "a86e74f4187d21ed8f2d6805b72ec99df4ac322f5522fd75f7f55c29604edbf3",
+    "src/state/defaults.ts": "2b837a7a4525944b3e3fb241027a13785277fc728b99309899d78d1a30f38553",
+    "src/types.ts": "86bf4c7645a0b47055319121b38f76be9f35186de13c7ea00523768ae3a797d3"
+  },
+  "files": {
+    "engine.js": "c7539601fef71f4cab73a4d61140cb872234219883a6353c3276aeaecada0af8"
+  }
+}

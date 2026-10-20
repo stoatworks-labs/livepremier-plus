@@ -10,6 +10,8 @@
  *   pitch-engine.js   aquilon-pitch's pitch-compensation engine, ditto
  *   output-map/       output-map's Resolume Arena Advanced Output writer,
  *                     bundled from its TypeScript by tools/sync-output-map.mjs
+ *   test-card/        Test Card's pattern engine, bundled from its TypeScript
+ *                     by tools/sync-test-card.mjs
  *
  * In every case the reason is the same, and it is not convenience: two
  * implementations of one grammar, one device model or one decode table will
@@ -40,6 +42,10 @@ const pitchVendored = join(here, '..', 'src', 'vendor', 'pitch-engine.js');
 const pitchUpstream = join(here, '..', '..', 'aquilon-pitch', 'dist-lib', 'aquilon-pitch-engine.js');
 const outputMapDir = join(here, '..', 'src', 'vendor', 'output-map');
 const outputMapUpstream = join(here, '..', '..', 'output-map');
+const testCardDir = join(here, '..', 'src', 'vendor', 'test-card');
+/* `LPP_TEST_CARD_REPO` for a checkout that is not beside this one — a
+   worktree of each, say. */
+const testCardUpstream = process.env.LPP_TEST_CARD_REPO || join(here, '..', '..', 'test-card');
 
 const MARKER = ' * ------------------------------------------------------------------------- */';
 
@@ -358,4 +364,56 @@ test('the vendored Arena writer writes a preset with a screen and a slice', asyn
   assert.match(xml, /<XmlState name="Vendor check">/);
   assert.match(xml, /<InputRect orientation="0">\n\t+<v x="960" y="0"\/>/);
   assert.match(xml, /<BezierWarper controlWidth="4" controlHeight="4">/);
+});
+
+test('the vendored Test Card engine is test-card’s, unedited, built from its main, and its sources have not moved on there', async (t) => {
+  const { createHash } = await import('node:crypto');
+  const { execFileSync } = await import('node:child_process');
+  const sha = (b) => createHash('sha256').update(b).digest('hex');
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(join(testCardDir, 'MANIFEST.json'), 'utf8'));
+  } catch {
+    assert.fail('src/vendor/test-card/MANIFEST.json is missing — run: npm run sync:test-card');
+  }
+  for (const [rel, hash] of Object.entries(manifest.files)) {
+    assert.equal(sha(await readFile(join(testCardDir, rel))), hash,
+      `src/vendor/test-card/${rel} was edited in place — edits belong upstream`);
+  }
+  assert.match(manifest.commit, /^[0-9a-f]{40}$/);
+  assert.equal(manifest.license, 'MIT');
+  assert.equal(manifest.entry, 'src/engine.ts');
+
+  /* Judged in git, not in the working tree: a checkout that is behind its
+     remote would otherwise read as drift. The sources at the recorded commit
+     must hash as recorded, and none may have changed since on origin/main. */
+  const git = (...args) => execFileSync('git', ['-C', testCardUpstream, ...args], { stdio: ['ignore', 'pipe', 'ignore'] });
+  try {
+    git('cat-file', '-e', `${manifest.commit}^{commit}`);
+  } catch {
+    t.skip('no test-card checkout with that commit beside this repo (LPP_TEST_CARD_REPO to point at one)');
+    return;
+  }
+  for (const [rel, hash] of Object.entries(manifest.sources)) {
+    assert.equal(sha(git('show', `${manifest.commit}:${rel}`)), hash, `${rel} at ${manifest.commit.slice(0, 12)} is not what was bundled`);
+  }
+  let onMain = true;
+  try { git('merge-base', '--is-ancestor', manifest.commit, 'origin/main'); } catch { onMain = false; }
+  assert.ok(onMain, `${manifest.commit.slice(0, 12)} is not on test-card's origin/main — push it there (or fetch) before this is synced`);
+  let moved = '';
+  try { moved = git('diff', '--name-only', manifest.commit, 'origin/main', '--', ...Object.keys(manifest.sources)).toString().trim(); } catch { /* no origin/main: nothing to compare */ }
+  assert.equal(moved, '', `test-card's main has moved on in ${moved.split('\n').join(', ')} — run: npm run sync:test-card`);
+});
+
+test('the vendored Test Card engine paints SMPTE RP 219 with Test Card’s own colours', async () => {
+  const { DEFAULT_SETTINGS, renderOutputTo, canvasLimitProblem } = await import('../src/vendor/test-card/engine.js');
+  const fills = [];
+  const ctx = new Proxy({ fillStyle: '' }, {
+    get: (o, k) => (k in o ? o[k] : k === 'measureText' ? () => ({ width: 10 }) : () => {}),
+    set: (o, k, v) => { o[k] = v; if (k === 'fillStyle') fills.push(String(v)); return true; }
+  });
+  const output = { id: '1', name: 'Out 1', widthPx: 1920, heightPx: 1080, rasterSource: 'declared', source: 'manual', regions: [], notes: [], enabled: true };
+  renderOutputTo(ctx, output, { ...DEFAULT_SETTINGS, overlay: { ...DEFAULT_SETTINGS.overlay, enabled: false } });
+  assert.ok(fills.some((f) => /191, ?191, ?0|#bfbf00/i.test(f)), `75 % yellow among ${fills.slice(0, 8).join(' ')}`);
+  assert.match(canvasLimitProblem(20000, 1080), /per-side canvas limit/);
 });
