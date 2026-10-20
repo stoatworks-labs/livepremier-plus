@@ -7,7 +7,9 @@
  * the emulation agree with the document and with each other. They do not
  * prove a real HyperDeck agrees; nobody has run one against this yet. The
  * --mitti mode copies what a real Mitti 2.8.18 did on 2026-09-29 (through
- * automitti's copy of this link): CR-ended commands refused, and its spacing.
+ * automitti's copy of this link): CR-ended commands refused, and its spacing;
+ * and what a real Mitti 2.8.19 did on 2026-10-20, asked by hand: no reply at
+ * all to a bare `slot info`.
  *
  * The on-air tests use the simulator's own store fixtures (the same ones
  * `core.test.js` reads), so "on program" is decided by the same buffer
@@ -25,7 +27,7 @@ import { dirname, join } from 'node:path';
 import { DeviceStore } from '../src/core/device-store.js';
 import { ROOT } from '../src/core/paths.js';
 import {
-  ReplyParser, readClips, readTransport, frameRate, tcSeconds, clipPosition, COMMANDS,
+  ReplyParser, readClips, readTransport, frameRate, tcSeconds, clipPosition, slotQuery, COMMANDS,
 } from '../plugins/hyperdeck/protocol.js';
 import {
   normaliseDecks, resolveDecks, parseCueText, describeCueAction, sourceForInput, airState, decide, endAction,
@@ -90,6 +92,14 @@ test('commands are the protocol’s words', () => {
   assert.equal(COMMANDS.clip({ clip: 3 }), 'goto: clip id: 3');
   assert.equal(COMMANDS.clip({ clip: 0 }), null);
   assert.equal(COMMANDS.next(), 'goto: clip id: +1');
+});
+
+test('slot info is asked by number: the transport’s slot, or 1', () => {
+  assert.equal(slotQuery(2), 'slot info: slot id: 2');
+  assert.equal(readTransport({ 'slot id': 'none' }).slot, null);
+  assert.equal(slotQuery(null), 'slot info: slot id: 1', 'a transport that says `slot id: none`');
+  assert.equal(slotQuery(undefined), 'slot info: slot id: 1', 'before the transport has answered');
+  assert.equal(slotQuery(0), 'slot info: slot id: 1', 'Mitti does not answer slot 0');
 });
 
 /* ------------------------------------------------------------ the link */
@@ -163,6 +173,44 @@ test('the Mitti emulation refuses a CR-ended command, as Mitti does', async (t) 
   assert.ok(await until(() => /103 unsupported/.test(got)), got);
   sock.write('device info\r\n');
   assert.ok(await until(() => /204 device info/.test(got)), got);
+});
+
+test('the Mitti emulation answers a bare `slot info` with nothing, as Mitti 2.8.19 does', async (t) => {
+  const net = await import('node:net');
+  const sim = await startHyperDeckSim({ port: 0, mitti: true });
+  t.after(() => sim.close());
+  const sock = net.connect(sim.port, '127.0.0.1');
+  t.after(() => sock.destroy());
+  let got = '';
+  sock.setEncoding('utf8');
+  sock.on('data', (d) => { got += d; });
+  await until(() => got.includes('500 connection info'));
+  sock.write('slot info\nslot info: slot id: 0\nping\n');
+  assert.ok(await until(() => /200 ok/.test(got)), got);
+  assert.doesNotMatch(got, /202|1\d\d /, 'no reply to either, not even an error');
+  sock.write('slot info: slot id: 1\n');
+  assert.ok(await until(() => /202 slot info:\r\nslot id: 1\r\nstatus: mounted/.test(got)), got);
+});
+
+test('Mitti: the slot is asked by number, so nothing waits out a reply timeout', async (t) => {
+  const sim = await startHyperDeckSim({ port: 0, mitti: true });
+  const link = new DeckLink({ id: 'm', name: 'Mitti', host: '127.0.0.1', port: sim.port, profile: 'mitti' });
+  t.after(async () => { link.close(); await sim.close(); });
+  link.connect();
+  /* Well inside REPLY_TIMEOUT_MS (3 s), which is how long a bare `slot info` held the queue. */
+  assert.ok(await until(() => link.transport.status && link.slot.status, 1500), 'transport and slot arrive at once');
+  assert.deepEqual(link.slot, { slot: 1, status: 'mounted', volume: 'MITTI_DISK', recordingTime: 0 });
+});
+
+test('a two-slot deck is asked about the slot its transport is on', async (t) => {
+  const sim = await startHyperDeckSim({ port: 0 });
+  sim.state.slot = 2;
+  const link = new DeckLink({ id: 'a', host: '127.0.0.1', port: sim.port });
+  t.after(async () => { link.close(); await sim.close(); });
+  link.connect();
+  assert.ok(await until(() => link.slot.status), 'the slot arrives');
+  assert.equal(link.transport.slot, 2);
+  assert.deepEqual(link.slot, { slot: 2, status: 'mounted', volume: 'SSD2', recordingTime: 7200 });
 });
 
 test('remote control off is switched on once, and the command retried', async (t) => {

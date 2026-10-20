@@ -20,7 +20,12 @@
  * In --mitti mode it copies what a real Mitti 2.8.18 did on 2026-09-29: any
  * command ending in \r gets `103 unsupported` (only `device info` gets
  * through), `device info` says `protocol version:1.11` with no space, and
- * transport info says `loop : false` with a space before the colon.
+ * transport info says `loop : false` with a space before the colon. And what
+ * a real Mitti 2.8.19 did on 2026-10-20: one slot, and no reply at all to a
+ * bare `slot info` or to `slot info: slot id: 0` (`slot id: 1` answers).
+ *
+ * Otherwise the deck has two slots, `state.slot` is the active one, and
+ * `slot info` answers for the slot it names, or the active one when bare.
  */
 
 import net from 'node:net';
@@ -52,6 +57,8 @@ export async function startHyperDeckSim(options = {}) {
     ]).map((c, i) => ({ id: i + 1, ...c })),
     status: 'stopped',
     clip: 1,
+    /* The active slot: what transport info names, and a bare `slot info` asks about. */
+    slot: 1,
     single: false,
     loop: false,
     /* Seconds into the whole timeline. */
@@ -72,7 +79,7 @@ export async function startHyperDeckSim(options = {}) {
     `${code} transport info:`,
     `status: ${state.status}`,
     `speed: ${state.status === 'play' ? 100 : 0}`,
-    'slot id: 1',
+    `slot id: ${state.slot}`,
     `clip id: ${state.clip}`,
     `single clip: ${state.single}`,
     `display timecode: ${tc(state.at)}`,
@@ -122,7 +129,8 @@ export async function startHyperDeckSim(options = {}) {
            (device info excepted). */
         if (mitti && raw.endsWith('\r') && !/^device info/i.test(raw)) { socket.write('103 unsupported\r\n'); continue; }
         const line = raw.trim();
-        if (line) socket.write(answer(line, client));
+        const reply = line ? answer(line, client) : null;
+        if (reply) socket.write(reply);
       }
     });
     socket.on('close', () => clients.delete(client));
@@ -140,9 +148,18 @@ export async function startHyperDeckSim(options = {}) {
     const guarded = () => (state.remote ? null : '111 remote control disabled\r\n');
     switch (cmd) {
       case 'ping': return '200 ok\r\n';
-      case 'device info': return `204 device info:\r\nprotocol version:${mitti ? '' : ' '}1.11\r\nmodel: ${mitti ? 'Mitti' : 'HyperDeck Studio HD Plus'}\r\nslot count: 2\r\nsoftware version: 8.0\r\n\r\n`;
+      case 'device info': return `204 device info:\r\nprotocol version:${mitti ? '' : ' '}1.11\r\nmodel: ${mitti ? 'Mitti' : 'HyperDeck Studio HD Plus'}\r\nslot count: ${mitti ? 1 : 2}\r\nsoftware version: 8.0\r\n\r\n`;
       case 'transport info': return transportBlock(208);
-      case 'slot info': return '202 slot info:\r\nslot id: 1\r\nstatus: mounted\r\nvolume name: SSD1\r\nrecording time: 7200\r\nvideo format: 1080p25\r\n\r\n';
+      case 'slot info': {
+        const asked = arg('slot id');
+        /* As Mitti 2.8.19 does: nothing at all, not even an error. */
+        if (mitti && (asked == null || Number(asked) < 1)) return null;
+        const id = asked == null ? state.slot : Number(asked);
+        if (!Number.isInteger(id) || id < 1 || id > 2) return '109 out of range\r\n';
+        /* Mitti has one slot; ask it about another and it says that one is empty. */
+        const mounted = mitti ? id === 1 : true;
+        return `202 slot info:\r\nslot id: ${id}\r\nstatus: ${mounted ? 'mounted' : 'empty'}\r\nvolume name: ${mitti ? 'MITTI_DISK' : `SSD${id}`}\r\nrecording time: ${mitti ? 0 : 7200}\r\nvideo format: 1080p25\r\n\r\n`;
+      }
       case 'clips count': return `214 clips count:\r\nclip count: ${state.clips.length}\r\n\r\n`;
       case 'clips get': return [`205 clips info:`, `clip count: ${state.clips.length}`,
         ...state.clips.map((c) => `${c.id}: ${c.name} ${tc(startOf(c.id))} ${tc(c.seconds)}`), '', ''].join('\r\n');

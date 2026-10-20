@@ -446,6 +446,10 @@ take or cut at a clip's end). `docs/HYPERDECK.md` is the design and the proving 
 - **A clip end is inferred**: the transport stopping by itself, or the clip id moving on while
   playing — unless we sent a stop or goto in the last 1.5 s (`lastOurs` in `link.js`). The lead
   time is the page's, off the streamed countdown; both paths fire once per `run`.
+- **`slot info` is asked by number** (`slotQuery` in `protocol.js`), once the transport has
+  named the slot. A real Mitti 2.8.19 sends nothing back to a bare `slot info`, and with one
+  command in flight that cost every connect `REPLY_TIMEOUT_MS`. The sim's `--mitti` mode does the
+  same, and `test/hyperdeck.test.js` fails if the link goes back to the bare form.
 - `tools/hyperdeck-sim.mjs` is the only deck anything here has spoken to.
 
 ### Dante (`plugins/dante/`) — **preview**, never met a real Dante device

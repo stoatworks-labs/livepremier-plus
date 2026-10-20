@@ -226,6 +226,16 @@ export function readSlot(fields) {
 }
 
 /**
+ * The `slot info` line for the active slot, asked by its number. The bare
+ * `slot info` means the same thing in Blackmagic's protocol ("the currently
+ * selected slot"), but a real Mitti 2.8.19 sends no reply to it at all — not
+ * even `103` — and none to `slot id: 0`, while `slot info: slot id: 1`
+ * answers at once. The number is the transport's `slot id`; 1 when the deck
+ * has not said, or says `none`.
+ */
+export const slotQuery = (slot) => `slot info: slot id: ${Number.isInteger(slot) && slot > 0 ? slot : 1}`;
+
+/**
  * Where the playhead is in its clip, in seconds either way — or nulls when
  * the deck has not said enough to know. Needs the clip's start in the
  * timeline, which only 1.11+ lists; an older deck gets no countdown and still

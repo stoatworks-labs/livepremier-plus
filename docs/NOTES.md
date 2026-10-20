@@ -2846,3 +2846,48 @@ found, and what I built:
   private simulator: `locks.sim` (three layers fitted on S1 in that session), `panels.sim`
   (`aoi-format registered nothing`) and `screen.sim` (something staged in the VPU). Not this work's;
   noted so nobody chases them as mine.
+
+## HyperDecks: Mitti never answers a bare `slot info` (2026-10-20)
+
+On every connect the link (`hello()` in `plugins/hyperdeck/link.js`) asked a bare `slot info`.
+openRCS, porting the LF fix, found that a **real Mitti 2.8.19** never answers it: no `202`, no
+`103`, nothing. The link keeps one command in flight, so the `transport info` queued behind it
+waited out `REPLY_TIMEOUT_MS` (3 s). Nothing broke. The first transport state was 3 s late on
+every connect, and the disk never showed.
+
+What the real Mitti said, asked by hand on this Mac (read-only queries, LF-ended, an empty
+playlist):
+
+| Sent | Mitti 2.8.19 |
+|---|---|
+| `slot info` | nothing in 8 s; the next command was answered as normal |
+| `slot info: slot id: 0` | nothing |
+| `slot info: slot id: 1` | `202`, `status: mounted`, `volume name: MITTI_DISK`, `recording time: 0`, `blocked: false` |
+| `slot info: slot id: 2` | `202`, `status: empty` |
+| `transport info` | `slot id: 1`, `clip id: none` |
+| `device info` | `slot count: 1` |
+
+Blackmagic's *HyperDeck Ethernet Protocol* (December 2024) has both forms. Bare `slot info`
+means "the currently selected slot", `slot info: slot id: {n}` means slot n, and transport
+info's `slot id` is the active slot or `none`. So the link now asks for the transport first,
+then `slot info: slot id: <the transport's slot id>` (`slotQuery` in `protocol.js`, which uses 1
+when the deck said `none` or didn't answer). On a two-slot HyperDeck that's the same slot the
+bare form would have meant. On Mitti it gets an answer.
+
+How far it's proven:
+
+- **In this repo, against the simulator only.** `tools/hyperdeck-sim.mjs --mitti` now has one
+  slot and says nothing to a bare `slot info` or to slot 0. In HyperDeck mode it has two slots,
+  `state.slot` is the active one, and `slot info` answers for the slot asked about.
+  `test/hyperdeck.test.js` has three new tests: the sim's silence; a Mitti link whose transport
+  and slot both arrive inside 1.5 s (fails on the old link, checked); and a two-slot deck on slot
+  2 that gets asked about slot 2. This repo's own link hasn't been connected to the real Mitti.
+- **On the real Mitti, through the copies** of this link that automitti and openRCS carry, with
+  the same change made the same day. automitti's read transport and slot from Mitti 2.8.19 in
+  4 ms; its old copy got the first transport at 3003 ms and never got the slot. openRCS's had all
+  six replies (`500`, `209`, `204`, `205`, `208`, `202`) in 11 ms. Both were read-only, with an
+  empty playlist, and Mitti was quit afterwards.
+- **No real HyperDeck** has seen either form from any of the three.
+
+Unchanged: the slot is still asked about once per connect. Nothing asks again when the
+transport's `slot id` changes, which was true before too.
