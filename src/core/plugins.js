@@ -176,6 +176,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'image-library',
+    name: 'Image Library tools',
+    where: 'The vendor’s Image Library and Images pages (preview)',
+    description: 'Delete every image in the library, or a selection of them; upload a zip of pictures into the free slots; and set a still’s capacity from a dropdown on its card on the Images page instead of in Preconfig ▸ Images. Every write asks first, and an image a still on program or preview shows is never deleted. Never yet run against a real frame.',
+    requires: { capabilities: ['imageLibrary'] },
+    /* Off until it has been: it deletes library images and applies still
+       capacities, both on an operator's click and after a question. */
+    enabledByDefault: false,
+    client: 'client.js'
+  },
+  {
     id: 'surfaces',
     name: 'Surfaces',
     where: 'A tab on Screens / Aux., behind ⋯ when the strip is full, and over each screen card',

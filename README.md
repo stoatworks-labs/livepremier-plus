@@ -66,6 +66,16 @@ bolted on afterwards:
   it, so while you're building a look you can see what the wall will actually show of it. It costs
   no layer, writes nothing to the switcher, and every click goes straight through it to the layers
   underneath.
+- **Image Library tools** (off until you switch it on): the vendor's Image Library has a bin on
+  every card and nothing else, which is fine until there are two hundred of them. This adds
+  **Delete all**, and **Select**, where you click cards (shift-click for a run) and delete just
+  those, and **Upload .zip**: a zip of pictures, unpacked in the browser and put into the free slots
+  in name order, so `slide 9` comes before `slide 10`. Dropping a zip on the page works too. And
+  on the Images page every still's card gets a **capacity dropdown** (Dual, 4K, 5K), so you
+  don't have to trek off to Preconfig ▸ Images. Everything asks first, and the questions use the
+  switcher's own answers: which stills a delete will leave empty, which neighbours a bigger
+  capacity takes out of service, which picture won't fit any more. A picture a still is showing on
+  program or preview is never deleted. Only proven on the simulator.
 - **Surfaces** (off until you switch it on): mark out the LED elements a screen actually lands on,
   as rectangles on its canvas, and bind layers to them. A bound layer stays inside its surface
   however it's moved: the vendor's own drag, nudge, fields and toolbar, the Layer tab, the
@@ -1705,7 +1715,8 @@ src/
     vpu.js         the VPU allocation map, adapted from the device store
     cuestack.js    the cue engine: GO, follow chains, delays, fade times
     session.js     snapshot + stream, folded into a store
-    stills.js      the image library, stills and uploads (Background Slicer, UMD)
+    stills.js      the image library, stills, capacities and uploads (Background Slicer, UMD, Image Library tools)
+    zip.js         zips both ways: the Background Slicer's downloads, Image Library tools' uploads
     wire.js        send a write and wait for the switcher's own echo
     plugins.js     every feature as a plugin: what it is, and whether it is on
     contributions.js  how plugins extend each other: contribution points, services
@@ -1810,6 +1821,7 @@ device's store rather than by the model name:
 | Preview lock | yes | **yes** — proven on the Midra 4K simulator; a shut padlock greys the buffer out there instead of refusing with a warning |
 | Multiviewer thumbnails | yes — a capture card or a stream | **yes** — and the switcher's own H.264 streamer can be the feed |
 | Pixel Map | yes | not yet — a Midra keeps an image library too, but its Screens page lays the cards out differently |
+| Image Library tools | yes | no — a Midra keeps its library under `stillLibrary`, takes no slot on an upload and has no still capacities |
 | Surfaces | yes | not yet — the shaper reads LivePremier's layer paths, and a Midra's Screens page lays the cards out differently |
 | UMD Generator | yes | the PNG only — Download works; putting it on the switcher reads LivePremier's library and stills |
 | Aux follow | yes | no — the layer paths it reads are LivePremier's, and the dialect has no aux layers there |
@@ -1880,6 +1892,14 @@ The three pages under Virtual RC400T are no exception; they're held back as *Con
   Both start off. Before anything goes they say which library slots, stills and layers or
   background sets they'll take; each write waits for the switcher's echo, and **Undo** puts back
   what was there. **Pixel Map writes nothing at all**: the switcher never learns the map is there.
+- **Image Library tools only writes when you press something, and asks first.** It starts off.
+  Deleting a library image empties every still showing it, so a delete never takes one a still on
+  program or preview is showing (it's asked again just before each slot, in case a take landed
+  meanwhile), and the question names the stills that will go empty. An upload never refills an
+  empty slot a still on a bus points at, because the still would pick the new picture straight
+  up. A capacity is staged and put through the switcher's own check before you're asked, and is
+  refused if it would take a still that holds anything out of service. There's no Undo for a
+  delete; the question says so.
 - **The send-to menu respects a padlock it could ignore.** The PGM lock on a screen card is state
   inside the vendor's own bundle (it stops their UI, not the device), so a write from here
   doesn't have to obey it. The menu asks anyway when a target buffer is locked, and treats a
