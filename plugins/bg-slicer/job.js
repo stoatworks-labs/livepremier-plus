@@ -49,7 +49,7 @@ export function createJob() {
     frames: {},
     live: {},
     edid: {},
-    options: { label: '', assignSet: true, loadPreview: false, allowProgram: false, edids: true, fill: '#000000' },
+    options: { label: '', assignSet: true, loadPreview: false, allowProgram: false, edids: true, fill: '#000000', assignedSlots: false },
     /** `{ key, images: Map('<screen>/<out>' → { blob, url, name, width, height }) }` once generated. */
     generated: null,
     progress: [],

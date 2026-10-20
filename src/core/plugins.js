@@ -176,6 +176,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'image-library',
+    name: 'Image Library tools',
+    where: 'The vendor’s Image Library and Images pages (preview)',
+    description: 'Delete every image in the library, or a selection of them; upload a zip of pictures into the free slots; and set a still’s capacity from a dropdown on its card on the Images page instead of in Preconfig ▸ Images. Every write asks first, and an image a still on program or preview shows is never deleted. Never yet run against a real frame.',
+    requires: { capabilities: ['imageLibrary'] },
+    /* Off until it has been: it deletes library images and applies still
+       capacities, both on an operator's click and after a question. */
+    enabledByDefault: false,
+    client: 'client.js'
+  },
+  {
     id: 'surfaces',
     name: 'Surfaces',
     where: 'A tab on Screens / Aux., behind ⋯ when the strip is full, and over each screen card',
@@ -341,6 +352,18 @@ export const BUILTINS = [
        `controlSurfaces` itself, only to choose where it goes: under Virtual
        RC400T on a LivePremier, in PLUS on a Midra or Alta, which has no
        Virtual RC400T (`client.js`). */
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
+    id: 'barco-ec',
+    name: 'Barco EC panel',
+    where: 'Settings (preview)',
+    description: 'A Barco EC-30, EC-40 or EC-50 plugged into this machine driving the switcher, with no browser open. Never yet run against a panel.',
+    /* Off until it has been: it writes to a switcher, and while it holds the
+       panel the Event Master Toolset cannot. Nothing in `requires`: it reads
+       and writes through the dialect, as the Pixelhue panel does. */
+    enabledByDefault: false,
     server: 'server.js',
     client: 'client.js'
   },

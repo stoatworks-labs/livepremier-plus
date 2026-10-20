@@ -27,7 +27,7 @@ import {
   DECK_TYPES, powerpoint, libreoffice, pickEngine, noEngineWords, sofficeArgs, findSoffice, powerpointWords,
   convertDeck, queue, POWERPOINT_SCRIPT, visibleSlides, readZip, containerWords
 } from '../plugins/bg-slicer/convert.js';
-import { zipStore } from '../plugins/bg-slicer/zip.js';
+import { zipStore } from '../src/core/zip.js';
 import { deflateRawSync } from 'node:zlib';
 import activateServer from '../plugins/bg-slicer/server.js';
 import { HttpError } from '../server/plugin-host.js';

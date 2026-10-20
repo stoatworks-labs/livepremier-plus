@@ -62,7 +62,7 @@
 import { ROOT } from '../../src/core/paths.js';
 import { dialectFor } from '../../src/core/dialect.js';
 import { readLayers, topLeftToAnchor } from '../../src/core/screens.js';
-import { CAPACITY_UNITS, likelyCapability } from '../../src/core/stills.js';
+import { CAPACITY_UNITS, likelyCapability, orderSlots } from '../../src/core/stills.js';
 import { same } from '../../src/core/wire.js';
 
 /* ================================================================ options */
@@ -659,13 +659,35 @@ export function chooseStill(stills, canvas, placed = null) {
   };
 }
 
-/** A library slot for the picture: ours if it still holds our file, else the highest free one. */
-export function chooseSlot(library, id, placed = null) {
+/**
+ * A library slot for the picture: ours if it still holds our file, else the
+ * highest clean empty one. `empty` is `core/stills.js` `emptySlots(store)`:
+ * an empty slot a still points at shows on that still the moment the UMD
+ * lands in it, so one is only taken with `assigned` (the panel's "Use an
+ * empty slot a still points at"), and only once no clean slot is left. Our
+ * own slot, emptied since, is ours again unless some other still has come to
+ * point at it. `stills` in the answer names whoever will show the UMD besides
+ * our own still. Without `empty` every empty slot counts as clean.
+ */
+export function chooseSlot(library, id, placed = null, { empty = null, assigned = false } = {}) {
+  const slots = empty || library.slots.filter((s) => s.free).map((s) => ({ slot: s.slot, stills: [] }));
+  const pointing = (slot) => (slots.find((e) => e.slot === slot) || { stills: [] }).stills;
   if (placed) {
     const ours = library.slots.find((s) => s.slot === placed.slot);
-    if (ours && (ours.free || ours.fileName === fileName(id))) return { slot: ours.slot, reused: !ours.free, wasFree: ours.free };
+    if (ours && !ours.free && ours.fileName === fileName(id)) return { slot: ours.slot, reused: true, wasFree: false, stills: [] };
+    if (ours && ours.free) {
+      const others = pointing(ours.slot).filter((s) => s.key !== String(placed.still));
+      if (!others.length || assigned) return { slot: ours.slot, reused: false, wasFree: true, stills: others };
+    }
   }
-  const free = library.slots.filter((s) => s.free);
-  if (!free.length) return { slot: null, reason: 'The image library is full. Delete an image on the Image Library page.' };
-  return { slot: free[free.length - 1].slot, reused: false, wasFree: true };
+  const clean = slots.filter((e) => !e.stills.length);
+  if (clean.length) return { slot: clean[clean.length - 1].slot, reused: false, wasFree: true, stills: [] };
+  const pick = assigned ? orderSlots(slots, { assigned: true })[0] : null;
+  if (pick) return { slot: pick.slot, reused: false, wasFree: true, stills: pick.stills };
+  return {
+    slot: null,
+    reason: slots.length
+      ? `Every empty library slot has a still pointing at it, which would show the UMD as well. Tick “Use an empty slot a still points at”, or delete an image on the Image Library page.`
+      : 'The image library is full. Delete an image on the Image Library page.'
+  };
 }

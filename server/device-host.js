@@ -79,7 +79,7 @@ export function createDeviceHost({
   function moduleEntry(id) {
     let m = modules.get(id);
     if (!m) {
-      m = { id, name: id, transport: null, state: null, wanted: false, events: new EventEmitter() };
+      m = { id, name: id, transport: null, state: null, available: null, reason: null, wanted: false, events: new EventEmitter() };
       modules.set(id, m);
     }
     return m;
@@ -123,6 +123,11 @@ export function createDeviceHost({
         m.name = info.name || info.id;
         m.transport = info.transport ?? null;
         m.state = info.state ?? null;
+        /* Each module says whether its own library loaded: an EC panel needs
+           the FTDI transport, not node-hid. A host older than that says only
+           whether node-hid did. */
+        m.available = typeof info.available === 'boolean' ? info.available : !!msg.available;
+        m.reason = info.reason ?? null;
         m.events.emit('state', m.state);
         /* A restarted host starts with nothing open: ask again for what was wanted. */
         if (m.wanted) void request('want', { module: m.id, wanted: true }).catch(() => {});
@@ -201,7 +206,9 @@ export function createDeviceHost({
   const api = Object.freeze({
     status: () => ({
       ...status,
-      modules: [...modules.values()].map((m) => ({ id: m.id, name: m.name, transport: m.transport, state: m.state, wanted: m.wanted })),
+      modules: [...modules.values()].map((m) => ({
+        id: m.id, name: m.name, transport: m.transport, state: m.state, wanted: m.wanted, available: m.available, reason: m.reason,
+      })),
     }),
     onStatus(fn) { events.on('status', fn); return () => events.off('status', fn); },
     /** A handle on one module. It survives the host restarting. */
@@ -210,13 +217,17 @@ export function createDeviceHost({
       return Object.freeze({
         id: m.id,
         get state() { return m.state; },
-        /** The host is up, node-hid loaded, and the host has this module. */
-        get available() { return status.running && status.available === true && m.state !== null; },
+        /** The host is up, this module's library loaded, and the host has started it. */
+        get available() { return status.running && m.available === true && m.state !== null; },
+        /** Why it is not available, when the host has said. */
+        get reason() { return m.reason; },
         want(wanted) {
           m.wanted = !!wanted;
           return request('want', { module: m.id, wanted: m.wanted }).catch((err) => { if (m.wanted) log(`devices: ${m.id}: ${err.message}`); return null; });
         },
         write: (reports) => request('write', { module: m.id, reports }),
+        /** An object for a module that takes more than output reports (`devices/core.js`). */
+        command: (command) => request('command', { module: m.id, command }),
         on(event, fn) { m.events.on(event, fn); return () => m.events.off(event, fn); },
       });
     },

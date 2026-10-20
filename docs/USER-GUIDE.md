@@ -67,6 +67,9 @@ than something bolted on.
   moves opacity, position and size. Any browser works, as long as DaVinci Resolve is quit.
 - **Pixelhue panel** *(preview)*: a Pixelhue U5, U5 Pro or U5 mini driving the switcher, with
   **Pixelhue Mapping** to give any key, fader or encoder a different job.
+- **Barco EC panel** *(preview, off by default)*: a Barco EC-30, EC-40 or EC-50, plugged into the
+  machine this app runs on, driving the switcher with no browser open. Quit the Event Master
+  Toolset first: the panel takes one program at a time. Not yet tried on a real panel.
 - **Background Slicer** *(preview)*: one picture cut into a pixel-exact background for every
   output of one or more screens, uploaded and put into a background set, or each output fed live
   from an input, with the output map for the media server behind it. A PDF or a PowerPoint deck

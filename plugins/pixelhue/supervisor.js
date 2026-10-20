@@ -36,10 +36,9 @@
 import { EventEmitter } from 'node:events';
 
 import { exchange, AWJ_PORT } from '../../server/awj.js';
+import { ConsoleSwitcher, sentDetail } from '../../server/console-switcher.js';
 import { UCenterLink } from './ucenter.js';
-import { NLC, MNG } from '../../src/core/dialect.js';
 import { commandsFor } from '../../src/core/commands.js';
-import { letterFor } from '../../src/vendor/surface/preset.js';
 import { toAwj } from '../../src/core/paths.js';
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName, CONSOLE_MODELS,
@@ -61,8 +60,6 @@ const INPUTS = 24;
 const MEMORIES = 32;
 const LAYERS = 16;
 const STILLS = 24;
-/* The order SIGNAL SOURCE walks the input bus through, where they exist. */
-const SOURCE_KINDS = ['LIVE', 'STILL', 'SCREEN'];
 /* A fader or encoder gesture with no move for this long is over; its history
    line is written then, not once per step. */
 const GESTURE_IDLE_MS = 500;
@@ -85,11 +82,6 @@ const REPUBLISH_MIN_MS = 3000;
 const FULL_REDRAW_KEYS = 40;
 /* A T-bar stroke with no report for this long is over. */
 const STROKE_IDLE_MS = 2000;
-
-const IDENTITY = {
-  nlc: 'DeviceObject/system/$device/@items/1/@props/dev',
-  mng: 'DeviceObject/system/@props/platformLabel',
-};
 
 export class PixelhueSupervisor extends EventEmitter {
   #link = null;
@@ -132,6 +124,11 @@ export class PixelhueSupervisor extends EventEmitter {
     this.settingsNow = settings;
     this.awjPort = awjPort;
     this.log = log;
+    this.switcher = new ConsoleSwitcher({
+      deviceHost: () => this.deviceHost(),
+      awjPort,
+      limits: { screens: SCREENS, inputs: INPUTS, memories: MEMORIES, layers: LAYERS, stills: STILLS },
+    });
     this.selection = new Selection();
     this.history = [];
   }
@@ -196,133 +193,17 @@ export class PixelhueSupervisor extends EventEmitter {
 
   /* ------------------------------------------------------------- the switcher */
 
-  /** One burst of AWJ `get`s, turned into the facts a model is built from. */
+  /**
+   * The switcher, read in two bursts (`server/console-switcher.js`, shared
+   * with every console), with the input bus showing whichever kind of source
+   * SIGNAL SOURCE last chose.
+   */
   async readFacts() {
-    const host = this.deviceHost();
-    if (!host) throw new Error('no switcher configured');
-
-    const dialect = await this.#identify(host);
-    const isNlc = dialect.id === 'nlc';
-
-    /* Enumerating a collection is not something AWJ does — `@itemKeys` answers
-       null even for collections that exist — so the ids come from the
-       platform's own fixed ranges and `isUsed` / `isValid` decide what is
-       real. */
-    const ids = isNlc
-      ? Array.from({ length: SCREENS }, (_, i) => `S${i + 1}`)
-      : Array.from({ length: 4 }, (_, i) => `S${i + 1}`);
-
-    const gets = [];
-    for (const id of ids) {
-      gets.push({ op: 'get', path: toAwj(dialect.takeStatus(id, 'isUsed')) });
-      gets.push({ op: 'get', path: toAwj(labelPath(dialect, id)) });
-    }
-    for (let n = 1; n <= INPUTS; n++) {
-      const key = isNlc ? `IN_${n}` : String(n);
-      gets.push({ op: 'get', path: toAwj(['device', 'inputList', 'items', key, 'mapping', 'pp', 'isValid']) });
-      gets.push({ op: 'get', path: toAwj(['device', 'inputList', 'items', key, 'control', 'pp', 'label']) });
-    }
-    if (isNlc) {
-      for (let n = 1; n <= STILLS; n++) {
-        gets.push({ op: 'get', path: toAwj(['device', 'stillList', 'items', String(n), 'mapping', 'pp', 'isValid']) });
-        gets.push({ op: 'get', path: toAwj(['device', 'stillList', 'items', String(n), 'control', 'pp', 'label']) });
-      }
-    }
-    for (let slot = 1; slot <= MEMORIES; slot++) {
-      const built = dialect.label('screen', slot, '');
-      if (built) gets.push({ op: 'get', path: toAwj(built.path) });
-      const valid = slotValidPath(dialect, slot);
-      if (valid) gets.push({ op: 'get', path: toAwj(valid) });
-    }
-
-    const replies = await exchange({ host, port: this.awjPort, messages: gets });
-    const byPath = new Map(replies.map((r) => [r.path, r.value]));
-    const at = (path) => byPath.get(toAwj(path));
-
-    const destinations = ids.map((id) => ({
-      id,
-      kind: id.startsWith('A') ? 'aux' : 'screen',
-      label: String(at(labelPath(dialect, id)) || ''),
-      isUsed: at(dialect.takeStatus(id, 'isUsed')) === true,
-    }));
-
-    /* Everything the input bus can show; SIGNAL SOURCE picks which. A screen
-       in service is a source on a LivePremier (SCREEN_n), as is a still. */
-    const sources = { LIVE: [], STILL: [], SCREEN: [] };
-    for (let n = 1; n <= INPUTS; n++) {
-      const key = isNlc ? `IN_${n}` : String(n);
-      if (at(['device', 'inputList', 'items', key, 'mapping', 'pp', 'isValid']) !== true) continue;
-      const label = String(at(['device', 'inputList', 'items', key, 'control', 'pp', 'label']) || '');
-      sources.LIVE.push({ number: n, source: isNlc ? `LIVE_${n}` : `INPUT_${n}`, label });
-    }
-    if (isNlc) {
-      for (let n = 1; n <= STILLS; n++) {
-        if (at(['device', 'stillList', 'items', String(n), 'mapping', 'pp', 'isValid']) !== true) continue;
-        const label = String(at(['device', 'stillList', 'items', String(n), 'control', 'pp', 'label']) || '');
-        sources.STILL.push({ number: n, source: `STILL_${n}`, label: label || `STILL_${n}` });
-      }
-      for (const d of destinations) {
-        const m = /^S(\d+)$/.exec(d.id);
-        if (m && d.isUsed) sources.SCREEN.push({ number: Number(m[1]), source: `SCREEN_${m[1]}`, label: d.label || d.id });
-      }
-    }
-    const sourceKinds = SOURCE_KINDS.filter((k) => sources[k].length);
-    if (!sourceKinds.includes(this.#sourceKind)) this.#sourceKind = 'LIVE';
-    const inputs = sources[this.#sourceKind];
-
-    const presets = [];
-    const freeSlots = [];
-    for (let slot = 1; slot <= MEMORIES; slot++) {
-      const built = dialect.label('screen', slot, '');
-      if (!built) continue;
-      const label = byPath.get(toAwj(built.path));
-      const valid = slotValidPath(dialect, slot);
-      /* A slot with no label is not published: a bus full of "Memory 17" that
-         recalls nothing is worse than a short bus. A slot with no label AND no
-         stored memory is free for SAVE TO on an empty key. ⚠️ Unlabelled is
-         not empty — the simulator's slot 1 holds a memory with no name. */
-      if (!label) {
-        if (!valid || at(valid) !== true) freeSlots.push(slot);
-        continue;
-      }
-      presets.push({ slot, label: String(label) });
-    }
-
-    /* Second burst, for what is in service only: the fitted layers (the layer
-       bus), and the FTB and freeze lamps. */
-    const used = destinations.filter((d) => d.isUsed);
-    const more = [];
-    const probes = new Map(used.map((d) => [d.id, dialect.layerProbe(d.id, LAYERS)]));
-    for (const d of used) {
-      const probe = probes.get(d.id);
-      for (const key of probe.slots) {
-        more.push({ op: 'get', path: toAwj(probe.path(key)) });
-        const frz = dialect.layerFreezePath(d.id, key);
-        if (frz) more.push({ op: 'get', path: toAwj(frz) });
-      }
-      const ftb = dialect.fadeToBlackPath(d.id);
-      if (ftb) more.push({ op: 'get', path: toAwj(ftb) });
-    }
-    const second = more.length ? await exchange({ host, port: this.awjPort, messages: more }) : [];
-    const got = new Map(second.map((r) => [r.path, r.value]));
-    const layers = [];
-    for (const d of used) {
-      const probe = probes.get(d.id);
-      let anyFrozen = false;
-      for (const key of probe.slots) {
-        if (!probe.fitted(got.get(toAwj(probe.path(key))))) continue;
-        layers.push({ destination: d.id, key: Number(key), label: `Layer ${key}` });
-        const frz = dialect.layerFreezePath(d.id, key);
-        const list = frz ? got.get(toAwj(frz)) : null;
-        if (Array.isArray(list) && list.length) anyFrozen = true;
-      }
-      const ftb = dialect.fadeToBlackPath(d.id);
-      d.faded = ftb ? got.get(toAwj(ftb)) === true : false;
-      d.frozen = anyFrozen;
-    }
-
-    this.#dialect = dialect;
-    this.#facts = { destinations, inputs, presets, layers, freeSlots, sourceKinds, deviceId: host };
+    const facts = await this.switcher.readFacts();
+    if (!facts.sourceKinds.includes(this.#sourceKind)) this.#sourceKind = 'LIVE';
+    const { destinations, sources, presets, layers, freeSlots, sourceKinds, deviceId } = facts;
+    this.#dialect = facts.dialect;
+    this.#facts = { destinations, inputs: sources[this.#sourceKind], presets, layers, freeSlots, sourceKinds, deviceId };
     return this.#facts;
   }
 
@@ -382,106 +263,12 @@ export class PixelhueSupervisor extends EventEmitter {
       .map((o) => o.name).filter(Boolean));
   }
 
-  /** One burst of `get`s, answered by path. */
-  async #read(paths) {
-    const host = this.deviceHost();
-    if (!host || !paths.length) return new Map();
-    const replies = await exchange({
-      host, port: this.awjPort, messages: paths.map((p) => ({ op: 'get', path: toAwj(p) })),
-    });
-    return new Map(replies.map((r) => [r.path, r.value]));
-  }
-
-  /** One read per destination, answered by destination. */
-  async #readEach(ids, pathOf) {
-    const paths = ids.map(pathOf).filter(Boolean);
-    const got = await this.#read(paths);
-    return new Map(ids.map((id) => {
-      const path = pathOf(id);
-      return [id, path ? got.get(toAwj(path)) : undefined];
-    }));
-  }
-
-  /** Whether each destination is faded to black now. */
-  async #fadedFor(ids) {
-    const dialect = this.#dialect;
-    const paths = ids.map((id) => dialect.fadeToBlackPath(id)).filter(Boolean);
-    const got = await this.#read(paths);
-    const out = new Map();
-    for (const id of ids) {
-      const path = dialect.fadeToBlackPath(id);
-      const v = path ? got.get(toAwj(path)) : undefined;
-      out.set(id, typeof v === 'boolean' ? v : null);
-    }
-    return out;
-  }
-
-  /**
-   * What freezing each destination's program means now: the preset
-   * destination on air (`'UP'` when program is the group's up preset) and
-   * every fitted layer's freeze list.
-   */
-  async #freezeFor(ids) {
-    const dialect = this.#dialect;
-    const props = ['presetUp', 'presetDown', 'presetPrevious'];
-    const paths = [];
-    const plan = new Map();
-    for (const id of ids) {
-      const keys = ((this.#facts && this.#facts.layers) || [])
-        .filter((l) => l.destination === id).map((l) => String(l.key));
-      plan.set(id, keys);
-      for (const p of props) paths.push(dialect.takeControl(id, p));
-      paths.push(dialect.takeStatus(id, 'transition'));
-      for (const key of keys) {
-        const frz = dialect.layerFreezePath(id, key);
-        if (frz) paths.push(frz);
-      }
-    }
-    const got = await this.#read(paths);
-    const out = new Map();
-    for (const id of ids) {
-      const control = Object.fromEntries(props.map((p) => [p, got.get(toAwj(dialect.takeControl(id, p)))]));
-      const group = {
-        control: { pp: control },
-        status: { pp: { transition: got.get(toAwj(dialect.takeStatus(id, 'transition'))) } },
-      };
-      const onAir = letterFor('PROGRAM', group);
-      const programDest = onAir && onAir === control.presetUp ? 'UP'
-        : onAir && onAir === control.presetDown ? 'DOWN' : null;
-      const layers = [];
-      for (const key of plan.get(id)) {
-        const frz = dialect.layerFreezePath(id, key);
-        const list = frz ? got.get(toAwj(frz)) : null;
-        if (Array.isArray(list)) layers.push({ key, freeze: list.map(String) });
-      }
-      out.set(id, { programDest, layers });
-    }
-    return out;
-  }
-
-  /** Which preset letter is the panel's buffer, read from the device now. */
-  async #lettersFor(ids) {
-    const host = this.deviceHost();
-    const dialect = this.#dialect;
-    if (!host || !dialect || !ids.length) return new Map();
-    const props = ['presetUp', 'presetDown', 'presetPrevious'];
-    const gets = [];
-    for (const id of ids) {
-      for (const prop of props) gets.push({ op: 'get', path: toAwj(dialect.takeControl(id, prop)) });
-      gets.push({ op: 'get', path: toAwj(dialect.takeStatus(id, 'transition')) });
-    }
-    const replies = await exchange({ host, port: this.awjPort, messages: gets });
-    const byPath = new Map(replies.map((r) => [r.path, r.value]));
-    const out = new Map();
-    for (const id of ids) {
-      const group = {
-        control: { pp: Object.fromEntries(props.map((p) => [p, byPath.get(toAwj(dialect.takeControl(id, p)))])) },
-        status: { pp: { transition: byPath.get(toAwj(dialect.takeStatus(id, 'transition'))) } },
-      };
-      out.set(id, letterFor(this.selection.buffer, group));
-    }
-    return out;
-  }
+  /* The switcher reads below are `server/console-switcher.js`'s. */
+  #read(paths) { return this.switcher.read(paths); }
+  #readEach(ids, pathOf) { return this.switcher.readEach(ids, pathOf); }
+  #fadedFor(ids) { return this.switcher.fadedFor(ids); }
+  #freezeFor(ids) { return this.switcher.freezeFor(ids); }
+  #lettersFor(ids) { return this.switcher.lettersFor(ids, this.selection.buffer); }
 
   /* ----------------------------------------------------------------- intents */
 
@@ -651,12 +438,7 @@ export class PixelhueSupervisor extends EventEmitter {
 
   async #readRests(stroke) {
     try {
-      const paths = stroke.ids.map((id) => this.#dialect.takeStatus(id, 'tbarPosition'));
-      const got = await this.#read(paths);
-      stroke.rests = new Map(stroke.ids.map((id) => {
-        const v = got.get(toAwj(this.#dialect.takeStatus(id, 'tbarPosition')));
-        return [id, typeof v === 'number' ? (v >= 32768 ? 65535 : 0) : null];
-      }));
+      stroke.rests = await this.switcher.restsFor(stroke.ids);
       this.#note({ kind: 'noted', command: 'tbar', note: `T-bar stroke on ${stroke.ids.join(' ')}` });
     } catch (err) {
       this.#note({ kind: 'error', command: 'tbar', error: err.message });
@@ -992,57 +774,15 @@ export class PixelhueSupervisor extends EventEmitter {
     };
   }
 
-  async #identify(host) {
-    const replies = await exchange({
-      host,
-      port: this.awjPort,
-      messages: [{ op: 'get', path: IDENTITY.nlc }, { op: 'get', path: IDENTITY.mng }],
-    });
-    const answered = (path) => replies.find(
-      (r) => r.path === path && typeof r.value === 'string' && r.value !== '',
-    );
-    if (answered(IDENTITY.nlc)) return NLC;
-    if (answered(IDENTITY.mng)) return MNG;
-    throw new Error(`${host} answered neither identity path — is AWJ enabled on it?`);
-  }
 }
 
-/**
- * Where a destination keeps its name.
- *
- * ⚠️ The two dialects disagree about how to get there and only one of them has
- * `split`: on LivePremier `S1` is the key of `screenList`, and on a Midra the
- * same identifier means screen 1 of `screenList` keyed plain `1`. Asking the
- * dialect rather than spelling either is the whole point of `core/dialect.js`.
- */
-/**
- * What went to the switcher, spelled as AWJ paths, for the history. The
- * settings card shows only the note; this is for anyone checking what a key
- * really did — pixelhue-re's press inspector reads it off `/state`.
- */
 /** A command's name for the history, or a silent key's own name. */
 function nameOf(code) {
   return typeof code === 'string' ? code : commandName(code);
 }
 
-function sentDetail(writes) {
-  return writes.map((w) => ({ path: toAwj(w.path), value: w.value }));
-}
-
 /* Intents after which the model must be read again, not just re-sent. */
 const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap', 'deletePreset']);
-
-/** Where a memory slot says it holds something, beside its label. */
-function slotValidPath(dialect, slot) {
-  const bank = dialect.bankFor && dialect.bankFor('screen');
-  if (!bank || !dialect.slotList) return null;
-  return [...dialect.slotList(bank), 'items', String(slot), 'status', 'pp', 'isValid'];
-}
-
-function labelPath(dialect, id) {
-  const [listName, key] = dialect.split ? dialect.split(id) : [dialect.listNameFor(id), id];
-  return ['device', listName, 'items', key, 'control', 'pp', 'label'];
-}
 
 export const portFor = (model) =>
   (CONSOLE_MODELS.find((m) => m.id === model) || CONSOLE_MODELS[0]).port;

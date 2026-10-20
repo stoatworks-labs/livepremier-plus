@@ -61,7 +61,7 @@ import {
   documentKind, pagePixels, parsePages, formatPages, placedFit, pageStem, pageNumber, buildDeckPlan, buildSizePlan, deckPlanKey, sizeChoices, FITS, DOC_ACCEPT
 } from './deck.js';
 import { openDocument, closeDocument, drawPage, pageThumb, toPng, release } from './document.js';
-import { zipStore } from './zip.js';
+import { zipStore } from '../../src/core/zip.js';
 import { packFiles, templateList, templateShapes, TARGETS } from './exports.js';
 
 const POPOUT = new URL('./popout.html', import.meta.url).href;
@@ -182,8 +182,8 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
     const planJob = { ...job, image: size };
     /* A background set per page: one plan with a screen entry per page. */
     const plan = deck
-      ? buildDeckPlan(m, store, job, { allowProgram: job.options.allowProgram })
-      : m.buildPlan(store, planJob, { allowProgram: job.options.allowProgram });
+      ? buildDeckPlan(m, store, job, { allowProgram: job.options.allowProgram, assignedSlots: job.options.assignedSlots })
+      : m.buildPlan(store, planJob, { allowProgram: job.options.allowProgram, assignedSlots: job.options.assignedSlots });
     const key = deck ? deckPlanKey(plan) : planKey(plan);
     if (job.generated && job.generated.key !== key) job.stale();
 
@@ -1000,6 +1000,8 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       live || sized ? null : checkbox(job.deck ? 'Put each page into a background set of its own' : 'Put them into a background set', job.options.assignSet !== false, (v) => { job.options.assignSet = v; changed({ stale: true }); }, words.assign),
       sized || (!live && job.options.assignSet === false) ? null : checkbox(job.deck ? 'Load the first page’s set into each screen’s preview afterwards' : 'Load each set into its screen’s preview afterwards', job.options.loadPreview, (v) => { job.options.loadPreview = v; changed(); }, words.preview),
       live ? checkbox(words.edids[0], job.options.edids, (v) => { job.options.edids = v; changed(); }, words.edids[1]) : null,
+      live || midra || !toSwitcher ? null : checkbox('Use empty library slots a still points at', job.options.assignedSlots === true, (v) => { job.options.assignedSlots = v; changed(); },
+        'Off: those are skipped, because the still shows whatever goes in. On: used after every clean slot, and the plan names each still'),
       onProgram ? checkbox('A chosen set or image is ON PROGRAM — write it anyway, live', job.options.allowProgram, (v) => { job.options.allowProgram = v; changed(); }, 'The new background goes to air the moment it is written') : null);
 
     const sets = job.deck ? setsSummary(plan) : plan.screens.filter((s) => s.assign).map((s) => `${s.id} set ${s.setIndex}`).join(', ');

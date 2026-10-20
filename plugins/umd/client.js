@@ -165,8 +165,14 @@ export default function activate(ctx) {
     }
   }
 
+  /* Whether a put may use an empty library slot a still points at. Off with
+     every page load: that still shows the UMD too, maybe on air. */
+  let assignedSlots = false;
+
   const actions = {
     select(id) { selected = id; run.steps = []; run.error = null; ctx.refresh(); },
+    assignedSlots: () => assignedSlots,
+    setAssignedSlots(on) { assignedSlots = Boolean(on); ctx.refresh(); },
 
     async download(id) {
       const m = model(id);
@@ -192,7 +198,7 @@ export default function activate(ctx) {
         const blob = await renderPng(m.plan);
         const res = await putOnLayer({
           session: ctx.session, dest: m.dest, letter: m.bank.letter, layer: carrier, blob,
-          placed: m.entry.placed, onStep: step
+          placed: m.entry.placed, assignedSlots, onStep: step
         });
         if (res.journal.uploads.length || res.journal.stills.length || res.journal.writes.length) run.journal = res.journal;
         if (!res.ok) throw new Error(res.error);

@@ -43,7 +43,12 @@ test('the desktop bundle stages the device host, installs it from its lockfile, 
     'the app itself has no dependencies; the device host has its own');
   const pkg = JSON.parse(await readFile(join(ROOT, 'devices/package.json'), 'utf8'));
   const lock = JSON.parse(await readFile(join(ROOT, 'devices/package-lock.json'), 'utf8'));
-  assert.equal(lock.packages['node_modules/node-hid']?.version, pkg.dependencies['node-hid'], 'the lockfile pins what devices/package.json asks for');
+  for (const dep of ['node-hid', 'usb', 'koffi']) {
+    assert.equal(lock.packages[`node_modules/${dep}`]?.version, pkg.dependencies[dep], `the lockfile pins the ${dep} devices/package.json asks for`);
+  }
+  /* koffi's addon is one optional package per platform: the Windows bundle,
+     staged on a Windows runner, needs its entry in the lockfile to get one. */
+  assert.ok(lock.packages['node_modules/@koromix/koffi-win32-x64'], 'the lockfile carries koffi\'s Windows addon');
 
   const prepare = await readFile(join(ROOT, 'launcher/scripts/prepare.sh'), 'utf8');
   assert.match(prepare, /--exclude \.\/node_modules \. \) \| \( cd "\$APP\/devices"/, 'prepare.sh stages devices/, without a checkout\'s node_modules');

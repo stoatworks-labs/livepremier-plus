@@ -30,7 +30,7 @@
  */
 
 import { presetPlacement, spanLayout, CAPACITY_UNITS, likelyCapability } from './core.js';
-import { readLibrary as readLibraryNlc, readStills, LABEL_MAX } from '../../src/core/stills.js';
+import { readLibrary as readLibraryNlc, readStills, LABEL_MAX, emptySlots, orderSlots, pointedText } from '../../src/core/stills.js';
 import { readLibrary as readLibraryMng, nextSlots, framesOn } from './mng.js';
 import { dialectFor, MNG } from '../../src/core/dialect.js';
 
@@ -263,7 +263,7 @@ export function buildDeckPlan(model, store, job, opts = {}) {
         sets: assign ? Object.fromEntries(unit.screens.map((id) => [id, setsFor[id][i]])) : {},
         frames: {}
       };
-      const plan = model.buildPlan(store, pageJob, { allowProgram: opts.allowProgram, reserve });
+      const plan = model.buildPlan(store, pageJob, { allowProgram: opts.allowProgram, assignedSlots: opts.assignedSlots, reserve });
       library = library || plan.library;
       for (const text of plan.problems) issues.push({ page, text });
       for (const text of plan.warnings) notes.push({ page, text });
@@ -297,6 +297,7 @@ export function buildDeckPlan(model, store, job, opts = {}) {
     platform: model.PLATFORM,
     source: 'stills',
     kind: 'sets',
+    assignedSlots: opts.assignedSlots === true,
     problems,
     warnings: grouped(notes),
     screens,
@@ -360,9 +361,18 @@ export function buildSizePlan(store, job) {
   const wantStills = toLibrary && !mng && deck.stills === true;
 
   let slots = [];
+  const assignedSlots = !mng && job.options && job.options.assignedSlots === true;
   if (toLibrary) {
-    slots = mng ? nextSlots(library, pages.length) : library.slots.filter((s) => s.free).map((s) => s.slot).slice(0, pages.length);
-    if (slots.length < pages.length) problems.push(`${pages.length} pages need ${pages.length} library slots, and ${slots.length} ${slots.length === 1 ? 'is' : 'are'} free.`);
+    /* LivePremier: an empty slot a still points at only with the option, and
+       after every clean one — the still shows whatever goes into it. */
+    const empty = mng ? [] : emptySlots(store);
+    const usable = mng ? [] : orderSlots(empty, { assigned: assignedSlots }).slice(0, pages.length);
+    slots = mng ? nextSlots(library, pages.length) : usable.map((s) => s.slot);
+    const passedOver = mng || assignedSlots ? 0 : empty.filter((s) => s.stills.length).length;
+    if (slots.length < pages.length) problems.push(`${pages.length} pages need ${pages.length} library slots, and ${slots.length} ${slots.length === 1 ? 'is' : 'are'} free${passedOver ? ` (${passedOver} more ${passedOver === 1 ? 'is' : 'are'} empty but a still points at ${passedOver === 1 ? 'it' : 'them'} — tick “Use empty slots a still points at” to use ${passedOver === 1 ? 'it' : 'them'})` : ''}.`);
+    for (const [i, s] of usable.entries()) {
+      if (s.stills.length) warnings.push(`Page ${pages[i] + 1}: library slot ${s.slot} is empty, but ${pointedText(s.stills)}.`);
+    }
     if (mng) {
       for (const slot of slots) {
         const on = framesOn(store, slot);
@@ -438,6 +448,7 @@ export function buildSizePlan(store, job) {
     platform: mng ? 'mng' : 'nlc',
     source: 'stills',
     kind: 'size',
+    assignedSlots,
     problems,
     warnings,
     screens,

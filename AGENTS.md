@@ -546,6 +546,46 @@ Four things are load-bearing:
   `0x00101307` as business data — it is the *command* report, and the
   correction belongs upstream rather than in a vendored file.
 
+### A Barco EC panel (`plugins/barco-ec/`) — **preview**
+
+An EC-30, EC-40 or EC-50 plugged into this machine, driving the switcher with no browser open.
+`docs/BARCO-EC.md` is the operator's page and the proven/not-proven list. **It has never met a
+panel**: the protocol is qubered/ec50-panel's (MIT; proved on a real EC-50 under Windows), and here
+it has met only `test/helpers/fake-ec-panel.js` and a simulator.
+
+**It is the Pixelhue panel's opposite.** A Pixelhue console is a peer that is handed a model; an EC
+panel is a CPLD behind an FTDI chip that reports key numbers and shows whatever pixels it is sent.
+The Toolset is where its meaning lives, so here `plugins/barco-ec/core.js` is the Toolset: what
+every key means, every label, every lamp. Load-bearing:
+
+- **The panel's bytes are `src/core/ec-panel.js`, not the device host's.** The device driver and
+  the plugin both read the key table, and Docker has no `devices/`, so it lives in `core/` (no I/O)
+  the way the Speed Editor's lives in `src/vendor/`. The table is Barco's own `showConsoleMap.csv`
+  (identical in Event Master 9.2.68800 and 10.0.3.3021); `test/barco-ec.test.js` checks it against
+  any Toolset installed in /Applications. **Never edit it by hand from a photo of a panel.**
+- ⚠️ **Nothing written takes effect until latched** (`0x3828`: 1 lamps, 2 framebuffer), **the
+  framebuffer goes out twice** (double buffered — one pass leaves a torn panel), its 4-byte header
+  overlays cell 0 and **zeroing it discards the whole write**, and **every read reply is one
+  transaction late**, so the driver polls one register and throws its first reply away. The
+  pretend panel enforces all four; a driver change that breaks one fails there.
+- **It runs in the server, as the Pixelhue supervisor does**, because a desk panel must work with no
+  page open. That is the one exception to "a device's controls become switcher writes in the page"
+  (below): the device host still knows only the panel; the meaning is in this process; the
+  switcher is read in bursts and nothing is held open on it. The price is the Pixelhue panel's: no
+  live tally (a reread every 15 s and after each press that changes the switcher).
+- **What a press writes is `src/core/console-intents.js`, and how the switcher is read is
+  `server/console-switcher.js`** — both moved out of the Pixelhue plugin on 2026-10-20 so the two
+  consoles cannot drift. Pixelhue's console suite was rerun on the 6.2.73 simulator after the move:
+  31 pass, 3 skip, as before. The move also fixed `labelPath` on a Midra (it read `split()`'s object
+  as a pair and threw).
+- **The panel takes one program at a time.** While this holds it the Toolset cannot. Turning the
+  setting off clears the panel and lets it go. ⚠️ On Windows the panel belongs to FTDI's driver,
+  installed by the Toolset; D2XX is its API. **Never suggest Zadig/WinUSB** to reach it through
+  libusb instead — the Toolset would stop seeing the panel.
+- **The T-bar reports where the lever is**, not progress through a take; `strokeProgress` counts
+  from whichever end it rested at, so the second throw is a take back, as on the Toolset. The first
+  reading after connecting is only where it rests, never a stroke.
+
 ### The Background Slicer (`plugins/bg-slicer/`) — **preview**
 
 One picture cut into a background per output, put into the image library, the
@@ -585,6 +625,8 @@ Load-bearing, each read off the 6.2.73 bundle and proved on the simulator:
   `xApply` the switcher reports `current` a moment before it clears
   `hasChanged`, so `applyCapacities` waits for both — a capacity Undo started
   straight after an apply was refused as "changes staged" before it did.
+  The routine is `stageCapacities` / `applyCapacities` in `core/stills.js`
+  now, shared with Image Library tools' capacity dropdown.
 - ⚠️ **The page mirror is not the switcher's echo.** `page-socket.js` applies
   this page's outbound writes to the store, so a refused write reads back as
   landed within a millisecond. Every apply and Undo write waits for the
@@ -1294,6 +1336,82 @@ is a column of its own after the vendor's, not inside it: 6.1.60's page is
 an info box until a screen is in service. Whether a frame draws an aux
 background is the open question both stand on (`docs/NOTES.md`).
 
+### Image Library tools (`plugins/image-library/`, `core/stills.js`, `core/zip.js`) — off until tested on a frame
+
+Controls put into two vendor pages: on **Image Library**, a toolbar at the end
+of the page header (Select, Delete all, Upload .zip) and, while selecting, a
+layer of ours over each filled card's picture that takes the click; on
+**Images**, a capacity dropdown first in each still card's footer tools.
+`core.js` plans (no DOM, no I/O), `run.js` writes, `decorate.js` draws,
+`client.js` holds the one run in hand. Page half only.
+
+Load-bearing, each found on the 6.2.73 simulator (Aquilon Cmax, private copy)
+or by a test first:
+
+- ⚠️ **Deleting a library image empties every still showing it**, at once
+  (`mode` stays IMAGE, `isValid` false, 0 × 0) — the bin on the vendor's
+  card does the same. So a delete is a write to whatever those stills are on.
+  A delete never takes a picture a still on program or preview shows
+  (`stillsOnBus`: the still's own tally, plus any still a background set on a
+  bus names), and the plan is asked again just before each slot, because a
+  take can land between the question and the delete.
+- ⚠️ **An empty slot is not always unclaimed.** A still keeps pointing at a
+  slot after its picture goes, and a picture uploaded into that slot shows on
+  the still at once (Image 1 took the new slot 3 picture). So every upload
+  into the library — this plugin's zip, the Background Slicer, the UMD
+  Generator — chooses through `core/stills.js`: `emptySlots` says which
+  stills point at each empty slot (and whether they're on a bus),
+  `orderSlots` offers clean slots only, unless the operator ticked the option
+  ("Use assigned slots" here, "Use empty library slots a still points at" in
+  the slicer, "Use an empty slot a still points at" in the UMD tab). Ticked,
+  those slots come after every clean one, on-bus ones last, and the question,
+  plan or steps name each still with `pointedText`. Allan asked for it to be
+  a choice, not a rule (2026-10-20): refilling a still's slot is sometimes the
+  point. The tick is page state, off at every load. The slicer's preflight
+  refuses a slot a still has come to point at since the plan unless the plan
+  was made with the option.
+- **A capacity is asked for by format** — Preconfig ▸ Images has no capacity
+  control, only an "expected image resolution" per still (`helper/format`),
+  which the switcher's check turns into one. `CAPACITY_FORMAT` holds the
+  format per capacity that check agreed with; not even the largest formats
+  the helper offers checked as 8K on a Cmax (custom formats aside), so 8K is
+  not offered. The change goes through
+  `stageCapacities` (moved here from the Background Slicer): stage, `xCheck`,
+  read the verdict, *then* ask in the switcher's own words, then `commit()` or
+  `discard()`. A still on program, an odd capacity, or Preconfig ▸ Images with
+  somebody's changes staged disables the dropdown with the reason as its title.
+- **The zip is read in the browser**, from the central directory (sizes are
+  there even when a writer used data descriptors), stored or deflated through
+  `DecompressionStream('deflate-raw')`, zip64 included, each entry CRC-checked
+  and refused if it inflates past its declared size. An entry is unpacked
+  only when its turn to upload comes. macOS and Windows litter (`__MACOSX/`,
+  `._*`, `.DS_Store`, `Thumbs.db`) is passed over in silence; anything else not
+  taken is named with its reason. The switcher's own `fileTypeValidity` says
+  what it takes (no BMP on 6.2.73, though Capture offers it).
+- **A drop carrying a zip is caught on the way down** (capture, on the
+  document) and never reaches the vendor's drop zones, which take pictures
+  only; a drop without one is left alone. `dragover` is accepted for a zip so
+  a drop outside the vendor's zones lands too.
+- **Never in a loop.** The sweep runs off a MutationObserver on the whole page,
+  which our own insertions trip. Every piece is rebuilt only when what it shows
+  changed (`data-lpp-sig`), selection state is a class and an attribute (which
+  the observer does not watch), and a settled sweep changes nothing — a test
+  holds node identity across one. A dropdown with focus is never rebuilt.
+- **Selecting hides the vendor's hover art** (`[data-lpp-selecting]` on the
+  grid hides `library-card-upload-container`), which otherwise showed "Drop
+  image" through a selected card's tint.
+
+Proven on that simulator copy, 2026-10-20, driven in the browser pane:
+Select with click and shift-click; Delete selected (3 deleted, one kept on
+preview, the still showing another named and emptied); Delete all (14 deleted,
+one kept); a Finder zip dropped on the vendor's zone (13 pictures in name
+order round two filled slots, `.txt` and `.bmp` passed over, `__MACOSX`
+silent) and again with stills pointing at empty slots 3 and 6 (both left
+alone); Image 3 Dual → 4K (Image 4 out of service, its dropdown Off), back to
+Dual with a 3840 × 2160 picture (warned, and the still reported out of
+capacity), and Image 1 → 4K refused because Image 2 held a picture. No frame
+yet.
+
 ### Aux follow (`plugins/aux-follow/`) — off until tested on a frame
 
 An aux layer that takes whatever source a screen layer has, by any route.
@@ -1589,10 +1707,10 @@ the expected answer until someone writes the module.
 
 ## The device host (`devices/`, `server/device-host.js`)
 
-USB and HID panels — the Speed Editor first — are held by a **program of its
-own**, `devices/host.js`, which the server starts with `fork` and supervises
-(restarts with a backoff, stops on shutdown). `devices/README.md` is the design;
-the load-bearing parts:
+USB and HID panels — the Speed Editor, then the Barco EC panels — are held by a
+**program of its own**, `devices/host.js`, which the server starts with `fork` and
+supervises (restarts with a backoff, stops on shutdown). `devices/README.md` is the
+design; the load-bearing parts:
 
 - **A page cannot hold the Speed Editor.** Chrome on macOS reads every feature
   report at the largest declared length (33 bytes) and the panel refuses its
@@ -1613,7 +1731,16 @@ the load-bearing parts:
 - **The host knows panels, not the switcher.** A device's controls become
   switcher writes in the page, on the same Engine as MIDI Mapping, because the
   store mirror is there. So this is not the second source of truth
-  `server/awj.js` argues against. Keep it that way.
+  `server/awj.js` argues against. Keep it that way. The one exception is a desk
+  console that must work with no page open — the Barco EC panel — whose meaning
+  lives in its plugin's server half on the Pixelhue supervisor's terms, never in
+  the host.
+- **A module names its transport** (`hid` is node-hid; `ftdi` is
+  `devices/transports/ftdi.js`: libusb through `usb` v2 on macOS and Linux, FTDI's
+  D2XX through `koffi` on Windows). A module whose library did not load is not
+  started, and `hello` says why per module, so a host without node-hid still holds
+  an EC panel. A module whose output is more than reports takes `command` (an
+  object, ≤ 64 KB) — the EC panel's labels and lamps.
 - **A module is a folder, `devices/modules/<id>/module.js`**, and gets a page
   as a plugin, `plugins/<id>/`, reaching it through `ctx.use('devices')`. The
   Device host plugin is only the settings card; switching it off stops nothing.
