@@ -61,9 +61,10 @@
 
 import { ROOT } from '../../src/core/paths.js';
 import { dialectFor } from '../../src/core/dialect.js';
-import { readLayers, topLeftToAnchor } from '../../src/core/screens.js';
-import { CAPACITY_UNITS, likelyCapability, orderSlots } from '../../src/core/stills.js';
-import { same } from '../../src/core/wire.js';
+import { readLayers } from '../../src/core/screens.js';
+import {
+  layerPath, placeWrites, cleanWrites, stillLayerWrites, before, chooseStill, chooseSlot as chooseSlotFor
+} from '../../src/core/still-layer.js';
 
 /* ================================================================ options */
 
@@ -527,68 +528,14 @@ export const fileName = (id) => `umd-${id}.png`;
 
 /* ================================================================ writes */
 
-/**
- * The store path of one layer property, by its catalogue id (`position.posH`).
- * Null when this platform's layers have no such property — a Midra layer has
- * no anchor — and a caller writes nothing there.
- */
-export function layerPath(store, id, letter, key, paramId) {
-  const dialect = dialectFor(store);
-  const spec = dialect && dialect.catalogue.layer.find((p) => p.id === paramId);
-  return spec ? dialect.layerParamPath(id, letter, key, spec.path) : null;
-}
-
-/**
- * The writes that put one layer of one buffer at a rectangle, through its
- * own anchor — a `BOTTOM_RIGHT` layer sized by its width alone moves its
- * left edge, so position and size are written together.
- */
-export function placeWrites(store, id, letter, key, rect) {
-  const dialect = dialectFor(store);
-  if (!dialect) return [];
-  const p = (name) => layerPath(store, id, letter, key, dialect.layerParams[name]);
-  const at = p('anchor');
-  const anchor = (at && store.get(at)) || 'MIDDLE_CENTER';
-  const { posH, posV } = topLeftToAnchor(anchor, rect.left, rect.top, rect.width, rect.height);
-  return [
-    { path: p('posH'), value: posH },
-    { path: p('posV'), value: posV },
-    { path: p('sizeH'), value: rect.width },
-    { path: p('sizeV'), value: rect.height }
-  ].filter((w) => w.path);
-}
-
-/**
- * Leave a layer showing its source as it is: no crop, no mask, no effect,
- * fully opaque. Only the properties this layer has — an aux's layers have
- * no border or keyer, a screen's do — so nothing is written to a path the
- * switcher would refuse, and only those not already so.
- */
-const CLEAN = [
-  ['opacity.opacity', 256],
-  ['cropping.classic.top', 0], ['cropping.classic.bottom', 0], ['cropping.classic.left', 0], ['cropping.classic.right', 0],
-  ['cropping.mask.top', 0], ['cropping.mask.bottom', 0], ['cropping.mask.left', 0], ['cropping.mask.right', 0],
-  ['effects.flags', []],
-  ['border.edge.style', []], ['border.shadow.style', []],
-  ['keying.enable', false]
-];
-
-export function cleanWrites(store, id, letter, key) {
-  return CLEAN
-    .map(([param, value]) => ({ path: layerPath(store, id, letter, key, param), value }))
-    .filter((w) => w.path && store.get(w.path) !== undefined && !same(store.get(w.path), w.value));
-}
+/* `layerPath`, `placeWrites`, `cleanWrites`, `before` and the still and slot
+   choices are `src/core/still-layer.js`'s since Test Card puts its pictures
+   on a layer the same way; these are what this plugin always exported. */
+export { layerPath, placeWrites, cleanWrites };
 
 /** The UMD layer: the still, over the whole canvas, clean. */
 export function umdLayerWrites(store, dest, letter, key, still) {
-  const dialect = dialectFor(store);
-  const source = dialect && layerPath(store, dest.id, letter, key, dialect.sourceParam);
-  if (!source) return [];
-  return [
-    { path: source, value: `STILL_${still}` },
-    ...placeWrites(store, dest.id, letter, key, { left: 0, top: 0, width: dest.canvas.width, height: dest.canvas.height }),
-    ...cleanWrites(store, dest.id, letter, key)
-  ];
+  return stillLayerWrites(store, dest.id, letter, key, still, { left: 0, top: 0, width: dest.canvas.width, height: dest.canvas.height });
 }
 
 /**
@@ -622,72 +569,13 @@ export function templateWrites(store, dest, letter, template, boxLayers, gap = 0
   return writes;
 }
 
-/** What each path in `writes` holds now — the journal of a write, taken before it. */
-export function before(store, writes) {
-  const seen = new Map();
-  for (const w of writes) {
-    const k = w.path.join('/');
-    if (!seen.has(k)) seen.set(k, { path: w.path, value: store.get(w.path) });
-  }
-  return [...seen.values()].filter((w) => w.value !== undefined);
-}
+export { before };
 
 /* ============================================================ the library */
 
-/**
- * A still that can hold the picture: free, and with the capacity for the
- * canvas — a still's capacity is how large a picture it holds, DUAL up to
- * 1920 × 1200. Ours first, if it is still showing our slot; else the
- * highest-numbered free one, out of the way of the operator's own, who
- * fill from the top of the list.
- */
-export function chooseStill(stills, canvas, placed = null) {
-  const need = CAPACITY_UNITS[likelyCapability(canvas)];
-  const holds = (s) => (CAPACITY_UNITS[s.capability] || 0) >= need;
-  if (placed) {
-    const ours = stills.find((s) => s.key === String(placed.still));
-    if (ours && ours.mode === 'IMAGE' && Number(ours.source) === placed.slot && holds(ours) && !ours.inSet && !ours.onOutput) return { still: ours, reused: true };
-  }
-  const free = stills.filter((s) => s.free && holds(s));
-  if (free.length) return { still: free[free.length - 1], reused: false };
-  const small = stills.filter((s) => s.free);
-  return {
-    still: null,
-    reason: small.length
-      ? `Every free still is too small for a ${canvas.width}×${canvas.height} picture. Give one ${likelyCapability(canvas)} capacity in Preconfig ▸ Images.`
-      : 'No still is free. Empty one, or give the switcher more in Preconfig ▸ Images.'
-  };
-}
+export { chooseStill };
 
-/**
- * A library slot for the picture: ours if it still holds our file, else the
- * highest clean empty one. `empty` is `core/stills.js` `emptySlots(store)`:
- * an empty slot a still points at shows on that still the moment the UMD
- * lands in it, so one is only taken with `assigned` (the panel's "Use an
- * empty slot a still points at"), and only once no clean slot is left. Our
- * own slot, emptied since, is ours again unless some other still has come to
- * point at it. `stills` in the answer names whoever will show the UMD besides
- * our own still. Without `empty` every empty slot counts as clean.
- */
-export function chooseSlot(library, id, placed = null, { empty = null, assigned = false } = {}) {
-  const slots = empty || library.slots.filter((s) => s.free).map((s) => ({ slot: s.slot, stills: [] }));
-  const pointing = (slot) => (slots.find((e) => e.slot === slot) || { stills: [] }).stills;
-  if (placed) {
-    const ours = library.slots.find((s) => s.slot === placed.slot);
-    if (ours && !ours.free && ours.fileName === fileName(id)) return { slot: ours.slot, reused: true, wasFree: false, stills: [] };
-    if (ours && ours.free) {
-      const others = pointing(ours.slot).filter((s) => s.key !== String(placed.still));
-      if (!others.length || assigned) return { slot: ours.slot, reused: false, wasFree: true, stills: others };
-    }
-  }
-  const clean = slots.filter((e) => !e.stills.length);
-  if (clean.length) return { slot: clean[clean.length - 1].slot, reused: false, wasFree: true, stills: [] };
-  const pick = assigned ? orderSlots(slots, { assigned: true })[0] : null;
-  if (pick) return { slot: pick.slot, reused: false, wasFree: true, stills: pick.stills };
-  return {
-    slot: null,
-    reason: slots.length
-      ? `Every empty library slot has a still pointing at it, which would show the UMD as well. Tick “Use an empty slot a still points at”, or delete an image on the Image Library page.`
-      : 'The image library is full. Delete an image on the Image Library page.'
-  };
+/** A library slot for the UMD — `core/still-layer.js` `chooseSlot`, known again by `fileName(id)`. */
+export function chooseSlot(library, id, placed = null, opts = {}) {
+  return chooseSlotFor(library, fileName(id), placed, { ...opts, what: 'the UMD' });
 }

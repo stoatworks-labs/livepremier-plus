@@ -552,11 +552,12 @@ export function installRouterSurfaces({ session, enabled = () => true, doc = doc
     if (disconnect && observer) { observer.disconnect(); observer = null; }
   }
 
-  /* A click on one of the vendor's own tabs closes ours. Capture phase, so it
-     is noticed before React navigates and redraws the strip. */
+  /* A click on any other tab in the strip — one of the vendor's, or another
+     plugin's, such as Test Card's — closes ours. Capture phase, so it is
+     noticed before React navigates and redraws the strip. */
   const onClick = (ev) => {
-    const a = ev.target.closest && ev.target.closest('.ui.tabular.menu a[href]');
-    if (a && tabOpen) { tabOpen = false; mountTab(); }
+    const a = ev.target.closest && ev.target.closest('.ui.tabular.menu a');
+    if (a && !a.hasAttribute(MARK) && tabOpen) { tabOpen = false; mountTab(); }
   };
   doc.addEventListener('click', onClick, true);
 

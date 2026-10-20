@@ -78,6 +78,19 @@ export function readScreens(store) {
     .map((d) => ({ id: d.id, label: d.label || '', canvas: { width: d.canvas.width, height: d.canvas.height } }));
 }
 
+/**
+ * Screens AND auxiliaries in service, LivePremier only, each with its kind
+ * and canvas. An aux has outputs on a canvas just as a screen does
+ * (`usedInScreenAux` names either); it only lacks background sets, which is
+ * why the Background Slicer reads screens alone and Test Card reads both.
+ */
+export function readCanvases(store) {
+  if (!store || !store.ready || dialectFor(store) !== NLC) return [];
+  return listDestinations(store)
+    .filter((d) => d.kind === 'screen' || d.kind === 'aux')
+    .map((d) => ({ id: d.id, kind: d.kind, label: d.label || '', canvas: { width: d.canvas.width, height: d.canvas.height } }));
+}
+
 const groupShape = (group) => {
   const m = /^(\d)X(\d)$/.exec(String(group || '1X1'));
   return m ? { cols: Number(m[1]), rows: Number(m[2]) } : { cols: 1, rows: 1 };
@@ -166,7 +179,17 @@ export function regionOf({ rect, box, origin, rotation = 0, ratio = { h: 1, v: 1
  */
 export function screenTopology(store, screenId) {
   const screen = readScreens(store).find((s) => s.id === screenId);
-  if (!screen) return null;
+  return screen ? topologyOf(store, screen) : null;
+}
+
+/** The same for a screen or an auxiliary (`readCanvases`): Test Card draws for both. */
+export function canvasTopology(store, id) {
+  const dest = readCanvases(store).find((s) => s.id === id);
+  return dest ? topologyOf(store, dest) : null;
+}
+
+function topologyOf(store, screen) {
+  const screenId = screen.id;
   const outs = screenOutputs(store, screenId);
   const outputs = [];
   const skipped = [];
