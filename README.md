@@ -167,8 +167,8 @@ bolted on afterwards:
   USB, 2026-09-25.
 - **Pixelhue panel** *(preview)*: a Pixelhue U5, U5 Pro or U5 mini drives the switcher from a
   model of it rather than from a key map, and **Pixelhue Mapping** draws the console so you can
-  give every key, fader and encoder a different job. It hasn't been run against a real console
-  yet.
+  give every key, fader and encoder a different job. It hasn't worked on a real console yet: the
+  first U5 mini to try it was refused at the wrong address, which 0.18.1 fixes.
 - **Barco EC panel** *(preview, off by default)*: a Barco EC-30, EC-40 or EC-50 plugged into the
   machine this app runs on drives the switcher with no browser open. Screens on the destination
   keys, layers on the layer keys, inputs, stills or memories on the labelled rows, ALL TRANS, CUT
@@ -252,7 +252,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.0.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.18.1.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -352,6 +352,13 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.1 (2026-10-22).** A fix for the **Pixelhue panel** on a **U5 mini**. The first real
+> mini to try it (firmware V1.0.3) answered "upgrade refused with HTTP 200", because the panel
+> asked it for a U5's control socket, which a mini hasn't got. It now asks for the mini's own,
+> read from the mini's firmware. The panel card also says so when the console's socket opens and
+> no key report ever arrives, and a refused connection names the address it tried. That's from
+> the firmware; nobody has seen it working on a mini yet.
 >
 > **0.18.0 (2026-10-20).** New things, every one of them off until you switch it on. **Test
 > Card**: Test Card's patterns in a tab beside the switcher's own Pattern tab, on an output and on
@@ -1265,9 +1272,10 @@ what the operator meant (`select screen S2`, `put LIVE_2 on the selected layer`,
 carrying the identity this app published. So there's nothing to remap when a firmware moves a
 key.
 
-> ⚠️ **Preview: this hasn't been run against a console yet.** It was built from the consoles'
+> ⚠️ **Preview: this hasn't worked on a real console yet.** It was built from the consoles'
 > firmware and proved against the vendor's own control service running headless with no panel
-> attached. `docs/PIXELHUE.md` has the wire detail, how to rig one, and the list of what's still
+> attached. The first real one to try it, a U5 mini, refused the connection because it was asked
+> for a U5's address; 0.18.1 asks for the mini's own, and nothing past that has been seen on one. `docs/PIXELHUE.md` has the wire detail, how to rig one, and the list of what's still
 > unverified. Since 0.14.0 it's been driven key by key from PixelFlow's own virtual U5 against
 > the simulator; fade-to-black and freeze are sent on LivePremier, not yet on a Midra 4K.
 
