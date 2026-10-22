@@ -1646,6 +1646,15 @@ memories) and labels, lights and pages its own keys from that. What comes back i
 meant: *select screen S2*, *put input 2 on the selected layer*, *take*. So there's nothing to remap
 when a firmware moves a key.
 
+A **U5 mini** is the exception. Its bus keys are labelled by its own LCD app, which only knows how
+to talk to Pixelhue switchers, so this app draws them itself on the console's key grid (the one
+its built-in Companion uses): screens, the active screen's layers, inputs and memories, a row
+each, eight keys and that row's two page keys. A row only shows them once you've switched it to
+**Companion** with its area-switch key, the last key on the row. While this app is connected the
+grid is its, so the console's own Companion can't draw there. Nobody knows yet whether a mini
+sends this app TAKE and CUT at all. The card says **TAKE / CUT: not seen yet** until it does, and
+until then, take from the Web RCS.
+
 Everything else is mapped on **Pixelhue Mapping**, in the sidebar under Virtual RC400T, next to
 MIDI Mapping — or at the foot of the PLUS section on a Midra 4K or Alta 4K, which has no Virtual
 RC400T. It draws the console in the Virtual RC400T's look, with the buses showing what the

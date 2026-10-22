@@ -38,12 +38,17 @@ import { EventEmitter } from 'node:events';
 import { exchange, AWJ_PORT } from '../../server/awj.js';
 import { ConsoleSwitcher, sentDetail } from '../../server/console-switcher.js';
 import { UCenterLink } from './ucenter.js';
+import { GridLink, letGoNote } from './grid-link.js';
+import {
+  initialView as initialGridView, clampView, turnPage, gridCells, renderKey, pressIntent, pageMatches, wirePage,
+  ROW_NAMES, LAYERS as LAYER_ROW, LONG_PRESS_MS,
+} from './grid.js';
 import { commandsFor } from '../../src/core/commands.js';
 import { toAwj } from '../../src/core/paths.js';
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName, CONSOLE_MODELS,
   linkFor, silentNote, MIDI_BINDINGS, readMidi, midiWrite, layerParam,
-  stepLayer, companionLocation, backupRequest, SILENT_KEY_MODES,
+  stepLayer, companionLocation, backupRequest, SILENT_KEY_MODES, COMMAND, TAKE_CUT_MODES, takeCutNote, consoleModel,
 } from './core.js';
 import {
   mappedIntent, controlForKeyMode, controlById, actionOf, intentOf, resolvedMap,
@@ -106,6 +111,21 @@ export class PixelhueSupervisor extends EventEmitter {
   #keys = new Map();
   #lastPress = null;
   #repeatAt = new Map();
+  /* A U5 mini's key grid (`grid.js`, `grid-link.js`): the link, which page each
+     row shows and whether SAVE TO / DEL is armed, what each key was last drawn
+     as, and which keys are down. Null on a U5 or U5 Pro, which label their own. */
+  #grid = null;
+  #gridView = initialGridView();
+  #gridDrawn = new Map();
+  #gridDown = new Map();
+  #drawing = false;
+  #drawAgain = false;
+  #gridError = null;
+  /* Whether this link has ever reported TAKE (531) and CUT (532). On a mini
+     nobody knows yet whether it will (`takeCutNote`). */
+  #seen = { take: false, cut: false };
+  #takeCutKeys = new Map();
+  #takeCutSaid = false;
 
   /**
    * @param {object} opts
@@ -113,9 +133,14 @@ export class PixelhueSupervisor extends EventEmitter {
    */
   constructor({
     deviceHost = () => null, awjPort = AWJ_PORT, log = () => {}, companion = () => null, settings = null,
+    consolePort = null, grid = {},
   } = {}) {
     super();
     this.deviceHost = deviceHost;
+    /* For tests: the console's control port instead of the model's, and the
+       key grid's link options (`port`, `reconnectMs`…) — as `awjPort` is. */
+    this.consolePort = consolePort;
+    this.gridOptions = grid;
     /* The Companion plugin's service, asked for per use: it may be switched
        on or off under a running panel. */
     this.companion = companion;
@@ -151,6 +176,7 @@ export class PixelhueSupervisor extends EventEmitter {
         /* Port, socket path and client type are the model's: a mini is not
            the same service as a U5, and does not answer the U5's path. */
         ...linkFor(settings.pixelhueModel),
+        ...(this.consolePort ? { port: this.consolePort } : {}),
       }
       : null;
 
@@ -160,12 +186,19 @@ export class PixelhueSupervisor extends EventEmitter {
     if (same) { this.#config = want; return this.describe(); }
 
     if (this.#link) { await this.#link.stop(); this.#link = null; }
+    if (this.#grid) { await this.#grid.stop(); this.#grid = null; }
     this.#config = want;
     this.selection.reset();
     this.#sourceKind = 'LIVE';
     this.#locked = false;
     this.#keys = new Map();
     this.#lastPress = null;
+    this.#gridView = initialGridView();
+    this.#gridDrawn = new Map();
+    this.#gridDown = new Map();
+    this.#seen = { take: false, cut: false };
+    this.#takeCutKeys = new Map();
+    this.#takeCutSaid = false;
     if (!want) { this.#note({ kind: 'stopped' }); return this.describe(); }
 
     const link = new UCenterLink({
@@ -185,17 +218,51 @@ export class PixelhueSupervisor extends EventEmitter {
     link.on('keystate', (items) => {
       this.#watchForWipe(items);
       this.#watchSilentKeys(items);
+      this.#watchTakeCut(items);
       this.#mirrorKeys(items);
     });
     link.on('tbar', (report) => this.#onTbar(report));
     link.on('midi', (report) => this.#onMidi(report));
     link.start();
     this.#note({ kind: 'starting', host: want.host, port: want.port, model: want.model, url: link.wsUrl });
+    /* A mini's bus keys are its LCD app's, not its control service's: this app
+       draws them over the console's Companion surface instead (`grid.js`). */
+    if (consoleModel(want.model).grid) this.#startGrid(want.host);
     return this.describe();
+  }
+
+  #startGrid(host) {
+    const grid = new GridLink({ host, log: this.log, ...this.gridOptions });
+    this.#grid = grid;
+    this.#gridError = null;
+    grid.on('open', () => {
+      this.#gridError = null;
+      this.#gridDrawn = new Map();
+      this.#note({
+        kind: 'connected',
+        note: `drawing on the console's key grid (${grid.host}:${grid.port}) — switch each bus row to Companion with its `
+          + 'area-switch key to see it; this takes the grid from the console\'s own Companion until it is let go',
+      });
+      void this.#drawGrid();
+    });
+    grid.on('close', ({ byConsole }) => this.#note({
+      kind: 'disconnected',
+      note: byConsole ? 'the console closed the key grid connection' : 'the key grid connection dropped',
+    }));
+    grid.on('failure', (err) => {
+      /* Once per cause: a console that is off would otherwise fill the history every 3 s. */
+      if (err.message === this.#gridError) return;
+      this.#gridError = err.message;
+      this.#note({ kind: 'error', error: `key grid: ${err.message}` });
+    });
+    grid.on('letgo', (info) => this.#note({ kind: 'error', error: letGoNote(info) }));
+    grid.on('press', (key) => { void this.#onGridKey(key); });
+    grid.start();
   }
 
   async stop() {
     if (this.#link) { await this.#link.stop(); this.#link = null; }
+    if (this.#grid) { await this.#grid.stop(); this.#grid = null; }
     this.#config = null;
     this.selection.reset();
     clearTimeout(this.#republishTimer); this.#republishTimer = null;
@@ -236,9 +303,11 @@ export class PixelhueSupervisor extends EventEmitter {
     try {
       const facts = await this.readFacts();
       const model = this.#modelFrom(facts);
+      this.selection.restrict(model.screens.map((s) => s.uid));
+      /* The grid does not wait on the publish: a mini draws from it, not from the model. */
+      void this.#drawGrid();
       await this.#link.publish(model);
       this.#remember(model);
-      this.selection.restrict(model.screens.map((s) => s.uid));
       await this.#bindControls();
       this.#note({
         kind: 'published',
@@ -286,6 +355,22 @@ export class PixelhueSupervisor extends EventEmitter {
   async #onCommand(report) {
     const code = report && report.command;
     if (code) this.#lastCommandAt = Date.now();
+    if (code === COMMAND.take) this.#seen.take = true;
+    if (code === COMMAND.cut) this.#seen.cut = true;
+    /* On a U5 the console keeps SAVE TO and DEL itself and reports 400 / 403.
+       On a mini's key grid the memory keys are this app's, so it keeps them,
+       from the console's own report of the key — if a mini reports it. */
+    if (this.#grid && (code === COMMAND.presetSave || code === COMMAND.switchDel)) {
+      const which = code === COMMAND.presetSave ? 'save' : 'del';
+      this.#gridView = { ...this.#gridView, armed: this.#gridView.armed === which ? null : which };
+      const word = which === 'save' ? 'SAVE TO' : 'DEL';
+      this.#note({
+        kind: 'noted', command: nameOf(code), code,
+        note: this.#gridView.armed ? `${word} armed: the next memory key on the key grid ${which === 'save' ? 'stores' : 'deletes'}` : `${word} disarmed`,
+      });
+      void this.#drawGrid();
+      return;
+    }
     /* A function key goes through the mapping table (`mapping.js`); a bus
        key, a mode key and the rest are what the console says they are. */
     const mapped = mappedIntent(this.#current().pixelhueMap, code);
@@ -402,7 +487,9 @@ export class PixelhueSupervisor extends EventEmitter {
     });
 
     if (!writes.length) {
-      this.#note({ kind: 'noted', command: nameOf(code), code, note });
+      const picked = SELECTS.has(intent.kind) && selectionMoved
+        ? `selected ${this.selection.list.join(' ') || 'nothing'}, layer ${this.selection.layer}` : note;
+      this.#note({ kind: 'noted', command: nameOf(code), code, note: picked });
       if (selectionMoved) void this.#republish();
       return;
     }
@@ -602,13 +689,16 @@ export class PixelhueSupervisor extends EventEmitter {
     try {
       const json = await this.#link.keyMap(model.modelId);
       const keys = new Map();
+      const takeCut = new Map();
       for (const area of (json.data && json.data.areaList) || []) {
         for (const k of area.keyList || []) {
           const control = SILENT_KEY_MODES[k.keyMode] && controlForKeyMode(k.keyMode);
           if (control) keys.set(Number(k.keyCode), control.id);
+          if (TAKE_CUT_MODES[k.keyMode]) takeCut.set(Number(k.keyCode), TAKE_CUT_MODES[k.keyMode]);
         }
       }
       this.#silentKeys = keys;
+      this.#takeCutKeys = takeCut;
     } catch (err) {
       this.#note({ kind: 'error', error: `reading the console's key map: ${err.message}` });
     }
@@ -627,6 +717,30 @@ export class PixelhueSupervisor extends EventEmitter {
       const action = actionOf(this.#current().pixelhueMap, control);
       const intent = intentOf(action);
       if (intent) void this.#perform({ ...intent, control: id, mapping: action }, control.label);
+    }, SILENT_KEY_WAIT_MS).unref?.();
+  }
+
+  /**
+   * TAKE or CUT pressed on the console with no take or cut reported after it.
+   * On a U5 that never happens. On a mini it is the one way to know, rather
+   * than guess, that the console kept the key to itself: its LCD app runs TAKE
+   * and CUT against a Pixelhue switcher it is bound to (`docs/PIXELHUE.md`).
+   * Said once per press, in words, and nothing is sent.
+   */
+  #watchTakeCut(items) {
+    if (!Array.isArray(items) || items.length !== 1 || !this.#takeCutKeys.size) return;
+    const { key, state } = items[0] || {};
+    const which = this.#takeCutKeys.get(Number(key));
+    if (!which || (state !== 0 && state !== 1)) return;
+    if (state === 0) { this.#keyDownAt.set(key, Date.now()); return; }
+    const downAt = this.#keyDownAt.get(key) || Date.now();
+    setTimeout(() => {
+      if (this.#lastCommandAt >= downAt) return;
+      this.#note({
+        kind: 'noted', command: which, code: which,
+        note: `${which.toUpperCase()} pressed on the console (key ${key}), but the console reported no ${which} command `
+          + `(${which === 'take' ? 531 : 532}) to this app, so nothing was sent to the switcher. ${takeCutNote(this.#config && this.#config.model)}`,
+      });
     }, SILENT_KEY_WAIT_MS).unref?.();
   }
 
@@ -718,6 +832,98 @@ export class PixelhueSupervisor extends EventEmitter {
     this.emit('activity', null);
   }
 
+  /* ---------------------------------------------------- a mini's key grid */
+
+  #gridCtx(tally = null) {
+    return {
+      facts: this.#facts, selection: this.selection, view: this.#gridView, sourceKind: this.#sourceKind, tally,
+    };
+  }
+
+  /**
+   * Draw what changed on a mini's key grid. One pass at a time and the newest
+   * wins, as the EC panel paints. The input row's tally is read for the active
+   * screen's selected layer on each pass — a snapshot, like every lamp here.
+   */
+  async #drawGrid() {
+    const grid = this.#grid;
+    if (!grid || !grid.state.connected || !this.#facts) return;
+    if (this.#drawing) { this.#drawAgain = true; return; }
+    this.#drawing = true;
+    try {
+      do {
+        this.#drawAgain = false;
+        const active = this.selection.list[this.selection.list.length - 1];
+        let tally = null;
+        if (active && this.switcher.dialect) {
+          try {
+            tally = (await this.switcher.tallyFor([active], this.selection.layer)).get(active) || null;
+          } catch { /* no tally is drawn as no tally */ }
+        }
+        const ctx = this.#gridCtx(tally);
+        this.#gridView = clampView(this.#gridView, ctx);
+        ctx.view = this.#gridView;
+        const changed = gridCells(ctx).filter((c) => this.#gridDrawn.get(`${c.row},${c.column}`) !== c.sig);
+        if (!changed.length) continue;
+        const keys = changed.map((c) => ({ row: c.row, column: c.column, page: c.page, png: renderKey(c.face) }));
+        if (!grid.draw(keys)) break;
+        for (const c of changed) this.#gridDrawn.set(`${c.row},${c.column}`, c.sig);
+      } while (this.#drawAgain);
+    } catch (err) {
+      this.#note({ kind: 'error', error: `drawing the key grid: ${err.message}` });
+    } finally {
+      this.#drawing = false;
+    }
+  }
+
+  /**
+   * A key on a mini's grid. Acted on at the release, which is when a long
+   * press can be told from a short one, the way the console's own screen
+   * keys are. What it does is `grid.js`'s; what it writes is `#perform`'s,
+   * exactly as a U5's bus key.
+   */
+  async #onGridKey({ row, column, page, pressed }) {
+    const at = `${row},${column}`;
+    if (pressed) { this.#gridDown.set(at, Date.now()); return; }
+    const downAt = this.#gridDown.get(at);
+    this.#gridDown.delete(at);
+    const held = downAt ? Date.now() - downAt : 0;
+    const name = `grid ${ROW_NAMES[row] || `row ${row}`} ${column + 1}`;
+    if (!this.#facts) { this.#note({ kind: 'noted', command: name, note: 'the switcher has not been read yet' }); return; }
+    if (!pageMatches(this.#gridView, row, page)) {
+      this.#note({
+        kind: 'noted', command: name,
+        note: `refused — the console says that key was on page ${page} of the ${ROW_NAMES[row]} row, which this app `
+          + `has since redrawn as page ${wirePage(this.#gridView, row)}; press it again`,
+      });
+      return;
+    }
+    const ctx = this.#gridCtx();
+    const intent = pressIntent(row, column, ctx, { long: held >= LONG_PRESS_MS });
+    if (intent.kind === 'none') { this.#note({ kind: 'noted', command: name, note: intent.why }); return; }
+    if (intent.kind === 'page') {
+      this.#gridView = turnPage(this.#gridView, row, intent.delta, ctx);
+      this.#note({ kind: 'noted', command: name, note: `${ROW_NAMES[row]} row on page ${wirePage(this.#gridView, row)}` });
+      void this.#drawGrid();
+      return;
+    }
+    if (intent.kind === 'store' || intent.kind === 'deletePreset') this.#gridView = { ...this.#gridView, armed: null };
+    const activeBefore = this.selection.list[this.selection.list.length - 1];
+    await this.#perform(intent, name);
+    const active = this.selection.list[this.selection.list.length - 1];
+    if (active !== activeBefore) {
+      /* A new active screen brings its own layers: their row starts on its first page. */
+      const pages = [...this.#gridView.pages];
+      pages[LAYER_ROW] = 0;
+      this.#gridView = { ...this.#gridView, pages };
+    }
+    if (active && !this.#takeCutSaid && !(this.#seen.take && this.#seen.cut)) {
+      this.#takeCutSaid = true;
+      this.#note({ kind: 'noted', command: name, note: takeCutNote(this.#config && this.#config.model) });
+    }
+    void this.#drawGrid();
+  }
+
   /* ------------------------------------------------------ a wiped console */
 
   /**
@@ -745,6 +951,7 @@ export class PixelhueSupervisor extends EventEmitter {
   /** Re-send the model so the panel's lamps agree with the selection we hold. */
   async #republish() {
     if (!this.#link || !this.#facts) return;
+    void this.#drawGrid();
     try {
       const model = this.#modelFrom(this.#facts);
       await this.#link.publish(model);
@@ -785,6 +992,14 @@ export class PixelhueSupervisor extends EventEmitter {
       map: resolvedMap(this.#current().pixelhueMap),
       keys: Object.fromEntries(this.#keys),
       lastPress: this.#lastPress,
+      /* A mini's key grid, and whether this console has ever reported TAKE / CUT. */
+      grid: this.#grid ? {
+        ...this.#grid.state,
+        letGo: this.#grid.state.letGo ? { ...this.#grid.state.letGo, note: letGoNote(this.#grid.state.letGo) } : null,
+        pages: this.#gridView.pages.map((p) => p + 1),
+        armed: this.#gridView.armed,
+      } : null,
+      takeCut: this.#grid ? { ...this.#seen, note: takeCutNote(this.#config && this.#config.model) } : null,
     };
   }
 
@@ -797,5 +1012,7 @@ function nameOf(code) {
 
 /* Intents after which the model must be read again, not just re-sent. */
 const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap', 'deletePreset']);
+/* Intents that only move the panel's selection. */
+const SELECTS = new Set(['select', 'activate', 'unselect', 'selectLayer']);
 
 export const portFor = (model) => linkFor(model).port;

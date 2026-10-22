@@ -2,11 +2,13 @@
   "upstream": "stoatworks-labs/pixelhue-bridge",
   "published": false,
   "path": "core",
-  "commit": "838984c7137b191ced275b0160a2cf16e4e0c9f4",
+  "commit": "d3e38f70ba71016bb624c1e2510d496238ecbf9b",
   "synced": "2026-10-22",
   "files": {
     "apollo.js": "91f41a92259a444d30cb15727cd69fa8762c719e614e30615de4a187e2506f37",
     "crc16.js": "468691c0addf4fd12b467b40d3e032abc027e364222a08ae7d033180e14efb4b",
-    "tags.js": "8d4a836358924f81e9293880a2e7c6549fd43366b1a6cc08258c892d102f9e01"
+    "tags.js": "8d4a836358924f81e9293880a2e7c6549fd43366b1a6cc08258c892d102f9e01",
+    "surface.js": "9bffc3f3f65eb0af0e08a1bb88561c44ec59b284a4acc862c25575c393f6b3d4",
+    "png.js": "6341c586f96ef2bc8dff2c70723d8a96373c5cf7dca20c322824e6399483acae"
   }
 }

@@ -181,18 +181,24 @@ function wrap(line, width, scale, broke = { any: false }) {
   return lines.length ? lines : [''];
 }
 
+/* The sizes an EC cell tries, largest first. */
+export const SCALES = Object.freeze([3, 2, 1]);
+
 /**
  * The lines, scale and leading a label is drawn at. Explicit newlines split;
  * leading is tried at the scale and then at none, because two lines at 2×
- * need all 32 rows. A label too long for four lines at 1× is cut.
+ * need all 32 rows. A label too long for four lines at 1× is cut. `scales`
+ * are the sizes to try, largest first; one need not be whole — a 72-pixel key
+ * fits five characters a line at 2× and seven at 1.5×.
  */
-export function layout(text, width = CELL_W, height = CELL_H) {
+export function layout(text, width = CELL_W, height = CELL_H, scales = SCALES) {
   const raw = normalise(text).split(/\r\n|\r|\n|\\n/);
+  const smallest = scales[scales.length - 1];
   let last = null;
-  for (const s of [3, 2, 1]) {
+  for (const s of scales) {
     const broke = { any: false };
     const lines = raw.flatMap((l) => wrap(l, width, s, broke));
-    if (broke.any && s > 1) { last = { lines, scale: s }; continue; }
+    if (broke.any && s > smallest) { last = { lines, scale: s }; continue; }
     for (const lead of [s, 0]) {
       if (lines.length * GLYPH_H * s + lead * (lines.length - 1) <= height) return { lines, scale: s, lead };
     }
@@ -202,33 +208,46 @@ export function layout(text, width = CELL_W, height = CELL_H) {
 }
 
 /**
+ * Draw a label into any box, `set(x, y)` once per lit pixel with (0, 0) the
+ * box's top left: laid out as `layout` says, each line centred and the block
+ * centred. The EC cell below is one box; a U5 mini's 72 × 72 key
+ * (`plugins/pixelhue/grid.js`) is another.
+ */
+export function paintText(text, width, height, set, scales = SCALES) {
+  const { lines, scale, lead } = layout(text, width, height, scales);
+  const step = GLYPH_H * scale + lead;
+  const block = lines.length * GLYPH_H * scale + lead * (lines.length - 1);
+  const top = Math.floor((height - block) / 2);
+  /* A glyph pixel covers [floor(at), floor(at + scale)) each way: exactly the
+     old square at a whole scale, nearest-neighbour at a fractional one. */
+  const fill = (x0, y0) => {
+    for (let x = Math.floor(x0); x < Math.floor(x0 + scale); x++) {
+      for (let y = Math.floor(y0); y < Math.floor(y0 + scale); y++) set(x, y);
+    }
+  };
+  lines.forEach((line, n) => {
+    let x = Math.floor((width - textWidth(line, scale)) / 2);
+    const base = top + n * step;
+    for (const ch of line) {
+      const cols = glyph(ch);
+      cols.forEach((bits, c) => {
+        for (let r = 0; r < GLYPH_H; r++) if (bits & (1 << r)) fill(x + c * scale, base + r * scale);
+      });
+      x += (cols.length + GAP) * scale;
+    }
+  });
+}
+
+/**
  * A label as a cell image: 256 bytes, 64 × 32, 1 bpp, bit 0 the leftmost
  * pixel, NOT skewed (`ec-panel.js`'s `placeCell` does that). `invert` draws it light
  * on dark the other way round, for a key that is lit as selected.
  */
 export function render(text, { invert = false } = {}) {
   const img = new Uint8Array(CELL_SIZE);
-  const set = (x, y) => {
+  paintText(text, CELL_W, CELL_H, (x, y) => {
     if (x < 0 || x >= CELL_W || y < 0 || y >= CELL_H) return;
     img[y * CELL_STRIDE + (x >> 3)] |= 1 << (x & 7);
-  };
-  const { lines, scale, lead } = layout(text);
-  const step = GLYPH_H * scale + lead;
-  const block = lines.length * GLYPH_H * scale + lead * (lines.length - 1);
-  const top = Math.floor((CELL_H - block) / 2);
-  lines.forEach((line, n) => {
-    let x = Math.floor((CELL_W - textWidth(line, scale)) / 2);
-    const base = top + n * step;
-    for (const ch of line) {
-      const cols = glyph(ch);
-      cols.forEach((bits, c) => {
-        for (let r = 0; r < GLYPH_H; r++) {
-          if (!(bits & (1 << r))) continue;
-          for (let dx = 0; dx < scale; dx++) for (let dy = 0; dy < scale; dy++) set(x + c * scale + dx, base + r * scale + dy);
-        }
-      });
-      x += (cols.length + GAP) * scale;
-    }
   });
   if (invert) for (let i = 0; i < img.length; i++) img[i] ^= 0xff;
   return img;

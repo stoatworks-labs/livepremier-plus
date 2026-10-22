@@ -20,13 +20,15 @@
  *   apollo.js    the NOVA frame codec — 22-byte header, two TLVs, CRC-16/X-25
  *   crc16.js     the CRC the header carries twice
  *   tags.js      message tags and the key-state constants
+ *   surface.js   the U5 mini's LCD grid on TCP 17100 — packets, the ping, a draw, a press
+ *   png.js       the PNG encoder a grid key is drawn with
  *
- * Only what is used. Upstream also has the per-console key tables, a PNG
- * encoder and the mini's TCP 17100 protocol, and all three are 17,000 lines of
- * data and code this preview never imports: publishing a model means the
- * console labels its own keys, so nothing here needs to know where key 65 is
- * or how to draw on it. They come across the day the raw-key route or the
- * mini's LCD grid needs them — add them to `WANTED` and re-run.
+ * Only what is used. Upstream also has the per-console key tables, 17,000
+ * lines of data this preview never imports: publishing a model means a U5
+ * labels its own keys, and the mini's grid is drawn by row and column, so
+ * nothing here needs to know where key 65 is. The grid's two files came across
+ * on 2026-10-22, when a real mini showed that its LCD app, not the control
+ * service, owns the key labels (`docs/PIXELHUE.md`).
  */
 
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
@@ -40,7 +42,7 @@ const destDir = join(here, '..', 'src', 'vendor', 'pixelhue');
 const upstreamRepo = resolve(process.argv[2] || join(here, '..', '..', 'pixelhue-bridge'));
 const upstreamDir = join(upstreamRepo, 'core');
 
-const WANTED = ['apollo.js', 'crc16.js', 'tags.js'];
+const WANTED = ['apollo.js', 'crc16.js', 'tags.js', 'surface.js', 'png.js'];
 
 let commit = 'unknown';
 let dirty = false;

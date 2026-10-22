@@ -7,7 +7,10 @@
 > a LivePremier simulator on the other end. Every key below was exercised that
 > way on 2026-09-23. That is still not a panel on a desk. The first real
 > console to try it, a U5 mini, refused the connection (2026-10-22, under
-> [Rigging one](#rigging-one)). Turn it on in rehearsal, not in a show.
+> [Rigging one](#rigging-one)); once it connected, its bus keys stayed blank,
+> because a mini's keys are not its control service's to label
+> ([A U5 mini's key grid](#a-u5-minis-key-grid)). Turn it on in rehearsal, not
+> in a show.
 
 A Pixelhue U5, U5 Pro or U5 mini is an **event controller**: a console built
 for Pixelhue's own switchers. This makes one drive an Analog Way LivePremier
@@ -24,7 +27,8 @@ is the wrong shape here. A U-series console is not a keyboard. It already knows
 what a screen, a layer, a source and a memory are, and its control service
 speaks a protocol about exactly those things.
 
-So this does not paint keys, and the buses have no key map:
+So this does not paint keys on a U5 or U5 Pro, and the buses have no key map
+(a U5 mini is the exception, and has [its own section](#a-u5-minis-key-grid)):
 
 ```text
   LivePremier Plus                                   the console
@@ -293,6 +297,123 @@ publishing over this app. Pick **U5** or **U5 Pro** with host `127.0.0.1`. The
 serving script lives with the reverse-engineering notes, in
 `pixelhue-re/tools/rig/virtual-panel.mjs`.
 
+## A U5 mini's key grid
+
+**2026-10-22, the second report from the same user's mini:** the panel
+connected, page up / down and the area-switch keys reached this app, and
+nothing else did. The LCD keys stayed blank, and TAKE, CUT and the bus keys
+did nothing. The firmware says why: on a mini, publishing a model is the wrong
+shape.
+
+**What the mini's LCD app owns** (firmware V1.0.3, `usr/process/oem/LCD/bin`,
+Qt, log tag `[MiniControl]`; read from its symbols, never run):
+
+- It is the controller, not the control service. It reads the hardware keys
+  and posts some of them to nvcontroller as `key/action`.
+- It binds to a **Pixelhue switcher** on the network (`RemoteDeviceBiz`:
+  login, node detail, binding), builds and publishes its own data-change, and
+  draws the bus keys from its own cache.
+- It runs **TAKE and CUT itself**, against that bound switcher
+  (`/unico/v1/screen/take`, `/screen/cut`; "no selected screens, could not
+  exec take").
+- So a model published to nvcontroller labels nothing, and with the screen
+  keys empty there is nothing to select. Only keys that do not depend on what
+  the console is showing reached this app: 549 / 550 (page) and 595 (area
+  switch).
+
+**What it offers instead is its Companion surface.** The LCD app serves a
+4 × 10 grid of 72 × 72 keys on **TCP 17100**, the one the console's built-in
+Companion draws on. Each of the four bus rows has a module, changed with the
+row's area-switch key (the last key of the row): Screen → Layer → Input →
+Preset → **Companion** → Screen. On a row switched to Companion the keys show
+what a 17100 client drew, and a press goes to that client, by row and column.
+
+So on a mini this app draws the grid itself, the way the built-in Companion
+would, beside the control-service socket (`plugins/pixelhue/grid.js`, what is
+drawn and what a press means; `grid-link.js`, the link):
+
+| row | shows | a press |
+|---|---|---|
+| 0 | the screens in service | selects; on a selected screen, makes it the **active** one; held 1.5 s, drops it |
+| 1 | the active screen's layers | selects the layer |
+| 2 | inputs (or stills or screens, as SIGNAL SOURCE chose) | puts it on the selected layer of every selected screen, in the buffer the panel edits |
+| 3 | memories | recalls to preview; with SAVE TO or DEL armed, stores or deletes |
+| columns 8 / 9 | that row's page, as `INPUT 1/2` | page back / page on, eight at a time |
+
+**Switch each row to Companion to see it.** The grid is drawn for all four
+rows as soon as the link opens, and the console keeps it, but a row shows it
+only once its area-switch key has taken it round to Companion — four presses
+for the screen row from where the console starts, one for the memory row. A
+row left on its own module is the LCD app's, and its keys do what the LCD app
+does with them. The card says so, and the history says when the grid
+connects.
+
+**The selection lives here**, as for a Barco EC panel. A grid press becomes the
+same intent a U5's bus key reports — select, activate, unselect, select layer,
+source, recall, store, delete — and goes through the same code, so what it
+writes, and what it refuses, is what a U5 press would. The keys draw that
+selection: a selected screen amber, the active one framed in white, FTB and
+FRZ as last read; the selected layer amber; on the input row, red for what is
+on the selected layer in program and green for what is in preview, read
+from the switcher after each change, like every other lamp here.
+
+**SAVE TO and DEL are the console's keys**, and a mini's memory row is this
+app's, so this app keeps them armed from the console's own report (520, 521).
+If a mini reports them, the memory row is framed red, the next memory key
+stores to its slot or deletes it, and an empty key past the last memory saves
+to the first free slot as `Memory <n>`. If it does not, the memory row only
+recalls.
+
+**TAKE and CUT: nobody knows yet whether a mini reports them.** If it does,
+531 and 532 take and cut the screens selected on the grid, exactly as on a U5
+— the stand-in proves that much. If it reports TAKE's key but no take, the
+history says *TAKE pressed on the console (key 65), but the console reported
+no take command (531) to this app, so nothing was sent to the switcher*. If it
+reports nothing at all, there is nothing to see, so the card says so up front:
+**TAKE / CUT: not seen yet**, with a note in plain words, said once in the
+history at the first selection on the grid. Take from the Web RCS until the
+card shows them reported. Nothing here guesses at a workaround: the LCD app
+takes against the switcher it is bound to, and nothing in the firmware offers
+a way round that.
+
+**One client at a time, and who wins.** The LCD app holds one 17100 client
+(`TcpServer::acceptThread`, disassembled):
+
+| holding the grid | connecting | result |
+|---|---|---|
+| nobody | anyone | taken |
+| the console itself (localhost) | the console itself | refused |
+| the console itself | a machine on the LAN | the old one is dropped; the new one takes it |
+| a machine on the LAN | the console itself | refused |
+| a machine on the LAN | another machine | the old one is dropped; the new one takes it |
+| a machine on the LAN | the same machine again | refused |
+
+Pixelhue's build of the built-in Companion keeps an enabled connection to
+`127.0.0.1:17100` and restarts it the moment it drops, so out of the box the
+built-in Companion holds the grid. **This app takes it** — anything that was
+on the Companion rows is replaced by this app's drawing while it is connected
+— and the built-in Companion's retries are refused until this app lets go,
+so the two do not fight. Another machine's Companion with the U5 mini surface,
+pixelhue-bridge or a second copy of this app would: each takes it back on
+every reconnect. So this app lets go after the console has closed its
+connection three times in a minute, and says so on the card. The same count
+catches the last row of the table: after a connection that dropped without
+saying goodbye, the console refuses a new one from the same machine until it
+notices the old one has gone, and nothing in its code says how long that is.
+Turn **Drive a Pixelhue console** off and on to try again.
+
+**What is unverified** — all of it, on a console. From the firmware but never
+under a thumb: that the rows are the four bus rows in this order; that a row
+shows the drawing only in Companion; that columns 8 and 9 are each row's page
+keys (inferred from the key map, not followed through the code — whichever key
+they are, the page is drawn there and turned there); that a press reports the
+page its row shows, which is how a press made while a row was being redrawn is
+refused rather than acted on; the client rules above. Not known at all:
+TAKE and CUT, what 595 carries, and how long a mini takes to notice a dead
+connection. The 72 × 72 labels are drawn with the EC panel's 5 × 8 font, at
+1.5× or 2× where a name fits; how they read on the mini's LCD is for the first
+person with one to say.
+
 ---
 
 ## Testing it on a console
@@ -367,6 +488,17 @@ did until 2026-10-22. It runs `3-hands` too, doing what each step asks with
 nobody at the desk. A pass against it proves the suite runs and nothing about
 a console: it is built from what has been seen of UCenter, and where nobody has
 seen what a key does, it does nothing.
+
+Its injected and thumbed bus keys still behave as a U5's UCenter does, because
+the suite drives them that way and nobody has seen what a mini's control
+service does with an injected bus key. The mini's own route is the key grid,
+`test/helpers/fake-mini-lcd.js`, which the stand-in serves on 17100 too: one
+client by the firmware's rules, drawing only on rows switched to Companion,
+`page` as the row's page, and a packet reader of its own rather than the
+vendored codec, so the two readings of the format check each other.
+`test/pixelhue-grid.test.js` drives it, with TAKE and CUT reported, reported as
+a key only, and not reported at all (`functionKeys`), since which a mini does
+is the open question.
 
 ---
 
@@ -445,10 +577,12 @@ worth doing.
 
 ## Known gaps
 
-- **Nothing after the socket has been seen on a U5 mini.** The one real mini
-  to try this refused the U5's socket path (2026-10-22). The mini's path is
-  now right by its firmware. Whether a type-5 socket hears its keys, and
-  everything in `1-link` onwards, is unknown until a mini runs it.
+- **Little after the socket has been seen on a U5 mini.** The one real mini
+  to try this refused the U5's socket path (2026-10-22); on the corrected path
+  it connected, and its page and area-switch keys reached this app. The key
+  grid drawn over 17100 is built from the firmware and has not met a mini.
+  Whether TAKE and CUT reach this app on one is the next thing to find out
+  ([A U5 mini's key grid](#a-u5-minis-key-grid)).
 
 - **FTB and freeze are LivePremier only.** The paths were recovered from the
   Web RCS bundle and proved on the 6.2.73 simulator; Midra 4K / Alta 4K have
@@ -485,8 +619,9 @@ worth doing.
 - **Layer names are `Layer <n>`.** The console shows the layer bus from the
   model; the names the Layer names plugin keeps live on the page side, not
   where this reads.
-- **The key displays are the console's own.** This publishes a model and the
-  console draws from it; there is no path here that pushes a picture. The one
-  the API offers takes a *filesystem path on the console*, not image bytes.
+- **A U5's and U5 Pro's key displays are the console's own.** This publishes a
+  model and the console draws from it; there is no path here that pushes a
+  picture. The one the API offers takes a *filesystem path on the console*,
+  not image bytes. A U5 mini's grid is the exception: it takes PNGs over 17100.
 - **Midra 4K / Alta 4K are untried.** The dialect makes the writes spellable
   and nothing here assumes LivePremier, but no Midra has been in the loop.

@@ -230,7 +230,12 @@ export default function activate(ctx) {
         readout('Commands', link ? String(link.commands) : '0'),
         readout('Selected', live.selection.destinations.join(' ') || 'nothing on the panel',
           { tone: live.selection.destinations.length ? null : 'tertiary' }),
-        readout('Editing', live.selection.buffer, { tone: live.selection.buffer === 'PROGRAM' ? 'warn' : null }))
+        readout('Editing', live.selection.buffer, { tone: live.selection.buffer === 'PROGRAM' ? 'warn' : null }),
+        live.grid ? readout('Key grid', live.grid.letGo ? 'let go'
+          : live.grid.connected ? `drawing on ${live.grid.host}:${live.grid.port}` : 'not connected',
+        { tone: live.grid.letGo ? 'warn' : live.grid.connected ? null : 'tertiary' }) : null,
+        live.takeCut ? readout('TAKE / CUT', takeCutSeen(live.takeCut),
+          { tone: live.takeCut.take && live.takeCut.cut ? null : 'warn' }) : null)
       : null;
 
     const notes = [];
@@ -248,7 +253,17 @@ export default function activate(ctx) {
     }
     if (link && link.lastError) notes.push(note('warn', link.lastError));
     if (link && link.connected && live.silent) notes.push(note('warn', live.silent));
-    if (on) {
+    if (live && live.grid && live.grid.letGo) notes.push(note('warn', live.grid.letGo.note));
+    if (on && live && live.takeCut && !(live.takeCut.take && live.takeCut.cut)) notes.push(note('warn', live.takeCut.note));
+    if (on && model && model.grid) {
+      notes.push(note('info',
+        'A U5 mini labels its bus keys from its own LCD app, not from what this app tells it, so '
+        + 'this app draws them itself on the console’s key grid: screens, the active screen’s layers, '
+        + 'inputs and memories, a row each, eight keys and that row’s two page keys. A row shows them '
+        + 'only once it is switched to Companion with its area-switch key, the last key of the row. '
+        + 'While this app is connected, the console’s own Companion cannot draw on the grid. '
+        + 'Selection lives in this app; docs/PIXELHUE.md has the rest.'));
+    } else if (on) {
       notes.push(note('info',
         'The console is handed a model of this switcher — its screens, inputs and memories — '
         + 'and labels, lights and pages its own keys from it, so the buses need no mapping. '
@@ -306,6 +321,14 @@ export default function activate(ctx) {
   }
 
   ctx.ui.settingsSection({ id: 'pixelhue', order: 10, render });
+
+  /* Whether this console has ever reported TAKE and CUT, in words. */
+  function takeCutSeen(t) {
+    if (t.take && t.cut) return 'both reported';
+    if (t.take) return 'TAKE reported, CUT not yet';
+    if (t.cut) return 'CUT reported, TAKE not yet';
+    return 'not seen yet';
+  }
 
   /* The console drawn, and what every control does on it — beside MIDI
      Mapping under Virtual RC400T, for the reason MIDI Mapping is there.

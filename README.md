@@ -1272,6 +1272,12 @@ what the operator meant (`select screen S2`, `put LIVE_2 on the selected layer`,
 carrying the identity this app published. So there's nothing to remap when a firmware moves a
 key.
 
+A **U5 mini** is the exception: its own LCD app labels its bus keys, and only for Pixelhue
+switchers. So on a mini this app draws them itself, over the console's Companion key grid (TCP
+17100), one row per bus, and a row shows them once it's switched to Companion with its
+area-switch key. Whether a mini sends TAKE and CUT to this app at all is still unknown, and the
+card says so until it sees them.
+
 > ⚠️ **Preview: this hasn't worked on a real console yet.** It was built from the consoles'
 > firmware and proved against the vendor's own control service running headless with no panel
 > attached. The first real one to try it, a U5 mini, refused the connection because it was asked

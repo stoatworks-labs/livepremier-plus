@@ -36,6 +36,17 @@
  * `selected` / `activeRegion` flags, the way `core.js` says the console does,
  * and acts on the RELEASE, which is when a long press can be told from a short
  * one. It pages its buses eight keys at a time.
+ *
+ * ⚠️ **That is a U5's UCenter, and a mini's bus keys do not work that way.**
+ * On a real mini the LCD app owns them (firmware V1.0.3, `docs/PIXELHUE.md`):
+ * a thumb on a bus key goes to the row's own module, bound to a Pixelhue
+ * switcher, and reaches this app only on a row switched to Companion, over
+ * the key grid. `key/action` injection and `thumb()` below keep the U5's
+ * behaviour, because the console suite drives them and nobody has seen what a
+ * mini's control service does with an injected bus key. The mini's own route
+ * is `grid: true` — `this.lcd`, `fake-mini-lcd.js` — and `pressFunction()`
+ * for TAKE, CUT and the rest, whose fate on a mini is the open question
+ * (`functionKeys`).
  */
 
 import http from 'node:http';
@@ -45,6 +56,7 @@ import { acceptFor } from '../../plugins/pixelhue/ws-client.js';
 import { encodeFrame } from '../../src/vendor/pixelhue/apollo.js';
 import { TAGS } from '../../src/vendor/pixelhue/tags.js';
 import { TBAR_REPORT } from '../../plugins/pixelhue/ucenter.js';
+import { StandInLcd } from './fake-mini-lcd.js';
 
 export const MINI_KEYS = JSON.parse(readFileSync(new URL('../fixtures/pixelhue-u5mini-keys.json', import.meta.url)));
 
@@ -65,11 +77,27 @@ const FUNCTION = {
 const BUS_MODES = { 100: 1, 101: 4, 102: 3, 103: 5 };
 
 export class StandInConsole {
-  constructor({ keyMap = MINI_KEYS, port = 8088, host = '127.0.0.1', wsPath = MINI_WS_PATH } = {}) {
+  /**
+   * @param {object} [o]
+   * @param {boolean} [o.grid]         also serve the mini's key grid (`this.lcd`) on `gridPort`
+   * @param {'command'|'keys'|'nothing'} [o.functionKeys]
+   *        what a thumb on TAKE, CUT or another function key sends this app's
+   *        socket on a mini — a raw key state and its command, as a U5 does;
+   *        the raw key state alone; or nothing at all. Nobody knows which a
+   *        real mini does yet, so a test says which it is trying.
+   */
+  constructor({
+    keyMap = MINI_KEYS, port = 8088, host = '127.0.0.1', wsPath = MINI_WS_PATH,
+    grid = false, gridPort = 17100, functionKeys = 'command',
+  } = {}) {
     this.keyMap = keyMap;
     this.port = port;
     this.host = host;
     this.wsPath = wsPath;
+    this.grid = grid;
+    this.gridPort = gridPort;
+    this.functionKeys = functionKeys;
+    this.lcd = null;
     /* Upgrades turned away, `{path, status}`, so a test can say which. */
     this.refused = [];
     this.model = { screens: [], layers: [], inputs: [], presets: [] };
@@ -101,10 +129,21 @@ export class StandInConsole {
     });
     /* `port: 0` asks for any free port; this is the one it got. */
     this.port = this.server.address().port;
+    if (this.grid) {
+      try {
+        this.lcd = await new StandInLcd({
+          port: this.gridPort, host: this.host, report: (code) => this.#command(code),
+        }).start();
+      } catch (err) {
+        await new Promise((resolve) => this.server.close(() => resolve()));
+        throw err;
+      }
+    }
     return this;
   }
 
   async stop() {
+    if (this.lcd) await this.lcd.stop();
     for (const s of this.sockets) s.destroy();
     this.sockets.clear();
     if (this.server) await new Promise((resolve) => this.server.close(() => resolve()));
@@ -319,6 +358,19 @@ export class StandInConsole {
     this.#key(key, 0);
     await new Promise((r) => setTimeout(r, hold));
     this.#key(key, 1);
+  }
+
+  /**
+   * A thumb on a function key of a mini — TAKE (65), CUT (64) and the rest —
+   * sending this app's socket what `functionKeys` says. With `'command'` it is
+   * `thumb()`.
+   */
+  async pressFunction(key, hold = 80) {
+    if (this.functionKeys === 'command') { await this.thumb(key, hold); return; }
+    if (this.functionKeys === 'nothing') { await new Promise((r) => setTimeout(r, hold)); return; }
+    this.#send(TAGS.KEY_STATE, [{ key, state: 0 }]);
+    await new Promise((r) => setTimeout(r, hold));
+    this.#send(TAGS.KEY_STATE, [{ key, state: 1 }]);
   }
 
   /** What the bus key at `key` reads now, as the console would draw it. */

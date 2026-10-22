@@ -55,6 +55,7 @@ import { join } from 'node:path';
 import { SIM, SKIP as SIM_SKIP, ROOT, startApp, sleep } from '../sim/harness.js';
 import { UCenterLink } from '../../plugins/pixelhue/ucenter.js';
 import { CONSOLE_MODELS, businessModel, linkFor } from '../../plugins/pixelhue/core.js';
+import { SURFACE_PORT } from '../../src/vendor/pixelhue/surface.js';
 import { PixelhueSupervisor } from '../../plugins/pixelhue/supervisor.js';
 import { StandInConsole } from '../helpers/fake-ucenter.js';
 
@@ -371,9 +372,10 @@ export async function assertQuiet(witness, labels, { ms = 4000 } = {}) {
 export async function openConsole() {
   let standIn = null;
   if (STAND_IN) {
-    try { standIn = await new StandInConsole({ port: PORT, host: HOST }).start(); }
+    /* With its key grid on 17100, where the app dials a mini's (`grid-link.js`). */
+    try { standIn = await new StandInConsole({ port: PORT, host: HOST, grid: true, gridPort: SURFACE_PORT }).start(); }
     catch (err) {
-      throw new Error(`the stand-in console needs ${HOST}:${PORT}, which is taken (${err.code || err.message})`);
+      throw new Error(`the stand-in console needs ${HOST}:${PORT} and ${HOST}:${SURFACE_PORT}, and one is taken (${err.code || err.message})`);
     }
   }
   const witness = await Witness.open({ host: HOST, ...LINK });

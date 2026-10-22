@@ -69,6 +69,8 @@ export const CONSOLE_MODELS = Object.freeze([
     /* liblcdcommchannelimpl.so, firmware V1.0.3: `/unico/v1/ws?client-type=11`. */
     ownClientType: 11,
     busWidth: 8, overLan: true, modelId: 29711,
+    /* Its bus keys are its LCD app's: this app draws them on the 17100 grid (`grid.js`). */
+    grid: true,
   },
   {
     id: 'u5pro', label: 'Pixelhue U5 Pro', port: 19999, wsPath: '/unico/v1/ucenter/ws', clientType: 5,
@@ -107,6 +109,25 @@ export function silentNote(id, { after, frames = 0, clientType } = {}) {
       + `the console's own LCD app connects as client-type=${m.ownClientType}.`
     : 'UCenter has always sent its whole key state the moment a socket opened, so something on this link is wrong.';
   return `The console's socket is open, but no key report has come in the ${s} s since (${heard}). ${why}`;
+}
+
+/**
+ * The key modes of TAKE and CUT (`key_function.xml`, the same on every
+ * model), so a press of either can be told apart in the raw key reports.
+ */
+export const TAKE_CUT_MODES = Object.freeze({ 154: 'take', 153: 'cut' });
+
+/**
+ * What the panel says about TAKE and CUT on a console where nobody knows yet
+ * whether they reach this app — a U5 mini, whose LCD app runs both itself
+ * against a Pixelhue switcher it is bound to. Plain words, for someone with a
+ * console in front of them; empty for a model whose TAKE has been seen.
+ */
+export function takeCutNote(id) {
+  if (!consoleModel(id).grid) return '';
+  return 'On a U5 mini nobody knows yet whether TAKE and CUT reach this app: the console\'s own LCD app runs them '
+    + 'against a Pixelhue switcher it is bound to. When they do, they take the screens selected here. When they '
+    + 'do not, this history shows no take or cut — take from the Web RCS instead.';
 }
 
 /** Unico's `AreaType`. The console's four buses, plus the device area. */

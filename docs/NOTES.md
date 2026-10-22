@@ -3142,3 +3142,41 @@ ordinary page.
   started without the simulator app's own Start Session button. Nothing has been run on a mini since.
   Whether a type-5 socket hears its keys is the next thing one has to answer. A point release so the
   user can try it is Allan's call.
+
+## The U5 mini's key grid (2026-10-22, firmware and offline tests only)
+
+The same user's mini, on 0.18.1, connected. Page up / down and the area-switch keys reached the
+app; the LCD keys stayed blank and TAKE, CUT and the bus keys did nothing. The firmware says the
+mini's LCD app, not its control service, owns the bus keys: it binds to a Pixelhue switcher, draws
+from its own cache and runs TAKE / CUT against that switcher. Publishing a model to nvcontroller
+labels nothing on a mini.
+
+- **From the firmware** (V1.0.3, read from the LCD libraries' symbols; never run): the 17100
+  Companion surface draws only on rows switched to Companion with the area-switch key; `page` is
+  the row's page (a draw moves the row, a press reports it); one client, where a LAN client takes
+  the grid from localhost and from another LAN address, and a second connection from the holder's
+  address or from localhost is closed; Pixelhue's built-in Companion keeps an enabled connection
+  to 127.0.0.1:17100 and restarts it when dropped. `docs/PIXELHUE.md` ("A U5 mini's key grid") and
+  pixelhue-bridge's `docs/protocols.md` have the detail and the function names.
+- **Built:** on a mini the plugin opens the grid beside the control-service socket
+  (`grid-link.js`) and draws four rows from the same facts it publishes (`grid.js`): screens, the
+  active screen's layers, inputs with tally, memories; columns 8 / 9 page the row. A press becomes
+  the U5's bus intent and goes through `#perform`, so the selection lives in the app. SAVE TO / DEL
+  arm from 520 / 521 if a mini reports them. The link lets go after the console closes it three
+  times in a minute (another LAN client, or the console refusing this machine while it still holds
+  an older connection) and says why. Labels use the EC panel's font, with a 1.5× step added for
+  72-pixel keys.
+- **TAKE / CUT:** if 531 / 532 arrive they take the grid's selection (proved against the stand-in).
+  A key report for TAKE with no 531 after it is said in the history; with nothing at all, the card
+  shows **TAKE / CUT: not seen yet** and a plain-words note. No workaround is guessed at.
+- **The stand-in:** `test/helpers/fake-mini-lcd.js` follows the firmware's rules, not this code's,
+  and reads the wire with its own codec. `functionKeys` makes it report TAKE / CUT as a U5 does, as
+  a key only, or not at all, since which a mini does is the open question.
+- **Found on the way:** PixelFlow for macOS runs a real UCenter as root on 127.0.0.1:19999 on the
+  Mac this was built on, and `lsof` without sudo does not show it. A first draft of the "a U5 has no grid"
+  test dialled it; the test now uses a closed port.
+- **Tested:** `npm test` 1391 tests, 1381 pass, 10 skip (other repos' vendor checkouts), with the
+  Pixelhue drift check run against the bridge commit. pixelhue-bridge `npm test` 28 pass.
+- **Not done:** nothing on a mini, nothing on a simulator. The first person with one will say
+  whether the rows, columns 8 / 9, the page rule and the labels are what the firmware suggests,
+  and whether TAKE and CUT arrive. A point release is Allan's call.
