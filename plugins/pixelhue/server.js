@@ -17,7 +17,7 @@
  *
  * The plugin switch says whether any of this exists; the plugin's own setting,
  * "Drive a Pixelhue console" (`pixelhueEnabled`), says whether it dials the
- * console while it does. The second starts off: this has never been run against
+ * console while it does. The second starts off: this has never worked against
  * a console, and it writes to a switcher.
  */
 

@@ -524,13 +524,14 @@ The identity round-trips: a screen published as `uid: "S1"` comes back as
 and why `vendor/surface/`'s binding engine — right for a MIDI controller — is
 the wrong shape for this.
 
-⚠️ **It has never been run against a console.** It was built from the firmware
+⚠️ **It has never worked against a console.** It was built from the firmware
 and proved against a real UCenter running headless in a VM, which is enough to
-pin the protocol and not enough to pin the hardware. It is off by default, the
-settings page says preview in as many words, and `docs/PIXELHUE.md` lists what
-is unverified.
+pin the protocol and not enough to pin the hardware. The first real console, a
+user's U5 mini, refused its socket on 2026-10-22 (below). It is off by default,
+the settings page says preview in as many words, and `docs/PIXELHUE.md` lists
+what is unverified.
 
-Four things are load-bearing:
+Five things are load-bearing:
 
 - ⚠️ **`index` is the key position and it is 1-based.** Publishing from zero
   silently drops the first object of every bus — no error, no complaint, a
@@ -549,6 +550,15 @@ Four things are load-bearing:
   pixelhue-bridge's `core/`, and its `tags.js` still describes tag
   `0x00101307` as business data — it is the *command* report, and the
   correction belongs upstream rather than in a vendored file.
+- ⚠️ **The socket's path is the model's, and a mini's is not a U5's.** A U5 /
+  U5 Pro runs UCenter, at `/unico/v1/ucenter/ws`; a U5 mini runs
+  `nvcontroller`, at `/unico/v1/ws`, and its binary has no `ucenter/ws` at all.
+  Both used the U5's until 2026-10-22, when a real mini answered it with an
+  ordinary HTTP 200 — and the stand-in had served the same wrong path, so no
+  test noticed (the GUID typo in `ws-client.js` again). `CONSOLE_MODELS` holds
+  `wsPath` and `clientType`; `test/pixelhue.test.js` pins the mini's URL to
+  the firmware. Client type 5 on a mini is unproven (its own LCD app uses 11),
+  so an open socket with no key report in 10 s says so on the card.
 
 ### A Barco EC panel (`plugins/barco-ec/`) — **preview**
 
@@ -2515,7 +2525,9 @@ keeps every rule above, plus four:
 - **The stand-in proves the suite runs, nothing more.**
   `LPP_CONSOLE=stand-in` is `test/helpers/fake-ucenter.js` on 127.0.0.1:8088.
   Never quote a pass against it as evidence about a console, and never teach
-  it a behaviour nobody has seen.
+  it a behaviour nobody has seen. It serves the mini's socket path only and
+  answers the U5's with the 200 a real mini gave: a stand-in that shares the
+  app's mistake hid the wrong path until a user's mini found it.
 
 For the panels themselves, `tools/harness.html` — see the README. It proxies the
 vendor stylesheet from a named device so the panels are judged in the real

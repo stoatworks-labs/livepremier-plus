@@ -46,14 +46,68 @@ export { writesFor, tbarWrites, stepLayer, Selection } from '../../src/core/cons
  * 8088 on the LAN, so it is driven from wherever this app already runs, with
  * nothing installed on the console. That difference decides how a show is
  * rigged, and it is the reason the mini is the model to try first.
+ *
+ * ⚠️ Nor is the socket's path, because it is not the same service. A U5 / U5
+ * Pro runs UCenter (`ucenter_win`), which serves `/unico/v1/ucenter/ws`. A U5
+ * mini runs `nvcontroller`, whose binary has no `ucenter/ws` in it at all: it
+ * serves `/unico/v1/ws`, which is where the mini's own LCD app connects. Until
+ * 2026-10-22 both models dialled the U5's path, the stand-in served it too,
+ * and the first real mini answered it with an ordinary HTTP 200. The REST
+ * calls are under `/unico/v1/ucenter/video-station/` on both.
+ *
+ * `clientType` is what this app says it is on that socket. 5 is what a U5's
+ * on-screen keyboard uses, and a type-5 socket was seen getting key reports
+ * from a U5's UCenter. On a mini it is a guess: `ownClientType` is what the
+ * console's own software connects as there, and the panel says so out loud
+ * if a type-5 socket opens and no key report ever arrives (`silentNote`).
  */
 export const CONSOLE_MODELS = Object.freeze([
   /* `modelId` is the console's own (Unico's deviceModel): it is how its key
      map is asked for, `key/active-custom?deviceModel=`. */
-  { id: 'u5mini', label: 'Pixelhue U5 mini', port: 8088, busWidth: 8, overLan: true, modelId: 29711 },
-  { id: 'u5pro', label: 'Pixelhue U5 Pro', port: 19999, busWidth: 8, overLan: false, modelId: 29703 },
-  { id: 'u5', label: 'Pixelhue U5', port: 19999, busWidth: 8, overLan: false, modelId: 29701 },
+  {
+    id: 'u5mini', label: 'Pixelhue U5 mini', port: 8088, wsPath: '/unico/v1/ws', clientType: 5,
+    /* liblcdcommchannelimpl.so, firmware V1.0.3: `/unico/v1/ws?client-type=11`. */
+    ownClientType: 11,
+    busWidth: 8, overLan: true, modelId: 29711,
+  },
+  {
+    id: 'u5pro', label: 'Pixelhue U5 Pro', port: 19999, wsPath: '/unico/v1/ucenter/ws', clientType: 5,
+    busWidth: 8, overLan: false, modelId: 29703,
+  },
+  {
+    id: 'u5', label: 'Pixelhue U5', port: 19999, wsPath: '/unico/v1/ucenter/ws', clientType: 5,
+    busWidth: 8, overLan: false, modelId: 29701,
+  },
 ]);
+
+/** The console model for an id, or the mini (the first) for one this does not know. */
+export const consoleModel = (id) => CONSOLE_MODELS.find((m) => m.id === id) || CONSOLE_MODELS[0];
+
+/** What a link to `id` dials: `{port, wsPath, clientType}`, for `UCenterLink`. */
+export function linkFor(id) {
+  const { port, wsPath, clientType } = consoleModel(id);
+  return { port, wsPath, clientType };
+}
+
+/**
+ * What the panel says when the console's socket opened and no key report has
+ * come in: `after` ms, `frames` of anything else meanwhile. Plain words,
+ * because the likeliest reader is someone with a console in front of them and
+ * this line in a message to us.
+ */
+export function silentNote(id, { after, frames = 0, clientType } = {}) {
+  const m = consoleModel(id);
+  const type = clientType ?? m.clientType;
+  const s = Math.round(after / 1000);
+  const heard = frames
+    ? `${frames} frame${frames === 1 ? '' : 's'}, none of them keys`
+    : 'nothing at all';
+  const why = m.ownClientType && m.ownClientType !== type
+    ? `This app connects as client-type=${type}, which has never been tried on a ${m.label}: `
+      + `the console's own LCD app connects as client-type=${m.ownClientType}.`
+    : 'UCenter has always sent its whole key state the moment a socket opened, so something on this link is wrong.';
+  return `The console's socket is open, but no key report has come in the ${s} s since (${heard}). ${why}`;
+}
 
 /** Unico's `AreaType`. The console's four buses, plus the device area. */
 export const AREA = Object.freeze({
@@ -529,7 +583,7 @@ export function midiWrite(move, ctx) {
  * The plugin's settings, and its settings schema's two functions.
  *
  * Off, and for the same reason as the OSC listener plus one more: this is a
- * preview, it has never been run against a console, and it writes to a
+ * preview, it has never worked against a console, and it writes to a
  * switcher. Nobody should find it on by surprise. The mini is the default
  * model because it is the one that can be driven over the LAN without
  * installing anything on the console.

@@ -113,16 +113,24 @@ export class WsClient extends EventEmitter {
       socket.on('data', (chunk) => this.#feed(chunk));
       socket.on('error', (err) => this.emit('error', err));
       socket.on('close', () => this.#finish(1006, 'socket closed'));
-      if (head && head.length) this.#feed(head);
+      /* Open first, then whatever came in with the 101: a console's first
+         frame — its whole key state — can arrive in the same packet, and a
+         listener that resets on 'open' must not see that message before it.
+         Until 2026-10-22 this fed `head` first, and the link's silence watch
+         reported a console that had sent its keys as one that had not. */
       this.emit('open');
+      if (head && head.length && this.#open) this.#feed(head);
     });
 
     /* A server that answers the upgrade request with an ordinary response has
-       refused it, and its status code is the useful part of the message. */
+       refused it, and its status code is the useful part of the message — with
+       the URL, because a 200 means something answered that path as a page: the
+       first real U5 mini did exactly that to the U5's socket path, and the
+       report said only "HTTP 200". */
     req.on('response', (res) => {
       clearTimeout(timer);
       res.resume();
-      this.emit('error', new Error(`upgrade refused with HTTP ${res.statusCode}`));
+      this.emit('error', new Error(`upgrade refused with HTTP ${res.statusCode} by ${this.url}`));
     });
     req.on('error', (err) => {
       clearTimeout(timer);

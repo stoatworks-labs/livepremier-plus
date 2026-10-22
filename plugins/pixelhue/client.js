@@ -6,11 +6,12 @@
  * doing. It follows the console live over `/__lpp/pixelhue/stream` — the card
  * used to learn about the link only when a setting was next saved.
  *
- * Marked preview in as many words, because it has never been run against a
+ * Marked preview in as many words, because it has never worked against a
  * console: every byte of it was worked out from firmware and proved against
- * the vendor's own control service running headless in a VM. That is a long
- * way from a panel on a desk, and an operator deciding whether to rig one
- * deserves to be told which it is.
+ * the vendor's own control service running headless in a VM. The one real
+ * console to try it so far, a U5 mini, refused the socket at the U5's path
+ * (2026-10-22). That is a long way from a panel on a desk, and an operator
+ * deciding whether to rig one deserves to be told which it is.
  *
  * It is also the second setting on that page that writes to a switcher without
  * anybody looking at a browser, so it is off until somebody turns it on,
@@ -221,8 +222,10 @@ export default function activate(ctx) {
 
     const rows = live
       ? h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
-        readout('Link', link && link.connected ? `connected to ${link.host}:${link.port}` : 'not connected',
-          { tone: link && link.connected ? null : 'tertiary' }),
+        readout('Link', !(link && link.connected) ? 'not connected'
+          : link.silent ? `connected to ${link.host}:${link.port}, no key reports`
+            : `connected to ${link.host}:${link.port}`,
+        { tone: !(link && link.connected) ? 'tertiary' : link.silent ? 'warn' : null }),
         readout('Published', link ? String(link.published) : '0'),
         readout('Commands', link ? String(link.commands) : '0'),
         readout('Selected', live.selection.destinations.join(' ') || 'nothing on the panel',
@@ -233,15 +236,18 @@ export default function activate(ctx) {
     const notes = [];
     if (error) notes.push(note('warn', `Could not save: ${error}`));
     notes.push(note('warn',
-      'Preview. This has never been run against a console — it was built from the '
+      'Preview. This has never worked against a console yet — it was built from the '
       + 'firmware and proved against the vendor’s own control service running with no '
-      + 'hardware. Treat the first show with one as a rehearsal.'));
+      + 'hardware. The first U5 mini to try it refused the connection at the wrong address, '
+      + 'since corrected from the mini’s own firmware; nothing past that has been seen on '
+      + 'one. Treat the first show with one as a rehearsal.'));
     if (model && !model.overLan) {
       notes.push(note('warn',
         `A ${model.label} serves its control port on loopback only, so this app has to be `
         + 'running on the console itself to reach one. A U5 mini answers on the network.'));
     }
     if (link && link.lastError) notes.push(note('warn', link.lastError));
+    if (link && link.connected && live.silent) notes.push(note('warn', live.silent));
     if (on) {
       notes.push(note('info',
         'The console is handed a model of this switcher — its screens, inputs and memories — '

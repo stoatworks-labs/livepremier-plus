@@ -5,7 +5,8 @@
 // number appears in shipped code; none of these has been seen on the wire by this project.
 //
 // Report tags are pushed by the console without subscription — a client that connects
-// with `?client-type=5` (what the on-screen keyboard uses) starts receiving them.
+// with `?client-type=5` (what the on-screen keyboard uses) starts receiving them, on a
+// U5's UCenter. A U5 mini's own LCD app connects as 11; what 5 gets there is unknown.
 
 export const TAGS = Object.freeze({
   /** TLV1 code the keep-alive carries (the "request head"). */

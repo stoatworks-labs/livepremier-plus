@@ -476,8 +476,9 @@ export function createMapPage({ ctx, settings, live, put }) {
 
     const toolbar = h('div', { class: 'aw-flex-row-center-v aw-gap-col-medium', style: { width: '100%' } },
       h('div', { class: 'aw-font-subtitle-1', text: 'Pixelhue Mapping' }),
-      h('span', { class: ['wru-tag', link && link.connected ? null : 'wru-warn'], text:
-        !s.pixelhueEnabled ? 'panel off' : link && link.connected ? `U5 at ${link.host}` : 'not connected' }),
+      h('span', { class: ['wru-tag', link && link.connected && !link.silent ? null : 'wru-warn'], text:
+        !s.pixelhueEnabled ? 'panel off' : !(link && link.connected) ? 'not connected'
+          : link.silent ? `${link.host}: no key reports` : `U5 at ${link.host}` }),
       h('span', { class: 'aw-flex-item' }),
       changed
         ? h('button', {

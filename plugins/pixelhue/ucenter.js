@@ -3,8 +3,12 @@
  *
  * One WebSocket for what the console says, `fetch` for what we tell it.
  *
- *   ws://<console>:<port>/unico/v1/ucenter/ws?client-type=5
+ *   ws://<console>:<port><wsPath>?client-type=5
  *   PUT http://<console>:<port>/unico/v1/ucenter/video-station/data-change
+ *
+ * ⚠️ `wsPath` is per model (`CONSOLE_MODELS` in `core.js` has the evidence):
+ * `/unico/v1/ucenter/ws` on a U5 / U5 Pro, `/unico/v1/ws` on a U5 mini. The
+ * REST base is the same on both.
  *
  * ## Why this holds a connection open, when `server/awj.js` refuses to
  *
@@ -32,6 +36,11 @@
  * on-screen keyboard app. It is nonetheless the right one to use: a
  * `client-type=5` connection was observed receiving *both* the raw key states
  * and the semantic commands, so nothing has to be given up to get it.
+ *
+ * That was a U5's UCenter. A U5 mini's own LCD app connects as 11, and
+ * whether 5 hears keys there is not known. So a socket that opens and carries
+ * no key report for `QUIET_MS` is reported (`silent`) rather than left to look
+ * like a connected panel whose operator is not pressing anything.
  */
 
 import { EventEmitter } from 'node:events';
@@ -43,6 +52,13 @@ import { TAGS } from '../../src/vendor/pixelhue/tags.js';
 /** 19999 on a U5 / U5 Pro (loopback only), 8088 on a U5 mini (on the LAN). */
 export const DEFAULT_PORT = 19999;
 export const MINI_PORT = 8088;
+/** A U5 / U5 Pro's socket. The mini's is not this: see `CONSOLE_MODELS`. */
+export const DEFAULT_WS_PATH = '/unico/v1/ucenter/ws';
+
+/* On a U5 the console's whole key state is the first frame after a connect,
+   and a publish redraws every bus key, so this long with no key report on an
+   open socket is not an idle panel. */
+export const QUIET_MS = 10000;
 
 /**
  * ⚠️ The T-bar reports on `0x00101358`, not the `TAGS.TBAR` (`0x00101304`)
@@ -64,22 +80,39 @@ export class UCenterLink extends EventEmitter {
   #ping = null;
   #retry = null;
   #stopped = true;
+  #quiet = null;
+  #openedAt = 0;
+  #framesSinceOpen = 0;
+  #heard = false;
 
-  constructor({ host, port = DEFAULT_PORT, clientType = 5, log = () => {} } = {}) {
+  /**
+   * @param {object} opts
+   * @param {string} [opts.wsPath]      the socket's path; per model (`linkFor` in `core.js`)
+   * @param {number} [opts.clientType]  what this says it is on that socket
+   * @param {number} [opts.quietMs]     an open socket with no key report this long is `silent`
+   */
+  constructor({
+    host, port = DEFAULT_PORT, wsPath = DEFAULT_WS_PATH, clientType = 5, quietMs = QUIET_MS, log = () => {},
+  } = {}) {
     super();
     this.host = host;
     this.port = Number(port) || DEFAULT_PORT;
+    this.wsPath = wsPath;
     this.clientType = clientType;
+    this.quietMs = quietMs;
     this.log = log;
     this.state = {
-      host, port: this.port, connected: false, lastError: null,
+      host, port: this.port, url: this.wsUrl, connected: false, lastError: null,
       frames: 0, commands: 0, keys: 0, published: 0, lastCommand: null,
+      /* `{after, frames}` once an open socket has gone `quietMs` without a
+         key report, until one arrives. */
+      silent: null,
     };
   }
 
   get base() { return `http://${this.host}:${this.port}/unico/v1`; }
   get wsUrl() {
-    return `ws://${this.host}:${this.port}/unico/v1/ucenter/ws?client-type=${this.clientType}`;
+    return `ws://${this.host}:${this.port}${this.wsPath}?client-type=${this.clientType}`;
   }
 
   start() {
@@ -92,6 +125,7 @@ export class UCenterLink extends EventEmitter {
     this.#stopped = true;
     clearTimeout(this.#retry); this.#retry = null;
     clearInterval(this.#ping); this.#ping = null;
+    clearTimeout(this.#quiet); this.#quiet = null;
     const ws = this.#ws;
     this.#ws = null;
     this.state.connected = false;
@@ -102,6 +136,9 @@ export class UCenterLink extends EventEmitter {
 
   #connect() {
     if (this.#stopped) return;
+    /* Per dial, not on 'open': what this socket has heard starts from here. */
+    this.#framesSinceOpen = 0;
+    this.#heard = false;
     let ws;
     try {
       ws = new WsClient(this.wsUrl).connect();
@@ -114,7 +151,17 @@ export class UCenterLink extends EventEmitter {
     ws.on('open', () => {
       this.state.connected = true;
       this.state.lastError = null;
-      this.log(`console ${this.host}:${this.port} connected`);
+      this.state.silent = null;
+      this.#openedAt = Date.now();
+      this.log(`console ${this.host}:${this.port} connected (${this.wsUrl})`);
+      if (!this.#heard) this.#quiet = setTimeout(() => {
+        this.#quiet = null;
+        this.state.silent = { after: this.quietMs, frames: this.#framesSinceOpen };
+        this.log(`console ${this.host}:${this.port}: socket open ${this.quietMs} ms, `
+          + `no key report yet (${this.#framesSinceOpen} other frames) on ${this.wsUrl}`);
+        this.emit('silent', { ...this.state.silent, url: this.wsUrl, clientType: this.clientType });
+      }, this.quietMs);
+      if (this.#quiet && this.#quiet.unref) this.#quiet.unref();
       /* The vendor's clients send this exact 79-byte frame once a second. It
          is reproduced byte for byte upstream and that test is the codec's
          anchor to reality, so it is sent rather than something equivalent. */
@@ -128,6 +175,7 @@ export class UCenterLink extends EventEmitter {
     ws.on('message', (buf, { binary }) => {
       if (!binary) return;
       this.state.frames++;
+      this.#framesSinceOpen++;
       let frame;
       try {
         frame = decodeFrame(buf);
@@ -146,7 +194,9 @@ export class UCenterLink extends EventEmitter {
     ws.on('close', () => {
       const was = this.state.connected;
       this.state.connected = false;
+      this.state.silent = null;
       clearInterval(this.#ping); this.#ping = null;
+      clearTimeout(this.#quiet); this.#quiet = null;
       if (was) this.emit('close');
       this.#schedule();
     });
@@ -162,11 +212,13 @@ export class UCenterLink extends EventEmitter {
            pixelhue-bridge, not in a vendored file. */
         this.state.commands++;
         this.state.lastCommand = frame.data;
+        this.#keyReport();
         this.emit('command', frame.data);
         break;
       }
       case TAGS.KEY_STATE:
         this.state.keys++;
+        this.#keyReport();
         this.emit('keystate', [].concat(frame.data || []));
         break;
       case MIDI_REPORT:
@@ -179,6 +231,18 @@ export class UCenterLink extends EventEmitter {
       default:
         break;
     }
+  }
+
+  /** The first key report on this socket: whatever `silent` said, it is hearing keys. */
+  #keyReport() {
+    if (this.#heard) return;
+    this.#heard = true;
+    clearTimeout(this.#quiet); this.#quiet = null;
+    if (!this.state.silent) return;
+    this.state.silent = null;
+    const after = Date.now() - this.#openedAt;
+    this.log(`console ${this.host}:${this.port}: first key report ${after} ms after the socket opened`);
+    this.emit('heard', { after });
   }
 
   #fail(err) {

@@ -1,12 +1,13 @@
 # Driving a Pixelhue console — **preview**
 
-> ⚠️ **This has never been run against a console.** Every byte of it was worked
+> ⚠️ **This has never worked against a console.** Every byte of it was worked
 > out from the consoles' own firmware and then proved against the vendor's
 > control service — a real UCenter, first from a U5 Pro image in a VM, then the
 > one PixelFlow for macOS installs, driven from PixelFlow's own virtual U5 with
 > a LivePremier simulator on the other end. Every key below was exercised that
-> way on 2026-09-23. That is still not a panel on a desk. Turn it on in
-> rehearsal, not in a show.
+> way on 2026-09-23. That is still not a panel on a desk. The first real
+> console to try it, a U5 mini, refused the connection (2026-10-22, under
+> [Rigging one](#rigging-one)). Turn it on in rehearsal, not in a show.
 
 A Pixelhue U5, U5 Pro or U5 mini is an **event controller**: a console built
 for Pixelhue's own switchers. This makes one drive an Analog Way LivePremier
@@ -217,16 +218,57 @@ for (FULL SCREEN, LAYER TOP / BOTTOM, CUTOUT) are listed under the drawing.
 
 ## Rigging one
 
-| console | control port | where this app has to run |
-|---|---|---|
-| **U5 mini** | 8088, **on the LAN** | anywhere it already runs |
-| U5 / U5 Pro | 19999, **loopback only** | on the console itself |
+| console | control service | port | socket | where this app has to run |
+|---|---|---|---|---|
+| **U5 mini** | `nvcontroller` | 8088, **on the LAN** | `/unico/v1/ws` | anywhere it already runs |
+| U5 / U5 Pro | UCenter (`ucenter_win`) | 19999, **loopback only** | `/unico/v1/ucenter/ws` | on the console itself |
+
+The REST calls are the same on both, under `/unico/v1/ucenter/video-station/`.
+The socket is not, and the app takes the path from the model you pick.
 
 ⚠️ That difference is the whole rigging story. A U5 mini is driven from the
 operator's laptop with nothing installed on the console. A U5 or U5 Pro is a
 Windows mini-PC and its control service answers only to itself, so this app has
 to be running on it — which it can be: the Pro has a touch screen, and the
 proxied Web RCS runs on it perfectly well.
+
+⚠️ **A U5 mini is not running UCenter, and its socket is somewhere else.**
+**2026-10-22:** a user's real U5 mini, firmware V1.0.3, reported
+`upgrade refused with HTTP 200` as soon as the panel connected. It was the
+first time this preview had met a console. The app was asking the mini for the
+U5's socket, `/unico/v1/ucenter/ws`, and the mini answered that path with an
+ordinary page instead of a WebSocket. The stand-in console the suite tests
+against served the same wrong path, which is why nothing failed here. The app
+now asks a mini for `/unico/v1/ws`. That comes from the firmware, below. Nobody
+has seen it work on a mini: nothing after the refusal has been run on one.
+
+What the mini's firmware shows (U5 mini V1.0.3, read, never run; the root
+filesystem is a squashfs at byte offset `0x149bc4a` of the `.img`):
+
+- Its control service is `usr/process/oem/nvcontroller/nvcontroller`, a Go
+  (fiber) build from the same NovaStar plugin tree as UCenter
+  (`config/ncp.toml`). That is why the REST calls match a U5's.
+  `config/runtime.toml` puts both HTTP and the WebSocket on 8088.
+- The binary contains `/unico/v1/ws`. It does not contain `ucenter/ws`
+  anywhere.
+- The mini's own LCD app, `usr/process/oem/LCD/bin/liblcdcommchannelimpl.so`,
+  connects to `ws://127.0.0.1:<port>/unico/v1/ws?client-type=11`: on
+  loopback, and as client type **11**, not the 5 this app uses. nvcontroller
+  does read the type: it logs `client-type is not int` for a bad one.
+- The console's mDNS advertisement (`_pixelhue._tcp`) is for the LCD grid's
+  TCP 17100 and nothing else. The console's own software reaches 8088 on
+  loopback. So nothing in the firmware says 8088 is meant for the LAN, beyond
+  the listener's port. The user's mini did answer 8088 from the network,
+  though, with that 200.
+
+**Client type 5 on a mini is still a guess.** On a U5's UCenter, a type-5
+socket gets both the key states and the commands (under
+[The wire](#the-wire-for-whoever-comes-next)). The mini's own app uses 11, and
+whether 5 hears keys there is not known. So when the socket opens and no key
+report arrives within ten seconds, the panel card shows the link as
+**connected, no key reports**, the history and the log say why, and they say
+when one does arrive. Changing the type for a model is one field, `clientType`
+in `CONSOLE_MODELS` (`plugins/pixelhue/core.js`).
 
 Settings are installation-level, like the OSC listener and the matrices: a
 panel on the desk does not move when you re-point at a backup frame.
@@ -262,7 +304,7 @@ refuses one. It is three files, run in order:
 
 | file | needs | what it settles |
 |---|---|---|
-| `1-link` | the console | it answers on its port, serves its own key map, takes the model and draws it from position 1 |
+| `1-link` | the console | it answers on its port and socket path, sends its key states, serves its own key map, takes the model and draws it from position 1 |
 | `2-keys` | the console | every key the app acts on, pressed by injection (`PUT …/key/action`), checked three ways: the console's report on a socket of the suite's own, the app's history, and the switcher over AWJ |
 | `3-hands` | a person | what only a thumb proves: that the key pressed is the key the map says, what each display reads, long presses, LOCK PANEL, paging, SHIFT, the area-switch keys and the T-bar |
 
@@ -274,8 +316,8 @@ LPP_CONSOLE=192.168.0.50 LPP_SIM=127.0.0.1:3000 npm run test:console
 LPP_CONSOLE=192.168.0.50 LPP_CONSOLE_GUIDED=1 LPP_SIM=127.0.0.1:3000 npm run test:console
 ```
 
-`LPP_CONSOLE` is the console's address with no port — the app takes the port
-from the model, so the suite does too. `LPP_CONSOLE_MODEL` is `u5mini`,
+`LPP_CONSOLE` is the console's address with no port. The app takes the port,
+the socket path and the client type from the model, so the suite does too. `LPP_CONSOLE_MODEL` is `u5mini`,
 `u5pro` or `u5`, and `u5mini` unless told otherwise; a U5 or U5 Pro means
 running the suite on the console itself, with `LPP_CONSOLE=127.0.0.1`. With
 `LPP_CONSOLE` unset every test skips, and without `LPP_CONSOLE_GUIDED=1` so
@@ -291,8 +333,8 @@ shares the console; then it watches for four seconds for anything republishing
 over its model. It cannot ask PixelFlow or another laptop. Close them.
 
 Every run writes what it saw to `test/console/results/` (ignored by git): the
-key map the console served, every press and what it reported, the T-bar's
-reports. Some of that has never been seen, and the useful parts belong in
+socket it opened, the key map the console served, every press and what it
+reported, the T-bar's reports. Some of that has never been seen, and the useful parts belong in
 `test/fixtures/` and this page afterwards.
 
 **What the suite expects of a U5 mini**, from its own key_mini.xml (firmware
@@ -310,13 +352,20 @@ differs, and a newer firmware's map goes into that file:
 - **SHIFT**, which turns the function keys into a keypad, and **LOAD TO PGM**
   and **TEST PATTERN**, which report nobody knows what — the app acts on none
   of them, and `2-keys` checks that they write nothing;
-- a T-bar, and no faders or encoders.
+- a T-bar, and no faders or encoders;
+- its socket at `/unico/v1/ws`, and key states on it at client type 5 — the
+  one thing nobody knows. `1-link`'s first test waits five seconds for the
+  whole key-state dump; if none comes, it fails saying what did arrive and
+  that the mini's own app connects as 11.
 
 **Without a console**, `LPP_CONSOLE=stand-in` swaps in
-`test/helpers/fake-ucenter.js`, a U5 mini's UCenter in a few hundred lines,
-on 127.0.0.1:8088, serving that same key map. It runs `3-hands` too, doing
-what each step asks with nobody at the desk. A pass against it proves the suite
-runs and nothing about a console: it is built from what has been seen of UCenter, and where nobody has
+`test/helpers/fake-ucenter.js`, a U5 mini's control service in a few hundred
+lines, on 127.0.0.1:8088, serving that same key map. Its socket is at the
+mini's `/unico/v1/ws` and nowhere else. The U5's path gets the ordinary 200 the
+user's mini gave, so the stand-in can no longer agree with a wrong path, as it
+did until 2026-10-22. It runs `3-hands` too, doing what each step asks with
+nobody at the desk. A pass against it proves the suite runs and nothing about
+a console: it is built from what has been seen of UCenter, and where nobody has
 seen what a key does, it does nothing.
 
 ---
@@ -349,12 +398,19 @@ Base `http://<console>:<port>/unico/v1/`. The frame codec is vendored from
 pixelhue-bridge and is unmodified; `src/vendor/pixelhue/README.md` says where
 it came from.
 
-**The WebSocket** is `…/ucenter/ws?client-type=5`, carrying NOVA frames — a
-22-byte header, a TLV naming the message, JSON inside. Tag `0x00101301` is key
-state, `0x00101307` is the semantic command. ⚠️ One `client-type=5` connection
-receives **both**, which was not obvious: 5 is not in Unico's own `ClientTypeE`
-(`PCUnico 0, UnicoEC 2, PCPixelFlow 8, PixelFlowEC 9`) — it is hard-coded in
-the console's on-screen keyboard app, and it is the one to use.
+**The WebSocket** is `/unico/v1/ucenter/ws?client-type=5` on a U5 / U5 Pro and
+`/unico/v1/ws?client-type=5` on a U5 mini (under [Rigging one](#rigging-one)),
+carrying NOVA frames — a 22-byte header, a TLV naming the message, JSON
+inside. Tag `0x00101301` is key state, `0x00101307` is the semantic command.
+⚠️ On a U5's UCenter, one `client-type=5` connection receives **both**, which
+was not obvious: 5 is not in Unico's own `ClientTypeE` (`PCUnico 0, UnicoEC 2,
+PCPixelFlow 8, PixelFlowEC 9`) — it is hard-coded in the console's on-screen
+keyboard app, and it is the one to use there. A mini's own LCD app connects as
+11, and what 5 gets on a mini is unknown.
+
+A refused upgrade is reported with the URL it was refused at
+(`upgrade refused with HTTP 200 by ws://…`), so a report from the field says
+which path failed.
 
 **The model** is `{screens, layers, inputs, presets, cues, medias, funcs,
 additionInfos, newProtocol}`, replaced whole; there is no partial update.
@@ -388,6 +444,11 @@ worth doing.
 ---
 
 ## Known gaps
+
+- **Nothing after the socket has been seen on a U5 mini.** The one real mini
+  to try this refused the U5's socket path (2026-10-22). The mini's path is
+  now right by its firmware. Whether a type-5 socket hears its keys, and
+  everything in `1-link` onwards, is unknown until a mini runs it.
 
 - **FTB and freeze are LivePremier only.** The paths were recovered from the
   Web RCS bundle and proved on the 6.2.73 simulator; Midra 4K / Alta 4K have

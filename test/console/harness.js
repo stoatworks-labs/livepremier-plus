@@ -9,9 +9,11 @@
  * switcher over AWJ. This folder does the same with one more party in the
  * loop: the console, on its own control service (UCenter — 8088 on the LAN
  * for a U5 mini, 19999 on loopback for a U5 / U5 Pro, which means running on
- * the console itself). With `LPP_CONSOLE` unset every test here skips, and
- * `stand-in` swaps the console for `test/helpers/fake-ucenter.js`, which
- * proves the suite runs and nothing else.
+ * the console itself). The socket's path is the model's too (`linkFor` in
+ * `plugins/pixelhue/core.js`): a mini serves `/unico/v1/ws`, and refuses the
+ * U5's `/unico/v1/ucenter/ws`. With `LPP_CONSOLE` unset every test here
+ * skips, and `stand-in` swaps the console for `test/helpers/fake-ucenter.js`,
+ * which proves the suite runs and nothing else.
  *
  * ## Three witnesses, none of them the app
  *
@@ -52,7 +54,7 @@ import { join } from 'node:path';
 
 import { SIM, SKIP as SIM_SKIP, ROOT, startApp, sleep } from '../sim/harness.js';
 import { UCenterLink } from '../../plugins/pixelhue/ucenter.js';
-import { CONSOLE_MODELS, businessModel } from '../../plugins/pixelhue/core.js';
+import { CONSOLE_MODELS, businessModel, linkFor } from '../../plugins/pixelhue/core.js';
 import { PixelhueSupervisor } from '../../plugins/pixelhue/supervisor.js';
 import { StandInConsole } from '../helpers/fake-ucenter.js';
 
@@ -71,9 +73,11 @@ if (CONSOLE && !STAND_IN && !/^[A-Za-z0-9._-]+$/.test(CONSOLE)) {
 }
 if (STAND_IN && MODEL.id !== 'u5mini') throw new Error('the stand-in console is a U5 mini');
 
-/** Where the app will dial: the app takes the port from the model, so this does. */
+/** Where the app will dial: the app takes the port, socket path and client
+    type from the model, so this does. */
 export const HOST = STAND_IN ? '127.0.0.1' : CONSOLE;
-export const PORT = MODEL ? MODEL.port : null;
+export const LINK = MODEL ? linkFor(MODEL.id) : null;
+export const PORT = LINK ? LINK.port : null;
 
 export const SKIP = !CONSOLE
   ? 'LPP_CONSOLE is not set (a console\'s address, or stand-in)'
@@ -177,7 +181,7 @@ export class Witness {
     return w;
   }
 
-  constructor({ host, port }) {
+  constructor({ host, port, wsPath, clientType }) {
     this.host = host;
     this.port = port;
     this.events = [];
@@ -185,7 +189,8 @@ export class Witness {
     this.keys = new Map();
     this.redraws = 0;
     this.undecodable = 0;
-    this.link = new UCenterLink({ host, port });
+    this.link = new UCenterLink({ host, port, wsPath, clientType });
+    this.url = this.link.wsUrl;
     this.link.on('command', (d) => this.#push('command', d));
     this.link.on('keystate', (items) => {
       if (items.length === 1 && (items[0].state === 0 || items[0].state === 1)) {
@@ -211,7 +216,7 @@ export class Witness {
     if (this.link.state.connected) return Promise.resolve();
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
-        reject(new Error(`no answer from a console at ${this.host}:${this.port} in ${timeout} ms` +
+        reject(new Error(`no answer from a console at ${this.url} in ${timeout} ms` +
           (this.link.state.lastError ? ` (${this.link.state.lastError})` : '')));
       }, timeout);
       this.link.once('open', () => { clearTimeout(timer); resolve(); });
@@ -371,7 +376,7 @@ export async function openConsole() {
       throw new Error(`the stand-in console needs ${HOST}:${PORT}, which is taken (${err.code || err.message})`);
     }
   }
-  const witness = await Witness.open({ host: HOST, port: PORT });
+  const witness = await Witness.open({ host: HOST, ...LINK });
   return {
     standIn,
     witness,
@@ -457,6 +462,7 @@ export function recorder(name) {
   const data = {
     file: name,
     console: CONSOLE, host: HOST, port: PORT, model: MODEL && MODEL.id, standIn: STAND_IN, sim: SIM,
+    socket: LINK ? `ws://${HOST}:${LINK.port}${LINK.wsPath}?client-type=${LINK.clientType}` : null,
     startedAt: new Date().toISOString(),
     notes: {},
   };

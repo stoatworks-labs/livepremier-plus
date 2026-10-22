@@ -1,7 +1,8 @@
 // The UCenter WebSocket frame ("Apollo 2.0" / "NOVA" uniform protocol).
 //
-// Every message on the console's control WebSocket — U5 mini `ws://<ip>:8088/unico/v1/ucenter/ws`,
-// U5 / U5 Pro `ws://127.0.0.1:19999/unico/v1/ucenter/ws` — is one binary frame:
+// Every message on the console's control WebSocket — U5 mini `ws://<ip>:8088/unico/v1/ws`
+// (nvcontroller; it has no `ucenter/ws`), U5 / U5 Pro `ws://127.0.0.1:19999/unico/v1/ucenter/ws`
+// — is one binary frame:
 //
 //   offset  size  field
 //   0       4     "NOVA"                      frame delimiter

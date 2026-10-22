@@ -29,6 +29,11 @@ import { NLC, MNG } from '../src/core/dialect.js';
 import { commandsFor } from '../src/core/commands.js';
 import { toAwj } from '../src/core/paths.js';
 import { WsClient, acceptFor } from '../plugins/pixelhue/ws-client.js';
+import { UCenterLink } from '../plugins/pixelhue/ucenter.js';
+import { linkFor, silentNote } from '../plugins/pixelhue/core.js';
+import { StandInConsole } from './helpers/fake-ucenter.js';
+import { encodeFrame } from '../src/vendor/pixelhue/apollo.js';
+import { TAGS } from '../src/vendor/pixelhue/tags.js';
 import { normalisePixelhue as normalise, pixelhueChanged } from '../plugins/pixelhue/core.js';
 import { normalise as normaliseSettings } from '../src/core/settings.js';
 import { settings as schema } from '../plugins/pixelhue/server.js';
@@ -575,6 +580,81 @@ test('the mini is the only model reachable over the LAN', () => {
   assert.equal(CONSOLE_MODELS.find((m) => m.id === 'u5pro').port, 19999);
 });
 
+test('a U5 mini\'s socket is /unico/v1/ws, not the U5\'s /unico/v1/ucenter/ws', () => {
+  /* Pinned to the mini's firmware, not to the stand-in, which once served the
+     U5's path as well: every dry run passed, and a user's real mini (FW
+     V1.0.3, 2026-10-22) answered that path with an ordinary HTTP 200. The
+     evidence, U5 mini V1.0.3 (`docs/PIXELHUE.md` has the extraction):
+     - the mini runs `usr/process/oem/nvcontroller/nvcontroller`, not UCenter,
+       and that binary contains "/unico/v1/ws" and no "ucenter/ws" anywhere;
+     - the mini's own LCD app, `usr/process/oem/LCD/bin/liblcdcommchannelimpl.so`,
+       connects to `ws://127.0.0.1:<port>/unico/v1/ws?client-type=11`.
+     The REST calls are the same on both: nvcontroller serves
+     `/unico/v1/ucenter/video-station/…`. */
+  const mini = new UCenterLink({ host: '192.168.2.50', ...linkFor('u5mini') });
+  assert.equal(mini.wsUrl, 'ws://192.168.2.50:8088/unico/v1/ws?client-type=5');
+  assert.equal(mini.base, 'http://192.168.2.50:8088/unico/v1');
+  for (const id of ['u5', 'u5pro']) {
+    const u5 = new UCenterLink({ host: '127.0.0.1', ...linkFor(id) });
+    assert.equal(u5.wsUrl, 'ws://127.0.0.1:19999/unico/v1/ucenter/ws?client-type=5', id);
+  }
+  /* client-type 5 on a mini is a guess, and the table says whose type is known. */
+  assert.equal(CONSOLE_MODELS.find((m) => m.id === 'u5mini').ownClientType, 11);
+});
+
+test('the stand-in refuses the U5 path the way a real mini did, and serves the mini\'s', async () => {
+  const standIn = await new StandInConsole({ port: 0 }).start();
+  try {
+    const wrong = new UCenterLink({ host: '127.0.0.1', port: standIn.port, wsPath: '/unico/v1/ucenter/ws' });
+    const err = await new Promise((resolve) => { wrong.once('failure', resolve); wrong.start(); });
+    await wrong.stop();
+    assert.equal(err.message,
+      `upgrade refused with HTTP 200 by ws://127.0.0.1:${standIn.port}/unico/v1/ucenter/ws?client-type=5`);
+    assert.deepEqual(standIn.refused, [{ path: '/unico/v1/ucenter/ws', status: 200 }]);
+
+    let silent = null;
+    const right = new UCenterLink({ host: '127.0.0.1', ...linkFor('u5mini'), port: standIn.port, quietMs: 200 });
+    right.on('silent', (q) => { silent = q; });
+    const items = await new Promise((resolve, reject) => {
+      right.once('keystate', resolve);
+      right.once('failure', reject);
+      right.start();
+    });
+    assert.ok(items.length >= 40, `a connect gets the whole-panel redraw, not ${items.length} keys`);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(silent, null, 'a socket that heard keys is not silent');
+    assert.equal(right.state.silent, null);
+    await right.stop();
+  } finally { await standIn.stop(); }
+});
+
+test('an open socket that never hears a key says so, naming the client type', async () => {
+  let peer = null;
+  const server = stubServer((socket) => { peer = socket; socket.on('data', () => {}); });
+  const port = await listen(server);
+  const link = new UCenterLink({ host: '127.0.0.1', ...linkFor('u5mini'), port, quietMs: 80 });
+  try {
+    const q = await new Promise((resolve) => { link.once('silent', resolve); link.start(); });
+    assert.deepEqual(link.state.silent, { after: 80, frames: 0 });
+    assert.equal(q.url, `ws://127.0.0.1:${port}/unico/v1/ws?client-type=5`);
+    const words = silentNote('u5mini', q);
+    assert.match(words, /no key report has come in/);
+    assert.match(words, /nothing at all/);
+    assert.match(words, /client-type=5.*client-type=11/);
+    assert.doesNotMatch(silentNote('u5', q), /client-type=11/, 'a U5 has no other type to suggest');
+
+    /* A key report after all clears it, and says how late it was. */
+    const heard = new Promise((resolve) => link.once('heard', resolve));
+    peer.write(serverFrames(encodeFrame({ tag: TAGS.KEY_STATE, data: [{ key: 1, state: 0 }], seq: 1 })));
+    assert.ok((await heard).after >= 80);
+    assert.equal(link.state.silent, null);
+  } finally {
+    await link.stop();
+    peer?.destroy();
+    server.close();
+  }
+});
+
 /* ------------------------------------------------------- the WebSocket client */
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
@@ -701,13 +781,55 @@ test('a ping is answered with a pong without troubling the caller', async () => 
   } finally { server.close(); }
 });
 
-test('a refused upgrade is reported rather than hung on', async () => {
+test('a frame sent with the handshake arrives after open, and a link counts it as heard', async () => {
+  /* A console can put its first frame — the whole key state — in the same
+     packet as the 101. Until 2026-10-22 the client delivered it before
+     'open', the link's open handler then forgot it had heard a key, and a
+     console that had sent its keys was reported silent. */
+  const first = serverFrames(encodeFrame({ tag: TAGS.KEY_STATE, data: [{ key: 1, state: 201 }], seq: 1 }));
+  const server = http.createServer();
+  server.on('upgrade', (req, socket) => {
+    const accept = createHash('sha1').update(req.headers['sec-websocket-key'] + GUID).digest('base64');
+    socket.on('data', () => {});
+    socket.write(Buffer.concat([Buffer.from('HTTP/1.1 101 Switching Protocols\r\n'
+      + `Upgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`), first]));
+  });
+  const port = await listen(server);
+  const ws = new WsClient(`ws://127.0.0.1:${port}/unico/v1/ws?client-type=5`);
+  const link = new UCenterLink({ host: '127.0.0.1', ...linkFor('u5mini'), port, quietMs: 60 });
+  try {
+    const order = [];
+    ws.on('open', () => order.push('open'));
+    ws.on('message', () => order.push('message'));
+    ws.connect();
+    await new Promise((resolve) => ws.once('message', resolve));
+    assert.deepEqual(order, ['open', 'message']);
+
+    let silent = null;
+    link.on('silent', (q) => { silent = q; });
+    const heard = new Promise((resolve) => link.once('keystate', resolve));
+    link.start();
+    await heard;
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    assert.equal(silent, null, 'it heard a key with the handshake');
+  } finally {
+    ws.close();
+    await link.stop();
+    server.closeAllConnections();
+    server.close();
+  }
+});
+
+test('a refused upgrade is reported rather than hung on, with the URL it tried', async () => {
+  /* The URL, because "upgrade refused with HTTP 200" from the first real mini
+     did not say which path it was refused at. */
   const server = http.createServer((req, res) => { res.statusCode = 403; res.end('no'); });
   const port = await listen(server);
   try {
-    const ws = new WsClient(`ws://127.0.0.1:${port}/`).connect();
+    const url = `ws://127.0.0.1:${port}/unico/v1/ws?client-type=5`;
+    const ws = new WsClient(url).connect();
     const err = await new Promise((resolve) => ws.on('error', resolve));
-    assert.match(err.message, /403/);
+    assert.equal(err.message, `upgrade refused with HTTP 403 by ${url}`);
   } finally { server.close(); }
 });
 

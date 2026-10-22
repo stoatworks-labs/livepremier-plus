@@ -11,11 +11,12 @@ import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  SKIP, MODEL, STAND_IN, AREA, FUNCTION_KEYS,
+  SKIP, MODEL, STAND_IN, AREA, FUNCTION_KEYS, LINK,
   openConsole, readKeyMap, assertNoOtherDriver, assertQuiet, startPanel, panelState, expectedModel,
   recorder, sleep, keyMapOf,
 } from './harness.js';
 import { MINI_KEYS } from '../helpers/fake-ucenter.js';
+import { silentNote } from '../../plugins/pixelhue/core.js';
 
 let con;
 let app;
@@ -39,8 +40,17 @@ after(async () => {
 });
 
 test('the console answers on its control port, and everything it sends decodes', { skip: SKIP }, async () => {
-  /* The first frame after a connect is the whole key-state dump. */
-  await con.witness.waitFor('keys', () => true, { mark: 1, timeout: 5000, label: 'the first key-state dump' });
+  /* The first frame after a connect is the whole key-state dump — on a U5.
+     On a mini, at client-type 5, nobody knows yet: if this times out, the
+     results file and the message say what was heard instead. */
+  rec.note('socket', con.witness.url);
+  try {
+    await con.witness.waitFor('keys', () => true, { mark: 1, timeout: 5000, label: 'the first key-state dump' });
+  } catch (err) {
+    const frames = con.witness.link.state.frames;
+    rec.note('firstDump', { keys: 0, frames, undecodable: con.witness.undecodable });
+    throw new Error(`${err.message}. ${silentNote(MODEL.id, { after: 5000, frames, clientType: LINK.clientType })}`);
+  }
   await sleep(1000);
   rec.note('firstDump', { keys: con.witness.keys.size, undecodable: con.witness.undecodable });
   assert.equal(con.witness.undecodable, 0, 'frames the vendored codec could not read');

@@ -3102,3 +3102,43 @@ followed (one upload), Off, and program asking first and writing nothing until c
 Not done: a frame (hardware is ask-first), 6.1.60, a Midra (the tab says LivePremier only),
 screenshots of a real output. The engine is synced from test-card main; `npm run sync:test-card`
 again when Test Card's painters change, and `test/vendor.test.js` fails when they have.
+
+## The first real U5 mini: the wrong socket path (2026-10-22, firmware and offline tests only)
+
+A user with a real Pixelhue U5 mini on firmware V1.0.3 got `upgrade refused with HTTP 200` the
+moment the Pixelhue panel connected. It was the first real console this preview had met. The
+panel opened `ws://<mini>:8088/unico/v1/ucenter/ws?client-type=5`, which is the U5 / U5 Pro
+UCenter's path. The mini runs a different service, `nvcontroller`, which answered that path as an
+ordinary page.
+
+- **From the firmware** (`U5MINI V1.0.3.zip`; the `.img` has its root squashfs at byte offset
+  `0x149bc4a`; read, never run): `usr/process/oem/nvcontroller/nvcontroller` contains
+  `/unico/v1/ws` and no `ucenter/ws` at all. `config/runtime.toml` puts HTTP and the socket on 8088.
+  The mini's LCD app (`usr/process/oem/LCD/bin/liblcdcommchannelimpl.so`) connects to
+  `ws://127.0.0.1:<port>/unico/v1/ws?client-type=11`. The REST segments the plugin uses are under
+  `/unico/v1/ucenter/video-station/…` there as on a U5, so only the socket was wrong. The mDNS
+  advertisement is the LCD grid's 17100 only, so pixelhue-bridge's protocols.md was wrong to say
+  the advertiser used 8088.
+- **Why no test caught it:** `test/helpers/fake-ucenter.js` served the mini at the U5's path too.
+  It is the GUID typo in `ws-client.js` again. A stand-in that shares the code's mistake proves
+  nothing.
+- **Fixed:** `CONSOLE_MODELS` has a `wsPath` and a `clientType` per model (the mini is
+  `/unico/v1/ws`), threaded through `linkFor` into `UCenterLink` and the console suite. The
+  stand-in serves only the mini's path and answers the U5's with a 200. `test/pixelhue.test.js`
+  pins the mini's URL to the firmware. A refused upgrade now names the URL it tried. Upstream in
+  pixelhue-bridge 838984c, re-vendored.
+- **Still a guess: client type 5 on a mini.** Its own LCD app uses 11. A socket that opens and
+  hears no key report in 10 s now says so on the card, in the history and in the log, and says when
+  one does arrive.
+- **Found by the full run, not by me:** `ws-client.js` delivered any frame that came in the same
+  packet as the 101 *before* emitting `open`. The new silence watch reset itself on `open`, so a
+  console that sent its key state with the handshake was reported silent. `open` comes first now,
+  and the link resets per dial. A real U5 could have tripped it just as well.
+- **Tested:** `npm test` 1370 tests, 1359 pass, 11 skip (other repos' vendor checkouts and koffi),
+  with the Pixelhue drift check run against the bridge commit. Each new test was checked against the
+  old code and fails there. The console suite's harness was opened against the stand-in, and its
+  witness got all 66 keys at `/unico/v1/ws`.
+- **Not done:** `npm run test:console` was not run on a simulator this time, because none could be
+  started without the simulator app's own Start Session button. Nothing has been run on a mini since.
+  Whether a type-5 socket hears its keys is the next thing one has to answer. A point release so the
+  user can try it is Allan's call.

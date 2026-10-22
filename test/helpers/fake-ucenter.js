@@ -20,7 +20,17 @@
  *   POST …/video-station/midi/binding  says yes
  *   GET  …/video-station/key/active-custom?deviceModel=  the fixture's key map
  *   PUT  …/video-station/key/action    a press: a raw key state, then a command
- *   WS   …/ucenter/ws                  NOVA frames to every client
+ *   WS   /unico/v1/ws                  NOVA frames to every client
+ *
+ * ⚠️ **The socket is at the mini's path, and only there.** Until 2026-10-22
+ * this served the U5's `/unico/v1/ucenter/ws`, the app dialled the same, every
+ * dry run passed, and the first real mini answered that path with an ordinary
+ * HTTP 200 — the GUID-typo trap in `ws-client.js` again: a stand-in that
+ * shares the code's mistake proves nothing. A mini runs `nvcontroller`, not
+ * UCenter, and its binary has no `ucenter/ws` at all; its own LCD app connects
+ * to `/unico/v1/ws?client-type=11` (firmware V1.0.3, `docs/PIXELHUE.md`). So
+ * the U5's path is answered here as the mini answered it: a 200 and no
+ * upgrade. What a mini serves at that path, beyond the status, nobody has seen.
  *
  * It decides between select, active and unselect from the published model's
  * `selected` / `activeRegion` flags, the way `core.js` says the console does,
@@ -39,6 +49,9 @@ import { TBAR_REPORT } from '../../plugins/pixelhue/ucenter.js';
 export const MINI_KEYS = JSON.parse(readFileSync(new URL('../fixtures/pixelhue-u5mini-keys.json', import.meta.url)));
 
 const BASE = '/unico/v1/ucenter';
+/** The mini's socket (nvcontroller), and the U5's, which a mini does not serve. */
+export const MINI_WS_PATH = '/unico/v1/ws';
+export const U5_WS_PATH = '/unico/v1/ucenter/ws';
 const LONG_MS = 1000;
 const PER_PAGE = 8;
 
@@ -52,10 +65,13 @@ const FUNCTION = {
 const BUS_MODES = { 100: 1, 101: 4, 102: 3, 103: 5 };
 
 export class StandInConsole {
-  constructor({ keyMap = MINI_KEYS, port = 8088, host = '127.0.0.1' } = {}) {
+  constructor({ keyMap = MINI_KEYS, port = 8088, host = '127.0.0.1', wsPath = MINI_WS_PATH } = {}) {
     this.keyMap = keyMap;
     this.port = port;
     this.host = host;
+    this.wsPath = wsPath;
+    /* Upgrades turned away, `{path, status}`, so a test can say which. */
+    this.refused = [];
     this.model = { screens: [], layers: [], inputs: [], presets: [] };
     this.pages = { 1: 0, 3: 0, 4: 0, 5: 0 };
     this.armed = null;
@@ -83,6 +99,8 @@ export class StandInConsole {
       this.server.once('error', reject);
       this.server.listen(this.port, this.host, resolve);
     });
+    /* `port: 0` asks for any free port; this is the one it got. */
+    this.port = this.server.address().port;
     return this;
   }
 
@@ -131,7 +149,17 @@ export class StandInConsole {
   }
 
   #upgrade(req, socket) {
-    if (!req.url.startsWith(`${BASE}/ws`)) { socket.destroy(); return; }
+    const path = new URL(req.url, 'http://stand-in').pathname;
+    if (path !== this.wsPath) {
+      /* As the user's mini answered the U5's path: an ordinary 200, no
+         upgrade. The body is a placeholder — only the status was reported. */
+      const status = path === U5_WS_PATH ? 200 : 404;
+      this.refused.push({ path, status });
+      const body = status === 200 ? 'stand-in: not a socket here' : 'not found';
+      socket.end(`HTTP/1.1 ${status} ${status === 200 ? 'OK' : 'Not Found'}\r\n`
+        + `Content-Type: text/plain\r\nContent-Length: ${Buffer.byteLength(body)}\r\nConnection: close\r\n\r\n${body}`);
+      return;
+    }
     socket.write([
       'HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade',
       `Sec-WebSocket-Accept: ${acceptFor(req.headers['sec-websocket-key'])}`, '', '',

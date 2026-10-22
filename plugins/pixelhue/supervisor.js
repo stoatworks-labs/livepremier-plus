@@ -42,7 +42,7 @@ import { commandsFor } from '../../src/core/commands.js';
 import { toAwj } from '../../src/core/paths.js';
 import {
   businessModel, readIntent, writesFor, tbarWrites, Selection, commandName, CONSOLE_MODELS,
-  MIDI_BINDINGS, readMidi, midiWrite, layerParam,
+  linkFor, silentNote, MIDI_BINDINGS, readMidi, midiWrite, layerParam,
   stepLayer, companionLocation, backupRequest, SILENT_KEY_MODES,
 } from './core.js';
 import {
@@ -148,12 +148,15 @@ export class PixelhueSupervisor extends EventEmitter {
       ? {
         host: settings.pixelhueHost,
         model: settings.pixelhueModel,
-        port: portFor(settings.pixelhueModel),
+        /* Port, socket path and client type are the model's: a mini is not
+           the same service as a U5, and does not answer the U5's path. */
+        ...linkFor(settings.pixelhueModel),
       }
       : null;
 
     const same = want && this.#config
-      && want.host === this.#config.host && want.port === this.#config.port;
+      && want.host === this.#config.host && want.port === this.#config.port
+      && want.wsPath === this.#config.wsPath && want.clientType === this.#config.clientType;
     if (same) { this.#config = want; return this.describe(); }
 
     if (this.#link) { await this.#link.stop(); this.#link = null; }
@@ -165,10 +168,18 @@ export class PixelhueSupervisor extends EventEmitter {
     this.#lastPress = null;
     if (!want) { this.#note({ kind: 'stopped' }); return this.describe(); }
 
-    const link = new UCenterLink({ host: want.host, port: want.port, log: this.log });
+    const link = new UCenterLink({
+      host: want.host, port: want.port, wsPath: want.wsPath, clientType: want.clientType, log: this.log,
+    });
     this.#link = link;
     link.on('open', () => { this.#note({ kind: 'connected' }); void this.refresh(); void this.#readKeyMap(); });
     link.on('close', () => this.#note({ kind: 'disconnected' }));
+    /* An open socket that never hears a key: said in the history and the log,
+       in words, because on a mini it is the next thing likely to go wrong. */
+    link.on('silent', (q) => this.#note({ kind: 'silent', error: silentNote(want.model, q) }));
+    link.on('heard', ({ after }) => this.#note({
+      kind: 'noted', note: `key reports arriving — the first came ${Math.round(after / 1000)} s after the socket opened`,
+    }));
     link.on('failure', (err) => this.#note({ kind: 'error', error: err.message }));
     link.on('command', (report) => { void this.#onCommand(report); });
     link.on('keystate', (items) => {
@@ -179,7 +190,7 @@ export class PixelhueSupervisor extends EventEmitter {
     link.on('tbar', (report) => this.#onTbar(report));
     link.on('midi', (report) => this.#onMidi(report));
     link.start();
-    this.#note({ kind: 'starting', host: want.host, port: want.port, model: want.model });
+    this.#note({ kind: 'starting', host: want.host, port: want.port, model: want.model, url: link.wsUrl });
     return this.describe();
   }
 
@@ -760,6 +771,9 @@ export class PixelhueSupervisor extends EventEmitter {
       model: this.#config ? this.#config.model : null,
       host: this.#config ? this.#config.host : null,
       port: this.#config ? this.#config.port : null,
+      /* The words for `link.silent`, so the card and the history agree. */
+      silent: this.#link && this.#link.state.silent && this.#config
+        ? silentNote(this.#config.model, this.#link.state.silent) : null,
       platform: this.#dialect ? this.#dialect.name : null,
       link: this.#link ? this.#link.state : null,
       selection: this.selection.describe(),
@@ -784,5 +798,4 @@ function nameOf(code) {
 /* Intents after which the model must be read again, not just re-sent. */
 const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap', 'deletePreset']);
 
-export const portFor = (model) =>
-  (CONSOLE_MODELS.find((m) => m.id === model) || CONSOLE_MODELS[0]).port;
+export const portFor = (model) => linkFor(model).port;
