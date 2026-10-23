@@ -140,8 +140,8 @@ connection of their own when they act, which is worth knowing, because the switc
 > Edit page's *direct* save hands the switcher a file path that the switcher resolves, so it's
 > unproven on real hardware (its *via preview* route works anywhere). And Companion can't add the
 > LivePremier Plus connection until a Companion module for this app exists. The **Pixelhue panel**
-> has met one real console, a U5 mini, which turned it away at the wrong address; 0.18.1 is the
-> fix, below.
+> has met one real console, a U5 mini, which turned it away at the wrong address (0.18.1 is the
+> fix) and then showed blank keys (0.18.2 is the answer), both below.
 >
 > **0.13.0 rebuilt every feature as a plugin.** Each was checked against the simulator and a
 > Videohub emulator as it moved, and what each one does didn't change. A plugin of your own runs
@@ -153,6 +153,12 @@ connection of their own when they act, which is worth knowing, because the switc
 > **0.15.0 adds Layer Lock, HyperDecks, the EDID builder, Mosaic inputs, Pixelhue Mapping and the
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
+>
+> **0.18.2 draws a U5 mini's bus keys.** With 0.18.1 the mini connected, but its LCD keys stayed
+> blank and TAKE did nothing: a mini's bus keys belong to its own LCD app. So this app now draws
+> them on the console's key grid, a row per bus, and you switch each row to Companion to see them.
+> Whether a mini sends this app TAKE and CUT is unknown; the card says so until it does. From the
+> mini's firmware, not yet from a mini.
 >
 > **0.18.1 fixes the Pixelhue panel on a U5 mini.** The first real mini to try it answered
 > "upgrade refused with HTTP 200": the panel had asked it for a U5's control socket, and a mini
@@ -1678,9 +1684,10 @@ dot, and **Reset** puts everything back.
 > ⚠️ **This hasn't worked on a real console yet.** It was built from the consoles' firmware and
 > proved against the vendor's own control service running with no panel attached. The first real
 > one to try it, a U5 mini, refused the connection because it was asked for a U5's address; 0.18.1
-> asks for the mini's own, and nothing past that has been seen on one. If the panel card says
-> **connected, no key reports**, the console is talking but not sending its keys, and that's
-> worth telling me about. Treat the first show with one as a rehearsal. Fade-to-black and freeze are sent on LivePremier, not yet on
+> asks for the mini's own. It then connected with its keys blank, which 0.18.2 answers by drawing
+> them on the mini's key grid; that hasn't met a mini yet. If the panel card says **connected, no
+> key reports**, or **TAKE / CUT: not seen yet** after you've pressed TAKE, that's worth telling me
+> about. Treat the first show with one as a rehearsal. Fade-to-black and freeze are sent on LivePremier, not yet on
 > a Midra 4K. SOURCE BACKUP is LivePremier's only: a Midra 4K or Alta 4K input has no backup, so
 > the key says so instead. docs/PIXELHUE.md lists what each key does, and has a test suite to run the day a
 > console turns up ("Testing it on a console").
