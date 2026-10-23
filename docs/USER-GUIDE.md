@@ -154,6 +154,11 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.18.3 updates the EDID builder's Otter editor.** It knows the NovaStar MX2000 Pro and MX6000
+> Pro now, card by card, judges an HDMI 2.1 input on FRL when TMDS runs out, and costs YCbCr 4:2:2
+> per link (24 bits a pixel on HDMI, twice the bit depth on DisplayPort). Nothing already in its
+> table gives a different answer. From NovaStar's spec sheets, not from either processor.
+>
 > **0.18.2 draws a U5 mini's bus keys.** With 0.18.1 the mini connected, but its LCD keys stayed
 > blank and TAKE did nothing: a mini's bus keys belong to its own LCD app. So this app now draws
 > them on the console's key grid, a row per bus, and you switch each row to Companion to see them.
@@ -1491,8 +1496,9 @@ beside it.
 **Create EDID…**, at the end of the same row of tabs, opens the full editor in a window of its own.
 An **edit** tool on every filled bank card opens it on that slot. It's the same editor as the
 website: Simple (a resolution and a rate), Advanced (every field), Mosaic (one tiled EDID per plug,
-so a Mac bonds its outputs into one display), the signal cost, and which Analog Way, Barco and
-PixelHue inputs will take it.
+so a Mac bonds its outputs into one display), the signal cost, and which inputs will take it,
+across the 23 models in its hardware table: Analog Way, Barco, PixelHue, NovaStar, Brompton,
+disguise and Green Hippo.
 
 ![The EDID builder window in Simple mode: 3840x2160 at 60 Hz, ED1 ready to save, the signal cost and the interfaces that will carry it, and the hardware support table](screenshots/edid-editor.png)
 
