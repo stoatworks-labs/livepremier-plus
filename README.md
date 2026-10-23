@@ -253,7 +253,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.2.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.18.3.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -353,6 +353,16 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.3 (2026-10-24).** A newer Otter in the **EDID builder**. Its hardware table gains the
+> **NovaStar MX2000 Pro and MX6000 Pro**, one capacity mode per input card, so the verdict names
+> the card a format needs. HDMI 2.1 inputs are now judged on FRL once TMDS runs out, and YCbCr
+> 4:2:2 costs what each link carries it at (24 bits a pixel on HDMI, twice the bit depth on
+> DisplayPort) instead of 16 for both. Nothing already in the table gets a different answer; on
+> the two NovaStars some 4:2:2 modes move to another card or off it, and a 4:2:2 EDID states the
+> FRL rate its mode needs. The two processors came from davidadevore (otter-edid-editor #30) and,
+> like the rest of the table, from the vendor's spec sheets; neither has been near this app. The
+> console test suite can also walk a U5 mini's key grid now, for the day one is on the desk.
 >
 > **0.18.2 (2026-10-23).** The **Pixelhue panel** on a **U5 mini**, again. With 0.18.1 the
 > user's mini connected and its page keys came through, but its LCD keys stayed blank and TAKE
