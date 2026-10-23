@@ -51,6 +51,10 @@ const rec = recorder('hands');
 /* Who is at the console: a person on the terminal, or the stand-in. */
 const RUN = SKIP
   || (!GUIDED && !STAND_IN && 'LPP_CONSOLE_GUIDED is not set: this file needs a person at the console');
+/* A U5 mini's bus keys are its LCD app's; this app draws them on the key grid. */
+const GRID = !!(MODEL && MODEL.grid);
+const GRID_RUN = RUN || (!GRID && 'only a U5 mini has a key grid');
+const ROW_NAMES = ['screens', 'layers', 'inputs', 'memories'];
 
 before(async () => {
   if (RUN) return;
@@ -165,11 +169,46 @@ function nextPress(timeout) {
 
 const busName = (area) => Object.keys(AREA).find((n) => AREA[n] === area);
 
+/*
+ * A U5 mini's key grid. A bus row shows this app's keys only once switched to
+ * its Companion module with the row's area-switch key (`docs/PIXELHUE.md`), and
+ * a press there comes to the app over the grid, not as a command: so on a mini
+ * a screen is selected here, by the app's own panel state, not by `nextPress`.
+ */
+const companionRows = new Set();
+async function toCompanion(row, { again = false } = {}) {
+  if (companionRows.has(row) && !again) return;
+  if (STAND_IN) con.standIn.lcd.toCompanion(row);
+  else {
+    person.say(`Press the ${ROW_NAMES[row]} row's area-switch key, the last key of that row, until its keys show this app's ` +
+      'labels: names on dark grey, or dark where a key has nothing. If they already do, leave it. Then press Enter.');
+    await person.line().promise;
+  }
+  companionRows.add(row);
+}
+
+/** Select `id` with a press on the screens row of the grid; SKIPPED if skipped. */
+async function selectOnGrid(column, name, id) {
+  await toCompanion(0);
+  return step(`Press the "${name}" key on the screens row of the grid.`, {
+    act: (s) => s.lcd.press(0, column),
+    until: (timeout) => waitPanel(app, (x) => x.selection.destinations.includes(id), { timeout, label: `${id} to be selected from the grid` }),
+  });
+}
+
+/** Drop `id` with a held press on the grid. */
+function dropOnGrid(column, name, id) {
+  return step(`Hold the "${name}" key on the grid for ${HOLD_MS / 1000} seconds to drop it.`, {
+    act: (s) => s.lcd.press(0, column, HOLD_MS),
+    until: (timeout) => waitPanel(app, (x) => !x.selection.destinations.includes(id), { timeout, label: `${id} to be dropped from the grid` }),
+  });
+}
+
 /* ------------------------------------------------------------------ *
  * The displays
  * ------------------------------------------------------------------ */
 
-test('the key displays read what was published', { skip: RUN }, async () => {
+test('the key displays read what was published', { skip: RUN || (GRID && 'a U5 mini\'s bus keys are its LCD app\'s; the key-grid tests ask about what this app draws instead') }, async () => {
   const seen = {};
   for (const [area, list] of [[AREA.screen, expected.model.screens], [AREA.input, expected.model.inputs], [AREA.preset, expected.model.presets]]) {
     if (!list.length) continue;
@@ -250,7 +289,7 @@ test('LOCK PANEL: a tap does nothing here, a hold locks, and a locked panel does
   await waitPanel(app, (s) => s.locked === false, { label: 'the panel to unlock', timeout: 3000 });
 });
 
-test('a held screen key drops a selected screen', { skip: RUN }, async (t) => {
+test('a held screen key drops a selected screen', { skip: RUN || (GRID && 'a U5 mini\'s screen keys are its LCD app\'s; the key-grid test selects and drops on the grid') }, async (t) => {
   const s1 = expected.model.screens.find((s) => s.uid === ID);
   if (!s1) { t.skip(`${ID} is not in service`); return; }
   const key = keyMap.bus(AREA.screen)[expected.model.screens.indexOf(s1)];
@@ -284,9 +323,12 @@ function stroke(since) {
 
 test('the T-bar takes S1 one way, and back the other', { skip: RUN }, async (t) => {
   const s1 = expected.model.screens.find((s) => s.uid === ID);
-  const key = s1 && keyMap.bus(AREA.screen)[expected.model.screens.indexOf(s1)];
+  const at = s1 ? expected.model.screens.indexOf(s1) : -1;
+  const key = s1 && keyMap.bus(AREA.screen)[at];
   if (key === undefined) { t.skip(`${ID} is not on the first page of the screen bus`); return; }
-  const select = await step(`Press the "${s1.name}" screen key once, to select it.`, { act: (s) => s.thumb(key), until: nextPress });
+  /* On a mini the screen is selected on the grid, where its screen keys are. */
+  const select = GRID ? await selectOnGrid(at, s1.name, ID)
+    : await step(`Press the "${s1.name}" screen key once, to select it.`, { act: (s) => s.thumb(key), until: nextPress });
   if (select === SKIPPED) { t.skip('skipped at the console'); return; }
   await waitPanel(app, (s) => s.selection.destinations.includes(ID), { label: `${ID} to be selected` });
 
@@ -308,7 +350,8 @@ test('the T-bar takes S1 one way, and back the other', { skip: RUN }, async (t) 
   assert.equal(await awjGet(sag(ID, 'status', 'transition')), throws[0].from, `${ID} is back where it started`);
 
   /* The selection is left as the walk found it. */
-  await step(`Hold the "${s1.name}" key for ${HOLD_MS / 1000} seconds to drop it.`, { act: (s) => s.thumb(key, HOLD_MS), until: nextPress });
+  if (GRID) await dropOnGrid(at, s1.name, ID);
+  else await step(`Hold the "${s1.name}" key for ${HOLD_MS / 1000} seconds to drop it.`, { act: (s) => s.thumb(key, HOLD_MS), until: nextPress });
 });
 
 /* ------------------------------------------------------------------ *
@@ -368,6 +411,94 @@ function collect(timeout, ms) {
       commands: con.witness.since(mark, 'command').map((e) => ({ command: e.data.command, payload: e.data.payload })),
     }));
 }
+
+/* ------------------------------------------------------------------ *
+ * A U5 mini's key grid: what this app draws, and what comes back
+ * ------------------------------------------------------------------ */
+
+test('the key grid shows each bus on a row switched to Companion', { skip: GRID_RUN }, async () => {
+  const mark = con.witness.mark();
+  const seen = {};
+  const lists = [expected.model.screens, null, expected.model.inputs, expected.model.presets];
+  for (let row = 0; row < ROW_NAMES.length; row++) {
+    await toCompanion(row, { again: true });
+    const list = lists[row];
+    if (!list) continue;   // the layer row is empty until a screen is selected; the next test asks about it
+    if (!list.length) { seen[ROW_NAMES[row]] = 'nothing to show'; continue; }
+    seen[ROW_NAMES[row]] = await confirm(`Does the first key of the ${ROW_NAMES[row]} row read "${list[0].name}"?`,
+      (s) => !!s.lcd.shown(row, 0));
+  }
+  /* What the area-switch key reports to this app: nobody has seen 595's payload.
+     The stand-in answers at once, so give its reports time to arrive. */
+  await sleep(500);
+  const switches = con.witness.since(mark, 'command').map((e) => e.data).filter((d) => Number(d.command) === 595);
+  rec.note('gridRows', seen);
+  rec.note('areaSwitchReports', switches.slice(0, 12));
+  if (STAND_IN) assert.ok(switches.length > 0, 'the stand-in reports 595 for each area switch, as the user\'s mini did');
+  assert.deepEqual(Object.keys(seen).filter((k) => seen[k] === false), [],
+    `rows that did not show this app's labels: ${JSON.stringify(seen)} — docs/PIXELHUE.md says what the firmware led us to expect`);
+});
+
+test('a screen picked on the grid is selected, and TAKE and CUT take it if the mini reports them', { skip: GRID_RUN }, async (t) => {
+  const at = expected.model.screens.findIndex((s) => s.uid === ID);
+  if (at < 0 || at > 7) { t.skip(`${ID} is not on the first page of the screens row`); return; }
+  const name = expected.model.screens[at].name;
+  const select = await selectOnGrid(at, name, ID);
+  if (select === SKIPPED) { t.skip('skipped at the console'); return; }
+  await toCompanion(1);
+  const layers = await confirm(`Does the layers row now show ${name}'s layers?`, (s) => !!s.lcd.shown(1, 0));
+
+  /* Whether a mini reports TAKE and CUT to this app is the open question.
+     Each outcome is recorded: the command arrived and took ("reported"), the
+     key was reported but no command followed ("key only"), or nothing came. */
+  const outcome = {};
+  for (const [which, mode] of [['take', 154], ['cut', 153]]) {
+    const key = keyMap.byMode(mode);
+    if (key === null) { outcome[which] = 'no key'; continue; }
+    const label = which.toUpperCase();
+    const t0 = Date.now();
+    const got = await step(`Press ${label}.`, {
+      act: (s) => s.pressFunction(key),
+      until: (timeout) => waitHistory(app, t0,
+        (h) => (h.command === which && h.kind === 'sent') || new RegExp(`^${label} pressed on the console`).test(h.note || ''),
+        { timeout: Math.min(timeout, 10000), label: `a ${which}, or the note that none came` })
+        .then((h) => (h.kind === 'sent' ? 'reported' : 'key only'))
+        .catch(() => 'nothing'),
+    });
+    outcome[which] = got === SKIPPED ? 'skipped' : got;
+    if (got === 'reported') await settled(link, ID);
+  }
+  rec.note('gridSelection', { select: select !== SKIPPED, layers });
+  rec.note('takeCutOnAMini', outcome);
+  t.diagnostic(`TAKE: ${outcome.take}; CUT: ${outcome.cut}`);
+  await dropOnGrid(at, name, ID);
+  assert.equal(layers, true, 'the layer row did not show the selected screen\'s layers');
+  /* The stand-in reports them as a U5 does; a real mini is what we are asking. */
+  if (STAND_IN) assert.deepEqual(outcome, { take: 'reported', cut: 'reported' });
+});
+
+test('a Companion row pages with its own page keys', { skip: GRID_RUN }, async (t) => {
+  await toCompanion(2);
+  const t0 = Date.now();
+  const mark = con.witness.mark();
+  const where = await step('Press the inputs row\'s page-down key, the tenth key of that row.', {
+    act: (s) => s.lcd.press(2, 9),
+    until: (timeout) => Promise.any([
+      waitHistory(app, t0, (h) => /^inputs row on page/.test(h.note || ''), { timeout: Math.min(timeout, 15000) }).then(() => 'grid'),
+      con.witness.waitFor('command', (d) => Number(d.command) === 550, { mark, timeout: Math.min(timeout, 15000) }).then(() => 'control service'),
+    ]).catch(() => 'nothing'),
+  });
+  if (where === SKIPPED) { t.skip('skipped at the console'); return; }
+  if (where === 'grid') {
+    await step('Press the inputs row\'s page-up key, the ninth key of that row.', {
+      act: (s) => s.lcd.press(2, 8),
+      until: (timeout) => waitHistory(app, Date.now(), (h) => /^inputs row on page 1$/.test(h.note || ''), { timeout }),
+    });
+  }
+  rec.note('gridPageKeys', where);
+  assert.equal(where, 'grid', 'on a row switched to Companion the page keys should reach this app as columns 8 and 9 ' +
+    `(docs/PIXELHUE.md calls that inferred); this one went to ${where}`);
+});
 
 /* ------------------------------------------------------------------ *
  * Faders and encoders: a U5 or U5 Pro only

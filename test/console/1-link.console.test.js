@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 
 import {
   SKIP, MODEL, STAND_IN, AREA, FUNCTION_KEYS, LINK,
-  openConsole, readKeyMap, assertNoOtherDriver, assertQuiet, startPanel, panelState, expectedModel,
+  openConsole, readKeyMap, assertNoOtherDriver, assertQuiet, startPanel, panelState, waitPanel, expectedModel,
   recorder, sleep, keyMapOf,
 } from './harness.js';
 import { MINI_KEYS } from '../helpers/fake-ucenter.js';
@@ -95,15 +95,54 @@ test('the app connects to it and publishes the switcher', { skip: SKIP }, async 
   assert.ok(published.screens >= 1, 'the simulator has no screen in service, so there is nothing to drive');
 });
 
+test('a U5 mini\'s key grid takes this app\'s connection, and is drawn whole', { skip: SKIP || (MODEL && !MODEL.grid && 'only a U5 mini has a key grid') }, async () => {
+  /* A mini's bus keys are its LCD app's, so the app draws them over TCP 17100
+     (`plugins/pixelhue/grid-link.js`). Nothing here needs a person: whether
+     the console takes a client from the LAN, and whether every key went out,
+     the app can say. Whether they SHOW is `3-hands`'s question — a row shows
+     them only once switched to Companion. */
+  let st = null;
+  try {
+    st = await waitPanel(app, (x) => x.grid && ((x.grid.connected && x.grid.drawn >= 40) || x.grid.letGo),
+      { timeout: 15000, label: 'the key grid to connect and be drawn' });
+  } finally {
+    st = st || await panelState(app);
+    rec.note('grid', st.grid);
+  }
+  assert.equal(st.grid.letGo, null, st.grid.letGo && st.grid.letGo.note);
+  assert.equal(st.grid.connected, true, st.grid.lastError || 'the key grid did not connect');
+  assert.ok(st.grid.drawn >= 40, `${st.grid.drawn} of 40 keys drawn`);
+  if (STAND_IN) {
+    const lcd = con.standIn.lcd;
+    assert.ok(lcd.current && !lcd.current.local, 'the stand-in\'s grid is held by the app, from the LAN');
+    assert.ok(lcd.draws >= 40, `the stand-in took ${lcd.draws} draws`);
+    assert.deepEqual(lcd.rejected, [], 'every draw is one the LCD app would take');
+  }
+});
+
 test('nothing else is publishing to the console', { skip: SKIP }, async () => {
   const labels = [...expected.model.screens, ...expected.model.inputs, ...expected.model.presets].map((o) => o.name);
   await assertQuiet(con.witness, labels);
 });
 
-test('the console draws the model from position 1 of every bus', { skip: SKIP }, async () => {
+test('the console draws the model from position 1 of every bus', { skip: SKIP }, async (t) => {
   /* ⚠️ `index` is 1-based: publishing from zero drops the first object of
-     every bus with no error. On a console this is the test that shows it. */
+     every bus with no error. On a console this is the test that shows it.
+     ⚠️ Not on a real U5 mini: its bus keys are its LCD app's, so what its
+     control service reports for them is recorded and said, not required. */
   const drawn = {};
+  if (MODEL.grid && !STAND_IN) {
+    await sleep(2000);
+    const differ = [];
+    for (const [bus, list] of [['screen', expected.model.screens], ['input', expected.model.inputs], ['preset', expected.model.presets]]) {
+      const keys = keyMap.bus(AREA[bus]);
+      drawn[bus] = keys.map((k) => con.witness.text(k));
+      if (list.length && drawn[bus][0] !== list[0].name) differ.push(`${bus}: "${drawn[bus][0]}" for "${list[0].name}"`);
+    }
+    rec.note('drawn', drawn);
+    if (differ.length) t.diagnostic(`the mini's control service does not report the published names (${differ.join('; ')}) — expected, since its LCD app owns those keys`);
+    return;
+  }
   for (const [bus, list] of [['screen', expected.model.screens], ['input', expected.model.inputs], ['preset', expected.model.presets]]) {
     const keys = keyMap.bus(AREA[bus]);
     drawn[bus] = keys.map((k) => con.witness.text(k));

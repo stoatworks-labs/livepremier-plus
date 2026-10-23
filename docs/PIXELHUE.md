@@ -425,9 +425,9 @@ refuses one. It is three files, run in order:
 
 | file | needs | what it settles |
 |---|---|---|
-| `1-link` | the console | it answers on its port and socket path, sends its key states, serves its own key map, takes the model and draws it from position 1 |
+| `1-link` | the console | it answers on its port and socket path, sends its key states, serves its own key map, takes the model and draws it from position 1; on a U5 mini, that its key grid takes the app's connection and all 40 keys go out |
 | `2-keys` | the console | every key the app acts on, pressed by injection (`PUT …/key/action`), checked three ways: the console's report on a socket of the suite's own, the app's history, and the switcher over AWJ |
-| `3-hands` | a person | what only a thumb proves: that the key pressed is the key the map says, what each display reads, long presses, LOCK PANEL, paging, SHIFT, the area-switch keys and the T-bar |
+| `3-hands` | a person | what only a thumb proves: that the key pressed is the key the map says, what each display reads, long presses, LOCK PANEL, paging, SHIFT, the area-switch keys and the T-bar; on a U5 mini, the key grid (below) |
 
 ```bash
 LPP_CONSOLE=192.168.0.50 LPP_SIM=127.0.0.1:3000 npm run test:console
@@ -477,7 +477,24 @@ differs, and a newer firmware's map goes into that file:
 - its socket at `/unico/v1/ws`, and key states on it at client type 5 — the
   one thing nobody knows. `1-link`'s first test waits five seconds for the
   whole key-state dump; if none comes, it fails saying what did arrive and
-  that the mini's own app connects as 11.
+  that the mini's own app connects as 11;
+- its bus keys belong to its LCD app ([A U5 mini's key grid](#a-u5-minis-key-grid)),
+  so `1-link` records what its control service reports for them instead of
+  requiring the published names, and checks that the key grid on 17100 takes
+  the app's connection and gets all 40 keys.
+
+**On a mini, `3-hands` walks the key grid**, and skips the two steps that are a
+U5's (a bus key reading a published name, a held screen key reporting 103). It
+asks for each row to be switched to Companion and whether its first key reads
+the right name, recording what the area-switch key reported (595, whose
+payload nobody has seen). It has a screen picked on the grid, asks whether the
+layer row followed, then has TAKE and CUT pressed and records which of the
+three things happened: the command came and took, the key was reported with no
+command after it, or nothing came at all. That is the open question, so it is
+recorded rather than required. It then pages the input row with its own page
+key and fails if the press went to the control service as 550 instead of to
+the app, since columns 8 and 9 being the page keys is only inferred. The T-bar
+step selects S1 on the grid too.
 
 **Without a console**, `LPP_CONSOLE=stand-in` swaps in
 `test/helpers/fake-ucenter.js`, a U5 mini's control service in a few hundred
