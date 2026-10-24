@@ -154,6 +154,13 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.18.5 lets Linux see the HDMI block on EDIDs with no detailed timing.** Every EDID the builder
+> made for a CTA VIC (1080p60, 4K30 and so on) told a source, in one byte of its CTA extension, that
+> it had no data blocks. Linux believed it, so a Linux machine treated the input as DVI and never
+> read the VICs or the TMDS clock. That byte now points past the data blocks, and nothing else in
+> the EDID moves. EDIDs already in a bank keep the old byte until you build and save them again.
+> From Otter's tests and a reader that parses the way Linux does, not from a screen.
+>
 > **0.18.4 fixes the TMDS clock the EDID builder states.** A built EDID now says the clock its
 > mode needs, rounded up to the next 5 MHz: 150 MHz for 1080p60 12-bit 4:2:2, where it said 225,
 > and 300 for 4K30, where it said 295, which is less than the mode itself. Mosaic tiles haven't
