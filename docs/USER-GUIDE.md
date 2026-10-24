@@ -157,6 +157,11 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.18.6 adds Plug names, off until you switch it on.** Each input's label goes into the EDID its
+> plug serves, and its number into the serial, so a laptop sees "PPT MAIN" instead of AQL_HDMI.
+> Proven on the simulator only. The EDID builder's EDIDs also name SWK, not OTR, as their maker,
+> so a slot built before 0.18.6 shows as edited in From Formats until it's built and saved again.
+>
 > **0.18.5 lets Linux see the HDMI block on EDIDs with no detailed timing.** Every EDID the builder
 > made for a CTA VIC (1080p60, 4K30 and so on) told a source, in one byte of its CTA extension, that
 > it had no data blocks. Linux believed it, so a Linux machine treated the input as DVI and never
