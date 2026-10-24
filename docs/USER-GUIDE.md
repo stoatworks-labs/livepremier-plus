@@ -154,6 +154,11 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.18.4 fixes the TMDS clock the EDID builder states.** A built EDID now says the clock its
+> mode needs, rounded up to the next 5 MHz: 150 MHz for 1080p60 12-bit 4:2:2, where it said 225,
+> and 300 for 4K30, where it said 295, which is less than the mode itself. Mosaic tiles haven't
+> changed. From Otter's tests, not from a screen.
+>
 > **0.18.3 updates the EDID builder's Otter editor.** It knows the NovaStar MX2000 Pro and MX6000
 > Pro now, card by card, judges an HDMI 2.1 input on FRL when TMDS runs out, and costs YCbCr 4:2:2
 > per link (24 bits a pixel on HDMI, twice the bit depth on DisplayPort). Nothing already in its
