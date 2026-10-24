@@ -258,7 +258,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.5.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.18.6.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -358,6 +358,17 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.6 (2026-10-24).** **Plug names**, new and off until you switch it on. A Plug Names tab on
+> the EDID page writes each input's label into the EDID its plug already serves, and the input's
+> number into its serial, so the laptop on In3 sees "PPT MAIN", serial 3, instead of AQL_HDMI on
+> every plug. Nothing else in the EDID moves, Undo puts the original back, and a rename that would
+> hot-plug more than one source, or one on program, asks first. Proven on the simulator only: no
+> Aquilon has been renamed yet, so whether a renamed plug survives a power cycle is still a guess.
+> Also in the **EDID builder**: its editor is plain EDID Editor now, and the EDIDs it builds name
+> Stoatworks Labs (SWK) as their maker rather than OTR, the old name's initials. Nothing in a bank
+> is rewritten, so a slot built before 0.18.6 shows as "has this mode, edited" in From Formats
+> until you build and save it again.
 >
 > **0.18.5 (2026-10-24).** Linux can now see the HDMI block on an EDID the **EDID builder** made
 > without a detailed timing. A CTA extension says in its third byte where its data blocks stop, and
