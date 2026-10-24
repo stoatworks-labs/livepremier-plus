@@ -253,7 +253,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.3.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.18.4.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -353,6 +353,18 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.4 (2026-10-24).** The **EDID builder** now states the TMDS clock a mode needs. Its Otter
+> had been working out the HDMI block's Max_TMDS_Clock, and the HDMI Forum block's character
+> rate, with a sum of its own that overstated deep 4:2:2 and understated deep 4:2:0: 1080p60
+> 12-bit 4:2:2 said 225 MHz for a mode that needs 148.5, and 4K60 10-bit 4:2:0 said 295 for one
+> that needs 371.25. It then rounded to the nearest 5 MHz step, so even plain 4K30 went out at
+> 295 MHz for a 297 MHz mode, a ceiling below the mode the EDID describes, which a source that
+> believes its EDIDs (Intel's Linux driver, for one) will refuse. The ceiling is now Otter's own
+> link rate rounded up, so those three say 150, 375 and 300. Plenty of built EDIDs change by that
+> one byte, and deep 4:2:2 at or under 340 MHz loses its Forum block, since it needs no
+> scrambling. Mosaic tiles don't go through the builder and are unchanged. From Otter's tests and
+> a sweep of its builder, not from a screen.
 >
 > **0.18.3 (2026-10-24).** A newer Otter in the **EDID builder**. Its hardware table gains the
 > **NovaStar MX2000 Pro and MX6000 Pro**, one capacity mode per input card, so the verdict names
