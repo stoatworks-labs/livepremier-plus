@@ -253,7 +253,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.4.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.18.5.** The panels render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -353,6 +353,19 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.5 (2026-10-24).** Linux can now see the HDMI block on an EDID the **EDID builder** made
+> without a detailed timing. A CTA extension says in its third byte where its data blocks stop, and
+> Otter wrote 0 there whenever an extension had data blocks but no detailed timings. That's every
+> EDID built for a CTA VIC (1080p60, 4K30 and the rest of the table), plus the deep-colour ones
+> whose timing is too big for a detailed timing and goes in a DisplayID block. CTA-861 reads 0 as
+> "no data blocks at all", and so does Linux's DRM driver, so a Linux machine treated the input as
+> DVI and never read the VICs or the TMDS clock 0.18.4 went to the trouble of fixing. Otter's own
+> reader took 0 to mean "carry on to the padding", which is why its round trips never noticed. The
+> byte now says 14 for an 8-bit 1080p60 or 4K30, and only it and the checksum change. Nothing here
+> overwrites a bank slot, so an EDID an earlier version saved keeps its 0 until you build and save
+> it again. From Otter's tests, a reader that parses the way Linux does and a sweep of its builder,
+> not from a screen.
 >
 > **0.18.4 (2026-10-24).** The **EDID builder** now states the TMDS clock a mode needs. Its Otter
 > had been working out the HDMI block's Max_TMDS_Clock, and the HDMI Forum block's character
