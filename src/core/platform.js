@@ -309,6 +309,21 @@ export const CAPABILITIES = [
     absent: 'This switcher has no EDID bank this app knows how to write.'
   },
   {
+    id: 'plugEdid',
+    label: 'Plug EDIDs',
+    /* Each input plug's EDID command — `data`, `dataSize`, then `xStore` —
+       which the vendor's EDID page writes when a bank slot is dropped on an
+       input. Read off a LivePremier Simulator 6.2.73 and its bundle
+       (2026-10-24). A Midra 4K or Alta 4K plug takes a requested format
+       (`xRequestPrefFormat`) and no bytes that anyone has seen, so no mng
+       probe. */
+    probes: {
+      nlc: [ROOT, 'inputList', 'items', '*', 'plugList', 'items', '*', 'edid', 'cmd', 'pp', 'xStore']
+    },
+    needs: 'input plugs that take an EDID written to them',
+    absent: 'This switcher’s input plugs take a requested format, not an EDID written to them.'
+  },
+  {
     id: 'controlSurfaces',
     label: 'Control surfaces',
     /* MIDI Mapping and the Speed Editor hang under the vendor's Virtual

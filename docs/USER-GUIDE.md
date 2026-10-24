@@ -71,6 +71,9 @@ than something bolted on.
   format, automatically if you like, or by hand in the full EDID Editor.
 - **Mosaic inputs:** the editor's Mosaic mode carried through to the frame: inputs grouped 2X1
   or 2X2, each plug loaded with its tile EDID.
+- **Plug names** *(preview, off by default)*: each input plug's EDID renamed after the input's
+  label, so the laptop on In3 says "PPT MAIN" in its display settings instead of AQL_HDMI, and
+  numbered with the input, so two plugs are two displays. Not yet tried on a real frame.
 - **Pitch Compensation:** the H and V ratios a screen spanning LED walls of different pitches
   needs, worked out from the pitches you give it.
 - **OSC input:** QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
@@ -1540,6 +1543,53 @@ group.
 > switcher check it and applies it, the same steps Preconfig ▸ Inputs sends, and there's no undo in
 > the window: put an input back to single in Preconfig ▸ Inputs. LivePremier only, and proven on
 > the simulator only; no Aquilon has bonded a Mac's outputs this way yet.
+
+### Plug names
+
+Every input on a LivePremier introduces itself to whatever's plugged into it the same way: Analog
+Way, product 8002, serial 0, **AQL_HDMI** (or AQL_DP). So a laptop plugged into In3 and In4 has two
+displays with the same name, and somebody gets to guess which is which while the client watches.
+
+**Plug Names** is a tab beside From Formats, there only while the **Plug names** plugin is on
+(it's off until you switch it on in Preconfig ▸ LivePremier Plus → Plugins). One card per input
+with an EDID, and for each one:
+
+- **The name is the input's label**, put into the EDID's display name, which is what macOS,
+  Windows and Linux show in their display settings and what most apps call the screen. An EDID
+  holds 13 plain characters and no more, so "powerpoint main" comes out as "powerpoint ma".
+  Type a **short name** on the card ("PPT MAIN") and that's used instead, for as long as the label
+  stays the same. Accents are dropped (é becomes e) and anything that isn't plain text goes.
+- **The serial is the input's number**, so In3 is serial 3. A computer tells two displays apart
+  by maker, product and serial, and remembers each one's arrangement by them. With every plug
+  saying serial 0, two plugs from one switcher look like the same display twice.
+- **Nothing else changes.** It renames the EDID the plug already has, whatever put it there: a
+  default, a bank slot or a template. Every mode, block and audio setting stays as it was.
+
+**Name** does one plug and **Name *n* plugs** does every card that's out of date. A card stays out
+of date when you rename the input or type a new short name: nothing is written until you press.
+
+> ⚠️ **Every rename is a hot-plug.** The plug drops whatever's connected and takes it back, so
+> that source goes black for a second or two and a computer may shuffle its displays about. Do it
+> before the show. More than one plug, or one that's on program, asks first. A computer meeting
+> the new serial treats it as a new display once, so its resolution and arrangement need setting
+> again that one time.
+
+**Undo** puts back the EDID the plug had before it was first named here, byte for byte. The
+original is kept by this app, per switcher, because the switcher doesn't keep one, and it
+survives a reload. Undo is offered only while the plug still has the EDID written here: if you've
+loaded another EDID onto it since, that's your newer choice, and Undo won't put an older one over
+it. A plug you load a different EDID onto later takes that EDID's own name again. Name it again if
+you want the label back.
+
+Left alone: plugs in a mosaic group (their tile EDIDs have to match each other, and a Mac shows
+the group as one display anyway), SDI inputs (no EDID), inputs with no label and no short name,
+and an EDID with no room for a name. That last one is an EDID whose four descriptors are all
+timings, and it's refused rather than having a timing thrown out to make room.
+
+The write is the one the switcher's own EDID page sends when you drop a bank slot onto an input,
+and the switcher reads the new name and serial back itself. LivePremier only: a Midra 4K or Alta 4K
+plug takes a requested format, not an EDID written to it. Proven on the simulator only; no Aquilon
+has been renamed this way yet.
 
 ---
 

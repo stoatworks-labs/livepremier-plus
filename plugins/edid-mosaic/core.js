@@ -26,6 +26,13 @@
  * Pure apart from the session it is handed: no DOM, so it tests under node.
  */
 
+import {
+  readTile, servedEdid, writePlugEdid, resetPlugEdid, sleep, until
+} from '../../src/core/plug-edid.js';
+
+/* Mosaic's own callers and tests still find these here. */
+export { readTile, servedEdid, writePlugEdid };
+
 const ROOT = 'device';
 const GROUP_OF = { '2x1': '2X1', '2x2': '2X2' };
 const TILE_BYTES = 384;
@@ -35,7 +42,6 @@ const inputNode = (store, id) => store.get([ROOT, 'inputList', 'items', id]);
 const plugNode = (store, id) => store.get([ROOT, 'inputList', 'items', id, 'plugList', 'items', '1']);
 const preNew = (id) => [ROOT, 'preconfig', 'inputs', 'new', 'inputList', 'items', id, 'control', 'pp', 'group'];
 const preCurrent = (store, id) => pp(store.get([ROOT, 'preconfig', 'inputs', 'current', 'inputList', 'items', id, 'status']));
-const edidCmd = (id) => [ROOT, 'inputList', 'items', id, 'plugList', 'items', '1', 'edid', 'cmd', 'pp'];
 const NEW_CONTROL = [ROOT, 'preconfig', 'inputs', 'new', 'control', 'pp'];
 const newStatus = (store) => pp(store.get([ROOT, 'preconfig', 'inputs', 'new', 'status']));
 
@@ -105,48 +111,6 @@ export function mosaicTargets(store, cols, rows) {
     });
   }
   return out;
-}
-
-// ------------------------------------------------------------------ EDID reading
-
-/**
- * The tile a DisplayID Tiled Display Topology block describes, from a whole
- * EDID. Tag 0x12 in a DisplayID 1.3 section, 0x28 in a 2.0 one; the 22-byte
- * payload is the same (drm_parse_tiled_block). Null when there is none.
- */
-export function readTile(bytes) {
-  for (let off = 128; off + 128 <= bytes.length; off += 128) {
-    if (bytes[off] !== 0x70) continue;
-    const v2 = bytes[off + 1] >= 0x20;
-    const end = off + 5 + Math.min(bytes[off + 2], 121);
-    for (let i = off + 5; i + 3 <= end;) {
-      const tag = bytes[i];
-      const len = bytes[i + 2];
-      if (tag === 0 && len === 0) break;
-      if (tag === (v2 ? 0x28 : 0x12) && len >= 22) {
-        const p = bytes.slice(i + 3, i + 3 + 22);
-        const hi = p[3];
-        return {
-          cols: ((p[1] >> 4) | (((hi >> 6) & 3) << 4)) + 1,
-          rows: ((p[1] & 0x0f) | (((hi >> 4) & 3) << 4)) + 1,
-          col: (p[2] >> 4) | (((hi >> 2) & 3) << 4),
-          row: (p[2] & 0x0f) | ((hi & 3) << 4),
-          width: (p[4] | (p[5] << 8)) + 1,
-          height: (p[6] | (p[7] << 8)) + 1,
-          topologyId: Array.from(p.slice(13, 22), (b) => b.toString(16).padStart(2, '0')).join(' ')
-        };
-      }
-      i += 3 + len;
-    }
-  }
-  return null;
-}
-
-/** What a plug is serving now: its bytes, trimmed to the size it declares. */
-export function servedEdid(store, id) {
-  const st = pp(plugNode(store, id) && plugNode(store, id).edid && plugNode(store, id).edid.status);
-  const data = Array.isArray(st.data) ? st.data : [];
-  return { bytes: data.slice(0, Number(st.dataSize) || data.length), isValid: st.isValid, name: st.productName || '' };
 }
 
 /** A member plug's place in the stitched picture, in pixels, as the device reports it. */
@@ -222,19 +186,6 @@ export function inspectMosaic(store, firstId) {
 
 // ------------------------------------------------------------------ writing
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-/** Wait until `test()` holds, re-checking on every write to the store. */
-function until(store, test, ms) {
-  if (test()) return Promise.resolve(true);
-  return new Promise((resolve) => {
-    let done = false;
-    const finish = (v) => { if (!done) { done = true; unsub(); clearTimeout(timer); resolve(v); } };
-    const unsub = store.subscribe([ROOT], () => { if (test()) finish(true); }, { immediate: false });
-    const timer = setTimeout(() => finish(test()), ms);
-  });
-}
-
 /**
  * Set an input's group through the preconfig: copy current, change one
  * field, check, apply — the sequence the Web RCS itself sends.
@@ -253,23 +204,6 @@ export async function setGroup(session, firstId, group, { timeout = 15000, steps
   const ok = await until(store, () => preCurrent(store, firstId).group === group, timeout);
   steps.push(ok ? `${firstId} grouped ${group}` : `${firstId} did not become ${group}`);
   return ok;
-}
-
-/** Write one plug's EDID the way the Web RCS does, and wait for it to be served. */
-export async function writePlugEdid(session, id, bytes, { timeout = 8000 } = {}) {
-  const data = Array.from(bytes);
-  while (data.length < 512) data.push(0);
-  const base = edidCmd(id);
-  session.send({ path: [...base, 'dataSize'], value: String(bytes.length) });
-  session.send({ path: [...base, 'data'], value: data });
-  session.send({ path: [...base, 'xStore'], value: false });
-  await sleep(150);
-  session.send({ path: [...base, 'xStore'], value: true });
-  const same = () => {
-    const served = servedEdid(session.store, id).bytes;
-    return served.length === bytes.length && served.every((b, i) => b === bytes[i]);
-  };
-  return until(session.store, same, timeout);
 }
 
 /**
@@ -314,10 +248,7 @@ export async function clearMosaic(session, firstId, opts = {}) {
   const { members } = inspectMosaic(session.store, firstId);
   await setGroup(session, firstId, '1X1', { ...opts, steps });
   for (const { id } of members) {
-    const base = edidCmd(id);
-    session.send({ path: [...base, 'xReset'], value: false });
-    await sleep(150);
-    session.send({ path: [...base, 'xReset'], value: true });
+    await resetPlugEdid(session, id);
     steps.push(`${id} back to its default EDID`);
   }
   return { ok: true, steps, problems: [] };

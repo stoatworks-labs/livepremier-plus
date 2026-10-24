@@ -7,7 +7,7 @@ person and dated by when each thing was learned — that date is usually the use
 Cross-cutting notes that are not specific to this repo live in
 [fleet-notes](https://github.com/stoatworks-labs/fleet-notes).
 
-*LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, adding 40 built-in plugins to a real LivePremier (and, for most of them, Midra 4K / Alta 4K) Web RCS session in the vendor's own CSS; PUBLIC; verified through the proxy against simulators; the panels have written to real hardware twice (below)*
+*LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, adding 46 built-in plugins to a real LivePremier (and, for most of them, Midra 4K / Alta 4K) Web RCS session in the vendor's own CSS; PUBLIC; verified through the proxy against simulators; the panels have written to real hardware twice (below)*
 
 ## Where it stands (2026-10-16, v0.17.7)
 
@@ -27,6 +27,7 @@ are in `OFF_UNTIL_TESTED` (`test/plugins.test.js`) until a real frame has seen t
 AoI from a custom format and Image Library tools (2026-10-20, unreleased) are at the end of this
 file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-20, unreleased, in
 `OFF_UNTIL_TESTED`): neither has met a panel, only a pretend one and the 6.2.73 simulator.
+**Plug names** (2026-10-24, unreleased, in `OFF_UNTIL_TESTED`) is the newest entry below.
 
 **What real hardware has seen**, all of it:
 
@@ -67,6 +68,37 @@ payload, the page half on the Midra simulator went from Screens / Aux. to LIVE �
 SOURCE BACKUP is refused on Midra and Alta with the reason: their inputs have no backup (no
 `backup` node in either bundle's input object; the card's ⋮ is plug, Setup, Freeze, Capture).
 Neither key has been pressed on a console.
+
+## Plug names — an input's label as its plug's EDID name (2026-10-24)
+
+Asked for by Allan: In1 labelled "powerpoint main" should show up on the laptop as that, not
+AQL_HDMI. Built as plugin `edid-names` (off by default, in `OFF_UNTIL_TESTED`), a Plug Names tab
+the EDID builder draws on its strip while the plugin's service is there.
+
+- **The vendor's own load is a raw write.** Read out of the 6.2.73 bundle (`input-card.tsx`):
+  dropping a bank slot on an input sends the slot's `data` and `dataSize` to the plug's
+  `edid/cmd/pp`, then `xStore` false, true. The same as Mosaic's write, so every bank load on a
+  real Aquilon already goes this way. The card's `edid/cmd/pp/label` (max 16) is only a note the
+  card shows; it is not in the EDID and nothing touches it.
+- **The switcher parses what it is given.** After a write, `edid/status/pp` reports the new
+  `productName` and `serialNumber` and keeps `hid` (ANW8002) and `prefFormatName`: the sim test
+  uses those as its witness, not this app's reading of the bytes.
+- **Stock plugs:** ANW, product 0x8002, serial 0, AQL_HDMI / AQL_DP in the fourth descriptor,
+  a 0x00 (manufacturer) descriptor at 72. SDI plugs have `isAvailable` false.
+- ⚠️ **Padding comes back.** A plug serves the 512 numbers it was sent. Mosaic padded with 0, the
+  vendor (and the bank) with 0xFF, so an undo left the EDID right and the padding different.
+  `writePlugEdid` (now `src/core/plug-edid.js`, shared with Mosaic) pads with 0xFF, and the sim
+  test compares all 512.
+- Only block 0 changes: the name (first 0xFC, else a 0x10 dummy; a second 0xFC becomes a dummy),
+  the ID serial at 12–15, the checksum. An EDID with no free descriptor is refused. EDID Editor's
+  `describeEdid` reads a renamed EDID as the same mode, timing and errors.
+- The original is kept per switcher (`plug-names-<device>.json`) **before** the write goes out,
+  and Undo is offered only while the plug still serves what was written.
+
+Verified on the rack simulator: `test/sim/io.sim.test.js` (18/18, twice), and by hand in the
+browser pane (In3 named PPT MAIN, the vendor's Inputs column showed it, Undo survived a reload).
+The simulator was left matching a store snapshot taken before any of it. Not run on an Aquilon:
+whether a written plug EDID survives a power cycle is still unknown.
 
 ## Slides in the Background Slicer (2026-10-20)
 

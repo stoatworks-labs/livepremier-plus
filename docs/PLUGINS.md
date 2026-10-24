@@ -372,6 +372,8 @@ rect)` and `shape(cmds, read)`, which make a rectangle or a run of writes keep a
 its surface — the Edit page uses it;
 **`edid-mosaic`**, from Mosaic inputs — `targets(cols, rows)`, `apply(firstId, tiles)`,
 `inspect(firstId)` and `clear(firstId)` — the EDID editor's Apply to inputs;
+**`edid-names`**, from Plug names — `{ title, mount(target) }`, the Plug Names panel, which the EDID
+builder mounts into its pane under a tab of that title and stops when the pane closes;
 **`timecode`**, from Timecode — `{ source, chase }`, the clock and the chase the Timeline draws;
 **`matrix`**, from Matrix Routing — `describeSurfaces()`, what its Router tabs found on the vendor's
 pages; **`variables`**, from Variables — `list()`, `resolve('$S1.width')`, `resolver()` (the

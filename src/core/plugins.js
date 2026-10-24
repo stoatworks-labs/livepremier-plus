@@ -473,6 +473,18 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'edid-names',
+    name: 'Plug names',
+    where: 'A Plug Names tab on the vendor’s EDID page',
+    description: 'Each input plug’s EDID under the input’s label, so a computer plugged into it sees “PPT MAIN” rather than AQL_HDMI, and the input’s number as its serial, so two plugs are two displays. The rest of the EDID stays as it is. Never yet run against a real frame.',
+    requires: { capabilities: ['plugEdid'], plugins: ['edid'] },
+    /* Off until tested on a frame: each write is a hot-plug for whatever is
+       connected to that input. The tab lives on the EDID builder's strip. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'experimental',
     name: 'Experimental features',
     where: 'Preconfig ▸ LivePremier Plus, a card saying what it shows',

@@ -21,6 +21,9 @@
  *                   is not a tab: it opens a window and changes nothing here.
  *   Edit            a tool on each filled ED card, beside the vendor's bin and
  *                   ⋮, opening the editor on that slot.
+ *   Plug Names      a fourth tab, only while the Plug names plugin is on: its
+ *                   own panel (`plugins/edid-names/panel.js`), mounted into
+ *                   the same pane and stopped when the pane closes.
  *
  * Same discipline as `ui/tabs.js` and the Router tab: everything is cloned
  * from a live vendor node so this build's hashed classes come with it; React
@@ -38,8 +41,11 @@ import { h, button, icon, spriteId } from '../../src/ui/dom.js';
 const MARK = 'data-lpp-edid';
 const ROUTE = /^\/edids\/?$/;
 
-export function installEdidPage({ session, enabled, subscribe, slots, formatEdids, save, openEditor, autoFill, setAutoFill, doc = document }) {
-  let open = false;
+export function installEdidPage({ session, enabled, subscribe, slots, formatEdids, save, openEditor, autoFill, setAutoFill, plugNames = () => null, doc = document }) {
+  /* Which of ours is showing: 'formats', 'names', or null for the vendor's. */
+  let open = null;
+  /* The Plug Names panel while it is mounted: `{ stop }`. */
+  let mounted = null;
   let dimmed = [];
   let observer = null;
   let rows = null;
@@ -82,59 +88,85 @@ export function installEdidPage({ session, enabled, subscribe, slots, formatEdid
   }
 
   function mountTabs({ strip, tabs }) {
-    if (strip.querySelector(`[${MARK}="tab"]`)) return;
     const template = tabs.find((a) => !a.classList.contains('active')) || tabs[0];
     if (!template) return;
+    let added = false;
 
-    const tab = cloneTab(template, 'From Formats', 'tab');
-    tab.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); show(); });
+    if (!strip.querySelector(`[${MARK}="tab"]`)) {
+      const tab = cloneTab(template, 'From Formats', 'tab');
+      tab.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); show('formats'); });
 
-    /* Quieter than a tab, and pushed to the far end: it opens a window, it
-       does not switch this pane. */
-    const create = cloneTab(template, 'Create EDID…', 'create');
-    create.style.marginLeft = 'auto';
-    create.title = 'Build an EDID in EDID Editor and save it into the bank';
-    const label = create.querySelector('h3, h4, h5');
-    if (label) label.classList.add('aw-text-secondary');
-    create.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); openEditor(null); });
+      /* Quieter than a tab, and pushed to the far end: it opens a window, it
+         does not switch this pane. */
+      const create = cloneTab(template, 'Create EDID…', 'create');
+      create.style.marginLeft = 'auto';
+      create.title = 'Build an EDID in EDID Editor and save it into the bank';
+      const label = create.querySelector('h3, h4, h5');
+      if (label) label.classList.add('aw-text-secondary');
+      create.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); openEditor(null); });
 
-    strip.append(tab, create);
-    if (open) show();
+      strip.append(tab, create);
+      added = true;
+    }
+
+    /* Before Create EDID…, so the tabs stay together. The service is asked
+       for each time: it is there only while the Plug names plugin runs. */
+    const names = plugNames();
+    if (names && !strip.querySelector(`[${MARK}="names-tab"]`)) {
+      const tab = cloneTab(template, names.title || 'Plug Names', 'names-tab');
+      tab.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); show('names'); });
+      strip.insertBefore(tab, strip.querySelector(`[${MARK}="create"]`));
+      added = true;
+    }
+    if (added && open) show(open);
   }
+
+  const unmountNames = () => { if (mounted) { try { mounted.stop(); } catch { /* already gone */ } mounted = null; } };
 
   function mountPane({ strip, vendorPane }) {
     const ours = strip.parentElement.querySelector(`:scope > [${MARK}="pane"]`);
-    if (!open) { if (ours) ours.remove(); return; }
+    if (!open) { if (ours) ours.remove(); unmountNames(); return; }
     if (vendorPane && !vendorPane.dataset.lppEdidHidden) {
       vendorPane.dataset.lppEdidHidden = '1';
       vendorPane.style.display = 'none';
     }
-    if (ours) return;
+    if (ours && ours.dataset.lppEdidShows === open) return;
+    /* Another of ours is showing, or React took the pane away with its column. */
+    if (ours) ours.remove();
+    unmountNames();
     pane = h('div', {
       class: (vendorPane && vendorPane.className) || 'ui bottom attached segment active tab aw-flex-item',
       [MARK]: 'pane',
+      dataset: { lppEdidShows: open },
       style: { overflowY: 'auto' }
     });
     strip.parentElement.append(pane);
-    renderPane();
+    if (open === 'names') {
+      const names = plugNames();
+      if (names) mounted = names.mount(pane);
+      else pane.append(h('div', { class: 'aw-padding-big aw-text-tertiary', text: 'Plug names is switched off.' }));
+    } else {
+      renderPane();
+    }
   }
 
-  function show() {
+  function show(kind = 'formats') {
     const col = column();
     if (!col) return;
-    open = true;
+    open = kind;
     for (const a of col.tabs) if (a.classList.contains('active')) { a.classList.remove('active'); dimmed.push(a); }
-    const tab = col.strip.querySelector(`[${MARK}="tab"]`);
-    if (tab) tab.classList.add('active');
+    const role = kind === 'names' ? 'names-tab' : 'tab';
+    for (const t of col.strip.querySelectorAll(`[${MARK}="tab"], [${MARK}="names-tab"]`)) t.classList.toggle('active', t.getAttribute(MARK) === role);
     mountPane(col);
   }
 
   function close() {
-    open = false;
+    open = null;
+    unmountNames();
     for (const a of dimmed) if (a.isConnected) a.classList.add('active');
     dimmed = [];
     for (const node of doc.querySelectorAll(`[${MARK}="pane"]`)) node.remove();
-    for (const node of doc.querySelectorAll(`[${MARK}="tab"]`)) node.classList.remove('active');
+    for (const node of doc.querySelectorAll(`[${MARK}="tab"], [${MARK}="names-tab"]`)) node.classList.remove('active');
     for (const p of doc.querySelectorAll('[data-lpp-edid-hidden]')) { p.style.display = ''; delete p.dataset.lppEdidHidden; }
     pane = null;
   }
@@ -186,7 +218,7 @@ export function installEdidPage({ session, enabled, subscribe, slots, formatEdid
 
   let drawing = null;
   async function renderPane() {
-    if (!pane) return;
+    if (!pane || open !== 'formats') return;
     const target = pane;
     const run = (drawing = {});
     let list;
@@ -195,7 +227,7 @@ export function installEdidPage({ session, enabled, subscribe, slots, formatEdid
     } catch (err) {
       list = err;
     }
-    if (run !== drawing || target !== pane) return;
+    if (run !== drawing || target !== pane || open !== 'formats') return;
     rows = list;
     fillPane(target, list);
   }
@@ -313,7 +345,7 @@ export function installEdidPage({ session, enabled, subscribe, slots, formatEdid
 
   /* -------------------------------------------------------------- running */
 
-  const unsubscribe = subscribe(() => { if (pane) renderPane(); });
+  const unsubscribe = subscribe(() => { if (pane && open === 'formats') renderPane(); });
 
   let queued = false;
   observer = new MutationObserver(() => {

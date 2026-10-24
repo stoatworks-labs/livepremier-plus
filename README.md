@@ -224,6 +224,11 @@ bolted on afterwards:
 - **Mosaic inputs:** the EDID builder's Mosaic mode, carried through to the frame. Group inputs
   2X1 or 2X2 and load each plug with its tile EDID, and a Mac joins several outputs into one
   frame-synced display.
+- **Plug names** *(preview, off by default)*: a Plug Names tab on the EDID page that renames each
+  input plug's EDID after the input's label, so the laptop on In3 calls its display "PPT MAIN"
+  rather than AQL_HDMI, with the input's number as the serial so two plugs are two displays. The
+  rest of the EDID stays as it is, a short name covers a label longer than the 13 characters an
+  EDID holds, and Undo puts the original back. Proven on the simulator only.
 
 ![Screens / Aux. with the Timeline tab open beside Properties and Memories: the demo cue stack, its standby cue and GO, inside the vendor's own page](docs/screenshots/screens-timeline.png)
 
@@ -249,8 +254,8 @@ has a budget of five AWJ clients.)
 
 It runs as a desktop tray app for macOS, Windows and Linux, as a Docker image, or from the
 command line with Node 20. It works on a **LivePremier**, and on a **Midra 4K or Alta 4K** for
-most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inputs, Pixel Map
-and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
+most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inputs, Plug names, Pixel
+Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
 > **Status: field testing, v0.18.5.** The panels render inside a real Web RCS session and the

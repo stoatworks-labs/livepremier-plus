@@ -19,6 +19,10 @@
  *
  * Found here, and since fixed: `mosaicTargets` offered a GROUPED member of a
  * mosaic as the start of another one.
+ *
+ * Plug names labels one quiet input, names its plug and undoes it, and takes
+ * the switcher's own parse of the EDID (`productName`, `serialNumber`, `hid`)
+ * as the witness, not this app's reading of the bytes.
  */
 
 import test, { before, after } from 'node:test';
@@ -41,6 +45,9 @@ import {
 import {
   mosaicTargets, inspectMosaic, applyMosaic, clearMosaic, servedEdid, readTile, writePlugEdid
 } from '../../plugins/edid-mosaic/core.js';
+import {
+  plugRows, namePlugs, undoPlugs, nameFor, readName, emptyDocument
+} from '../../plugins/edid-names/core.js';
 import {
   screenOutputs, toProject, pitchWrites, alreadyApplied, outputPitch, outputPitchCommit
 } from '../../src/core/pitch.js';
@@ -767,4 +774,101 @@ test('what each input receives and each output drives reads as the switcher repo
     ]);
     assert.deepEqual([o.width, o.height, o.rate, o.cw, o.ch, o.screen], [w, h, hz(rate), cw, ch, screen], `output ${o.key}`);
   }
+});
+
+/* ================================================================ *
+ * Plug names
+ * ================================================================ */
+
+/*
+ * One plug, off screen, unused by the other files, ungrouped and serving a
+ * stock EDID — so the switcher's reset would also put it back. The label is
+ * thirteen characters, the most an EDID name holds, so the whole descriptor
+ * is used and nothing is cut.
+ */
+test('a plug named after its label serves the same EDID under that name and serial, and undo puts it back', { skip: SKIP }, async (t) => {
+  const LABEL = 'LPP plug test';
+  const avoid = inputsUsedElsewhere();
+  const stock = stockEdids();
+  const quiet = plugRows(link.store, emptyDocument()).filter((r) => {
+    const st = link.get(input(r.id, 'status', 'pp')) || {};
+    return !r.why?.match(/mosaic|busy|not valid/) && !avoid.has(r.id) && !st.isOnProgram && !st.isOnPreview
+      && link.get(pre(r.id, 'group')) === '1X1' && link.get(pre(r.id, 'global')) !== 'GROUPED'
+      && stock.has(r.served.join(','));
+  });
+  const chosen = quiet.find((r) => link.get(plug(r.id, 'status', 'pp', 'type')) === 'HDMI') || quiet[0];
+  if (!chosen) return t.skip('no plug that is off screen, ungrouped, unused by the other files and serving a stock EDID');
+  const id = chosen.id;
+  const was = {
+    served: [...chosen.served],
+    /* All 512, padding included: a plug serves back the padding it was sent. */
+    status: structuredClone(link.get(plug(id, 'edid', 'status', 'pp', 'data'))),
+    staged: structuredClone(link.get(plug(id, 'edid', 'cmd', 'pp', 'data'))),
+    label: link.get(input(id, 'control', 'pp', 'label'))
+  };
+  const [name0, serial0, hid0, format0] = await awjGetAll([
+    plug(id, 'edid', 'status', 'pp', 'productName'), plug(id, 'edid', 'status', 'pp', 'serialNumber'),
+    plug(id, 'edid', 'status', 'pp', 'hid'), plug(id, 'edid', 'status', 'pp', 'prefFormatName')
+  ]);
+
+  const j = new Journal(link);
+  j.remember(input(id, 'control', 'pp', 'label'));
+  j.remember(plug(id, 'edid', 'cmd', 'pp', 'data'));
+  j.remember(plug(id, 'edid', 'cmd', 'pp', 'dataSize'));
+  const rearm = triggers(['xStore', 'xReset'].map((k) => plug(id, 'edid', 'cmd', 'pp', k)));
+  const served = () => servedEdid(link.store, id).bytes;
+  let doc = emptyDocument();
+  const save = async (d) => { doc = d; };
+
+  try {
+    link.send([{ path: input(id, 'control', 'pp', 'label'), value: LABEL }]);
+    await link.waitFor(input(id, 'control', 'pp', 'label'), LABEL);
+    const row = plugRows(link.store, doc).find((r) => r.id === id);
+    assert.equal(row.name, LABEL, 'the label, whole');
+    assert.equal(row.why, null);
+
+    const named = await namePlugs(link.session, [row], { doc, save });
+    assert.equal(named.ok, true, named.problems.join('; '));
+    assert.deepEqual(doc.plugs[id].original, was.served, 'the original was kept');
+
+    const [name1, serial1, hid1, format1, size1, data1, valid1] = await awjGetAll([
+      plug(id, 'edid', 'status', 'pp', 'productName'), plug(id, 'edid', 'status', 'pp', 'serialNumber'),
+      plug(id, 'edid', 'status', 'pp', 'hid'), plug(id, 'edid', 'status', 'pp', 'prefFormatName'),
+      plug(id, 'edid', 'status', 'pp', 'dataSize'), plug(id, 'edid', 'status', 'pp', 'data'),
+      plug(id, 'edid', 'status', 'pp', 'isValid')
+    ]);
+    assert.equal(name1, LABEL, `AWJ: the switcher reads the name (it read ${name0} before)`);
+    assert.equal(serial1, row.number, `AWJ: the serial is the input number (it was ${serial0})`);
+    assert.equal(hid1, hid0, 'AWJ: the maker and product are as they were');
+    assert.equal(format1, format0, 'AWJ: the preferred format is as it was');
+    assert.equal(valid1, true, 'AWJ: the switcher calls the EDID valid');
+    assert.equal(Number(size1), was.served.length);
+    assert.deepEqual(data1.slice(0, Number(size1)), Array.from(row.bytes), 'AWJ: the plug serves what was written');
+
+    const after = plugRows(link.store, doc).find((r) => r.id === id);
+    assert.equal(after.done, true);
+    assert.ok(after.undo, 'undo is offered');
+
+    const undone = await undoPlugs(link.session, [after], { doc, save });
+    assert.equal(undone.ok, true, undone.problems.join('; '));
+    const [name2, serial2, data2] = await awjGetAll([
+      plug(id, 'edid', 'status', 'pp', 'productName'), plug(id, 'edid', 'status', 'pp', 'serialNumber'),
+      plug(id, 'edid', 'status', 'pp', 'data')
+    ]);
+    assert.deepEqual([name2, serial2], [name0, serial0], 'AWJ: name and serial back');
+    assert.deepEqual(data2.slice(0, was.served.length), was.served, 'AWJ: the original EDID back');
+    assert.equal(readName(served()), nameFor(name0).text);
+    assert.deepEqual(doc.plugs, {}, 'nothing left to undo');
+  } finally {
+    if (!deepEqual(served(), was.served)) await writePlugEdid(link.session, id, was.served);
+    await j.restore();
+    await rearm();
+  }
+
+  const [label, data, cmd] = await awjGetAll([
+    input(id, 'control', 'pp', 'label'), plug(id, 'edid', 'status', 'pp', 'data'), plug(id, 'edid', 'cmd', 'pp', 'data')
+  ]);
+  assert.equal(label, was.label, `${id} label put back`);
+  assert.deepEqual(data, was.status, `${id} serves the EDID it served before, padding and all`);
+  assert.deepEqual(cmd, was.staged, `${id} staging holds what it held`);
 });

@@ -11,6 +11,9 @@
  *     of its own, saving straight into a bank slot.
  *   - **Edit** on each filled bank slot: the same window, opened on that slot.
  *
+ * A fourth, **Plug Names**, belongs to the `edid-names` plugin: this page
+ * gives it a tab and a pane while its service is there, and nothing else.
+ *
  * The editor is EDID Editor, vendored whole (`src/vendor/edid-editor-embed.js`),
  * so this app and the website cannot reach different EDIDs for the same mode.
  * Its stylesheet styles `body`, which is why it only ever lives in the popout
@@ -212,6 +215,8 @@ export default function activate(ctx) {
     save,
     openEditor,
     autoFill: () => ({ on: !!ctx.settings.get().autoFill, busy: filling, last: lastFill }),
-    setAutoFill
+    setAutoFill,
+    /** The `edid-names` service — the Plug Names tab's panel — or null while that plugin is off. */
+    plugNames: () => ctx.use('edid-names')
   });
 }
