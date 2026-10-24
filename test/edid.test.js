@@ -1,6 +1,6 @@
 /*
  * The EDID builder: the bank and the custom format library as the store has
- * them, the write the vendor's upload makes, and the vendored Otter module
+ * them, the write the vendor's upload makes, and the vendored EDID Editor module
  * building EDIDs from custom formats.
  *
  * The store shapes are copied from a LivePremier Simulator 6.2.73 (2026-09-23);
@@ -161,12 +161,12 @@ test('a timing is the same mode to within one 10 kHz clock step, and no further'
   assert.ok(!sameTiming(t, { ...t, hBack: t.hBack + 1 }));
 });
 
-/* ------------------------------------------------ the vendored Otter */
+/* ------------------------------------------------ the vendored EDID Editor */
 
-const otter = () => import('../src/vendor/otter-edid-embed.js');
+const editorModule = () => import('../src/vendor/edid-editor-embed.js');
 
-test('the vendored Otter builds a custom format’s EDID with the CTA VIC when the raster is one', async () => {
-  const { edidForTiming, describeEdid } = await otter();
+test('the vendored EDID Editor builds a custom format’s EDID with the CTA VIC when the raster is one', async () => {
+  const { edidForTiming, describeEdid } = await editorModule();
   const built = edidForTiming(formatTiming(M15), { name: 'CTA1080' });
   assert.equal(built.vic, 16);
   assert.equal(built.bytes.length, 256, 'a VIC needs the CTA block');
@@ -177,7 +177,7 @@ test('the vendored Otter builds a custom format’s EDID with the CTA VIC when t
 });
 
 test('a raster no table has keeps every porch, as a detailed timing in one block', async () => {
-  const { edidForTiming, describeEdid } = await otter();
+  const { edidForTiming, describeEdid } = await editorModule();
   const t = formatTiming(M16);
   const built = edidForTiming(t, { name: 'LEDwall' });
   assert.equal(built.vic, undefined);
@@ -187,7 +187,7 @@ test('a raster no table has keeps every porch, as a detailed timing in one block
 });
 
 test('a slot counts as carrying a format when its preferred mode is the format, bytes aside', async () => {
-  const { edidForTiming, describeEdid } = await otter();
+  const { edidForTiming, describeEdid } = await editorModule();
   const t = formatTiming(M16);
   const pristine = edidForTiming(t, { name: 'LEDwall' }).bytes;
   const edited = edidForTiming(t, { name: 'LEDwall edit' }).bytes;
@@ -197,17 +197,17 @@ test('a slot counts as carrying a format when its preferred mode is the format, 
   assert.equal(slotCarrying(slots, formatTiming(M15), describeEdid), null);
 });
 
-test('the vendored Otter matches upstream', async (t) => {
-  const upstream = join(here, '..', '..', 'otter-edid-editor', 'dist-embed', 'otter-edid-embed.js');
+test('the vendored EDID Editor matches upstream', async (t) => {
+  const upstream = join(here, '..', '..', 'edid-editor', 'dist-embed', 'edid-editor-embed.js');
   let source;
   try {
     source = await readFile(upstream, 'utf8');
   } catch {
-    t.skip('no otter-edid-editor checkout beside this repo (or dist-embed not built)');
+    t.skip('no edid-editor checkout beside this repo (or dist-embed not built)');
     return;
   }
-  const copy = await readFile(join(here, '..', 'src', 'vendor', 'otter-edid-embed.js'), 'utf8');
+  const copy = await readFile(join(here, '..', 'src', 'vendor', 'edid-editor-embed.js'), 'utf8');
   const hash = createHash('sha256').update(source).digest('hex');
   assert.ok(copy.includes(`sha256:    ${hash}`),
-    'src/vendor/otter-edid-embed.js has drifted — run: npm run sync:otter-edid');
+    'src/vendor/edid-editor-embed.js has drifted — run: npm run sync:edid-editor');
 });

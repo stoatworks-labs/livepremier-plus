@@ -20,7 +20,7 @@
     "gen:osc-docs": "node tools/gen-osc-docs.mjs",
     "sync:pitch-engine": "node tools/sync-pitch-engine.mjs",
     "sync:pixelhue-core": "node tools/sync-pixelhue-core.mjs",
-    "sync:otter-edid": "node tools/sync-otter-edid.mjs",
+    "sync:edid-editor": "node tools/sync-edid-editor.mjs",
     "sync:output-map": "node tools/sync-output-map.mjs",
     "sync:test-card": "node tools/sync-test-card.mjs",
     "sync:pdfjs": "node tools/sync-pdfjs.mjs",

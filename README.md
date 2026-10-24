@@ -139,7 +139,7 @@ bolted on afterwards:
   shown as a difference before anything's applied. The switcher's own Dante card is marked, with
   its Audio Matrix patching beside its channels. It hasn't been run against a real Dante device
   yet.
-- **EDID builder:** the Otter EDID editor on the switcher's own EDID page. **From Formats**, a
+- **EDID builder:** EDID Editor on the switcher's own EDID page. **From Formats**, a
   tab beside Default EDIDS and EDID Bank, builds one EDID per custom format in Setup ▸ Formats
   (every porch kept, and the CTA VIC carried when the raster matches one) and saves it into the
   bank in one click, or keeps the bank topped up with them by itself. **Create EDID…** and an
@@ -356,36 +356,36 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 >
 > **0.18.5 (2026-10-24).** Linux can now see the HDMI block on an EDID the **EDID builder** made
 > without a detailed timing. A CTA extension says in its third byte where its data blocks stop, and
-> Otter wrote 0 there whenever an extension had data blocks but no detailed timings. That's every
+> EDID Editor wrote 0 there whenever an extension had data blocks but no detailed timings. That's every
 > EDID built for a CTA VIC (1080p60, 4K30 and the rest of the table), plus the deep-colour ones
 > whose timing is too big for a detailed timing and goes in a DisplayID block. CTA-861 reads 0 as
 > "no data blocks at all", and so does Linux's DRM driver, so a Linux machine treated the input as
-> DVI and never read the VICs or the TMDS clock 0.18.4 went to the trouble of fixing. Otter's own
+> DVI and never read the VICs or the TMDS clock 0.18.4 went to the trouble of fixing. EDID Editor's own
 > reader took 0 to mean "carry on to the padding", which is why its round trips never noticed. The
 > byte now says 14 for an 8-bit 1080p60 or 4K30, and only it and the checksum change. Nothing here
 > overwrites a bank slot, so an EDID an earlier version saved keeps its 0 until you build and save
-> it again. From Otter's tests, a reader that parses the way Linux does and a sweep of its builder,
+> it again. From EDID Editor's tests, a reader that parses the way Linux does and a sweep of its builder,
 > not from a screen.
 >
-> **0.18.4 (2026-10-24).** The **EDID builder** now states the TMDS clock a mode needs. Its Otter
+> **0.18.4 (2026-10-24).** The **EDID builder** now states the TMDS clock a mode needs. Its editor
 > had been working out the HDMI block's Max_TMDS_Clock, and the HDMI Forum block's character
 > rate, with a sum of its own that overstated deep 4:2:2 and understated deep 4:2:0: 1080p60
 > 12-bit 4:2:2 said 225 MHz for a mode that needs 148.5, and 4K60 10-bit 4:2:0 said 295 for one
 > that needs 371.25. It then rounded to the nearest 5 MHz step, so even plain 4K30 went out at
 > 295 MHz for a 297 MHz mode, a ceiling below the mode the EDID describes, which a source that
-> believes its EDIDs (Intel's Linux driver, for one) will refuse. The ceiling is now Otter's own
+> believes its EDIDs (Intel's Linux driver, for one) will refuse. The ceiling is now EDID Editor's own
 > link rate rounded up, so those three say 150, 375 and 300. Plenty of built EDIDs change by that
 > one byte, and deep 4:2:2 at or under 340 MHz loses its Forum block, since it needs no
-> scrambling. Mosaic tiles don't go through the builder and are unchanged. From Otter's tests and
+> scrambling. Mosaic tiles don't go through the builder and are unchanged. From EDID Editor's tests and
 > a sweep of its builder, not from a screen.
 >
-> **0.18.3 (2026-10-24).** A newer Otter in the **EDID builder**. Its hardware table gains the
+> **0.18.3 (2026-10-24).** A newer EDID Editor in the **EDID builder**. Its hardware table gains the
 > **NovaStar MX2000 Pro and MX6000 Pro**, one capacity mode per input card, so the verdict names
 > the card a format needs. HDMI 2.1 inputs are now judged on FRL once TMDS runs out, and YCbCr
 > 4:2:2 costs what each link carries it at (24 bits a pixel on HDMI, twice the bit depth on
 > DisplayPort) instead of 16 for both. Nothing already in the table gets a different answer; on
 > the two NovaStars some 4:2:2 modes move to another card or off it, and a 4:2:2 EDID states the
-> FRL rate its mode needs. The two processors came from davidadevore (otter-edid-editor #30) and,
+> FRL rate its mode needs. The two processors came from davidadevore (edid-editor #30) and,
 > like the rest of the table, from the vendor's spec sheets; neither has been near this app. The
 > console test suite can also walk a U5 mini's key grid now, for the day one is on the desk.
 >
@@ -524,8 +524,8 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > panel, T-bar, OSC or direct AWJ aren't held. **HyperDecks** plays, cues and records Blackmagic
 > HyperDecks (or Mitti's emulation) with Mitti-style rules that follow the show: play on
 > program, rewind in preview, take off air when a clip ends. An **EDID builder** on the Setup ▸
-> EDID page builds one EDID per custom format with Otter, saves it into the bank, and opens the
-> whole Otter editor on any slot. **Mosaic inputs** group inputs 2X1/2X2 and load each plug with
+> EDID page builds one EDID per custom format with EDID Editor, saves it into the bank, and opens the
+> whole EDID Editor on any slot. **Mosaic inputs** group inputs 2X1/2X2 and load each plug with
 > its tiled EDID, so a Mac joins them into one display. **Pixelhue Mapping** draws the U5 as a
 > Virtual RC400T with every key, fader and encoder remappable. **Speed Editor** *(preview)*
 > drives the switcher from a DaVinci Resolve Speed Editor over WebHID, not yet tried with a
@@ -1787,7 +1787,7 @@ one.
 </tr>
 <tr>
 <td><a href="docs/screenshots/edid-formats.png"><img src="docs/screenshots/edid-formats.png" alt="Setup ▸ EDID ▸ From Formats with custom format M1"></a><br><sub><b>EDID ▸ From Formats</b>: an EDID built for custom format M1, one click from the bank.</sub></td>
-<td><a href="docs/screenshots/edid-editor.png"><img src="docs/screenshots/edid-editor.png" alt="The EDID builder window in Simple mode"></a><br><sub><b>Create EDID…</b>: the Otter editor in its own window, saving straight into a slot.</sub></td>
+<td><a href="docs/screenshots/edid-editor.png"><img src="docs/screenshots/edid-editor.png" alt="The EDID builder window in Simple mode"></a><br><sub><b>Create EDID…</b>: EDID Editor in its own window, saving straight into a slot.</sub></td>
 </tr>
 <tr>
 <td><a href="docs/screenshots/edid-mosaic.png"><img src="docs/screenshots/edid-mosaic.png" alt="The EDID builder in Mosaic mode, two tiles for a 6144x2160 canvas"></a><br><sub><b>Mosaic</b>: one tiled EDID per plug, saved and applied to a 2 × 1 input group.</sub></td>
@@ -1915,13 +1915,13 @@ another, and only needs a second `transports/` module.
 | `surface/` | awj-surface | the control-surface engine and profiles |
 | `pixelhue/` | pixelhue-bridge | the U-series console's frame codec |
 | `pitch-engine.js` | aquilon-pitch | the pitch-compensation arithmetic |
-| `otter-edid-embed.js` | otter-edid-editor | the EDID editor and encoder, React included |
+| `edid-editor-embed.js` | edid-editor | the EDID editor and encoder, React included |
 | `output-map/` | output-map | the Resolume Arena Advanced Output writer, bundled from its TypeScript |
 | `test-card/` | test-card | the test pattern engine, bundled from its TypeScript |
 
 Each one is copied rather than re-derived, for one reason: two implementations of one grammar,
 one device model or one decode table will disagree sooner or later, and both will look right.
-`npm run sync:*` re-copies each and rewrites its provenance, and `test/vendor.test.js` (Otter's
+`npm run sync:*` re-copies each and rewrites its provenance, and `test/vendor.test.js` (EDID Editor's
 in `test/edid.test.js`) fails on drift and skips when there's no upstream checkout to compare
 against. Edits go upstream.
 

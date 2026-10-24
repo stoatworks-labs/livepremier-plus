@@ -1,17 +1,17 @@
 /*
- * The EDID builder's window: the Otter editor, with this switcher as its host.
+ * The EDID builder's window: EDID Editor, with this switcher as its host.
  *
  * `own` is what `client.js` shares — the bank as the Web RCS tab's store has
  * it, and a `save` that posts through that tab. This file only translates it
- * into the `EdidHost` shape Otter's `src/host.ts` declares; everything about
- * the device stays in the plugin, and everything about EDIDs in Otter.
+ * into the `EdidHost` shape EDID Editor's `src/host.ts` declares; everything about
+ * the device stays in the plugin, and everything about EDIDs in EDID Editor.
  */
 
-/** The `EdidHost` Otter's editor asks for, over what the plugin shares. */
+/** The `EdidHost` EDID Editor asks for, over what the plugin shares. */
 export function editorHost(own, initial) {
   return {
     title: own.title(),
-    /* Otter's HostSlot is a subset of a bank slot; the bytes stay behind. */
+    /* EDID Editor's HostSlot is a subset of a bank slot; the bytes stay behind. */
     slots: () => own.slots().map(({ id, label, name, empty, locked }) => ({ id, label, name, empty, locked })),
     subscribe: (fn) => own.subscribe(fn),
     save: (slotId, bytes) => own.save(slotId, bytes),
@@ -22,7 +22,7 @@ export function editorHost(own, initial) {
 
 /*
  * A mosaic's tiles straight onto input plugs, grouped into one input — when
- * the `edid-mosaic` plugin is on to do it. Otter shows its Apply panel only
+ * the `edid-mosaic` plugin is on to do it. EDID Editor shows its Apply panel only
  * where the host has these, so with that plugin off they are simply absent.
  * Asked for per call: the service can come and go under an open window.
  */
@@ -40,17 +40,17 @@ function mosaicHost(own) {
 }
 
 export function buildEditor(doc, own) {
-  const el = doc.getElementById('otter') || doc.body.appendChild(doc.createElement('div'));
+  const el = doc.getElementById('editor') || doc.body.appendChild(doc.createElement('div'));
   const initial = own.takeInitial();
   let unmount = null;
   let stopped = false;
 
-  /* Imported here, not through `own.loadOtter`: the module has to run in THIS
+  /* Imported here, not through `own.loadEditor`: the module has to run in THIS
      window's realm, or its `document` — a download link, a clipboard write —
      would be the Web RCS tab's. Same URL, so the browser's cache has it. */
-  import('../../src/vendor/otter-edid-embed.js').then((otter) => {
+  import('../../src/vendor/edid-editor-embed.js').then((editor) => {
     if (stopped) return;
-    unmount = otter.mount(el, editorHost(own, initial));
+    unmount = editor.mount(el, editorHost(own, initial));
     if (initial && initial.slotId) doc.title = `ED${initial.slotId} — EDID builder`;
   }).catch((err) => {
     el.textContent = `The EDID editor would not load: ${err.message}`;

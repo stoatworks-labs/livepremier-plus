@@ -6,7 +6,7 @@
 <title>EDID builder — LivePremier Plus</title>
 <!--
   Unlike every other popout here, this one does NOT borrow the vendor's
-  stylesheet: it is the Otter EDID editor, which brings its own and styles
+  stylesheet: it is EDID Editor, which brings its own and styles
   `body` with it. The two would fight. See `vendorChrome` in src/ui/popout.js.
 
   It still opens no connection of its own. The bank, and every save into it,
@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<div id="otter"></div>
+<div id="editor"></div>
 <script type="module">
   import { bootPopout } from '/__lpp/src/ui/popout.js';
   import { buildEditor } from './popout.js';

@@ -285,7 +285,7 @@ const M15 = { hSync: 44, hSyncPol: true, hBackPorch: 148, hFrontPorch: 88, hUtil
 const M16 = { hSync: 32, hSyncPol: true, hBackPorch: 80, hFrontPorch: 48, hUtil: 3000, vSync: 5, vSyncPol: false, vBackporch: 20, vFrontPorch: 3, vUtil: 1000, rate: 50000, isValid: true };
 
 test('an EDID saved through the app fills a free slot, and the bin empties it again', { skip: SKIP }, async (t) => {
-  const { edidForTiming, describeEdid } = await import('../../src/vendor/otter-edid-embed.js');
+  const { edidForTiming, describeEdid } = await import('../../src/vendor/edid-editor-embed.js');
   const free = readSlots(link.store).filter((s) => s.empty && !s.locked).at(-1);
   if (!free) return t.skip('the EDID bank is full');
   const id = free.id;
@@ -476,7 +476,7 @@ function stockEdids() {
  * a stock one — so a plug serving anything else is a skip, not a guess.
  */
 test('a 2 × 1 mosaic groups two plugs and loads their tiles, and clearing it puts both back', { skip: SKIP }, async (t) => {
-  const tiles = JSON.parse(readFileSync(join(ROOT, 'test', 'fixtures', 'otter-mosaic-tiles.json'), 'utf8'))['3840x1080-2x1']
+  const tiles = JSON.parse(readFileSync(join(ROOT, 'test', 'fixtures', 'edid-editor-mosaic-tiles.json'), 'utf8'))['3840x1080-2x1']
     .map((x) => ({ ...x, bytes: Uint8Array.from(Buffer.from(x.hex, 'hex')) }));
 
   const NEW = D('preconfig', 'inputs', 'new');

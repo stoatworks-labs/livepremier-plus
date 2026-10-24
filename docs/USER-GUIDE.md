@@ -68,7 +68,7 @@ than something bolted on.
   switcher it feeds, with snapshots and Dante Controller presets in and out. Off until you
   switch it on.
 - **EDID builder:** EDIDs made beside the EDID bank and saved straight into it: one per custom
-  format, automatically if you like, or by hand in the full Otter editor.
+  format, automatically if you like, or by hand in the full EDID Editor.
 - **Mosaic inputs:** the editor's Mosaic mode carried through to the frame: inputs grouped 2X1
   or 2X2, each plug loaded with its tile EDID.
 - **Pitch Compensation:** the H and V ratios a screen spanning LED walls of different pitches
@@ -159,14 +159,14 @@ connection of their own when they act, which is worth knowing, because the switc
 > it had no data blocks. Linux believed it, so a Linux machine treated the input as DVI and never
 > read the VICs or the TMDS clock. That byte now points past the data blocks, and nothing else in
 > the EDID moves. EDIDs already in a bank keep the old byte until you build and save them again.
-> From Otter's tests and a reader that parses the way Linux does, not from a screen.
+> From EDID Editor's tests and a reader that parses the way Linux does, not from a screen.
 >
 > **0.18.4 fixes the TMDS clock the EDID builder states.** A built EDID now says the clock its
 > mode needs, rounded up to the next 5 MHz: 150 MHz for 1080p60 12-bit 4:2:2, where it said 225,
 > and 300 for 4K30, where it said 295, which is less than the mode itself. Mosaic tiles haven't
-> changed. From Otter's tests, not from a screen.
+> changed. From EDID Editor's tests, not from a screen.
 >
-> **0.18.3 updates the EDID builder's Otter editor.** It knows the NovaStar MX2000 Pro and MX6000
+> **0.18.3 updates EDID Editor in the EDID builder.** It knows the NovaStar MX2000 Pro and MX6000
 > Pro now, card by card, judges an HDMI 2.1 input on FRL when TMDS runs out, and costs YCbCr 4:2:2
 > per link (24 bits a pixel on HDMI, twice the bit depth on DisplayPort). Nothing already in its
 > table gives a different answer. From NovaStar's spec sheets, not from either processor.
@@ -1473,7 +1473,7 @@ Triggers are kept per switcher, beside the cue stack, and travel in the setup fi
 
 **Setup ▸ EDID.** The switcher keeps a hundred custom EDID slots (the **EDID Bank** tab, ED1 to
 ED100) and has nowhere to make an EDID to put in them. It wants a file, and getting one is your
-problem. This puts the [Otter EDID editor](https://otter-edid.stoatworks-labs.com) beside the bank,
+problem. This puts the [EDID Editor](https://edid-editor.stoatworks-labs.com) beside the bank,
 so an EDID is built and saved without a file changing hands.
 
 ### From your custom formats

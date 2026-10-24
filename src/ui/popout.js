@@ -99,7 +99,7 @@ export function bootPopout({ doc = document, opener = window.opener, plugin = nu
   const own = plugin ? (bridge.shared ? bridge.shared(plugin) : null) : null;
   if (plugin && !own) return mountOrphan(doc, 'plugin off');
   /* A window that brings a whole stylesheet of its own — the EDID builder's
-     Otter editor styles `body` — takes only this app's few rules, for the
+     EDID Editor styles `body` — takes only this app's few rules, for the
      banner below, and none of the vendor's to fight with. */
   if (!vendorChrome) installStyles(doc);
   else if (!adoptVendorChrome(doc, opener.document)) return mountOrphan(doc, 'no vendor page');

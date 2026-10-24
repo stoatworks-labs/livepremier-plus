@@ -3,7 +3,7 @@
  *
  * A Mac joins several of its outputs into one display when every plug it is
  * connected to advertises a DisplayID Tiled Display Topology block with the
- * same topology id and its own place in the grid (Otter's Mosaic mode builds
+ * same topology id and its own place in the grid (EDID Editor's Mosaic mode builds
  * the per-plug EDIDs). A LivePremier then has to take those plugs back in as
  * one picture, which is an input group: `preconfig/inputs` sets IN_n to 2X1 or
  * 2X2 and the next inputs in logical order become its members.
@@ -275,7 +275,7 @@ export async function writePlugEdid(session, id, bytes, { timeout = 8000 } = {})
 /**
  * The whole job: group the run starting at `firstId`, put each tile on the
  * plug the switcher places at that tile's position, and read it all back.
- * `tiles` are Otter's: `{ col, row, label, bytes }`, 384 bytes each.
+ * `tiles` are EDID Editor's: `{ col, row, label, bytes }`, 384 bytes each.
  */
 export async function applyMosaic(session, firstId, tiles, opts = {}) {
   const { store } = session;

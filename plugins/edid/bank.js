@@ -57,7 +57,7 @@ const pp = (node) => (node && node.status && node.status.pp) || null;
 /**
  * The hundred slots in bank order: `{ id, label, name, empty, locked, bytes }`.
  * `bytes` is the EDID without its padding, or null for an empty slot. This is
- * also the shape the Otter editor's host panel asks for (`HostSlot`).
+ * also the shape EDID Editor's host panel asks for (`HostSlot`).
  */
 export function readSlots(store) {
   const items = (store && store.get(BANK)) || {};
@@ -82,7 +82,7 @@ export function readSlots(store) {
 
 /**
  * The valid custom formats, M1..M16: `{ index, key, label, name, timing }`,
- * `timing` in the shape Otter's `Timing` is.
+ * `timing` in the shape EDID Editor's `Timing` is.
  */
 export function readFormats(store) {
   const items = (store && store.get(FORMATS)) || {};
@@ -120,7 +120,7 @@ export function formatTiming(s) {
   const hTotal = t.hActive + t.hFront + t.hSync + t.hBack;
   const vTotal = t.vActive + t.vFront + t.vSync + t.vBack;
   /* 59940 mHz is the device's rounding of 60000/1001; the clock follows the
-     rate the device states, and Otter's VIC match allows for the difference. */
+     rate the device states, and EDID Editor's VIC match allows for the difference. */
   t.pixelClockHz = Math.round((hTotal * vTotal * s.rate) / 1000);
   return t;
 }
@@ -182,7 +182,7 @@ export function sameTiming(a, b) {
  * The slot whose EDID's preferred mode is this timing, or null — the test for
  * "this format already has an EDID in the bank" once an operator has edited
  * the one built for it (renamed it, added audio). `describe` reads a slot's
- * bytes; the caller passes Otter's so this file stays free of it.
+ * bytes; the caller passes EDID Editor's so this file stays free of it.
  */
 export function slotCarrying(slots, timing, describe) {
   for (const s of slots) {

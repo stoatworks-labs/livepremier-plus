@@ -7,7 +7,7 @@
  * on 2026-09-23 — preconfig group check/apply, GROUPED members, 1920-pixel
  * placement for a 2X1, and plug EDIDs served back exactly as stored — and can
  * reproduce its 2X2 placement collision (IN_18 and IN_20 both at 0,1080).
- * The tiles are Otter's Mosaic-mode output.
+ * The tiles are EDID Editor's Mosaic-mode output.
  *
  * Run: node --test test/edid-mosaic.test.js
  */
@@ -25,7 +25,7 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const load = (f) => JSON.parse(readFileSync(join(here, 'fixtures', f), 'utf8'));
-const TILES = load('otter-mosaic-tiles.json');
+const TILES = load('edid-editor-mosaic-tiles.json');
 const tiles = (name) => TILES[name].map((t) => ({ ...t, bytes: Uint8Array.from(Buffer.from(t.hex, 'hex')) }));
 
 function freshStore() {
@@ -112,7 +112,7 @@ class FakeSwitcher {
   }
 }
 
-test('Otter tiles read back as a 2 x 1 grid under one topology id', () => {
+test('EDID Editor tiles read back as a 2 x 1 grid under one topology id', () => {
   const [l, r] = tiles('3840x1080-2x1').map((t) => readTile(t.bytes));
   assert.deepEqual([l.cols, l.rows, l.col, l.row, l.width, l.height], [2, 1, 0, 0, 1920, 1080]);
   assert.deepEqual([r.col, r.row], [1, 0]);

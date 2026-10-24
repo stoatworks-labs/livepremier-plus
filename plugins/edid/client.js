@@ -1,17 +1,17 @@
 /*
  * EDID builder — the plugin's page half.
  *
- * The Otter EDID editor, brought to the switcher's EDID bank. Three places:
+ * EDID Editor, brought to the switcher's EDID bank. Three places:
  *
  *   - **From Formats**, a third tab on the EDID page beside Default EDIDS and
  *     EDID Bank: one EDID per custom format in Setup ▸ Formats, built as the
  *     formats change, each marked with the slot that already holds it — and,
  *     switched on, the bank kept filled with them automatically.
- *   - **Create EDID…** on the same strip: the whole Otter editor in a window
+ *   - **Create EDID…** on the same strip: the whole EDID Editor in a window
  *     of its own, saving straight into a bank slot.
  *   - **Edit** on each filled bank slot: the same window, opened on that slot.
  *
- * The editor is Otter's, vendored whole (`src/vendor/otter-edid-embed.js`),
+ * The editor is EDID Editor, vendored whole (`src/vendor/edid-editor-embed.js`),
  * so this app and the website cannot reach different EDIDs for the same mode.
  * Its stylesheet styles `body`, which is why it only ever lives in the popout
  * and never in the Web RCS page.
@@ -34,9 +34,9 @@ export default function activate(ctx) {
 
   /* ---------------------------------------------------------- the editor */
 
-  let otter = null;
-  /** Otter's module, imported the first time something needs it — 430 kB is not worth loading on every page. */
-  const loadOtter = () => (otter = otter || import('../../src/vendor/otter-edid-embed.js'));
+  let editorModule = null;
+  /** EDID Editor's module, imported the first time something needs it — 430 kB is not worth loading on every page. */
+  const loadEditor = () => (editorModule = editorModule || import('../../src/vendor/edid-editor-embed.js'));
 
   /* ------------------------------------------------------ bank and formats */
 
@@ -87,11 +87,11 @@ export default function activate(ctx) {
   const remove = (slotId) => session.send(deleteCommand(slotId));
 
   /**
-   * One EDID per valid custom format, built by Otter from the format's exact
+   * One EDID per valid custom format, built by EDID Editor from the format's exact
    * timing. `inBank` is the slot already holding exactly those bytes.
    */
   async function formatEdids() {
-    const lib = await loadOtter();
+    const lib = await loadEditor();
     const bank = slots();
     /* Each slot decoded once per pass, not once per format. */
     const read = new Map();
@@ -139,7 +139,7 @@ export default function activate(ctx) {
     subscribe,
     save,
     remove,
-    loadOtter,
+    loadEditor,
     /** The `edid-mosaic` service — a mosaic's tiles onto input plugs — or null while nobody provides it. */
     mosaic: () => ctx.use('edid-mosaic'),
     /** What the window was opened for — handed over once. */

@@ -93,7 +93,7 @@ export function installEdidPage({ session, enabled, subscribe, slots, formatEdid
        does not switch this pane. */
     const create = cloneTab(template, 'Create EDID…', 'create');
     create.style.marginLeft = 'auto';
-    create.title = 'Build an EDID in the Otter editor and save it into the bank';
+    create.title = 'Build an EDID in EDID Editor and save it into the bank';
     const label = create.querySelector('h3, h4, h5');
     if (label) label.classList.add('aw-text-secondary');
     create.addEventListener('click', (ev) => { ev.preventDefault(); ev.stopPropagation(); openEditor(null); });
@@ -225,7 +225,7 @@ export function installEdidPage({ session, enabled, subscribe, slots, formatEdid
         h('span', { text: 'Keep the bank filled — whenever a custom format has no EDID in the bank, add one to the next empty slot' })),
       h('div', {
         class: 'aw-font-caption aw-text-tertiary',
-        text: 'Each EDID is built by the Otter EDID editor around the format’s exact timing, every porch kept, '
+        text: 'Each EDID is built by EDID Editor around the format’s exact timing, every porch kept, '
           + 'with the CTA VIC when the raster is one. A format counts as in the bank when a slot’s EDID has its '
           + 'mode as the preferred one — so an EDID opened from here and edited still counts. '
           + 'Nothing is ever deleted or overwritten here.'
