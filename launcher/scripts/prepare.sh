@@ -21,7 +21,7 @@
 # for the target is kept and the rest removed.
 set -euo pipefail
 
-NODE_VERSION="v22.20.0"
+NODE_VERSION="v22.23.4"
 
 detect_platform() {
   local os arch
