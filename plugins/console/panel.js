@@ -69,12 +69,22 @@
  * With the plugin off nobody provides the service, and a line with a variable
  * in it is refused saying so — not with mynah's general "needs a host", which
  * would send someone looking for a host.
+ *
+ * ## The sticky scope, where a line asks for one
+ *
+ * Mynah's `Select Screen 1 + 3` sends nothing: it sets a scope that later
+ * lines inherit (`Take`, `Recall Memory 5`), and `Clear` takes the line first
+ * and then, on an empty line, the scope — as mynah's own app does. The tab and
+ * the popout have never kept one, and still don't: a line typed there means
+ * what it always meant. A line made with `stickyScope` keeps one; the desk's
+ * keypad is built on it (TAKE is `Take` for the scope), and asks for its line
+ * through the `console` service (`client.js`).
  */
 
 import { h, button, icon, isEnter } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
 import {
-  run, declared, sniff, completions, shortestForm, KEYWORDS, LANGUAGE_LABELS
+  run, parse, declared, sniff, completions, shortestForm, KEYWORDS, LANGUAGE_LABELS
 } from '../../src/vendor/mynah-lang.mjs';
 import { variablesIn } from '../../src/core/expr.js';
 import { PARAMS, paramsFor, mynahPlatform } from '../../src/core/osc-dictionary.js';
@@ -107,16 +117,57 @@ function namedIn(language, body) {
 }
 
 /**
+ * A sticky scope in words: `Screen 1 + 3 Layer 2`. Mynah's selection is
+ * `{ targets: [{kind, n}], layers? }`.
+ */
+export function describeScope(selection) {
+  if (!selection) return '';
+  const run = (word, ns) => (ns.length ? `${word} ${ns.join(' + ')}` : '');
+  const of = (kind) => selection.targets.filter((t) => t.kind === kind).map((t) => t.n);
+  return [
+    run('Screen', of('screen')),
+    run('Aux', of('aux')),
+    run('Layer', selection.layers || [])
+  ].filter(Boolean).join(' ');
+}
+
+/**
+ * Whether a compiled line changes what is on air.
+ *
+ * Mynah's ops carry a path and not the buffer it lands in, so this reads the
+ * parsed command: a Take, a Recall or Set that says Program in so many words,
+ * and the audio matrix, which has no preview to land in. Everything else —
+ * a recall or a set with no buffer named, which mynah sends to preview, a
+ * store, a delete — leaves program alone. Null for the raw languages, whose
+ * paths this does not try to read: "can't tell" is not "no".
+ */
+export function reachesProgram(result, body, ctx = {}) {
+  if (!result || result.ok === false) return null;
+  if (result.language !== 'mynah') return null;
+  if (result.fn === 'Take') return true;
+  let parsed;
+  try { parsed = parse(body, { platform: ctx.platform, vars: ctx.vars }); } catch { return null; }
+  if (!parsed || !parsed.ok) return null;
+  const cmd = parsed.command;
+  if (cmd.audio) return true;
+  return (cmd.fn === 'Recall' || cmd.fn === 'Set') && cmd.mode === 'PROGRAM';
+}
+
+/**
  * @param {object} opts
  * @param {boolean} [opts.popoutEnabled] show the Pop out button. False inside
  *   the popout itself, which has nowhere further to go.
  * @param {() => object|null} [opts.variables] the `variables` service, asked
  *   per run — null while the Variables plugin is off
+ * @param {boolean} [opts.stickyScope] keep mynah's sticky scope — `Select`
+ *   sets it, `Clear` on an empty line clears it. Off for the tab and the
+ *   popout; see the note at the top of this file.
  */
 export function createConsolePanel({
   session, onRefresh = () => {}, popoutEnabled = true, variables = () => null,
   /* `(cmds) => null | Promise<{ok, message?}>` — Preview lock's, when it is on. */
-  hold = null
+  hold = null,
+  stickyScope = false
 } = {}) {
   /* Kept outside render() so a repaint driven by device traffic does not wipe
      what the operator is halfway through typing. */
@@ -143,7 +194,15 @@ export function createConsolePanel({
     addresses: [],
     /* What each variable on the line being typed reads right now:
        `[{ text, answer }]`. Shown beside the summary. */
-    vars: []
+    vars: [],
+    /* Mynah's sticky scope, `{ targets, layers? }`, while `stickyScope` keeps
+       one. Null is no scope. */
+    selection: null,
+    /* What Enter would do with the line as it stands: `{ language, fn, ops,
+       reads, summary, program }`, `program` being true, false or null for
+       can't tell. Null while the line does not compile. The tab draws none
+       of it; the desk's screen says it in words before Enter. */
+    outcome: null
   };
 
   /** Which subtrees the plugins answer. Asked once; switching a plugin applies on reload. */
@@ -230,7 +289,9 @@ export function createConsolePanel({
     platform: platform(),
     facts: { buffer: bufferForMode, canvas: canvasFor },
     osc: { params: paramsFor(platform()), buffer: bufferForMode },
-    vars: varsFor()
+    vars: varsFor(),
+    /* Mynah reads `selection` only where a line names no target of its own. */
+    selection: stickyScope && state.selection ? state.selection : undefined
   });
 
   /**
@@ -269,6 +330,7 @@ export function createConsolePanel({
     state.hint = null;
     state.language = null;
     state.vars = [];
+    state.outcome = null;
     if (!text.trim()) return;
 
     const head = declared(text);
@@ -316,6 +378,14 @@ export function createConsolePanel({
     }
 
     if (result.summary) state.hint = result.summary;
+    state.outcome = {
+      language: result.language,
+      fn: result.fn || null,
+      ops: (result.ops || []).length,
+      reads: (result.reads || []).length,
+      summary: result.summary || '',
+      program: reachesProgram(result, head.body, ctx)
+    };
 
     /* Said before Enter, because the alternative is a command that appears to
        run and then reports nothing back. */
@@ -324,7 +394,10 @@ export function createConsolePanel({
     }
   }
 
-  /** Execute the line. This is the only path that writes to the device. */
+  /**
+   * Execute the line. This and `runCommand` are the only paths that write to
+   * the device.
+   */
   function execute() {
     const text = state.line.trim();
     if (!text) return;
@@ -333,6 +406,52 @@ export function createConsolePanel({
     if (state.history.length > HISTORY_MAX) state.history.length = HISTORY_MAX;
     state.historyAt = -1;
 
+    submit(text);
+    finish();
+  }
+
+  /**
+   * Run a command exactly as if it had been typed, and leave the line alone.
+   *
+   * A hardware key, as in mynah's own app: the desk's TAKE runs `Take` for the
+   * sticky scope whatever is half-typed on the line, and the line is still
+   * there afterwards. It goes the same way a typed line does — Preview lock,
+   * the AWJ socket for a get, a plugin's address — and is logged the same way.
+   */
+  function runCommand(text) {
+    const line = String(text || '').trim();
+    if (!line) return;
+    submit(line);
+    onRefresh();
+  }
+
+  /**
+   * Mynah's Clear: the line, and on an empty line the scope.
+   *
+   * The order is the point — a mistyped command is never one key away from
+   * also losing the scope it was going to act on.
+   */
+  function clear() {
+    if (state.line.trim()) {
+      state.line = '';
+      preview('');
+    } else if (state.selection) {
+      state.selection = null;
+      note('ok', 'Clear', 'scope cleared', LANGUAGE_LABELS.mynah);
+    }
+    onRefresh();
+  }
+
+  /** Put a line in the field as if it had been typed there. */
+  function setLine(text) {
+    state.line = String(text ?? '');
+    state.historyAt = -1;
+    preview(state.line);
+    onRefresh();
+  }
+
+  /** Compile one line and send it by the route it needs. Leaves the line alone. */
+  function submit(text) {
     /*
      * An address a plugin answers — Matrix Routing's `/lp/matrix/…`, or
      * anybody's — which is not mynah's.
@@ -347,29 +466,45 @@ export function createConsolePanel({
     const address = text.split(/\s+/)[0];
     if (oscAddressFor(state.addresses, address)) {
       void viaPlugin(text);
-      return finish();
+      return;
     }
 
     let result;
     try { result = run(text, runContext()); } catch (err) {
       note('error', text, err.message);
-      return finish();
+      return;
     }
     if (!result || result.ok === false) {
       note('error', text, compileError(result));
-      return finish();
+      return;
     }
 
     const label = LANGUAGE_LABELS[result.language] || result.language;
     const ops = result.ops || [];
     const reads = result.reads || [];
 
+    /* Mynah's sticky scope, on a line that keeps one: a Select sends nothing
+       and becomes the scope, and a Clear run on Enter clears it. */
+    if (stickyScope && result.language === 'mynah') {
+      if (result.fn === 'Clear') {
+        const had = state.selection;
+        state.selection = null;
+        note('ok', text, had ? 'scope cleared' : 'no scope to clear', label);
+        return;
+      }
+      if (result.selection) {
+        state.selection = result.selection;
+        note('ok', text, `scope is ${describeScope(state.selection) || 'empty'}`, label);
+        return;
+      }
+    }
+
     if (!ops.length && !reads.length) {
       /* An OSC button release compiles to nothing, and that is correct rather
          than empty. Its own summary says so; anything else genuinely had
          nothing to send. */
       note('warn', text, result.summary || 'nothing to send', label);
-      return finish();
+      return;
     }
 
     /*
@@ -393,11 +528,10 @@ export function createConsolePanel({
         }
         onRefresh();
       });
-      return finish();
+      return;
     }
 
     dispatch(text, result, label, '');
-    finish();
   }
 
   /** Send a compiled line by the route it needs. */
@@ -541,6 +675,7 @@ export function createConsolePanel({
     state.line = '';
     state.error = null;
     state.hint = null;
+    state.outcome = null;
     onRefresh();
   }
 
@@ -699,6 +834,13 @@ export function createConsolePanel({
         class: ['wru-tag', live ? '' : 'wru-warn'],
         text: live ? 'connected' : session.state
       }),
+      stickyScope
+        ? h('span', {
+          class: 'wru-tag',
+          title: 'The sticky scope: Select sets it, Clear on an empty line clears it',
+          text: state.selection ? `Scope: ${describeScope(state.selection)}` : 'No scope'
+        })
+        : null,
       h('div', { style: { flex: '1' } }),
       popoutEnabled
         ? button('Pop out', {
@@ -744,7 +886,12 @@ export function createConsolePanel({
      panel and see what it sends, without a DOM: the facts the compiler is
      handed are the part that went unexercised for a year. `preview` likewise,
      for what the feedback line says before Enter. */
-  return { render, state, popOut, reloadSettings: loadSettings, execute, runContext, preview, insert };
+  return {
+    render, state, popOut, reloadSettings: loadSettings, execute, runContext, preview, insert,
+    runCommand, clear, setLine,
+    /** The sticky scope in words, or '' with none. */
+    scope: () => describeScope(state.selection)
+  };
 }
 
 /** The keyword table, for a help view. Exposed so tests can assert on it. */

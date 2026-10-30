@@ -12,6 +12,11 @@
  * Keeping them apart means a user can re-map an APC40 completely without
  * re-describing an APC40, and that a binding set written for one surface can be
  * pointed at another by swapping the control ids.
+ *
+ * A profile may also list `pages`, `[{id, label}]`: a binding that names one
+ * with `page` is live only while that page is chosen (the `page` action, or a
+ * host's `engine.showPage(id)`). It is how three wheels drive position, then
+ * size, then crop. Bindings that name no page are live on every page.
  */
 
 export const CONTROL_KINDS = ['fader', 'fader14', 'knob', 'encoder', 'button', 'touch'];
@@ -50,16 +55,34 @@ export function validate(profile) {
     }
   }
 
+  /* Pages are optional; a profile without them behaves exactly as before. */
+  const pages = new Set();
+  if (profile.pages !== undefined) {
+    if (!Array.isArray(profile.pages)) at('profile', 'pages must be an array');
+    else {
+      for (const [i, p] of profile.pages.entries()) {
+        const where = `pages[${i}]`;
+        if (!isObj(p) || !p.id) at(where, 'missing id');
+        else if (pages.has(p.id)) at(where, `duplicate page id ${p.id}`);
+        else pages.add(p.id);
+      }
+    }
+  }
+
   for (const [i, b] of profile.bindings.entries()) {
     const where = `bindings[${i}]`;
     if (!b.control) at(where, 'missing control');
     else if (!seen.has(b.control)) at(where, `no such control ${b.control}`);
+    if (b.page !== undefined && !pages.has(b.page)) at(where, `no such page ${b.page}`);
     if (!isObj(b.target)) { at(where, 'missing target'); continue; }
     const t = b.target;
     if (!['layer', 'screenGroup', 'action'].includes(t.kind)) {
       at(where, `unknown target kind ${t.kind}`);
     }
     if (t.kind === 'action' && !t.action) at(where, 'action target needs an action');
+    if (t.kind === 'action' && t.action === 'page' && t.value !== undefined && !pages.has(t.value)) {
+      at(where, `no such page ${t.value}`);
+    }
     if (t.kind !== 'action' && !t.param) at(where, `${t.kind} target needs a param`);
   }
   return problems;

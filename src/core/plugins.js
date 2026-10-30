@@ -378,6 +378,17 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'desk',
+    name: 'Desk (control surface)',
+    where: 'Sidebar, under PLUS (preview), and a window for the desk’s strip screen',
+    description: 'The LivePremier Plus desk: a Mynah keypad typing into a Console line of its own, four encoders and three paged wheels on the selected layer, and a 1920 × 550 strip screen showing the line, what Enter would do, and a cell over every knob. No desk has been built; it has only met a virtual MIDI port.',
+    requires: { capabilities: ['console', 'screens'], plugins: ['console'] },
+    /* Off until a desk exists: TAKE takes, and nothing but a virtual port has
+       pressed it. */
+    enabledByDefault: false,
+    client: 'client.js'
+  },
+  {
     id: 'pixelhue',
     name: 'Pixelhue panel',
     where: 'Settings (preview), and Pixelhue Mapping under Virtual RC400T — in PLUS on a Midra or Alta',

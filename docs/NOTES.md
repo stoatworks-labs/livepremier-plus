@@ -7,7 +7,7 @@ person and dated by when each thing was learned — that date is usually the use
 Cross-cutting notes that are not specific to this repo live in
 [fleet-notes](https://github.com/stoatworks-labs/fleet-notes).
 
-*LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, adding 46 built-in plugins to a real LivePremier (and, for most of them, Midra 4K / Alta 4K) Web RCS session in the vendor's own CSS; PUBLIC; verified through the proxy against simulators; the panels have written to real hardware twice (below)*
+*LivePremier Plus (was webRCS unleashed) — a LOCAL REVERSE PROXY, no longer a Chrome extension, adding 50 built-in plugins to a real LivePremier (and, for most of them, Midra 4K / Alta 4K) Web RCS session in the vendor's own CSS; PUBLIC; verified through the proxy against simulators; the panels have written to real hardware twice (below)*
 
 ## Where it stands (2026-10-16, v0.17.7)
 
@@ -77,6 +77,37 @@ payload, the page half on the Midra simulator went from Screens / Aux. to LIVE �
 SOURCE BACKUP is refused on Midra and Alta with the reason: their inputs have no backup (no
 `backup` node in either bundle's input object; the card's ⋮ is plug, Setup, Freeze, Capture).
 Neither key has been pressed on a console.
+
+## The desk's software: keypad, wheels and strip screen (2026-10-30)
+
+The LivePremier Plus desk (`stoatworks-labs/lpp-control-surface`, prototype one) has been drawn,
+not built. Its design says the encoders and wheels need only an awj-surface profile, while the
+keypad needs code. This is that code, as the plugin `desk`, off by default: `docs/DESK.md`.
+
+- **The wheels needed pages**, which awj-surface didn't have, so it gained a `page` modifier
+  upstream (a129def): `profile.pages`, `binding.page`, a `page` action and `engine.showPage(id)`.
+  Off-page bindings are neither armed nor displayed. The `lpp-surface-p1` profile is generated
+  there with the others, and vendored here.
+- **The keypad types into a Console line of its own**, made through a new `console` service, so
+  it gets the Console's routes (Preview lock, the AWJ socket for a get, plugin addresses) and its
+  log without a second copy. That line keeps mynah's sticky scope. The typed Console still keeps
+  none.
+- **Recall never reaches program by accident.** No key but Program types `Program`; mynah's
+  Recall defaults to preview; the line under the command line says whether Enter reaches
+  program. Witnessed on the sim: the request named `PREVIEW` and program's buffer didn't change.
+- **TAKE's four switches must be one take.** On a LivePremier a second take is the take back.
+  The keypad swallows a big key's other notes, and a Web Lock keeps a second tab deaf.
+- **Clear before TAKE caught me out**, and it was the design working: on an empty line Clear
+  clears the *scope*, so the TAKE after it took nothing. That's mynah's order, and it's right; it
+  just needs saying on the screen, which the log does.
+- **Playwright and Web MIDI:** Chromium 149 refuses `requestMIDIAccess` without sysex unless
+  `midi-sysex` is granted as well as `midi`. A CoreMIDI virtual source (`MIDISourceCreateWithProtocol`)
+  stands in for the controller with no IAC Driver.
+
+Run: 28 tests in `test/desk.test.js`, including the key table checked against the hardware
+repo's KEYPAD.md; the full suite 1506 pass, 0 fail; 19/19 checks in Chromium against the rack
+simulator, from the virtual source, with S1 put back afterwards. Not run: any real controller,
+keypad, PA147CDV or switcher. None of the desk exists yet.
 
 ## Lighting desk control — Art-Net and sACN in (2026-10-30)
 

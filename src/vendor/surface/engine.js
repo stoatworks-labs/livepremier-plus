@@ -47,6 +47,7 @@ export class Engine extends EventTarget {
       layer: 1,
       bank: 0,
       shift: false,
+      page: null,
       ...options.selection
     };
     this.coalesceMs = options.coalesceMs ?? 20;
@@ -74,6 +75,10 @@ export class Engine extends EventTarget {
     (profile.bindings ?? []).forEach((b, i) => {
       this.bindingIds.set(b, b.id ?? `${b.control}#${i}`);
     });
+    /* A page the new profile does not have is no page at all: fall back to
+       its first, so a wheel is never left driving nothing after a swap. */
+    const pages = pageIds(profile);
+    if (!pages.includes(this.selection.page)) this.selection.page = pages[0] ?? null;
     this.pickups.clear();
     this.emit('profile', { profile });
   }
@@ -179,7 +184,22 @@ export class Engine extends EventTarget {
    * A binding that says nothing about shift is always armed.
    */
   armed(binding) {
-    return binding.shift === undefined || !!binding.shift === !!this.selection.shift;
+    return this.onPage(binding) &&
+      (binding.shift === undefined || !!binding.shift === !!this.selection.shift);
+  }
+
+  /**
+   * Is this binding on the page the surface is showing?
+   *
+   * Pages are shift with more than two states: a profile lists its `pages`,
+   * and a binding that names one is live only while it is chosen — three
+   * wheels that drive position, then size, then crop. Unlike shift, a binding
+   * off its page is not displayed either: a page is a whole new face for the
+   * surface, and an LED ring or a screen showing the value of a page nobody is
+   * on would be showing the wrong parameter.
+   */
+  onPage(binding) {
+    return binding.page === undefined || binding.page === this.selection.page;
   }
 
   /** Apply a binding whose target is a device parameter. */
@@ -262,16 +282,35 @@ export class Engine extends EventTarget {
       case 'shift':
         this.selection.shift = event.kind === 'button' ? !!event.down : !this.selection.shift;
         break;
+      case 'page': {
+        /* `value` names a page; `delta` steps through them in profile order
+           and wraps, for a surface with one Page button. */
+        const pages = pageIds(this.profile);
+        if (t.value !== undefined) {
+          if (!pages.includes(t.value)) {
+            this.emit('unresolved', { binding, reason: `no page ${t.value}` });
+            return;
+          }
+          this.selection.page = t.value;
+        } else if (pages.length) {
+          const at = Math.max(0, pages.indexOf(this.selection.page));
+          const n = pages.length;
+          this.selection.page = pages[(((at + (t.delta ?? 1)) % n) + n) % n];
+        }
+        break;
+      }
       default:
         this.emit('unresolved', { binding, reason: `unknown action ${t.action}` });
         return;
     }
     /* Re-pointing a control at a different layer invalidates every pickup
-       latch: the fader is now nowhere near the value it is about to steer. */
+       latch: the fader is now nowhere near the value it is about to steer.
+       A new page re-points the controls just as surely. */
     if (this.selection.layer !== before.layer ||
         this.selection.screen !== before.screen ||
         this.selection.preset !== before.preset ||
-        this.selection.bank !== before.bank) {
+        this.selection.bank !== before.bank ||
+        this.selection.page !== before.page) {
       for (const p of this.pickups.values()) p.reset();
       this.emit('selection', { selection: { ...this.selection }, before });
       this.refresh();
@@ -279,6 +318,15 @@ export class Engine extends EventTarget {
       this.emit('selection', { selection: { ...this.selection }, before });
       this.refresh();
     }
+  }
+
+  /**
+   * Choose a page from outside the surface: a host's own tabs, or a key on
+   * another device. The same path as a bound `page` action, so pickup resets
+   * and feedback refreshes the same way.
+   */
+  showPage(id) {
+    this.action({ target: { kind: 'action', action: 'page', value: id } }, { kind: 'button', down: true });
   }
 
   /* --------------------------------------------------------------- output */
@@ -322,7 +370,7 @@ export class Engine extends EventTarget {
       const control = this.controls.get(controlId);
       if (!control) continue;
       for (const binding of list) {
-        if (binding.target.kind === 'action') continue;
+        if (binding.target.kind === 'action' || !this.onPage(binding)) continue;
         const resolved = this.resolve(binding.target, control);
         if (!resolved || key(resolved) !== k) continue;
         if (origin && origin.control === controlId && origin.until >= Date.now()) continue;
@@ -376,7 +424,9 @@ export class Engine extends EventTarget {
     for (const [controlId, list] of this.bindings) {
       const control = this.controls.get(controlId);
       if (!control) continue;
-      for (const binding of list) this.display(controlId, control, binding);
+      for (const binding of list) {
+        if (this.onPage(binding)) this.display(controlId, control, binding);
+      }
     }
     this.emit('refreshed', { selection: { ...this.selection } });
   }
@@ -436,6 +486,8 @@ export class Engine extends EventTarget {
           : this.selection.preset === target.value;
       case 'shift':
         return this.selection.shift;
+      case 'page':
+        return target.value === undefined ? null : this.selection.page === target.value;
       default:
         return null;
     }
@@ -457,4 +509,9 @@ export class Engine extends EventTarget {
       : `L${layer ?? '-'}`;
     return { top: binding.label ?? shortLabel(t.param), bottom: scope };
   }
+}
+
+/** The ids of a profile's pages, in order. Empty when it has none. */
+function pageIds(profile) {
+  return (profile?.pages ?? []).map((p) => p.id);
 }

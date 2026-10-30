@@ -18,10 +18,24 @@ export default function activate(ctx) {
   /* The Variables plugin's service, asked per run: it may start after this
      plugin, or be switched off, and a Console must work either way. Preview
      lock's hold likewise. */
+  const variables = () => ctx.use('variables');
+  const hold = (cmds) => { const lock = ctx.use('preview-lock'); return lock ? lock.holdWrites(cmds) : null; };
   const consolePanel = createConsolePanel({
-    session: ctx.session, onRefresh: ctx.refresh, variables: () => ctx.use('variables'),
-    hold: (cmds) => { const lock = ctx.use('preview-lock'); return lock ? lock.holdWrites(cmds) : null; }
+    session: ctx.session, onRefresh: ctx.refresh, variables, hold
   });
+
+  /*
+   * A Console line of another plugin's own: the desk's keypad types into one.
+   * The same compile, the same routes out, Preview lock and Variables the same
+   * way, and a log of its own. Unlike the tab's, it keeps mynah's sticky scope
+   * (`Select` / `Clear`), which a keypad's TAKE is built on; pass
+   * `stickyScope: false` for a line that should not.
+   */
+  ctx.provide('console', Object.freeze({
+    line: (opts = {}) => createConsolePanel({
+      session: ctx.session, variables, hold, popoutEnabled: false, stickyScope: true, ...opts
+    })
+  }));
   ctx.ui.tab({
     id: 'console',
     label: 'Console',

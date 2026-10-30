@@ -1956,6 +1956,28 @@ The setup step by step, and what it has and hasn't been tried on, are in
 > And after a grandMA3 update, check the addresses before the show. MA renumbers them between
 > versions.
 
+## Desk: the control surface (preview, off by default)
+
+The software for the LivePremier Plus desk: a Mynah keypad, four encoders, three wheels and a
+1920 × 550 strip screen. Each keypad key puts one whole word on a Console line of the desk's own,
+as if you'd typed it, and **Please** runs it. **TAKE** takes the scope straight away and leaves the
+line alone. **Oops** takes back a word. **Clear** clears the line, and on an empty line the scope.
+The encoders and wheels move the selected layer on preview, and the wheels have pages (Position,
+Size, Opacity, Crop, Source, Border) that an attribute key on an empty line, or a tap on the
+screen, chooses.
+
+Switch on **Desk (control surface)** in **Preconfig ▸ LivePremier Plus → Plugins**, open **Desk**
+under PLUS, press **Enable MIDI**, then **Open the screen** and put that window on the strip
+display. While you type, the line under the command line ends **nothing reaches program**,
+**REACHES PROGRAM** or **can't tell**. Only the Program key types Program, and a Recall goes to
+preview unless you say otherwise.
+
+The keys, the knobs, the screen and the MIDI the controller has to send are in
+[DESK.md](DESK.md).
+
+> ⚠️ **No desk exists yet.** This has only been driven from a pretend controller on a Mac,
+> against the simulator. Don't run MIDI Mapping on the same port: every knob would move twice.
+
 ---
 
 ## Thumbnail relay (preview)
