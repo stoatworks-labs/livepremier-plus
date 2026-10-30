@@ -22,6 +22,7 @@ import {
 } from '../src/core/dmx-personality.js';
 import { descriptionXml, gdtfFile, gdtfName, FIXTURE_KINDS } from '../src/core/desk-gdtf.js';
 import { unzipStore } from '../src/core/zip.js';
+import { sceneXml, mvrFile, fixtureNumber, stableUuid, absoluteAddress } from '../src/core/desk-mvr.js';
 import { normaliseDesk, deskChanged, DEFAULT_DESK, allowed, lookParams, fitValue, layerSpec } from '../plugins/desk-control/core.js';
 import { DeskSupervisor } from '../plugins/desk-control/supervisor.js';
 import { TakeWatch, matchRules, describeTake, COOLDOWN_MS } from '../plugins/desk-control/feedback.js';
@@ -395,6 +396,52 @@ test('GDTF: one file per fixture type, a zip holding description.xml, a mode per
   assert.deepEqual(gdtfFile('master'), gdtfFile('master'), 'the same bytes every time');
 });
 
+test('MVR: fixture IDs follow the switcher, UUIDs are the same every time, addresses are absolute', () => {
+  const { fixtures } = layout({ destinations: ['S1', 'S12', 'A2'], layers: 3, firstUniverse: 1, mode: 'cue' });
+  const ids = Object.fromEntries(fixtures.map((f) => [f.id, fixtureNumber(f)]));
+  assert.equal(ids.master, 1);
+  assert.equal(ids.S1, 100);
+  assert.equal(ids['S1.L3'], 103);
+  assert.equal(ids['S12.L1'], 1201);
+  assert.equal(ids['A2.L2'], 5202);
+  assert.equal(new Set(Object.values(ids)).size, fixtures.length, 'no two alike');
+  const u = stableUuid('192.168.1.203', 'fixture', 'S1.L1');
+  assert.match(u, /^[0-9A-F]{8}-[0-9A-F]{4}-8[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/);
+  assert.equal(stableUuid('192.168.1.203', 'fixture', 'S1.L1'), u);
+  assert.notEqual(stableUuid('192.168.1.204', 'fixture', 'S1.L1'), u, 'another switcher, another fixture');
+  assert.equal(absoluteAddress(1, 1), 1);
+  assert.equal(absoluteAddress(2, 1), 513);
+});
+
+test('MVR: a layer per screen, every fixture’s GDTF inside the file under the name the scene gives it, in a mode it has', () => {
+  const { fixtures } = layout({
+    destinations: ['S1', 'S2'], layers: 2, firstUniverse: 3, mode: 'standard', labelOf: (id) => (id === 'S1' ? 'Main & <Left>' : ''),
+  });
+  const xml = sceneXml(fixtures, { version: '2', host: 'h', providerVersion: '0.18.6', protocol: 'artnet' });
+  assert.match(xml, /<GeneralSceneDescription verMajor="1" verMinor="6" provider="LivePremier Plus" providerVersion="0.18.6">/);
+  assert.deepEqual([...xml.matchAll(/<Layer uuid="[^"]+" name="([^"]+)">/g)].map((m) => m[1]),
+    ['LivePremier Plus', 'S1 Main &amp; &lt;Left&gt;', 'S2']);
+  assert.equal((xml.match(/<Fixture /g) || []).length, fixtures.length);
+  assert.equal((xml.match(/<Protocol type="Art-Net"\/>/g) || []).length, fixtures.length);
+  assert.doesNotMatch(xml, /sACN/);
+  const s2l2 = fixtures.find((f) => f.id === 'S2.L2');
+  assert.match(xml, new RegExp(`<Address break="0">${(3 - 1) * 512 + s2l2.address}</Address>`));
+  assert.equal(sceneXml(fixtures, { version: '2', host: 'h' }), sceneXml(fixtures, { version: '2', host: 'h' }), 'the same text every time');
+
+  const files = unzipStore(mvrFile(fixtures, { version: '2', host: 'h', providerVersion: '0.18.6' }));
+  assert.deepEqual(files.map((f) => f.name),
+    ['GeneralSceneDescription.xml', 'Stoatworks@LPP_Master@v2.gdtf', 'Stoatworks@LPP_Screen@v2.gdtf', 'Stoatworks@LPP_Layer@v2.gdtf']);
+  const scene = new TextDecoder().decode(files[0].data);
+  for (const [, spec, mode] of scene.matchAll(/<GDTFSpec>([^<]+)<\/GDTFSpec>\s*<GDTFMode>([^<]+)<\/GDTFMode>/g)) {
+    const gdtf = files.find((f) => f.name === spec);
+    assert.ok(gdtf, spec);
+    const description = new TextDecoder().decode(unzipStore(gdtf.data)[0].data);
+    assert.ok(description.includes(`<DMXMode Name="${mode}"`), `${spec} has a ${mode} mode`);
+  }
+  const noMaster = layout({ destinations: ['S1'], layers: 1, firstUniverse: 1, master: false, mode: 'cue' }).fixtures;
+  assert.equal(unzipStore(mvrFile(noMaster, { version: '2' })).some((f) => f.name.includes('Master')), false, 'only the types patched');
+});
+
 /* ------------------------------------------------------------ the other way */
 
 const reading = (transition, memories, { up = 'B', down = 'A' } = {}) => {
@@ -475,6 +522,8 @@ test('settings: off, one screen, four layers, the Master, universe 1', () => {
   assert.equal(allowed(s, '2.0.0.1'), true);
   assert.equal(allowed(s, '2.0.0.3'), false);
   assert.equal(allowed(normaliseDesk({}), '2.0.0.3'), true);
+  assert.equal(normaliseDesk({ deskCitp: 'yes' }).deskCitp, false, 'CITP is on only when it is true');
+  assert.equal(deskChanged(s, { ...s, deskCitp: true }), true);
 });
 
 /* --------------------------------------------------------- the held link */
@@ -512,7 +561,7 @@ test('the held link: no switcher is an error, not a hang', async () => {
 
 const LOOPBACK = () => ({ lo0: [{ address: '127.0.0.1', netmask: '255.0.0.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal: true }] });
 
-async function bench({ settings = {}, store: extra = [], landsAfter = 0, landMarginMs, triggers = null } = {}) {
+async function bench({ settings = {}, store: extra = [], landsAfter = 0, landMarginMs, triggers = null, awjDelayMs = 0 } = {}) {
   const store = new Map([['DeviceObject/system/$device/@items/1/@props/dev', 'NLC_AQL_C']]);
   const set = (path, v) => store.set(toAwj(path), v);
   set(NLC.takeStatus('S1', 'isUsed'), true);
@@ -527,6 +576,7 @@ async function bench({ settings = {}, store: extra = [], landsAfter = 0, landMar
      ms after it is written, and never if null (a take the switcher refused). */
   const flip = (st) => st.set(transitionPath, st.get(transitionPath) === 'AT_DOWN' ? 'AT_UP' : 'AT_DOWN');
   const awj = await fakeAwj(store, {
+    delayMs: awjDelayMs,
     onReplace: (path, value, st) => {
       if (path !== takePath || value !== true || landsAfter === null) return;
       if (landsAfter) setTimeout(() => flip(st), landsAfter); else flip(st);
@@ -831,6 +881,32 @@ test('supervisor: the watch runs with no desk listened to, and says so when the 
   } finally { await b.close(); }
 });
 
+test('supervisor: reads what every patched layer has in program, for CITP, and the inputs and stills with CITP on', async () => {
+  const source = NLC.catalogue.layer.find((p) => p.id === NLC.sourceParam).path;
+  /* AT_DOWN with A up and B down: B is on air. */
+  const b = await bench({ settings: { deskEnabled: false }, awjDelayMs: 20, store: [
+    [NLC.layerParamPath('S1', 'B', 1, source), 'LIVE_3'],
+    [NLC.layerParamPath('S1', 'B', 2, source), 'COLOR'],
+    [NLC.layerParamPath('S1', 'A', 1, source), 'STILL_9'],
+  ] });
+  try {
+    /* As a desk connecting at once does: the first facts read is on the wire, its answer not yet back. */
+    b.awj.clear();
+    await b.sup.apply(normaliseDesk({ deskEnabled: true, deskDestinations: ['S1'], deskLayers: 2 }));
+    await until(() => b.awj.received.length, 2000, 'the first facts read sent');
+    const got = await b.sup.readLayerSources();
+    assert.deepEqual([...got], [['S1.L1', 'LIVE_3'], ['S1.L2', 'COLOR']]);
+    assert.equal(b.sup.layerSources, got);
+    await until(() => b.sup.facts, 2000, 'the facts read, not cut short by the layer read');
+    assert.equal(b.sup.history.some((e) => /reading the switcher/.test(e.error || '')), false);
+    assert.equal(b.sup.switcher.limits.inputs, 0, 'without CITP no inputs are read');
+    await b.sup.apply(normaliseDesk({ deskEnabled: true, deskDestinations: ['S1'], deskLayers: 2, deskCitp: true }));
+    assert.equal(b.sup.switcher.limits.inputs, 48);
+    assert.equal(b.sup.switcher.limits.stills, 48);
+    assert.deepEqual(b.sup.interfaceAddresses(), ['127.0.0.1'], 'loopback only where there is nothing else');
+  } finally { await b.close(); }
+});
+
 test('supervisor: switched off, it closes its ports', async () => {
   const b = await bench();
   try {
@@ -852,13 +928,18 @@ test('the card: says what the chosen mode carries, and lists the switcher-to-des
     const { KIT } = await import('../src/ui/plugin-host.js');
     const { default: activate } = await import('../plugins/desk-control/client.js');
     let settings = normaliseDesk({
-      deskEnabled: true, deskMode: 'standard', deskFeedback: true,
+      deskEnabled: true, deskMode: 'standard', deskFeedback: true, deskCitp: true,
       deskFeedbackRules: [{ destination: 'S1', memory: 12, trigger: 'vt' }, { trigger: 'gone' }],
     });
     const live = {
       interfaces: [], switcher: { destinations: [] }, patch: { fixtures: [] }, universes: [], sockets: {}, history: [], screens: [],
       counts: { written: 0, refused: 0, dropped: 0, takes: 3, fired: 2, echoes: 1 },
       feedback: { on: true, watching: ['S1'], triggers: [{ id: 'vt', name: 'VT state' }] },
+      citp: {
+        tcp: 4811, udp: 4809, errors: { multicast: '239.224.0.180: no route' },
+        clients: [{ address: '10.0.0.5', name: 'MagicQ', version: '1.2' }], peers: [{ name: 'MagicQ', address: '10.0.0.5' }],
+        streams: [{ source: 2, format: 'JPEG' }], counts: { thumbnails: 3, frames: 1 },
+      },
     };
     globalThis.fetch = async () => ({ ok: true, json: async () => live });
     let render;
@@ -871,7 +952,9 @@ test('the card: says what the chosen mode carries, and lists the switcher-to-des
     await sleep(10);
     const text = render().textContent;
     for (const want of ['Standard mode is 4 channels a screen and 24 a layer', 'while W or H is at zero', 'Switcher to desk',
-      'VT state', 'gone (not in Triggers now)', 'Takes seen', 'Not echoed', 'Add a rule']) {
+      'VT state', 'gone (not in Triggers now)', 'Takes seen', 'Not echoed', 'Add a rule', 'Patch .mvr',
+      'Be a media server for the desk (CITP)', 'TCP 4811, UDP 4809', 'MagicQ (MSEX 1.2)', 'MagicQ at 10.0.0.5', 'IN2',
+      '239.224.0.180: no route', 'not grandMA3']) {
       assert.ok(text.includes(want), want);
     }
   } finally {

@@ -18,6 +18,9 @@
  * bar interlacing. The simulators' placeholders are palette images (411 bytes
  * each on the LivePremier simulator), and a future firmware may compress. An
  * image this cannot read throws, and the relay passes the original through.
+ *
+ * Moved here from the snapshot relay's folder when desk control's CITP
+ * thumbnails needed it too: a plugin may not import another's folder.
  */
 
 import zlib from 'node:zlib';

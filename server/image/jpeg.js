@@ -14,6 +14,9 @@
  *
  * Alpha is composited over black, which is what an `<img>` on the Web RCS's
  * dark cards would have shown anyway.
+ *
+ * Moved here from the snapshot relay's folder when desk control's CITP
+ * thumbnails needed it too: a plugin may not import another's folder.
  */
 
 /* Natural order → zigzag position. */

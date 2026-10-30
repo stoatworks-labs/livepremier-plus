@@ -36,7 +36,7 @@
  * lower bound on the firmware's rate while the vendor's poller sets the pace.
  */
 
-import { isPng } from './png.js';
+import { isPng } from '../../server/image/png.js';
 
 /* A source nobody has asked about for this long is forgotten, frame and all. */
 const FORGET_MS = 60_000;

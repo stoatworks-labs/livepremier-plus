@@ -93,9 +93,11 @@ than something bolted on.
   tried on a real panel.
 - **Lighting desk control** *(preview, off by default)*: a lighting desk driving the switcher over
   Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity,
-  and in the bigger modes its position, size and look. A take on the switcher can fire the desk's
-  "VT state" through the Triggers plugin. Driven from MagicQ PC against the simulator; not yet
-  tried on a real switcher, and the triggers have only been heard by a test socket, not a desk.
+  and in the bigger modes its position, size and look. The patch comes as an MVR file, and over
+  CITP a desk lists the switcher's sources as it would a media server's. A take on the switcher
+  can fire the desk's "VT state" through the Triggers plugin. Driven from MagicQ PC against the
+  simulator, which also imported the MVR and listed the sources over CITP; not yet tried on a real
+  switcher, and the triggers have only been heard by a test socket, not a desk.
 - **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, driving the
   switcher from its executors through the OSC the desk already sends. Tried with grandMA3 onPC,
   not yet with a wing or a desk.
@@ -1914,19 +1916,27 @@ Take, Cut) and an **LPP Layer** fixture per layer (source folder, source file, o
 
 Switch on **Lighting desk control** in **Preconfig ▸ LivePremier Plus → Plugins**, then tick
 **Listen for a lighting desk** on its card. List the screens and how many layers each gets; the
-card shows the patch and has the **.gdtf** files to import into the desk and a **Patch .csv**.
+card shows the patch and has the **.gdtf** files to import into the desk, a **Patch .csv**, and a
+**Patch .mvr**: the whole patch with the fixture files inside, for grandMA3 or MagicQ to import in
+one go.
 
 Nothing happens to a screen until its **Control** channel is raised: 25% and up edits preview, 50%
 and up edits program. Memory recalls to preview, Take and Cut fire on a rise past 50%, and nothing
 fires on the first frame after the app starts or a desk takes over. Opacity is a Dimmer, so it
 follows the desk's grand master. **Only these desks** limits who can drive it.
 
+Tick **Be a media server for the desk (CITP)** and MagicQ, grandMA2 or Titan finds the switcher
+the way it finds a media server: the source folders as libraries with thumbnails from the
+switcher, what each layer has in program, and a preview of each input about once a second. It
+only reports; the desk still drives the layers over Art-Net or sACN.
+
 The channel tables, the patch, sACN priority and backup desks, and what has been run are in
 [DESK-CONTROL.md](DESK-CONTROL.md).
 
 > ⚠️ **Never run with a real switcher.** It has driven the simulator from MagicQ PC on the same Mac
-> and from a pretend desk. A desk on the same Mac has its own settings to get right; DESK-CONTROL.md
-> has them.
+> and from a pretend desk. MagicQ has imported the MVR and listed the sources over CITP, but its
+> grid of thumbnails never appeared. A desk on the same Mac has its own settings to get right;
+> DESK-CONTROL.md has them.
 
 ## grandMA3 (preview, off by default)
 

@@ -101,6 +101,8 @@ const REFRESH_MS = 30_000;
 const HISTORY = 60;
 /* Only the screens and their layers: no inputs, stills or memories. */
 const LIMITS = { screens: 24, auxes: 0, inputs: 0, memories: 0, layers: 16, stills: 0 };
+/* With CITP on, the inputs and stills are read too: they are its libraries. */
+const CITP_LIMITS = { ...LIMITS, inputs: 48, stills: 48 };
 const PROTOCOL_IDS = ['artnet', 'sacn'];
 /* What `plugins/triggers` names its sACN streams. */
 const OWN_SOURCE = 'LivePremier Plus';
@@ -135,6 +137,8 @@ export class DeskSupervisor extends EventEmitter {
   /* Bumped by every stop, so a read still in flight when the watch stopped cannot start a second loop. */
   #watchRun = 0;
   #fired = new Map();
+  /** Layer fixture id → the source it has in program, as last read for CITP (`readLayerSources`). */
+  layerSources = new Map();
 
   /**
    * @param {object} o
@@ -185,6 +189,7 @@ export class DeskSupervisor extends EventEmitter {
   async apply(settings) {
     const was = this.#settings;
     this.#settings = settings;
+    this.switcher.limits = settings?.deskCitp ? CITP_LIMITS : LIMITS;
     this.#repatch();
     this.#followFeedback(was);
     if (!settings?.deskEnabled) {
@@ -267,8 +272,11 @@ export class DeskSupervisor extends EventEmitter {
     clearTimeout(this.#refreshTimer);
     if (!this.#settings?.deskEnabled) return null;
     try {
+      /* Pointed before the read, not after: a desk asking for layer sources
+         while it is in flight would otherwise take the switcher for a new one
+         and hang up on the read. */
+      this.#pointAt(this.deviceHost());
       this.facts = await this.switcher.readFacts();
-      this.#dialectHost = this.deviceHost();
       this.#repatch();
       this.#ok();
       this.#note({ kind: 'read', note: `${this.facts.destinations.filter((d) => d.isUsed).length} screens in service` }, { quiet: true });
@@ -693,14 +701,18 @@ export class DeskSupervisor extends EventEmitter {
   async #ensureDialect() {
     const host = this.deviceHost();
     if (!host) throw new Error('no switcher configured');
-    if (host !== this.#dialectHost) {
-      /* Re-pointed: the held connection is to the old switcher. */
-      this.link.close();
-      this.switcher.dialect = null;
-      this.#dialectHost = host;
-    }
+    this.#pointAt(host);
     if (!this.switcher.dialect) this.switcher.dialect = await this.switcher.identify(host);
     return this.switcher.dialect;
+  }
+
+  /** `refresh` and `#ensureDialect` both come through here before using the link, so a held connection is always to `#dialectHost`. */
+  #pointAt(host) {
+    if (!host || host === this.#dialectHost) return;
+    /* Re-pointed: the held connection is to the old switcher. */
+    if (this.#dialectHost) this.link.close();
+    this.switcher.dialect = null;
+    this.#dialectHost = host;
   }
 
   /** A take or cut has just been written to `id`; `r` is its letters read before it. */
@@ -787,6 +799,49 @@ export class DeskSupervisor extends EventEmitter {
       }
     }
     return out;
+  }
+
+  /**
+   * What every patched layer has in program, for CITP's layer status: Layer
+   * fixture id → the switcher's source value (`LIVE_3`, `COLOR`…), null where
+   * it could not be read. Two bursts on the held connection: the letters,
+   * then a source per layer.
+   */
+  async readLayerSources() {
+    const dialect = await this.#ensureDialect();
+    const tail = layerSourcePath(dialect);
+    const layers = this.#patch.fixtures.filter((f) => f.kind === 'layer');
+    const ids = [...new Set(layers.map((f) => f.destination))];
+    if (!tail || !ids.length) {
+      this.layerSources = new Map();
+      return this.layerSources;
+    }
+    const letters = await this.#letters(ids, dialect, { watch: true });
+    const pathOf = (f) => {
+      const r = letters.get(f.destination);
+      return r && r.program ? dialect.layerParamPath(f.destination, r.program, f.layer, tail) : null;
+    };
+    const paths = layers.map(pathOf).filter(Boolean);
+    const got = paths.length ? await this.switcher.read(paths) : new Map();
+    this.layerSources = new Map(layers.map((f) => {
+      const path = pathOf(f);
+      const value = path ? got.get(toAwj(path)) : null;
+      return [f.id, typeof value === 'string' && value ? value : null];
+    }));
+    return this.layerSources;
+  }
+
+  /**
+   * The IPv4 addresses CITP multicasts on: the chosen interface, or every one
+   * that is not loopback — a desk may be on any of them.
+   */
+  interfaceAddresses() {
+    const all = Object.values(this.interfaces() || {}).flat()
+      .filter((i) => i && (i.family === 'IPv4' || i.family === 4));
+    const chosen = this.#settings?.deskInterface;
+    if (chosen) return all.some((i) => i.address === chosen) ? [chosen] : [];
+    const out = all.filter((i) => !i.internal).map((i) => i.address);
+    return out.length ? out : all.map((i) => i.address);
   }
 
   /* ----------------------------------------------------------- the other way */

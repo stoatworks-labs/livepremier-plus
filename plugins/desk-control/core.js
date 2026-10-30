@@ -49,6 +49,9 @@ export const DEFAULT_DESK = Object.freeze({
      (`feedback.js`). Its own switch, as it needs no desk patched. */
   deskFeedback: false,
   deskFeedbackRules: Object.freeze([]),
+  /* The switcher as a CITP media server (`citp.js`): libraries, thumbnails
+     and layer status for MagicQ, grandMA2 and Titan. Only while listening. */
+  deskCitp: false,
 });
 
 export const MAX_FEEDBACK_RULES = 32;
@@ -97,6 +100,7 @@ export function normaliseDesk(raw) {
     deskFeedback: input.deskFeedback === true,
     deskFeedbackRules: (Array.isArray(input.deskFeedbackRules) ? input.deskFeedbackRules : [])
       .slice(0, MAX_FEEDBACK_RULES).map(normaliseRule),
+    deskCitp: input.deskCitp === true,
   };
 }
 
@@ -111,7 +115,8 @@ export const deskChanged = (a, b) =>
   || a.deskMaster !== b.deskMaster
   || a.deskMode !== b.deskMode
   || a.deskFeedback !== b.deskFeedback
-  || JSON.stringify(a.deskFeedbackRules) !== JSON.stringify(b.deskFeedbackRules);
+  || JSON.stringify(a.deskFeedbackRules) !== JSON.stringify(b.deskFeedbackRules)
+  || a.deskCitp !== b.deskCitp;
 
 /** The patch these settings make. */
 export function patchOf(settings, labelOf) {

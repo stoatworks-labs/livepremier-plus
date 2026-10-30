@@ -16,8 +16,9 @@ const EOT = 0x04;
  * @param {Map<string, unknown>|object} initial  AWJ path → value
  * @param {object} [o]
  * @param {(path:string, value:unknown, store:Map) => void} [o.onReplace]  react to a write, as the device would
+ * @param {number} [o.delayMs]  answer each `get` this late, as a real switcher on a network does
  */
-export async function fakeAwj(initial = {}, { onReplace = null } = {}) {
+export async function fakeAwj(initial = {}, { onReplace = null, delayMs = 0 } = {}) {
   const store = new Map(initial instanceof Map ? initial : Object.entries(initial));
   const received = [];
   const sockets = new Set();
@@ -41,7 +42,9 @@ export async function fakeAwj(initial = {}, { onReplace = null } = {}) {
         }
         if (msg.op !== 'get') continue;
         const reply = store.has(msg.path) ? { path: msg.path, value: store.get(msg.path) } : { path: '', value: null };
-        socket.write(Buffer.concat([Buffer.from(JSON.stringify(reply), 'utf8'), Buffer.from([EOT])]));
+        const bytes = Buffer.concat([Buffer.from(JSON.stringify(reply), 'utf8'), Buffer.from([EOT])]);
+        if (delayMs) setTimeout(() => { if (!socket.destroyed) socket.write(bytes); }, delayMs);
+        else socket.write(bytes);
       }
     });
     socket.on('error', () => {});

@@ -18,9 +18,9 @@ import { join, dirname } from 'node:path';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-import { decodePng, encodePng, readHeader, isPng } from '../plugins/snapshot-relay/png.js';
-import { encodeJpeg } from '../plugins/snapshot-relay/jpeg.js';
-import { fitWidth } from '../plugins/snapshot-relay/resize.js';
+import { decodePng, encodePng, readHeader, isPng } from '../server/image/png.js';
+import { encodeJpeg } from '../server/image/jpeg.js';
+import { fitWidth } from '../server/image/resize.js';
 import { createRelay, createHotSet } from '../plugins/snapshot-relay/relay.js';
 import { snapshotPath, bump, findHot, createHotTracker } from '../plugins/snapshot-relay/hot.js';
 import { createEncoder } from '../plugins/snapshot-relay/encoder.js';

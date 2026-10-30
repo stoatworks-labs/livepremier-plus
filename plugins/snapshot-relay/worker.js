@@ -8,9 +8,9 @@
  */
 
 import { parentPort } from 'node:worker_threads';
-import { decodePng } from './png.js';
-import { encodeJpeg } from './jpeg.js';
-import { fitWidth } from './resize.js';
+import { decodePng } from '../../server/image/png.js';
+import { encodeJpeg } from '../../server/image/jpeg.js';
+import { fitWidth } from '../../server/image/resize.js';
 
 /* Imported anywhere but a worker — the module tests link every file in a
    plugin's folder — this does nothing, as a plugin's modules must. */

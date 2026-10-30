@@ -22,8 +22,8 @@
  */
 
 import http from 'node:http';
-import { readHeader, decodePng } from '../plugins/snapshot-relay/png.js';
-import { encodeJpeg } from '../plugins/snapshot-relay/jpeg.js';
+import { readHeader, decodePng } from '../server/image/png.js';
+import { encodeJpeg } from '../server/image/jpeg.js';
 import { DEFAULTS } from '../plugins/snapshot-relay/core.js';
 
 function parseArgs(argv) {

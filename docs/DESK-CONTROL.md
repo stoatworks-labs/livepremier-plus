@@ -2,14 +2,16 @@
 
 > ⚠️ **This has never met a real switcher.** It has driven the LivePremier 6.2.73 simulator from
 > ChamSys MagicQ PC on the same Mac and from a pretend desk sending real Art-Net at a desk's 40
-> frames a second, and the status block at the bottom says exactly what has been run. Try it in
-> rehearsal, not in a show.
+> frames a second, and MagicQ has imported its patch and found it as a CITP media server. The
+> status block at the bottom says exactly what has been run. Try it in rehearsal, not in a show.
 
 A lighting desk — grandMA3, ChamSys MagicQ, Avolites Titan, anything that sends **Art-Net** or
 **sACN** — drives the switcher the way it drives a media server: fixtures patched on a universe,
 one per screen and one per layer, programmed into cues like everything else on the rig. Recall a
 memory, set a layer's source, opacity, position, size and look, take, all from a cue stack, with
 no browser open. And the other way: a take on the switcher can fire the desk's "VT state" cue.
+The whole patch comes as an **MVR** file for the desk to import, and the switcher can show up on
+the desk as a **CITP** media server, its sources listed with thumbnails.
 A grandMA3 can also drive the switcher with nothing patched, from its executors through the OSC
 it already sends: that is the **grandMA3** plugin, [GRANDMA3.md](GRANDMA3.md).
 
@@ -145,15 +147,36 @@ count Art-Net from 0 or 1.
 
 | Desk | What to do |
 |---|---|
-| **grandMA3** | Import the three `.gdtf` files into the fixture library and patch them. |
-| **MagicQ** | Open each `.gdtf` in MagicQ's File Manager (**Setup → File Manager**). It asks which mode; pick the one you set on the card. MagicQ saves a head file from it (its mode name starts `G-`) and goes to the patch window with it selected. MagicQ 1.9.6.5 warns that the files are GDTF 1.2 and it reads 1.1, shows Control as **Lamp**, reads X and Y as its own position, and doesn't recognise the other names below; every channel still patches and works. The warnings are in `MagicQ/log/gdtf.log`. Its **Locate** sets Flip to 255 (H+V) and the colour to white: harmless while Width or Height is 0, but set Flip back to 0 before giving a layer a size. |
-| **Avolites Titan** | Convert the `.gdtf` files to `.d4` in Personality Builder (Windows), then patch the `.d4`. |
+| **grandMA3** | Import **Patch .mvr**, the patch and its fixture types in one file, or import the three `.gdtf` files into the fixture library and patch them by hand. The MVR hasn't been tried on an MA3 yet. |
+| **MagicQ** | **Patch .mvr** patches the lot in one go (below). By hand: open each `.gdtf` in MagicQ's File Manager (**Setup → File Manager**). It asks which mode; pick the one you set on the card. MagicQ saves a head file from it (its mode name starts `G-`) and goes to the patch window with it selected. MagicQ 1.9.6.5 warns that the files are GDTF 1.2 and it reads 1.1, shows Control as **Lamp**, reads X and Y as its own position, and doesn't recognise the other names below; every channel still patches and works. The warnings are in `MagicQ/log/gdtf.log`. Its **Locate** sets Flip to 255 (H+V) and the colour to white: harmless while Width or Height is 0, but set Flip back to 0 before giving a layer a size. |
+| **Avolites Titan** | Convert the `.gdtf` files to `.d4` in Personality Builder (Windows), then patch the `.d4` at the addresses in **Patch .csv**. Titan has no MVR import. |
 | **grandMA2** | Convert with MA's own GDTF converter; MA2 does not read GDTF itself. |
 | **Anything else** | Patch generic dimmer channels at the addresses in the table, or build a fixture from the channel tables above. |
 
 The control channels have names of their own (`LPPControl`, `LPPMemory`, `LPPTake`, `LPPCut`);
 the source is `MediaFolder1` / `MediaContent1`, the names media-server fixtures use, and opacity is
 GDTF's own `Dimmer`. A desk that doesn't recognise a name still patches it as a plain channel.
+
+### The patch as MVR
+
+**Patch .mvr** on the card is the whole patch as one file: MVR 1.6, the format grandMA3, MagicQ,
+Vectorworks and Capture import, with the fixture files inside, so a desk that has never seen these
+fixture types needs nothing else.
+
+- **Fixture IDs follow the switcher, not the patch order.** The Master is 1, screen S*n* is *n*00
+  and its layers *n*01, *n*02 and so on, aux A*n* is 5000 + *n*00. Adding a layer or a screen
+  renumbers nothing already patched. MagicQ takes the fixture ID as the head number.
+- **Importing it again updates rather than doubles**: each fixture's UUID in the file is the same
+  every time, for the same fixture on the same switcher.
+- **One MVR layer per screen**, holding its Screen fixture and its layers; the Master has its own.
+- Positions are a tidy row so a 3D view doesn't stack them all in one spot. A video layer has no
+  place on a stage, so don't read anything into them.
+
+**In MagicQ** (1.9.6.5): put the `.mvr` in `Documents/MagicQ/show`, open **Setup → File Manager**
+and select it. Import into a show with those addresses free. Into the demo show, which already has
+dimmers where the layers go, it patched nothing; a second try hung MagicQ, which had to be
+force-quit. Into an empty show it patched every fixture at the card's addresses, numbered as above.
+MagicQ names each head after its fixture type, not the screen or layer it is.
 
 ---
 
@@ -255,25 +278,88 @@ If the Triggers plugin is off, a matching take says so on the card instead of fi
 
 ---
 
+## The switcher as a media server (CITP)
+
+Tick **Be a media server for the desk (CITP)** on the card, and a desk that speaks CITP finds the
+switcher the way it finds a media server. That's MagicQ, grandMA2 and Titan; not grandMA3, which
+has no CITP. What the desk gets:
+
+- **Libraries, which are the Layer fixture's source folders**: Live inputs, Stills, Screens,
+  Backgrounds, Colour, None, in Folder order. A library's DMX value is its Folder value and
+  element *e* is File value *e* + 1, so whatever the desk shows against a number is what that
+  number selects. A gap in the numbering is listed as one, by name.
+- **Thumbnails**, which are the switcher's own snapshots of its inputs and stills, fitted inside
+  the size the desk asks for. A screen, a background, colour and black have no snapshot and get a
+  plain card of one colour.
+- **What each layer has in program** (MSEX layer status), as library, element and name, four
+  times a second. The layers are read from the switcher once a second while a desk is connected,
+  and not at all while none is.
+- **A preview of each live input**: its snapshot, about once a second. That's all the switcher
+  offers; real video waits for NDI.
+- **Where each layer is patched**, with the Layer fixture type's id, for a desk that patches from
+  CITP.
+
+**It only reports.** The desk still drives the layers over Art-Net or sACN; nothing that arrives
+over CITP writes to the switcher.
+
+**On the wire:** UDP 4809, announcing itself every second to CITP's multicast groups
+(239.224.0.180 and the older 224.0.0.180) on every interface, or only the one the **Network**
+picker names; TCP 4811 for desks to connect to, or another port if 4811 is taken (the card says
+which). MSEX 1.0, 1.1 and 1.2, whichever the desk asks in; up to eight desks at once. **Only these
+desks** applies here too: a desk not on the list is hung up on before it is told anything.
+
+### MagicQ
+
+1. Patch the layers: the MVR is the quick way.
+2. **Setup → View System → Media**, on a free server line: **Type** *CITP MSEX* (Return steps
+   through the list), **IP** the machine this app runs on, the first Layer head's number and how
+   many layers, **Thumb con** *Enabled*, **Live prev** *Yes*.
+3. **GET THUMBS**.
+
+MagicQ 1.9.6.5 ignores the announcement and connects straight to TCP 4811 at that IP, so if the
+card says the app got another port, free 4811. It speaks MSEX 1.0, asks for every library, takes
+their thumbnails as small JPEGs and keeps them in `Documents/MagicQ/thumbs/<ip>/`. Its preview asks
+for frames in 1.0, and it has no socket on UDP 4809 to hear a multicast frame with, so a 1.0 desk
+gets its frames down its own TCP connection.
+
+**What it did:** listed all six libraries with their names and DMX values, and showed a live
+preview in its Media window at about a frame a second, colours right. That was with the Layer
+head edited in MagicQ's head editor: **Media → Server Type** set to *CITP MSEX*, and channels 1
+and 2 moved from FX1 and FX2 (where its GDTF import puts `MediaFolder1` and `MediaContent1`) to
+Gobo1 and Gobo2, as MagicQ's own media-server heads have them. Whether the preview needs those two
+edits wasn't checked.
+
+**What it didn't:** the Media window's grid of thumbnails to pick a source from never appeared,
+with or without those edits, and nothing in MagicQ showed what each layer has in program. So pick
+sources by Folder and File number, as without CITP.
+
+---
+
 ## Not here yet
 
-Planned, in roughly this order: MVR and a patch export for each desk; **CITP/MSEX** so MagicQ and
-MA2 see the switcher as a media server with thumbnails; **NDI** of each screen back to the desk
-(desktop app only, for the NDI licence's sake); Titan `.d4` and MA2 fixture files ready-made.
+Planned, in roughly this order: **NDI** of each screen back to the desk (desktop app only, for the
+NDI licence's sake), which is also what a CITP preview would need to be real video; Titan `.d4`
+and MA2 fixture files ready-made.
 
 ## What has been run
 
 | What | How | Result |
 |---|---|---|
-| Art-Net and sACN parsing, arbitration, the engine, the four modes and their 16-bit channels, the patch, GDTF, the held AWJ link, the whole supervisor, the layer look on the NLC and Midra paths, a take the switcher reports late or never, takes seen and fired, the echo guard, the card | `test/desk-control.test.js`: real UDP on loopback, a pretend switcher on AWJ; `test/triggers.test.js` for the service another plugin fires | 42 + 21 pass |
+| Art-Net and sACN parsing, arbitration, the engine, the four modes and their 16-bit channels, the patch, GDTF, the MVR, the held AWJ link, the whole supervisor, the layer look on the NLC and Midra paths, a take the switcher reports late or never, takes seen and fired, the echo guard, the card | `test/desk-control.test.js`: real UDP on loopback, a pretend switcher on AWJ; `test/triggers.test.js` for the service another plugin fires | 45 + 21 pass |
+| CITP: the messages in MSEX 1.0, 1.1 and 1.2, libraries and layers from the patch, thumbnails fitted and encoded, and the server end to end — announcement, versions, libraries, thumbnails, layer status, previews multicast for 1.1 and over TCP for 1.0, a library changing, the desk list | `test/desk-citp.test.js`: a pretend desk on loopback | 21 pass |
 | The three `.gdtf` files, version 2 | validated against the official GDTF 1.2 `gdtf.xsd` with `xmllint --schema` | valid |
 | Control → preview, memory recall, Take with the desk's level arriving on the new preview, let go, Compact geometry from the screen's centre at the size the switcher reports, a take on the switcher firing a trigger heard over OSC, the desk's own take not fired back, ports closing, ArtPoll on the LAN | `test/sim/desk-control.sim.test.js`, the 6.2.73 rack simulator, a pretend desk at 40 frames a second | 7 pass, three runs in a row; S1 and the memory put back each time. With the take guard switched off the Take test fails, as it should |
 | How long it takes | the same, desk frame to the change on the vendor socket | layer source on preview 26–40 ms; memory recall to preview 28–32 ms; Compact position on preview 36–41 ms; after a 1.0 s take, the desk's level on the new preview 1.04–1.17 s after the cue; a take written by someone else to the trigger heard over OSC 1.02–1.14 s (the simulator only shows the landing) |
+| CITP and the MVR from the running app, live: a desk connecting over TCP, the 1.2 session, the layers where they are patched, the simulator's inputs as the live library, layer status matching S1's program, a thumbnail, the announcement on the LAN, the `.mvr` download | `test/sim/desk-citp.sim.test.js`, the 6.2.73 rack simulator, a pretend MSEX 1.2 desk; read-only | 7 pass, six runs in a row. It failed four runs in five first: a desk connecting during the app's first read of the switcher cut that read short (fixed). The simulator has no snapshots, so every thumbnail it served was a card |
 | A desk on the same Mac hearing ArtPollReply | a socket sharing 6454 beside the app, macOS 26.4 | heard, after replies to this machine went to broadcast |
 | **ChamSys MagicQ PC 1.9.6.5** (demo mode) on the same Mac, macOS 26.4, Cue mode | the three `.gdtf` files imported through File Manager and patched at 1.1, 1.5, 1.9, 1.12; Control, a layer's source, Take and Control set by hand in MagicQ's programmer, Art-Net over loopback | Imported with warnings only. Control raised: the layer went to preview, program untouched. Take took S1. Control lowered let the screen go, and a layer change after it wrote nothing (MagicQ's packet checked on the wire). The first takes found the desk's layers re-written to the letter going to air instead of the new preview; fixed, and the take re-run from MagicQ put them on the new preview |
 | **MagicQ again, Standard mode**, the version 2 files | Screen and Layer imported (MagicQ offered all four modes) and patched at 1.5 and 1.9; X, Y, W, H, Flip and Crop set in MagicQ's programmer; then switcher-to-desk on, with a rule firing an OSC trigger at a listener standing in for the desk | Imported with warnings only. With Control at preview: W 960 and H 512 put a 960 × 512 layer on the simulator's preview, X 486 px left of centre put it at 474, program untouched; X back to 32768 centred it (85 ms from MagicQ's packet to the simulator), Flip 100 flipped it horizontally (19 ms), Crop left 256 cropped it (111 ms). A take written to the simulator by another client fired the trigger, heard 1.09 s after the take was written and 52 ms after its landing was seen. A take MagicQ asked for (Take channel to 255) landed 1.04 s later and was counted as the desk's own: nothing fired |
+| **MagicQ, the MVR** | `livepremier-plus-patch.mvr` (Standard mode, Master, S1 and two layers) imported through File Manager | Into the demo show, whose dimmers sit where the layers go: patched nothing, and a second try hung MagicQ (force-quit). Into an empty show: Master at 1-001 head 1, Screen 1-005 head 100, layers 1-009 head 101 and 1-033 head 102. Heads named after their type |
+| **MagicQ, CITP** | media server type *CITP MSEX* at this Mac's address, thumbnails and live preview on, the app on the simulator; frames from a test pattern, since the simulator has no snapshots | Connected to TCP 4811 directly, MSEX 1.0, no CInf, nothing on UDP 4809. All six libraries listed with names and DMX values, thumbnails fetched (JPEG 64 × 46). No preview until frames went down its TCP connection; then the Media window showed it, about once a second, colours right. The thumbnail grid and layer status: **never seen** |
 | A real desk receiving the switcher's take | MagicQ PC in demo mode locks its OSC, MIDI, timecode and remote-trigger inputs | **not yet** |
 | From a real desk: Memory, Cut, the Master fixture, a cue stack rather than the programmer, sACN, Full mode | — | **not yet** |
 | grandMA3, Titan | — | **not yet** |
+| The MVR in grandMA3 or Vectorworks; CITP from grandMA2 or Titan; a desk patching layers from CITP, which is what would check the Art-Net net and universe in each layer's DMX source string | — | **not yet** |
+| Thumbnails and previews of real pictures | the simulator has no snapshots; it needs a real switcher | **not yet** |
 | A real switcher, which reports a transition in progress: the take firing at its start | — | **not yet** |
 | A Midra 4K or Alta 4K | the paths, against a pretend switcher only | **not yet** |

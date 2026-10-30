@@ -158,6 +158,35 @@ export default function activate(ctx) {
       ...notes);
   }
 
+  /* The switcher as a CITP media server: libraries, thumbnails and layer status for the desk. */
+  function citpSection(on) {
+    const c = live && live.citp;
+    const readouts = on && settings.deskCitp && c
+      ? h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
+        readout('Listening', c.tcp ? `TCP ${c.tcp}, UDP ${c.udp || '—'}` : (c.errors.tcp || 'not yet'), { tone: c.tcp ? null : 'warn' }),
+        readout('Desks connected', c.clients.map((x) => `${x.name || x.address}${x.version ? ` (MSEX ${x.version})` : ''}`).join(', ') || 'none',
+          { tone: c.clients.length ? null : 'tertiary' }),
+        readout('Desks seen', c.peers.map((p) => `${p.name} at ${p.address}`).join(', ') || 'none', { tone: c.peers.length ? null : 'tertiary' }),
+        readout('Thumbnails', String(c.counts.thumbnails), { tone: c.counts.thumbnails ? null : 'tertiary' }),
+        readout('Previews', c.streams.length ? c.streams.map((x) => `IN${x.source}`).join(' ') : String(c.counts.frames),
+          { tone: c.streams.length ? null : 'tertiary' }))
+      : null;
+    const notes = [];
+    if (on && settings.deskCitp && c) {
+      for (const e of [c.errors.udp, c.errors.multicast, c.errors.refresh].filter(Boolean)) notes.push(note('warn', e));
+    }
+    if (settings.deskCitp) {
+      notes.push(note('info',
+        'A CITP desk (MagicQ, grandMA2, Titan; not grandMA3) finds the switcher as a media server: each Layer fixture '
+        + 'with its patch, the source folders as libraries with thumbnails from the switcher, what every layer has in '
+        + 'program, and each live input’s snapshot as a preview about once a second. It only reports: the desk still '
+        + 'drives the layers over Art-Net or sACN. Runs while listening, on UDP 4809 and TCP 4811.'));
+    }
+    return h('div', { class: 'aw-flex-col aw-gap-row-small' },
+      check('Be a media server for the desk (CITP)', settings.deskCitp, (v) => put({ deskCitp: v })),
+      readouts, ...notes);
+  }
+
   function render() {
     if (!asked) { asked = true; void load(); }
     listen();
@@ -189,6 +218,7 @@ export default function activate(ctx) {
       download('Master .gdtf', '/gdtf/master'),
       download('Screen .gdtf', '/gdtf/screen'),
       download('Layer .gdtf', '/gdtf/layer'),
+      download('Patch .mvr', '/patch.mvr'),
       download('Patch .csv', '/patch.csv'));
 
     const universes = (live && live.universes) || [];
@@ -239,8 +269,9 @@ export default function activate(ctx) {
         + (mode.id === 'cue' ? ''
           : 'X and Y are pixels from the screen’s centre, W and H are pixels, and while W or H is at zero '
             + 'the memory keeps the layer’s whole look — position, crop, effects and all. ')
-        + 'Import the .gdtf files into the desk (grandMA3 and MagicQ read them directly; Titan converts '
-        + 'them in Personality Builder), patch every fixture in the same mode, as the table says. '
+        + 'The .mvr is the whole patch with its fixture files inside, for grandMA3 and MagicQ to import. '
+        + 'Otherwise import the .gdtf files (Titan converts them in Personality Builder and takes the .csv) '
+        + 'and patch every fixture in the same mode, as the table says. '
         + 'docs/DESK-CONTROL.md has the rest.'));
     }
     const history = live && live.history && live.history.length
@@ -253,7 +284,7 @@ export default function activate(ctx) {
 
     return card('Lighting desk control',
       toggle, network, patchRow, files, patchTable(live ? live.patch : null), readouts, history, ...notes,
-      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Switcher to desk' }), feedbackSection());
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Switcher to desk' }), feedbackSection(), citpSection(on));
   }
 
   ctx.ui.settingsSection({ id: 'desk-control', order: 13, render });

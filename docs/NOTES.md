@@ -217,6 +217,54 @@ MagicQ again, Standard mode, the v2 files:
   ten minutes. `awjGetAll` and `awjReplace` in the harness now throw without `LPP_SIM`; a
   `replace` would have gone there just as easily.
 
+### Phase 3: the patch as MVR, the switcher as a CITP media server (same night)
+
+Allan said "start phase 3". **Patch .mvr** is the whole patch with its fixture files inside, and
+**Be a media server for the desk (CITP)** makes the switcher show up on a desk the way a media
+server does: libraries with thumbnails, what each layer has in program, previews of the inputs.
+Both in the doc. NDI and ready-made Titan and MA2 files are still to come.
+
+Found on the way, mostly from MagicQ 1.9.6.5 in demo mode on this Mac:
+
+- **MagicQ doesn't discover.** Given type *CITP MSEX* and an IP, it connects straight to TCP 4811
+  there, sends no PNam and no CInf, has no socket on UDP 4809, and speaks MSEX 1.0 throughout
+  (decoded from a capture). So 4811 isn't optional for it, and the announcement is for everyone
+  else.
+- **Its preview asked for 1.0 frames and never got one.** `RqSt` for source 1, RGB8, 88 × 64, 24
+  fps, timeout 10, about twelve times a second, while the frames went to the multicast group it
+  can't hear. The spec only forbids frames over TCP from 1.1, so a 1.0 session now gets them down
+  its own connection, BGR as 1.0 wants. The preview then showed in its Media window, about once
+  a second, colours right (a test pattern; see below).
+- **The simulator has no snapshots**: 404 for every input and still. The live test of pictures
+  is therefore a card, and MagicQ's preview was fed from a standalone peer drawing a test pattern.
+- **Its GDTF import puts `MediaFolder1` and `MediaContent1` on FX1 and FX2**, where its own
+  media-server heads use Gobo1 and Gobo2. Moving them in the head editor, and setting the head's
+  Server Type to CITP MSEX, didn't bring up the Media window's thumbnail grid. Its thumbnail index
+  (`thumbs/<ip>/index.csv`) has each library's bank as its DMX value, as intended. Nothing in
+  MagicQ showed layer status.
+- **The MVR**: into the demo show, whose dimmers sit where the layers go, it patched nothing, and
+  a second try hung MagicQ: 100% CPU, the same stack for five minutes, SIGKILL. Into an empty
+  show (NEW SHOW): every fixture at the card's address, the fixture ID as the head number. Its
+  files were backed up first and put back after, as before.
+- **A desk connecting at once cut the app's first read short.** The CITP server reads the layers
+  as soon as a desk connects; the supervisor hadn't yet recorded which switcher its link was to,
+  took the read for a re-point, and closed the link under the first facts read ("reading the
+  switcher: AWJ link closed", then nothing for 30 s). The simulator test failed four runs in
+  five; a trace of `AwjLink.close` named the caller. The switcher is now recorded before the read,
+  and the six runs after passed. The unit test missed it at first because closing while the read
+  was still *connecting* is harmless; it now waits until the read is on the wire, and fails
+  without the fix.
+- **One multicast socket sends on one interface**, and this Mac lists a VM adapter first, so the
+  announcement goes out of a socket per interface.
+- The PNG, JPEG and resize helpers moved from `plugins/snapshot-relay/` to `server/image/`, so
+  desk control can use them without importing another plugin.
+- Spotted while writing the doc: **Only these desks** didn't cover CITP. It does now; a desk off
+  the list is hung up on before it hears anything, since thumbnails are pictures of the inputs.
+
+**Not done:** the MVR in grandMA3 (the onPC on this Mac belongs to other work and was left alone)
+or Vectorworks; CITP from grandMA2 or Titan; a desk patching layers from CITP; real pictures from
+a real switcher.
+
 ## Plug names — an input's label as its plug's EDID name (2026-10-24)
 
 Asked for by Allan: In1 labelled "powerpoint main" should show up on the laptop as that, not

@@ -5,6 +5,9 @@
  * Down only. A thumbnail wider than the switcher made it has nothing more to
  * say, and an upscale here would be bytes on the wire for the browser to do
  * better itself.
+ *
+ * Moved here from the snapshot relay's folder when desk control's CITP
+ * thumbnails needed it too: a plugin may not import another's folder.
  */
 
 /**

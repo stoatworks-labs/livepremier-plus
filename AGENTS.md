@@ -651,7 +651,7 @@ A lighting desk sending Art-Net or sACN drives the switcher the way it drives a 
 Master, Screen and Layer fixtures, GDTF files to import, no browser open. `docs/DESK-CONTROL.md` is
 the operator's page and the run/not-run table. **It has never met a real switcher**: MagicQ PC
 1.9.6.5 on the same Mac and a pretend desk sending real Art-Net at 40 fps, against the 6.2.73
-simulator. Load-bearing:
+simulator. The patch also comes as an MVR, and the switcher can be a CITP media server. Load-bearing:
 
 - **The channels are defined once, in `src/core/dmx-personality.js`**, and the engine, the patch,
   the CSV and the GDTF files (`src/core/desk-gdtf.js`) all read that. Never hand-edit a `.gdtf`.
@@ -725,6 +725,30 @@ simulator. Load-bearing:
   ⚠️ A scratch script using the harness needs `LPP_SIM` too: without it there was no AWJ host and
   Node connected to localhost:10606, which on this Mac was another session's tunnel to a switcher
   on the tailnet. `awjGetAll`/`awjReplace` now throw instead; keep it that way.
+- **The link is pointed before it is used** (`#pointAt`, from `refresh` and `#ensureDialect`
+  both): which switcher the held connection is to is recorded before the first read, not after it.
+  Recorded after, a desk connecting over CITP during that read looked like a re-point, closed the
+  link and failed the read (the simulator test failed four runs in five, 2026-10-30).
+- **The patch as MVR (`src/core/desk-mvr.js`)**: fixture IDs come from the switcher (Master 1,
+  S*n* n×100 + layer, A*n* 5000 + n×100) and UUIDs from the host and the fixture's id, never at
+  random, so importing again updates the desk's patch instead of doubling it. Keep both stable.
+- **CITP (`citp.js`, `media.js`, `pictures.js`; the bytes in `src/core/citp.js`) only reports**:
+  nothing a desk sends over it writes to the switcher. Library DMX is the Folder value and element
+  e is File value e + 1, so reordering `FOLDERS` is a channel change as far as a desk is concerned.
+  Layers are read once a second only while a desk is connected. "Only these desks" is checked on
+  accept. ⚠️ **MagicQ 1.9.6.5 doesn't discover**: it connects straight to TCP 4811 at the IP typed
+  in, speaks MSEX 1.0, sends no PNam or CInf, and has no socket on UDP 4809 (measured
+  2026-10-30). So keep 4811 the first choice, answer a session in the version its requests come
+  in (`seen`), and send `StFr` down the TCP connection to a session before 1.1 (the spec forbids
+  that only from 1.1); multicast from 1.1. Multicast goes out of a socket per interface: one
+  socket sends on one, and a Mac can list a VM adapter first.
+- **The image helpers are `server/image/`** (PNG decode and encode, JPEG encode, resize), shared by
+  `snapshot-relay` and `desk-control`. A plugin never imports another plugin's folder.
+- **Testing CITP:** `test/desk-citp.test.js` stands the server up on port 0 with `targets` so its
+  multicast arrives on loopback, and a pretend desk on TCP. `test/sim/desk-citp.sim.test.js` is
+  read-only. The 6.2.73 simulator serves no snapshots (404 for inputs and images), so every
+  picture it gives is a card; to see a real picture in a desk, run a peer with a test pattern
+  (`picture()` of any RGBA image) instead.
 - **Testing with MagicQ PC on this Mac:** back up `~/Documents/MagicQ/show/{lastshow.shw,
   status.dat,laststatus.dat,heads/headindex.csv}` first; the GDTF import adds three `.hed` files,
   index lines and `~/Library/Application Support/MagicQ/recent_saved_heads.txt`. Network IP a real
@@ -735,7 +759,11 @@ simulator. Load-bearing:
   import. In the programmer's advanced view, click a cell, type, Return; select only the head you
   mean, as the columns are shared between head types. Check **Rec Options** before recording: a
   latched *Rec Remove* makes REC + S remove instead. In demo mode its OSC, MIDI and remote inputs
-  are locked, so it can't receive the switcher's triggers.
+  are locked, so it can't receive the switcher's triggers. For CITP also back up
+  `~/Documents/MagicQ/thumbs/`; the media server line is **Setup → View System → Media** (Return
+  steps the Type list; *CITP MSEX* is the sixth), and a head's **Media → Server Type** takes a
+  number (5 is CITP MSEX). Import an MVR only into an empty show (**NEW SHOW**): over a clashing
+  patch it imported nothing and the second attempt hung MagicQ until SIGKILL.
 
 ### grandMA3 (`plugins/grandma3/`) — **preview**
 
