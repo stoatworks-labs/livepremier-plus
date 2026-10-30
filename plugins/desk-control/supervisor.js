@@ -83,7 +83,8 @@ import { ARTNET_PORT, OP, parseArtnet, buildPollReplies } from '../../src/core/a
 import { SACN_PORT, parseSacn, multicastGroup } from '../../src/core/sacn.js';
 import { DmxInput, portAddressOfUniverse } from '../../src/core/dmx-input.js';
 import { DeskEngine, CONTROL, sourceValue } from '../../src/core/dmx-personality.js';
-import { patchOf, allowed, layerSpec, lookParams, fitValue } from './core.js';
+import { anchorToTopLeft } from '../../src/core/screens.js';
+import { patchOf, allowed, layerSpec, layerTail, lookParams, fitValue } from './core.js';
 import { TakeWatch, matchRules, describeTake } from './feedback.js';
 
 export const MIN_GAP_MS = 33;
@@ -740,12 +741,12 @@ export class DeskSupervisor extends EventEmitter {
    * unknown), read now. The canvas is read every time for the same reason
    * the letters are: a preconfig change resizes it under the desk.
    */
-  async #letters(ids, dialect, { watch = false } = {}) {
+  async #letters(ids, dialect, { watch = false, withCanvas = false } = {}) {
     const props = ['presetUp', 'presetDown', 'presetPrevious'];
     /* Both directions' take times: which one runs next depends on the transition read with them. */
     const times = (id) => (watch ? [] : [...new Map(['AT_DOWN', 'AT_UP'].map((t) => takeTimePath(dialect, id, t))
       .filter(Boolean).map((p) => [toAwj(p), p])).values()]);
-    const canvas = (id) => (!watch && dialect.canvasSize ? ['sizeH', 'sizeV'].map((p) => dialect.canvasSize(id, p)).filter(Boolean) : []);
+    const canvas = (id) => ((!watch || withCanvas) && dialect.canvasSize ? ['sizeH', 'sizeV'].map((p) => dialect.canvasSize(id, p)).filter(Boolean) : []);
     /* For the watch, the memory every buffer holds: which one is going to air is read in the same burst. */
     const memory = (id) => (watch && dialect.bufferMemory ? dialect.bufferLetters.map((l) => [l, dialect.bufferMemory(id, l)]).filter(([, p]) => p) : []);
     const paths = [];
@@ -808,27 +809,67 @@ export class DeskSupervisor extends EventEmitter {
    * then a source per layer.
    */
   async readLayerSources() {
+    return (await this.readProgram()).sources;
+  }
+
+  /**
+   * What is on program, read now. `sources` as `readLayerSources` says;
+   * with `look`, also each patched screen's picture as `looks`: screen id →
+   * `{ canvas, layers }`, the canvas `{width, height}` or null, each layer
+   * `{ layer, source, rect: {left, top, width, height}, opacity }` in canvas
+   * pixels, bottom of the stack first. That is what desk control's NDI feeds
+   * draw (`ndi.js`); a layer whose size could not be read is left out of it.
+   * Still two bursts: the look's parameters ride with the sources.
+   */
+  async readProgram({ look = false } = {}) {
     const dialect = await this.#ensureDialect();
     const tail = layerSourcePath(dialect);
     const layers = this.#patch.fixtures.filter((f) => f.kind === 'layer');
     const ids = [...new Set(layers.map((f) => f.destination))];
     if (!tail || !ids.length) {
       this.layerSources = new Map();
-      return this.layerSources;
+      return { sources: this.layerSources, looks: new Map() };
     }
-    const letters = await this.#letters(ids, dialect, { watch: true });
-    const pathOf = (f) => {
+    const letters = await this.#letters(ids, dialect, { watch: true, withCanvas: look });
+    const lp = dialect.layerParams || {};
+    /* The look's parameters by name, where this platform has them. */
+    const parts = look ? Object.entries({ posH: lp.posH, posV: lp.posV, sizeH: lp.sizeH, sizeV: lp.sizeV, anchor: lp.anchor, opacity: lp.opacity })
+      .map(([name, id]) => [name, id ? layerTail(dialect, id) : null]).filter(([, t]) => t) : [];
+    const pathOf = (f, t) => {
       const r = letters.get(f.destination);
-      return r && r.program ? dialect.layerParamPath(f.destination, r.program, f.layer, tail) : null;
+      return r && r.program ? dialect.layerParamPath(f.destination, r.program, f.layer, t) : null;
     };
-    const paths = layers.map(pathOf).filter(Boolean);
+    const paths = layers.flatMap((f) => [tail, ...parts.map(([, t]) => t)].map((t) => pathOf(f, t))).filter(Boolean);
     const got = paths.length ? await this.switcher.read(paths) : new Map();
+    const value = (f, t) => {
+      const path = pathOf(f, t);
+      return path ? got.get(toAwj(path)) : undefined;
+    };
     this.layerSources = new Map(layers.map((f) => {
-      const path = pathOf(f);
-      const value = path ? got.get(toAwj(path)) : null;
-      return [f.id, typeof value === 'string' && value ? value : null];
+      const v = value(f, tail);
+      return [f.id, typeof v === 'string' && v ? v : null];
     }));
-    return this.layerSources;
+    const looks = new Map();
+    if (look) {
+      for (const id of ids) {
+        const r = letters.get(id);
+        const onScreen = [];
+        for (const f of layers.filter((x) => x.destination === id).sort((a, b) => a.layer - b.layer)) {
+          const v = Object.fromEntries(parts.map(([name, t]) => [name, value(f, t)]));
+          if (!(v.sizeH > 0 && v.sizeV > 0)) continue;
+          const { left, top } = anchorToTopLeft(v.anchor, Number(v.posH) || 0, Number(v.posV) || 0, v.sizeH, v.sizeV);
+          onScreen.push({
+            layer: f.layer,
+            source: this.layerSources.get(f.id),
+            rect: { left, top, width: v.sizeH, height: v.sizeV },
+            /* 0..256 on the wire, where 256 is opaque (`screens.js`). */
+            opacity: Number.isFinite(v.opacity) ? Math.max(0, Math.min(1, v.opacity / 256)) : 1,
+          });
+        }
+        looks.set(id, { canvas: r ? r.canvas : null, layers: onScreen });
+      }
+    }
+    return { sources: this.layerSources, looks };
   }
 
   /**

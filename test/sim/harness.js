@@ -150,8 +150,9 @@ export async function assertSimulator() {
  *                                  saved settings would switch them on
  * @param {(dir:string)=>Promise<void>} [opts.prepare]  seed the data directory
  * @param {object} [opts.devices]  a device host's `api` — a fake USB panel's, say
+ * @param {object} [opts.media]    a media host's `api` — the real one, for NDI out
  */
-export async function startApp({ settings = null, prepare = null, pluginDir, devices } = {}) {
+export async function startApp({ settings = null, prepare = null, pluginDir, devices, media } = {}) {
   await assertSimulator();
 
   const dir = await mkdtemp(join(tmpdir(), 'lpp-sim-'));
@@ -168,7 +169,8 @@ export async function startApp({ settings = null, prepare = null, pluginDir, dev
     appVersion,
     log: (msg) => logs.push(msg),
     ...(pluginDir !== undefined ? { pluginDir } : {}),
-    ...(devices ? { devices } : {})
+    ...(devices ? { devices } : {}),
+    ...(media ? { media } : {})
   });
   await new Promise((resolve, reject) => {
     server.once('error', reject);

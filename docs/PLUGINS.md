@@ -348,6 +348,17 @@ module that takes more than reports (the Barco EC panel's labels and lamps), and
 `on('state' | 'report', fn)`, which answers its own unsubscribe. Open a device only while your page is using it. The Speed Editor is
 the example: its `/driver` lease says when. With no host installed it answers all of this with
 `available: false` and a `reason` to show.
+**`media`** — the media host (`devices/README.md`, "The media host"), the process that sends
+pictures out as NDI through the NDI runtime installed on the machine. `status()` is `{ installed,
+running, available, reason, runtime, restarts, feeds }`, and `onStatus(fn)` hears it change.
+`client(owner)` is one plugin's end, by its id: `setFeeds([{ id, name }])` names the NDI sources it
+wants (any it had and left out are dropped; they are made again if the host restarts), `feeds()`
+says how each is doing (`fullName` as receivers see it, `connections`, `frames`, `error`),
+`frame(id, scene, images)` hands over a picture as a scene for `src/core/raster.js`'s `render`
+and the images it names (dropped while the last one for that feed is still on its way), and
+`onChange(fn)`. `available` is false, with a `reason`, when the host is not installed (the Docker
+image, a checkout without `npm run setup:devices`) or no NDI runtime was found. Desk control's NDI
+feeds are the example.
 **`companion`**, from Companion — `press(locations)`, each `{ pageNumber, row, column }`, pressed
 over the link Companion's plugin already holds and answering `{ ok, results, error }`, and
 `connected`. The Pixelhue panel sends a console's cue transport keys through it when told to.

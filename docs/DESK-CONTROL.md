@@ -10,8 +10,10 @@ A lighting desk — grandMA3, ChamSys MagicQ, Avolites Titan, anything that send
 one per screen and one per layer, programmed into cues like everything else on the rig. Recall a
 memory, set a layer's source, opacity, position, size and look, take, all from a cue stack, with
 no browser open. And the other way: a take on the switcher can fire the desk's "VT state" cue.
-The whole patch comes as an **MVR** file for the desk to import, and the switcher can show up on
-the desk as a **CITP** media server, its sources listed with thumbnails.
+The whole patch comes as an **MVR** file for the desk to import, with ready-made fixture files for
+Titan and grandMA2 as well, and the switcher can show up on the desk as a **CITP** media server, its
+sources listed with thumbnails. In the desktop app it can also send the desk **NDI** pictures of
+each screen and its layers, for the desk's video window.
 A grandMA3 can also drive the switcher with nothing patched, from its executors through the OSC
 it already sends: that is the **grandMA3** plugin, [GRANDMA3.md](GRANDMA3.md).
 
@@ -149,13 +151,22 @@ count Art-Net from 0 or 1.
 |---|---|
 | **grandMA3** | Import **Patch .mvr**, the patch and its fixture types in one file, or import the three `.gdtf` files into the fixture library and patch them by hand. The MVR hasn't been tried on an MA3 yet. |
 | **MagicQ** | **Patch .mvr** patches the lot in one go (below). By hand: open each `.gdtf` in MagicQ's File Manager (**Setup → File Manager**). It asks which mode; pick the one you set on the card. MagicQ saves a head file from it (its mode name starts `G-`) and goes to the patch window with it selected. MagicQ 1.9.6.5 warns that the files are GDTF 1.2 and it reads 1.1, shows Control as **Lamp**, reads X and Y as its own position, and doesn't recognise the other names below; every channel still patches and works. The warnings are in `MagicQ/log/gdtf.log`. Its **Locate** sets Flip to 255 (H+V) and the colour to white: harmless while Width or Height is 0, but set Flip back to 0 before giving a layer a size. |
-| **Avolites Titan** | Convert the `.gdtf` files to `.d4` in Personality Builder (Windows), then patch the `.d4` at the addresses in **Patch .csv**. Titan has no MVR import. |
-| **grandMA2** | Convert with MA's own GDTF converter; MA2 does not read GDTF itself. |
+| **Avolites Titan** | **Titan .d4** is the three personalities, ready-made. Put them in `Documents\Titan\Personalities` on Titan PC (`D:\Personalities` on a console), where Titan looks for its users' own, and patch them at the addresses in **Patch .csv**. Titan has no MVR import. Not yet tried in a real Titan. |
+| **grandMA2** | **grandMA2 .xml** is every fixture type ready-made: MA2 has one mode per fixture type, so it's twelve files, `stoatworks@lpp_layer@cue.xml` and so on. Put the ones for your mode in the user library (`C:\ProgramData\MA Lighting Technologies\grandma\gma2_V_<version>\library` on onPC) and import them as fixture types from there. Not yet tried in a real MA2. |
 | **Anything else** | Patch generic dimmer channels at the addresses in the table, or build a fixture from the channel tables above. |
 
 The control channels have names of their own (`LPPControl`, `LPPMemory`, `LPPTake`, `LPPCut`);
 the source is `MediaFolder1` / `MediaContent1`, the names media-server fixtures use, and opacity is
 GDTF's own `Dimmer`. A desk that doesn't recognise a name still patches it as a plain channel.
+
+The Titan and MA2 files use each desk's own names in the same places. In the `.d4`, opacity is
+Titan's `Dimmer`, red, green and blue are its `Red`, `Green` and `Blue`, so its colour picker
+drives them, and the rest are `LPP_…` in the attribute group a Titan operator would look in: source
+under Gobo, position and size under Position, crop and mask under Beam, the look under Effects,
+control under Special. In the MA2 files opacity is `DIM`, the source is MA's media server pair
+`MEDIASERVERINPUTDIRECTORY` / `MEDIASERVERINPUT`, colour is `COLORRGB1` to `3`, and the rest are
+`LPP_…` under Position, Shapers, Beam or the Video preset, with the names MA gives an attribute it
+doesn't have yet. **Locate** never touches Control, so locating a fixture can't take a screen.
 
 ### The patch as MVR
 
@@ -295,7 +306,7 @@ has no CITP. What the desk gets:
   times a second. The layers are read from the switcher once a second while a desk is connected,
   and not at all while none is.
 - **A preview of each live input**: its snapshot, about once a second. That's all the switcher
-  offers; real video waits for NDI.
+  offers: it streams no video of its own.
 - **Where each layer is patched**, with the Layer fixture type's id, for a desk that patches from
   CITP.
 
@@ -335,22 +346,57 @@ sources by Folder and File number, as without CITP.
 
 ---
 
+## Pictures back to the desk (NDI)
+
+Tick **Send pictures to the desk over NDI**, and the app puts NDI feeds on the network for a desk's
+video window, the way a media server shows its outputs:
+
+- **LivePremier Plus S1**, one for each patched screen: its program as the switcher has it, each
+  patched layer drawn where it sits, bottom first at its opacity, with its source's snapshot (or a
+  card of one colour where there's no snapshot) and an outline and label, "L2 IN3 Camera 3 50%".
+  A band across the top names the screen and its size.
+- **LivePremier Plus layers**: every patched layer as a tile, "S1 L1" over its source's picture and
+  name, so the programmer can see what each Layer fixture has on air.
+- **LivePremier Plus S1 L1** and so on, one per layer, with **A feed per layer too** ticked.
+
+**Size** is 720p or 1080p for the screens and the tiles; a layer's own feed is 640 × 360.
+
+**It's a drawing, not video.** The switcher streams nothing of its outputs, so each picture is
+drawn from what it does offer: the layers' sources, sizes, positions and opacities, read once a
+second, and its snapshots of the inputs and stills. About a frame a second, and only while somebody
+is receiving: with nobody watching, the switcher isn't read at all. Effects, crops, masks, borders
+and transitions aren't drawn.
+
+**The desktop app only.** NDI goes out through the media host (`devices/README.md`), which loads
+the NDI runtime from the machine, so install [NDI Tools](https://ndi.video/tools) (or set
+`NDI_RUNTIME_DIR_V6`). The card says which runtime it found, and how many are receiving each feed.
+The Docker image has no NDI, as NDI's licence has it.
+
+**Which desks take it in:** grandMA3, and MagicQ from 1.9.8. Titan dropped NDI in v19 and takes
+RTSP instead (below). None has received these feeds yet; only the tests' own NDI receiver has.
+
+NDI® is a registered trademark of Vizrt NDI AB.
+
 ## Not here yet
 
-Planned, in roughly this order: **NDI** of each screen back to the desk (desktop app only, for the
-NDI licence's sake), which is also what a CITP preview would need to be real video; Titan `.d4`
-and MA2 fixture files ready-made.
+**RTSP** for Titan 19.2, which takes video over RTSP rather than NDI: waiting for a Titan user to
+ask for it.
 
 ## What has been run
 
 | What | How | Result |
 |---|---|---|
-| Art-Net and sACN parsing, arbitration, the engine, the four modes and their 16-bit channels, the patch, GDTF, the MVR, the held AWJ link, the whole supervisor, the layer look on the NLC and Midra paths, a take the switcher reports late or never, takes seen and fired, the echo guard, the card | `test/desk-control.test.js`: real UDP on loopback, a pretend switcher on AWJ; `test/triggers.test.js` for the service another plugin fires | 45 + 21 pass |
+| Art-Net and sACN parsing, arbitration, the engine, the four modes and their 16-bit channels, the patch, GDTF, the MVR, the held AWJ link, the whole supervisor, the layer look on the NLC and Midra paths, a take the switcher reports late or never, takes seen and fired, the echo guard, the card | `test/desk-control.test.js`: real UDP on loopback, a pretend switcher on AWJ; `test/triggers.test.js` for the service another plugin fires | 48 + 21 pass |
 | CITP: the messages in MSEX 1.0, 1.1 and 1.2, libraries and layers from the patch, thumbnails fitted and encoded, and the server end to end — announcement, versions, libraries, thumbnails, layer status, previews multicast for 1.1 and over TCP for 1.0, a library changing, the desk list | `test/desk-citp.test.js`: a pretend desk on loopback | 21 pass |
 | The three `.gdtf` files, version 2 | validated against the official GDTF 1.2 `gdtf.xsd` with `xmllint --schema` | valid |
 | Control → preview, memory recall, Take with the desk's level arriving on the new preview, let go, Compact geometry from the screen's centre at the size the switcher reports, a take on the switcher firing a trigger heard over OSC, the desk's own take not fired back, ports closing, ArtPoll on the LAN | `test/sim/desk-control.sim.test.js`, the 6.2.73 rack simulator, a pretend desk at 40 frames a second | 7 pass, three runs in a row; S1 and the memory put back each time. With the take guard switched off the Take test fails, as it should |
 | How long it takes | the same, desk frame to the change on the vendor socket | layer source on preview 26–40 ms; memory recall to preview 28–32 ms; Compact position on preview 36–41 ms; after a 1.0 s take, the desk's level on the new preview 1.04–1.17 s after the cue; a take written by someone else to the trigger heard over OSC 1.02–1.14 s (the simulator only shows the landing) |
-| CITP and the MVR from the running app, live: a desk connecting over TCP, the 1.2 session, the layers where they are patched, the simulator's inputs as the live library, layer status matching S1's program, a thumbnail, the announcement on the LAN, the `.mvr` download | `test/sim/desk-citp.sim.test.js`, the 6.2.73 rack simulator, a pretend MSEX 1.2 desk; read-only | 7 pass, six runs in a row. It failed four runs in five first: a desk connecting during the app's first read of the switcher cut that read short (fixed). The simulator has no snapshots, so every thumbnail it served was a card |
+| NDI: the drawing (fills, outlines, pictures stretched, text), the screen, tiles and per-layer scenes, labels kept apart, the runtime found or said missing on each platform, the media host's feeds, frames, connection counts, and a host killed mid-show restarted with its feeds made again | `test/desk-ndi.test.js`: a pretend NDI runtime in a real forked host | 18 pass |
+| The Titan `.d4` and grandMA2 files | `test/desk-control.test.js`: every mode's channels once and in order, 16-bit coarse then fine, an encoder each, MA's 24-bit ranges without gaps, the same bytes every time; `xmllint` on all 15 files | well-formed. Not checked against MA's schema, and Avolites publishes none |
+| The NDI runtime itself | the media host's code sending to a receiver in another process, NDI 6.3.2 on macOS 26.4 | 13 frames of 1280 × 720 received, colours within 3 levels of what was sent after NDI's compression |
+| NDI from the running app, live: both feeds found by NDI discovery under their names, S1's picture matching the simulator's program layer by layer, the tiles, a change on the switcher reaching the picture, the feeds gone when switched off | `test/sim/desk-ndi.sim.test.js`, the 6.2.73 rack simulator, a receiver in the test standing in for the desk; one write (S1 layer 1 opacity, put back) | 5 pass, four runs (three in a row with the CITP and desk-control simulator tests). First S1 frame 1.1–1.3 s after connecting; an opacity change in the picture 0.25–0.6 s after it was written; S1 gone from discovery within 15 s of switching off. The simulator has no snapshots, so every source was drawn as its card |
+| The app itself with NDI on | `node server/index.js` with the media host, the settings put through the API | "media: host up — NDI 6.3.2.0"; both feeds on the network; SIGTERM stopped the app and the host |
+| CITP and the MVR from the running app, live: a desk connecting over TCP, the 1.2 session, the layers where they are patched, the simulator's inputs as the live library, layer status matching S1's program, a thumbnail, the announcement on the LAN, the `.mvr`, Titan and grandMA2 downloads | `test/sim/desk-citp.sim.test.js`, the 6.2.73 rack simulator, a pretend MSEX 1.2 desk; read-only | 7 pass, six runs in a row; 8 with the Titan and grandMA2 downloads, three runs in a row. It failed four runs in five first: a desk connecting during the app's first read of the switcher cut that read short (fixed). The simulator has no snapshots, so every thumbnail it served was a card |
 | A desk on the same Mac hearing ArtPollReply | a socket sharing 6454 beside the app, macOS 26.4 | heard, after replies to this machine went to broadcast |
 | **ChamSys MagicQ PC 1.9.6.5** (demo mode) on the same Mac, macOS 26.4, Cue mode | the three `.gdtf` files imported through File Manager and patched at 1.1, 1.5, 1.9, 1.12; Control, a layer's source, Take and Control set by hand in MagicQ's programmer, Art-Net over loopback | Imported with warnings only. Control raised: the layer went to preview, program untouched. Take took S1. Control lowered let the screen go, and a layer change after it wrote nothing (MagicQ's packet checked on the wire). The first takes found the desk's layers re-written to the letter going to air instead of the new preview; fixed, and the take re-run from MagicQ put them on the new preview |
 | **MagicQ again, Standard mode**, the version 2 files | Screen and Layer imported (MagicQ offered all four modes) and patched at 1.5 and 1.9; X, Y, W, H, Flip and Crop set in MagicQ's programmer; then switcher-to-desk on, with a rule firing an OSC trigger at a listener standing in for the desk | Imported with warnings only. With Control at preview: W 960 and H 512 put a 960 × 512 layer on the simulator's preview, X 486 px left of centre put it at 474, program untouched; X back to 32768 centred it (85 ms from MagicQ's packet to the simulator), Flip 100 flipped it horizontally (19 ms), Crop left 256 cropped it (111 ms). A take written to the simulator by another client fired the trigger, heard 1.09 s after the take was written and 52 ms after its landing was seen. A take MagicQ asked for (Take channel to 255) landed 1.04 s later and was counted as the desk's own: nothing fired |
@@ -359,6 +405,8 @@ and MA2 fixture files ready-made.
 | A real desk receiving the switcher's take | MagicQ PC in demo mode locks its OSC, MIDI, timecode and remote-trigger inputs | **not yet** |
 | From a real desk: Memory, Cut, the Master fixture, a cue stack rather than the programmer, sACN, Full mode | — | **not yet** |
 | grandMA3, Titan | — | **not yet** |
+| The `.d4` files in Titan, the MA2 files in grandMA2 | — | **not yet** |
+| A desk receiving the NDI feeds | MagicQ here is 1.9.6.5, which has no NDI; grandMA3 onPC wasn't used | **not yet** |
 | The MVR in grandMA3 or Vectorworks; CITP from grandMA2 or Titan; a desk patching layers from CITP, which is what would check the Art-Net net and universe in each layer's DMX source string | — | **not yet** |
 | Thumbnails and previews of real pictures | the simulator has no snapshots; it needs a real switcher | **not yet** |
 | A real switcher, which reports a transition in progress: the take firing at its start | — | **not yet** |

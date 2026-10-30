@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { createProxy } from './proxy.js';
 import { StackStore } from './storage.js';
 import { createDeviceHost, findDeviceHost } from './device-host.js';
+import { createMediaHost, findMediaHost } from './media-host.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -52,6 +53,8 @@ if (args.help || args.h) {
                            and leave Tailscale and ZeroTier networks for it
   --no-devices             do not start the device host (USB panels), even
                            when devices/ is installed
+  --no-media               do not start the media host (NDI out), even when
+                           devices/ is installed
 
 Then open http://<host>:<port>/ in any browser.`);
   process.exit(0);
@@ -120,6 +123,22 @@ const deviceHost = createDeviceHost({
 });
 deviceHost.start();
 
+/*
+ * The media host: NDI out, in a process of its own beside the device host
+ * (devices/README.md, "The media host"). Installed with it, so the desktop app
+ * carries it and the Docker image does not; not started with --no-media or
+ * LPP_MEDIA=0. Plugins reach it as the `media` service.
+ */
+const mediaOff = Boolean(args['no-media']) || /^(0|false|no|off)$/i.test(process.env.LPP_MEDIA || '');
+const foundMedia = findMediaHost(ROOT);
+const mediaHost = createMediaHost({
+  ...foundMedia,
+  installed: foundMedia.installed && !mediaOff,
+  reason: mediaOff ? 'The media host is switched off (--no-media).' : foundMedia.reason,
+  log: (msg) => console.log(`[lpp] ${msg}`)
+});
+mediaHost.start();
+
 const server = await createProxy({
   device,
   root: ROOT,
@@ -130,7 +149,8 @@ const server = await createProxy({
   bind: host,
   port,
   appliance,
-  devices: deviceHost.api
+  devices: deviceHost.api,
+  media: mediaHost.api
 });
 
 server.on('error', (err) => {
@@ -174,7 +194,7 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
        of them may be taking down a `tailscale serve` — but never later than
        three seconds: a Stop button that hangs is worse than a stale entry. */
     const closed = new Promise((resolve) => server.close(resolve));
-    Promise.allSettled([closed, plugins, deviceHost.stop()]).then(() => process.exit(0));
+    Promise.allSettled([closed, plugins, deviceHost.stop(), mediaHost.stop()]).then(() => process.exit(0));
     setTimeout(() => process.exit(0), 3000).unref();
   });
 }

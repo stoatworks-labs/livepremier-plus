@@ -94,11 +94,13 @@ than something bolted on.
   tried on a real panel.
 - **Lighting desk control** *(preview, off by default)*: a lighting desk driving the switcher over
   Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity,
-  and in the bigger modes its position, size and look. The patch comes as an MVR file, and over
-  CITP a desk lists the switcher's sources as it would a media server's. A take on the switcher
-  can fire the desk's "VT state" through the Triggers plugin. Driven from MagicQ PC against the
-  simulator, which also imported the MVR and listed the sources over CITP; not yet tried on a real
-  switcher, and the triggers have only been heard by a test socket, not a desk.
+  and in the bigger modes its position, size and look. The patch comes as an MVR file, with
+  ready-made fixture files for Titan and grandMA2, and over CITP a desk lists the switcher's
+  sources as it would a media server's. In the desktop app it can send the desk NDI pictures of
+  each screen and its layers. A take on the switcher can fire the desk's "VT state" through the
+  Triggers plugin. Driven from MagicQ PC against the simulator, which also imported the MVR and
+  listed the sources over CITP; not yet tried on a real switcher. The triggers and the NDI have
+  only been received by tests, not a desk, and the Titan and grandMA2 files haven't been imported.
 - **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, driving the
   switcher from its executors through the OSC the desk already sends. Tried with grandMA3 onPC,
   not yet with a wing or a desk.

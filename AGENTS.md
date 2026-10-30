@@ -2193,6 +2193,25 @@ design; the load-bearing parts:
   as a plugin, `plugins/<id>/`, reaching it through `ctx.use('devices')`. The
   Device host plugin is only the settings card; switching it off stops nothing.
 
+## The media host (`devices/media-host.js`, `server/media-host.js`)
+
+NDI out — desk control's pictures for a desk's video window — goes through a second program in
+`devices/`, started and supervised beside the device host. `devices/README.md` has the design.
+
+- **NDI only ever runs in the desktop app.** The host borrows `devices/node_modules/koffi`, and
+  the Docker image has no `devices/`; `test/packaging.test.js` checks the Dockerfile never names
+  it or `libndi`. NDI's licence is the reason: don't add NDI to the image.
+- **The runtime is the machine's, found at run time** (`devices/media/ndi.js`): NDI Tools'
+  `libndi`, or `NDI_RUNTIME_DIR_V6`. Nothing of NDI's is vendored. No runtime is a host that
+  says so, not a crash.
+- **Its channel is `serialization: 'advanced'`**: pictures cross as bytes. Keep it apart from
+  the device host's JSON channel, so a runtime that falls over never takes a panel with it.
+- **A frame for a feed whose last frame is still in flight is dropped, never queued**, and a
+  plugin reads the switcher for NDI only while a feed has a receiver.
+- **Testing:** `--ndi <module>` loads a stand-in runtime (`test/helpers/fake-ndi.js`);
+  `test/helpers/ndi-receiver.js` is a real receiver for the simulator test. Its runtime calls
+  block, so it waits in short slices: the app under test shares its process.
+
 ## There are two platforms, and the panels now speak both
 
 Read off the simulators' own `webapp-bundle/bundle.json` and confirmed against

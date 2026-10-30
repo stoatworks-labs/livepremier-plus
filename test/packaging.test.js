@@ -11,6 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,6 +57,10 @@ test('the desktop bundle stages the device host, installs it from its lockfile, 
 
   const dockerfile = await readFile(join(ROOT, 'Dockerfile'), 'utf8');
   assert.doesNotMatch(dockerfile, /^COPY devices/m, 'a container has no USB, so no device host');
+  /* The media host (NDI out) rides in devices/ for the same reasons, and one more:
+     NDI's licence keeps it out of a fixed-purpose container. */
+  assert.ok(existsSync(join(ROOT, 'devices', 'media-host.js')), 'the media host is in devices/, so the desktop app carries it');
+  assert.doesNotMatch(dockerfile, /media-host|libndi/i, 'and the container does not');
 
   const sign = await readFile(join(ROOT, 'launcher/scripts/sign-embedded.sh'), 'utf8');
   assert.match(sign, /-name '\*\.node'/, 'sign-embedded.sh signs the addon');

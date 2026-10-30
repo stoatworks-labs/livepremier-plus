@@ -21,6 +21,8 @@ import {
   strobeFrames, shadowOffset, MODES,
 } from '../src/core/dmx-personality.js';
 import { descriptionXml, gdtfFile, gdtfName, FIXTURE_KINDS } from '../src/core/desk-gdtf.js';
+import { d4Xml, d4Name, d4Zip } from '../src/core/desk-d4.js';
+import { ma2Xml, ma2Name, ma2Zip } from '../src/core/desk-ma2.js';
 import { unzipStore } from '../src/core/zip.js';
 import { sceneXml, mvrFile, fixtureNumber, stableUuid, absoluteAddress } from '../src/core/desk-mvr.js';
 import { normaliseDesk, deskChanged, DEFAULT_DESK, allowed, lookParams, fitValue, layerSpec } from '../plugins/desk-control/core.js';
@@ -394,6 +396,89 @@ test('GDTF: one file per fixture type, a zip holding description.xml, a mode per
   assert.deepEqual(files.map((f) => f.name), ['description.xml']);
   assert.equal(new TextDecoder().decode(files[0].data), descriptionXml('screen'));
   assert.deepEqual(gdtfFile('master'), gdtfFile('master'), 'the same bytes every time');
+});
+
+/** Every element closed in the order it opened, and no stray brackets: enough that a desk's XML reader will not choke. */
+function wellFormed(xml) {
+  const body = xml.replace(/^﻿/, '').replace(/^<\?xml[^>]*\?>/, '');
+  const stack = [];
+  const tag = /<(\/?)([A-Za-z_][\w:.-]*)((?:\s+[\w:.-]+="[^"<&]*(?:&(?:amp|quot|lt|gt);[^"<&]*)*")*)\s*(\/?)>/g;
+  for (const [, close, name, , self] of body.matchAll(tag)) {
+    if (self) continue;
+    if (!close) stack.push(name);
+    else if (stack.pop() !== name) return false;
+  }
+  return stack.length === 0 && !/[<>]/.test(body.replace(tag, ''));
+}
+const withBom = (data) => new TextDecoder('utf-8', { ignoreBOM: true }).decode(data);
+
+test('Titan .d4: one personality per fixture type, every mode laid out channel by channel, as Avolites writes them', () => {
+  const xml = d4Xml('layer', { version: '2' });
+  assert.ok(xml.startsWith('﻿<?xml version="1.0" encoding="utf-8"?>\r\n'), 'a BOM, then the declaration');
+  assert.doesNotMatch(xml.replace(/\r\n/g, ''), /[\r\n]/, 'CRLF throughout');
+  for (const kind of FIXTURE_KINDS) assert.ok(wellFormed(d4Xml(kind)), kind);
+  assert.match(xml, /<Fixture Name="LPP Layer" ShortName="LPPLayer" Company="Stoatworks" Version="2">/);
+  const defined = new Set([...xml.matchAll(/<Attribute ID="([^"]+)" Name=/g)].map((m) => m[1]));
+  const modes = [...xml.matchAll(/<Mode Name="([^"]+)" Channels="(\d+)">([\s\S]*?)<\/Mode>/g)];
+  assert.deepEqual(modes.map((m) => [m[1], Number(m[2])]), MODES.map((m) => [m.label, footprint('layer', m.id)]));
+  for (const [, name, width, body] of modes) {
+    const used = [...body.matchAll(/<Attribute ID="([^"]+)" ChannelOffset="([\d,]+)" Wheel="(\d+)" \/>/g)];
+    assert.deepEqual(used.flatMap((u) => u[2].split(',').map(Number)), Array.from({ length: Number(width) }, (_, i) => i + 1),
+      `${name}: every channel once, in order, coarse then fine`);
+    assert.ok(used.every((u) => defined.has(u[1])), `${name}: every attribute defined`);
+    assert.equal(new Set(used.map((u) => u[3])).size, used.length, `${name}: an encoder each`);
+  }
+  /* Titan's own attributes where they mean the same: intensity on the grand master, the colour picker. */
+  assert.match(xml, /<Attribute ID="Dimmer" Name="Opacity" Description="" Group="I">\s*<Locate Locate="1:100" PowerOn="1:0" \/>/);
+  assert.match(xml, /<Attribute ID="Red" Name="Red" Description="" Group="C">[\s\S]*?Colour="255,0,0" \/>/);
+  assert.match(xml, /<Attribute ID="Dimmer" ChannelOffset="3" Wheel="1" \/>/);
+  assert.match(xml, /<Attribute ID="LPP_PosX" Name="Position X" Description="" Group="P" Size="2">\s*<Locate Locate="1:50" PowerOn="1:50" \/>\s*<Function ID="1" Name="Pixels from centre" Display="'%\.f px',-32768~32767" Dmx="0~65535" \/>/);
+  assert.match(xml, /<Attribute ID="LPP_PosX" ChannelOffset="4,5" Wheel="2" \/>/);
+  assert.match(xml, /<Function ID="2" Name="Number 1-255" Display="'Number %\.f',1~255" Dmx="1~255" \/>/);
+  assert.match(xml, /<Function ID="3" Name="Flip V" Display="'Flip V'" Dmx="128~191" \/>/);
+  assert.match(xml, /Name="Crop left" Display="'%\.2f%%',0\.00~100\.00" Dmx="0~65535"/);
+  assert.match(d4Xml('screen'), /<Attribute ID="LPP_Control" Name="Control" Description="" Group="S">\s*<Locate Locate="1" PowerOn="1" \/>\s*<Function ID="1" Name="Off"/,
+    'Locate never takes a screen');
+  assert.equal(d4Name('layer'), 'Stoatworks_LPP_Layer.d4');
+  const files = unzipStore(d4Zip({ version: '2' }));
+  assert.deepEqual(files.map((f) => f.name), ['Stoatworks_LPP_Master.d4', 'Stoatworks_LPP_Screen.d4', 'Stoatworks_LPP_Layer.d4']);
+  assert.equal(withBom(files[2].data), xml);
+  assert.deepEqual(d4Zip(), d4Zip(), 'the same bytes every time');
+});
+
+test('grandMA2 XML: a fixture type per mode, coarse and fine in order, MA\'s own attributes where they mean the same', () => {
+  for (const kind of FIXTURE_KINDS) {
+    for (const m of MODES) {
+      const xml = ma2Xml(kind, m.id, { version: '2' });
+      assert.ok(wellFormed(xml), `${kind} ${m.id}`);
+      const slots = [...xml.matchAll(/<ChannelType [^>]*?coarse="(\d+)"(?: fine="(\d+)")?/g)].flatMap((t) => (t[2] ? [t[1], t[2]] : [t[1]]).map(Number));
+      assert.deepEqual(slots, Array.from({ length: footprint(kind, m.id) }, (_, i) => i + 1), `${kind} ${m.id}: every channel once`);
+      for (const [, body] of xml.matchAll(/<ChannelType [^>]*fine="\d+"[^>]*>([\s\S]*?)<\/ChannelType>/g)) {
+        const spans = [...body.matchAll(/min_dmx_24="(\d+)" max_dmx_24="(\d+)"/g)].map((f) => [Number(f[1]), Number(f[2])]);
+        assert.deepEqual([spans[0][0], spans.at(-1)[1]], [0, 16777215], '16-bit: the whole range');
+        for (let i = 1; i < spans.length; i++) assert.equal(spans[i][0], spans[i - 1][1] + 1, '16-bit: no gaps');
+      }
+      for (const [, name] of xml.matchAll(/ attribute="([^"]*)"/g)) assert.match(name, /^[A-Z][A-Z0-9_]*$/, name);
+    }
+  }
+  const xml = ma2Xml('layer', 'full', { version: '2' });
+  assert.ok(xml.startsWith('﻿<?xml version="1.0" encoding="utf-8"?>\n<MA '));
+  assert.match(xml, /<FixtureType index="1" name="LPP Layer" mode="Full">/);
+  assert.match(xml, /attribute="MEDIASERVERINPUTDIRECTORY" feature="MEDIA" preset="GOBO" coarse="1" default="0" snap="true"/);
+  assert.match(xml, /subattribute="MEDIASERVERINPUTFILESELECT"/);
+  assert.match(xml, /attribute="DIM" feature="DIMMER" preset="DIMMER" coarse="3" default="0" react_to_master="1"/);
+  assert.match(xml, /attribute="LPP_POSX" feature="POSITION" preset="POSITION" coarse="4" fine="5" default="128">/, 'MA\'s default is in 8-bit steps');
+  assert.match(xml, /physfrom="-32768" physto="32767"/);
+  assert.match(xml, /name="Memory look" from="0" to="0\.002" min_dmx_24="0" max_dmx_24="255"/);
+  assert.match(xml, /attribute="COLORRGB1" feature="COLORRGB" preset="COLOR" coarse="\d+" default="0" color="ff0000"/);
+  assert.match(xml, /<ChannelSet index="2" name="Stills" from_dmx="2" to_dmx="2" \/>/);
+  assert.match(xml, /feature="LPP_BORDER" feature_user_name="Border" preset="VIDEO" preset_user_name="Video"/);
+  assert.equal(ma2Name('layer', 'full'), 'stoatworks@lpp_layer@full.xml');
+  const files = unzipStore(ma2Zip({ version: '2' }));
+  assert.equal(files.length, 12, 'three fixture types, four modes');
+  assert.equal(withBom(files.find((f) => f.name === 'stoatworks@lpp_layer@full.xml').data), xml);
+  assert.deepEqual(ma2Zip(), ma2Zip(), 'the same bytes every time');
+  assert.throws(() => ma2Xml('layer', 'huge'), /no mode huge/);
 });
 
 test('MVR: fixture IDs follow the switcher, UUIDs are the same every time, addresses are absolute', () => {
@@ -904,6 +989,51 @@ test('supervisor: reads what every patched layer has in program, for CITP, and t
     assert.equal(b.sup.switcher.limits.inputs, 48);
     assert.equal(b.sup.switcher.limits.stills, 48);
     assert.deepEqual(b.sup.interfaceAddresses(), ['127.0.0.1'], 'loopback only where there is nothing else');
+  } finally { await b.close(); }
+});
+
+test('supervisor: reads each patched screen\'s program look for NDI — the canvas, and each layer where its anchor puts it', async () => {
+  const tail = (id) => NLC.catalogue.layer.find((p) => p.id === id).path;
+  /* AT_DOWN with A up and B down: B is on air. */
+  const b = await bench({ store: [
+    [NLC.canvasSize('S1', 'sizeH'), 1920], [NLC.canvasSize('S1', 'sizeV'), 1080],
+    [NLC.layerParamPath('S1', 'B', 1, tail(NLC.sourceParam)), 'LIVE_3'],
+    [NLC.layerParamPath('S1', 'B', 1, tail('position.posH')), 960],
+    [NLC.layerParamPath('S1', 'B', 1, tail('position.posV')), 540],
+    [NLC.layerParamPath('S1', 'B', 1, tail('position.sizeH')), 1920],
+    [NLC.layerParamPath('S1', 'B', 1, tail('position.sizeV')), 1080],
+    [NLC.layerParamPath('S1', 'B', 1, tail('position.anchor')), 'MIDDLE_CENTER'],
+    [NLC.layerParamPath('S1', 'B', 1, tail('opacity.opacity')), 256],
+    [NLC.layerParamPath('S1', 'B', 2, tail(NLC.sourceParam)), 'STILL_2'],
+    [NLC.layerParamPath('S1', 'B', 2, tail('position.posH')), 100],
+    [NLC.layerParamPath('S1', 'B', 2, tail('position.posV')), 50],
+    [NLC.layerParamPath('S1', 'B', 2, tail('position.sizeH')), 640],
+    [NLC.layerParamPath('S1', 'B', 2, tail('position.sizeV')), 360],
+    [NLC.layerParamPath('S1', 'B', 2, tail('position.anchor')), 'TOP_LEFT'],
+    [NLC.layerParamPath('S1', 'B', 2, tail('opacity.opacity')), 128],
+    /* Preview's layer 1, which the look must not take. */
+    [NLC.layerParamPath('S1', 'A', 1, tail('position.sizeH')), 10],
+  ] });
+  try {
+    const { sources, looks } = await b.sup.readProgram({ look: true });
+    assert.deepEqual([...sources], [['S1.L1', 'LIVE_3'], ['S1.L2', 'STILL_2']]);
+    assert.deepEqual(looks.get('S1'), {
+      canvas: { width: 1920, height: 1080 },
+      layers: [
+        { layer: 1, source: 'LIVE_3', rect: { left: 0, top: 0, width: 1920, height: 1080 }, opacity: 1 },
+        { layer: 2, source: 'STILL_2', rect: { left: 100, top: 50, width: 640, height: 360 }, opacity: 0.5 },
+      ],
+    });
+    /* A layer whose size cannot be read is not drawn; its source is still known. */
+    b.awj.store.delete(toAwj(NLC.layerParamPath('S1', 'B', 2, tail('position.sizeH'))));
+    const again = await b.sup.readProgram({ look: true });
+    assert.deepEqual(again.looks.get('S1').layers.map((l) => l.layer), [1]);
+    assert.equal(again.sources.get('S1.L2'), 'STILL_2');
+    /* Without the look, nothing but the sources is asked for. */
+    b.awj.clear();
+    const plain = await b.sup.readProgram();
+    assert.equal(plain.looks.size, 0);
+    assert.equal(b.awj.received.some((m) => /position|opacity|status\/size/.test(m.path || '')), false);
   } finally { await b.close(); }
 });
 

@@ -187,6 +187,25 @@ test('the patch as MVR: the scene and the GDTF files it names, from the running 
   assert.match(scene, /<FixtureID>101<\/FixtureID>/);
 });
 
+test('the Titan and grandMA2 fixture files, from the running app', { skip: SKIP }, async () => {
+  const get = async (path) => {
+    const res = await fetch(`${app.base}/__lpp/desk-control${path}`);
+    assert.equal(res.status, 200, path);
+    return { name: /filename="([^"]+)"/.exec(res.headers.get('content-disposition'))[1], data: new Uint8Array(await res.arrayBuffer()) };
+  };
+  const titan = await get('/titan.zip');
+  assert.equal(titan.name, 'livepremier-plus-titan.zip');
+  assert.deepEqual(unzipStore(titan.data).map((f) => f.name), ['Stoatworks_LPP_Master.d4', 'Stoatworks_LPP_Screen.d4', 'Stoatworks_LPP_Layer.d4']);
+  const ma2 = await get('/ma2.zip');
+  assert.equal(unzipStore(ma2.data).length, 12);
+  const layer = await get('/d4/layer');
+  assert.equal(layer.name, 'Stoatworks_LPP_Layer.d4');
+  assert.match(new TextDecoder().decode(layer.data), /<Fixture Name="LPP Layer"/);
+  const full = await get('/ma2/layer/full');
+  assert.equal(full.name, 'stoatworks@lpp_layer@full.xml');
+  assert.match(new TextDecoder().decode(full.data), /mode="Full"/);
+});
+
 test('CITP off: the server stops and the desk is let go', { skip: SKIP }, async () => {
   const closed = new Promise((r) => desk.socket.once('close', r));
   await app.configure({ plugins: { 'desk-control': { settings: { deskCitp: false } } } });

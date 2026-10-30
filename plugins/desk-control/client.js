@@ -7,7 +7,7 @@
  * the switcher: the server does, with or without this page open.
  */
 
-import { PROTOCOLS, normaliseDesk, MAX_FEEDBACK_RULES } from './core.js';
+import { PROTOCOLS, NDI_SIZES, normaliseDesk, MAX_FEEDBACK_RULES } from './core.js';
 import { MODES, FIXTURES, footprint } from '../../src/core/dmx-personality.js';
 
 const CONTROL_TEXT = { off: 'not the desk’s', preview: 'desk edits preview', program: 'desk edits PROGRAM' };
@@ -187,6 +187,39 @@ export default function activate(ctx) {
       readouts, ...notes);
   }
 
+  /* Pictures for the desk over NDI, drawn by the media host: each screen's program and the layers. */
+  function ndiSection(on) {
+    const n = live && live.ndi;
+    const feeds = (n && n.feeds) || [];
+    const readouts = on && settings.deskNdi && n && n.available
+      ? h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
+        readout('NDI runtime', (n.runtime && n.runtime.version) || 'found'),
+        ...feeds.map((f) => readout(f.fullName || f.name,
+          f.error || (f.connections ? `${f.connections} receiving, ${f.frames} frames` : 'nobody receiving'),
+          { tone: f.error ? 'warn' : f.connections ? null : 'tertiary' })))
+      : null;
+    const notes = [];
+    if (on && settings.deskNdi && n && !n.available) {
+      notes.push(note('warn', `${n.reason || 'No NDI here.'} NDI runs in the desktop app, with NDI Tools or the NDI runtime installed (ndi.video/tools); the Docker image has none.`));
+    }
+    if (on && settings.deskNdi && n && n.error) notes.push(note('warn', `Reading the switcher for NDI: ${n.error}`));
+    if (settings.deskNdi) {
+      notes.push(note('info',
+        'An NDI feed per patched screen, drawing its program — each patched layer where the switcher has it, with '
+        + 'its source’s snapshot and name — and one of every layer as a tile, for a desk’s video window (grandMA3, '
+        + 'MagicQ 1.9.8 and later). A drawing of the switcher about once a second, not its video, and only while '
+        + 'somebody receives it. NDI® is a registered trademark of Vizrt NDI AB.'));
+    }
+    return h('div', { class: 'aw-flex-col aw-gap-row-small' },
+      h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' },
+        check('Send pictures to the desk over NDI', settings.deskNdi, (v) => put({ deskNdi: v })),
+        ...(settings.deskNdi ? [
+          picker('Size', NDI_SIZES, settings.deskNdiSize, (v) => put({ deskNdiSize: v }), { disabled: saving }),
+          check('A feed per layer too', settings.deskNdiPerLayer, (v) => put({ deskNdiPerLayer: v })),
+        ] : [])),
+      readouts, ...notes);
+  }
+
   function render() {
     if (!asked) { asked = true; void load(); }
     listen();
@@ -218,6 +251,8 @@ export default function activate(ctx) {
       download('Master .gdtf', '/gdtf/master'),
       download('Screen .gdtf', '/gdtf/screen'),
       download('Layer .gdtf', '/gdtf/layer'),
+      download('Titan .d4', '/titan.zip'),
+      download('grandMA2 .xml', '/ma2.zip'),
       download('Patch .mvr', '/patch.mvr'),
       download('Patch .csv', '/patch.csv'));
 
@@ -270,8 +305,9 @@ export default function activate(ctx) {
           : 'X and Y are pixels from the screen’s centre, W and H are pixels, and while W or H is at zero '
             + 'the memory keeps the layer’s whole look — position, crop, effects and all. ')
         + 'The .mvr is the whole patch with its fixture files inside, for grandMA3 and MagicQ to import. '
-        + 'Otherwise import the .gdtf files (Titan converts them in Personality Builder and takes the .csv) '
-        + 'and patch every fixture in the same mode, as the table says. '
+        + 'Otherwise import the .gdtf files; for Titan, put the .d4 files in Documents\\Titan\\Personalities '
+        + 'and take the .csv; for grandMA2, put the .xml files in the onPC library folder and import them as fixture types. '
+        + 'Patch every fixture in the same mode, as the table says. '
         + 'docs/DESK-CONTROL.md has the rest.'));
     }
     const history = live && live.history && live.history.length
@@ -284,7 +320,7 @@ export default function activate(ctx) {
 
     return card('Lighting desk control',
       toggle, network, patchRow, files, patchTable(live ? live.patch : null), readouts, history, ...notes,
-      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Switcher to desk' }), feedbackSection(), citpSection(on));
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Switcher to desk' }), feedbackSection(), citpSection(on), ndiSection(on));
   }
 
   ctx.ui.settingsSection({ id: 'desk-control', order: 13, render });

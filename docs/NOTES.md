@@ -265,6 +265,46 @@ Found on the way, mostly from MagicQ 1.9.6.5 in demo mode on this Mac:
 or Vectorworks; CITP from grandMA2 or Titan; a desk patching layers from CITP; real pictures from
 a real switcher.
 
+### Phase 4: NDI back to the desk, and Titan and MA2 files ready-made (2026-10-30)
+
+Allan said "start phase 4". **Send pictures to the desk over NDI** puts a feed per patched screen
+and one of every layer as tiles on the network, and **Titan .d4** and **grandMA2 .xml** are the
+fixture files those two desks need, generated from the same definition as the GDTF. Both in the
+doc. RTSP for Titan 19.2 waits until a Titan user asks.
+
+- **NDI is a second program in `devices/`, not part of the device host.** It borrows the koffi
+  that folder already installs, so the desktop app carries it and the Docker image (no `devices/`)
+  can't, which is what NDI's licence asks. Its channel is forked with
+  `serialization: 'advanced'` so a frame crosses as bytes, and a runtime that falls over takes
+  down only it. The runtime is the one NDI Tools installs, found and opened at run time.
+- **The switcher streams nothing of its outputs**, so a feed is a drawing: the layers' sources and
+  rectangles read once a second (`readProgram({ look: true })` in the supervisor), its snapshots
+  of inputs and stills, and `src/core/raster.js` to draw them, pure JS with the EC panel's bitmap
+  font. Nothing is read while nobody receives: the media host polls each sender's connection
+  count every second.
+- **`NDIlib_version()` is a sentence**, "NDI SDK APPLE 12:49:17 Apr 13 2026 6.3.2.0", so the
+  version is the number at its end.
+- **The runtime's calls block**, so the tests' receiver, which shares a process with the app under
+  test, waits in slices of 20–30 ms. Sent RGBX came back within 3 levels after NDI's 4:2:2
+  compression, so the simulator test checks pixels with a tolerance of 12.
+- **The simulator's S1 program has three full-screen layers**, layer 2 and 3 at opacity 0 over
+  layer 1, so the pixel check composites every layer at its point rather than reading layer 1's
+  colour. Layers that share a rectangle printed their labels on top of each other; they stack now.
+- The card's page imports the plugin's `core.js`, which had started importing the server-only
+  scene code for one constant: the sizes moved into `core.js`.
+- **The fixture files are copied from files the desks wrote**, read from GitHub: Bitfocus
+  Companion's `.d4` (Avolites made it) and MA2 XML, two more `.d4`s from GitHub (RavLight's
+  Veyron, a B-Eye-style moving head), MA2 profiles with shutter blades and 16-bit dimmers, and
+  the MA Importer's media server files. From them: a `.d4` has a BOM and CRLF, a Locate is
+  `function:percent`, a 16-bit offset is "4,5"; the wheel numbers look like a 30-slot layout by
+  attribute group that repeats every 30, so each attribute gets its group's next free slot. MA2's
+  channel default is in 8-bit steps whatever the resolution, and its channel sets are in the
+  channel's own DMX, so a 16-bit channel gets a function per range instead, in 24-bit DMX.
+
+**Not done:** no desk has received the NDI (MagicQ here is 1.9.6.5, which has none, and the
+grandMA3 onPC on this Mac belongs to other work); neither file has been imported into a real
+Titan or grandMA2; no real snapshots, since the simulator has none.
+
 ## Plug names — an input's label as its plug's EDID name (2026-10-24)
 
 Asked for by Allan: In1 labelled "powerpoint main" should show up on the laptop as that, not

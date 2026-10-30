@@ -14,6 +14,12 @@ import { layout, MODES } from '../../src/core/dmx-personality.js';
 import { validUniverse } from '../../src/core/sacn.js';
 import { coerce } from '../../src/core/properties.js';
 
+/* The NDI feeds' sizes (`ndi.js`). grandMA3 takes up to 1080p. */
+export const NDI_SIZES = Object.freeze([
+  { id: '720p', label: '1280 × 720', width: 1280, height: 720 },
+  { id: '1080p', label: '1920 × 1080', width: 1920, height: 1080 },
+]);
+
 export const PROTOCOLS = Object.freeze([
   { id: 'both', label: 'Art-Net and sACN' },
   { id: 'artnet', label: 'Art-Net only' },
@@ -52,6 +58,13 @@ export const DEFAULT_DESK = Object.freeze({
   /* The switcher as a CITP media server (`citp.js`): libraries, thumbnails
      and layer status for MagicQ, grandMA2 and Titan. Only while listening. */
   deskCitp: false,
+  /* Pictures for the desk as NDI (`ndi.js`): each patched screen's program
+     and the layers, drawn by the media host. Only while listening, and only
+     where the media host found an NDI runtime. */
+  deskNdi: false,
+  deskNdiSize: '720p',
+  /* A feed per layer as well, for a desk that puts one on a button. */
+  deskNdiPerLayer: false,
 });
 
 export const MAX_FEEDBACK_RULES = 32;
@@ -101,6 +114,9 @@ export function normaliseDesk(raw) {
     deskFeedbackRules: (Array.isArray(input.deskFeedbackRules) ? input.deskFeedbackRules : [])
       .slice(0, MAX_FEEDBACK_RULES).map(normaliseRule),
     deskCitp: input.deskCitp === true,
+    deskNdi: input.deskNdi === true,
+    deskNdiSize: NDI_SIZES.some((z) => z.id === input.deskNdiSize) ? input.deskNdiSize : d.deskNdiSize,
+    deskNdiPerLayer: input.deskNdiPerLayer === true,
   };
 }
 
@@ -116,7 +132,10 @@ export const deskChanged = (a, b) =>
   || a.deskMode !== b.deskMode
   || a.deskFeedback !== b.deskFeedback
   || JSON.stringify(a.deskFeedbackRules) !== JSON.stringify(b.deskFeedbackRules)
-  || a.deskCitp !== b.deskCitp;
+  || a.deskCitp !== b.deskCitp
+  || a.deskNdi !== b.deskNdi
+  || a.deskNdiSize !== b.deskNdiSize
+  || a.deskNdiPerLayer !== b.deskNdiPerLayer;
 
 /** The patch these settings make. */
 export function patchOf(settings, labelOf) {

@@ -6,7 +6,9 @@
 # devices/, the separate program that holds USB panels such as the Speed
 # Editor and the Barco EC panels (devices/README.md) — has three: node-hid,
 # usb (libusb, for the EC panel on macOS and Linux) and koffi (FTDI's D2XX, for
-# it on Windows). Staging the app is a copy of four directories and an `npm ci`
+# it on Windows, and the NDI runtime for the media host beside it, which loads
+# NDI from the machine and ships none of it). Staging the app is a copy of four
+# directories and an `npm ci`
 # in devices/, trimmed to the prebuilt addons for the target. node-hid and usb
 # ship N-API prebuilds for every platform inside the package, and koffi one
 # optional package per platform, so nothing is compiled here; if this script

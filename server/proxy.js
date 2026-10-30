@@ -41,6 +41,7 @@ import {
 import { API_VERSION, status as pluginStatus, offError, routeOwner } from '../src/core/plugins.js';
 import { createPluginHost } from './plugin-host.js';
 import { absentDevices } from './device-host.js';
+import { absentMedia } from './media-host.js';
 import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
 import { loopbackRedirect } from './local-client.js';
@@ -145,6 +146,9 @@ export async function createProxy({
      starts. Without one — the tests, an embedding — plugins get a stand-in
      that answers like a host that is not installed. */
   devices = null,
+  /* The media host's service (`server/media-host.js`): NDI out. The same
+     stand-in rule as `devices`. */
+  media = null,
   /* Where user plugins are looked for: `plugins/` beside everything else this
      app keeps — `~/.livepremier-plus/plugins`, or `/config/plugins` in Docker.
      Null for none, which is what a caller with no data directory gets. */
@@ -274,6 +278,8 @@ export async function createProxy({
 
   /* USB and HID devices, held by the device host — see devices/README.md. */
   host.provide('devices', devices || absentDevices());
+  /* NDI out, from the media host — see devices/README.md. */
+  host.provide('media', media || absentMedia());
 
   /* The hosted plugins, started after the app's own services so that anything
      a plugin asks of the app is already there to answer. A user plugin's

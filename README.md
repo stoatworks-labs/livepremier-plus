@@ -188,13 +188,17 @@ bolted on afterwards:
   else sending Art-Net or sACN drives the switcher the way it drives a media server. A fixture per
   screen and per layer, GDTF files to import, memories recalled to preview, Take and Cut, each
   layer's source and opacity, and in the bigger modes its position, size, crop, colour, flip and
-  the rest, sACN priority for a backup desk. The patch comes as an MVR file to import, and with
-  CITP on, MagicQ, grandMA2 and Titan see the switcher as a media server: its sources listed with
-  thumbnails, what each layer has in program, a preview of each input. The other way, a take on
-  the switcher fires the desk's "VT state" through the Triggers plugin. It has driven the
-  simulator from MagicQ PC and a pretend desk, not yet a real switcher. MagicQ has imported the MVR
-  and listed the sources over CITP, but never showed them as its grid of thumbnails, and no desk
-  has yet received the switcher's triggers. [docs/DESK-CONTROL.md](docs/DESK-CONTROL.md)
+  the rest, sACN priority for a backup desk. The patch comes as an MVR file to import, with
+  ready-made `.d4` files for Titan and fixture types for grandMA2, and with CITP on, MagicQ,
+  grandMA2 and Titan see the switcher as a media server: its sources listed with thumbnails, what
+  each layer has in program, a preview of each input. In the desktop app it can send NDI pictures
+  of each screen and its layers to the desk's video window, drawn about once a second from the
+  switcher's layers and snapshots. The other way, a take on the switcher fires the desk's "VT
+  state" through the Triggers plugin. It has driven the simulator from MagicQ PC and a pretend
+  desk, not yet a real switcher. MagicQ has imported the MVR and listed the sources over CITP, but
+  never showed them as its grid of thumbnails; no desk has yet received the switcher's triggers or
+  the NDI, and the Titan and grandMA2 files haven't been imported into either.
+  [docs/DESK-CONTROL.md](docs/DESK-CONTROL.md)
 - **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, drives the
   switcher from its own executors. It listens to the OSC the desk already sends when a playback
   moves, so a Go+ can take a screen and a fader can be a T-bar or a layer's opacity. You write

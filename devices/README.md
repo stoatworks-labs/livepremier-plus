@@ -100,3 +100,29 @@ output is more than a few report bytes — the EC panel's labels — also has
 device only while it is wanted. An open HID handle keeps a process alive, and
 another app may want the device while nobody here is using it. Then a plugin
 in `plugins/<id>/` gives it a page.
+
+## The media host
+
+A second program in this folder, `media-host.js`, sends pictures out as
+[NDI](https://ndi.video): what desk control's NDI feeds are made by
+(`docs/DESK-CONTROL.md`, "Pictures back to the desk"). It lives here for the
+koffi it borrows, and is kept apart from the device host for two reasons:
+
+- **Its channel carries pictures.** It is forked with
+  `serialization: 'advanced'`, so a frame crosses as bytes rather than as JSON.
+  The device host's channel carries a few bytes at a time, and stays that way.
+- **NDI is loaded from the machine, not shipped.** `media/ndi.js` looks for the
+  NDI runtime that NDI Tools installs (`NDI_RUNTIME_DIR_V6`, or the usual
+  places on each platform) and opens it with koffi. Nothing of NDI's is in this
+  repo or the app. A runtime that falls over takes down only this host, never
+  the USB panels.
+
+The app starts it beside the device host (`server/media-host.js` is its
+supervisor) and offers it to plugins as the `media` service (`docs/PLUGINS.md`).
+A plugin names the feeds it wants and hands over a picture for one as a scene:
+fills, outlines, images and text that `src/core/raster.js` draws here, into RGBX,
+before `NDIlib_send_send_video_v2` sends it. A frame that arrives while the last
+one for the same feed is still on its way is dropped, not queued.
+`--no-media` (or `LPP_MEDIA=0`) stops the app from starting it. **Docker**
+never carries it: the image has no `devices/`, and NDI's licence keeps it to the
+desktop app anyway. The tests load a stand-in runtime with `--ndi <module>`.
