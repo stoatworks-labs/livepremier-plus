@@ -3634,6 +3634,77 @@ test put back and the store diffed before the next.
   `export/cmd/xRequest` EXPORT_RENAME (from the second pass's image download) and
   `import/cmd/xRequest` SPECIFIC_SLOT.
 
+**The sixth pass: preconfig allowed (2026-10-30, night).** Allan: "you can change anything on the
+system but the IP address". So first a whole-configuration save into the box's own Slot 1 (device
+menu ▸ Save, every category; both slots were empty), then each layout change made, used and taken
+back. Against the store at the start of the pass, 37 leaves differ afterwards, every one status.
+
+- **Still capacity (Image Library tools).** Image 5 Dual → 4K asked *takes Image 6 out of service
+  (it is empty)*, applied it (6 `global` DISABLE), and back to Dual said *Image 6 comes back into
+  service*. Image 1 → 4K was refused before asking: it would take Image 2, which holds a picture.
+  Nothing was left staged. Since the layout change below, the dropdowns offer Dual and 4K only.
+- **Delete all.** The question was right (*Delete all 3 images… Image 1 and Image 2 show some of
+  them and will go empty… no undo*) and was answered no. Yes was refused by Claude Code's auto-mode
+  classifier as an irreversible deletion, although the three pictures had been taken off first
+  (export to the box's tmp disk, then `GET /api/device/images/download/<slot>`, byte counts equal
+  to the slots' `fileSize`). Not run; waiting on Allan.
+- **Edit page, Direct.** *The device would not read /tmp/livepremier-plus/memory-import/Preset.json
+  (ERROR_NO_FILE) — that path is on the switcher's own filesystem, not on this machine — try the
+  "Via preview" route.* Nothing written; the extract's path and trigger latched (put back).
+- **The layout.** Through the vendor's Preconfig: Out3 set to Aux with 2 layers and given to A1,
+  Out4 added to S1, applied. The canvas put Out4 over Out1; an output's own Position is its place
+  inside its group (max 0), so the canvas went Custom and Group 2 went to H 1920. Taken back over
+  AWJ the switcher's way (`preconfig/resources/new`: `xCopyFromCurrent`, the outputs' `mode` and
+  `useInScreenAux`, `xCheck`, `xApply`), which also made A1 a second time to check the fixes.
+- **Pitch.** Out1 2.6 mm, Out4 3.9 mm: 1.500 written to Out4 (`pitchRatioH/V` 1500, `xUpdate` on
+  both outputs). The panel showed a 4800 × 1620 screen canvas and wrote only the ratios. On the
+  custom 3840 × 1080 canvas Preconfig ▸ Canvas then said the outputs overlapped too much and lay
+  outside the grid; on Auto the switcher made the canvas exactly 4800 × 1620. The panel now warns
+  when a custom canvas is smaller than the one shown (`canvasShortfall`, test/pitch.test.js).
+- **Test Card on a canvas** (S1, 4800 × 1620, Per output, Grid). First *Every free still is too
+  small for a 4800×1620 picture. Give one 4K capacity*, right, but under a status line still reading
+  *On, but not on the switcher yet*, and it didn't try again once a still had the capacity: Off and
+  On again. Then STILL_23 at 4K on S1 L4 in preview, 4800 × 1620 at 2400, 810; *Across the canvas*
+  was uploaded again and followed (`newSnaphot` 6 → 7); Off put it back. The library counter went to
+  1425 kB and back to 923 kB, so the replaced uploads stay counted. Out 4 was named as not pixel for
+  pixel.
+- **UMD on an aux** (A1, 2 layers). Lay out *1 · Inset* wrote L1 1600 × 900; Put on L2 → still 23,
+  slot 200, `umd-A1.png`; a rename was *Out of date*, Update uploaded again with no layer write.
+  **Undo after that update did nothing and said "A1: the layers are as they were"**: the update's
+  journal, whose layer writes repeat what is there, had replaced the put's. Fixed in
+  `plugins/umd/client.js` (an in-place update keeps the put's journal), with a tab-level test. The
+  text said *L1–L1 are the boxes* for one box; it now says *L1 is the box*.
+- **Aux follow** (A1 L1 ← S1 L1, Program; every change from outside over AWJ). A take on S1 cut
+  A1's program 0.4 s after it landed; a direct program edit 0.6 s after; a hand edit of A1 was left
+  alone. **A Follow staged while the programs agreed and pressed after they had stopped agreeing
+  cut A1's program on the first click.** The tab's redraw signature left staged picks out, and the
+  click trusted the drawing. Both fixed in `plugins/aux-follow/panel.js` (test in
+  test/aux-follow.test.js).
+- **Aux backgrounds** (experimental). The switcher took LIVE_2 on A1's NATIVE in preview and in
+  program and reported it back: the control side on a second frame. **To PRW sent the value shown
+  before the pick** (NONE, with LIVE_2 in the picker): the row isn't redrawn while its picker has
+  focus, and the buttons kept the old value. Fixed in `plugins/aux-backgrounds/client.js` (read at
+  the press); seen sending LIVE_2 on the box afterwards.
+- **Custom format, EDID From Formats, AoI.** M1 *LED wall* 1600 × 600 60 Hz made on the vendor's
+  Formats page. *Save 1 to the bank* → ED1, which the switcher reads as *1600x600 59.99Hz*, 128
+  bytes (the 0.01 Hz note in the guide, on hardware). AoI from M1, centred on Out2: *Output 2's AoI
+  is 1600×600 at 160, 240; the switcher reports it*, the vendor's own fields agreeing. Put back with
+  the vendor's Fit Output Format.
+- **Plug names.** In3 with the short name PPT MAIN: *PPT MAIN*, serial 3, mode unchanged; Undo
+  gave *AQL_HDMI*, serial 0. With no label or short name anywhere the header said *All named*; it
+  now says *Nothing to name*.
+- **Mosaic inputs.** EDID builder, Mosaic, 6144 × 2160: *Confirm — write to the switcher* grouped
+  IN_1 + IN_2 2X1 and loaded each plug with its 3072 × 2160 tile (384 bytes), about 23 s. Taken back
+  through `preconfig/inputs/new` (group 1X1) and each plug's `edid/cmd` (the bytes it served
+  before, hash 1756565593 again).
+- **The Browser pane, hidden, runs no animation frames.** Image Library tools' dropdowns, the aux
+  background section and others wait on `requestAnimationFrame` and sat still until a frame came. A
+  harness thing: an operator's tab is on screen. Here, a timer stood in for it.
+- **Not run:** Delete all (above), Transitions, Layer Lock's timed take-only, the Thumbnail relay,
+  Multiviewer thumbnails.
+- **Left on the box:** Slot 1 holds the configuration saved at the start of the pass, kept as a
+  second copy of the image library until Delete all is settled.
+
 ## Triggers: OSC, MIDI over TCP, Art-Net and sACN out of a cue (2026-10-30, pretend receivers only)
 
 Allan asked for a cue to drive the rest of the rig: unmute the desk, house lights down, Mitti

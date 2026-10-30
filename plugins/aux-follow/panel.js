@@ -67,8 +67,11 @@ export function createAuxFollowPanel(o) {
     const wanted = pick.from ? { aux: aux.id, layer: layer.key, from: fromKey(pick.from), mode: pick.mode } : null;
 
     /* What making it would write now: a program that differs is a cut on air. */
-    const preview = wanted ? o.describe(wanted) : null;
-    const cut = preview && preview.roles.find((r) => r.role === 'PROGRAM' && !r.same && r.leader != null);
+    const cutOf = (w) => {
+      const preview = w ? o.describe(w) : null;
+      return preview && preview.roles.find((r) => r.role === 'PROGRAM' && !r.same && r.leader != null);
+    };
+    const cut = cutOf(wanted);
     const isArmed = armed === k;
 
     const choices = [{ value: '', label: 'Not following' }, ...leaders.map((l) => ({ value: `${l.id}/${l.layer}`, label: l.label }))];
@@ -90,7 +93,14 @@ export function createAuxFollowPanel(o) {
         action = button(cut ? `Confirm — cuts to ${name(cut.leader)}` : 'Follow', {
           variant: cut ? 'danger' : 'default',
           title: cut ? `${aux.id}’s program changes on air now` : `Start following ${pick.from.replace('/', ' L')}`,
-          onClick: () => { armed = null; staged.delete(k); o.set(aux.id, layer.key, wanted.from, wanted.mode); }
+          onClick: () => {
+            /* Decided again at the click: a program that changed since this
+               was drawn is still a cut on air, and still takes two clicks. A
+               stale one-click Follow cut an aux's program unasked on an
+               Aquilon C mini (2026-10-30). */
+            if (!cut && cutOf(wanted)) { armed = k; repaint(); return; }
+            armed = null; staged.delete(k); o.set(aux.id, layer.key, wanted.from, wanted.mode);
+          }
         });
       }
     }
@@ -167,6 +177,12 @@ export function createAuxFollowPanel(o) {
       auxes.map((a) => [a.id, a.label, o.layers(a.id)]),
       ready ? o.leaders() : [],
       ready ? o.doc().follows.map((f) => o.describe(f)) : [],
+      /* A staged pick too: its button is one click or two by what it would
+         cut, and that moves with the programs, not with anything above. */
+      ready ? [...staged].map(([k, s]) => {
+        const [aux, layer] = k.split('/');
+        return s.from ? o.describe({ aux, layer, from: fromKey(s.from), mode: s.mode }) : null;
+      }) : [],
       o.recent().map((r) => [r.at, r.kind]),
       o.owed()
     ]);

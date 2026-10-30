@@ -23,7 +23,7 @@
 import { h, button, readout, sectionTitle } from '../../src/ui/dom.js';
 import { panel } from '../../src/ui/shell.js';
 import { listDestinations } from '../../src/core/screens.js';
-import { screenOutputs, toProject, pitchWrites, alreadyApplied } from '../../src/core/pitch.js';
+import { screenOutputs, toProject, pitchWrites, alreadyApplied, canvasShortfall } from '../../src/core/pitch.js';
 import { dialectFor } from '../../src/core/dialect.js';
 import { compensate, PITCH_UNITY, UI_LOCATION } from '../../src/vendor/pitch-engine.js';
 
@@ -243,9 +243,11 @@ export function createPitchPanel({ session, onRefresh }) {
   }
 
   function warnings(result) {
-    if (!result.warnings.length) return null;
+    const short = canvasShortfall(session.store, view.screenId, result);
+    const all = short ? [...result.warnings, { level: 'warn', message: short }] : result.warnings;
+    if (!all.length) return null;
     return h('ul', { class: 'wru-warnings' },
-      result.warnings.map((w) => h('li', {
+      all.map((w) => h('li', {
         class: w.level === 'error' ? 'aw-text-error' : w.level === 'warn' ? 'aw-text-warning' : 'aw-text-tertiary',
         text: w.message
       })));

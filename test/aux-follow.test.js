@@ -303,3 +303,48 @@ test('the index follows the list as it is edited', () => {
   follower.onFrame({ path: screenPath('B').split('/'), value: 'LIVE_8', dir: 'in' });
   assert.deepEqual(sent.map((c) => c.value), ['LIVE_8']);
 });
+
+/* ---------------------------------------------------------------- the tab */
+
+/*
+ * A staged Follow is one click when it would not change the aux's program and
+ * two when it would. On an Aquilon C mini (2026-10-30) the programs changed
+ * after the row was drawn, the row was not drawn again, and one click cut the
+ * aux's program on air. Both halves: the row redraws, and the click decides
+ * again.
+ */
+test('a staged Follow that has become a cut since it was drawn asks again instead of cutting', async () => {
+  const { install } = await import('./helpers/fake-dom.js');
+  const { createAuxFollowPanel } = await import('../plugins/aux-follow/panel.js');
+  const dom = install();
+  try {
+    let differs = false;
+    const sets = [];
+    const view = createAuxFollowPanel({
+      doc: () => ({ version: 1, follows: [] }),
+      set: (...a) => sets.push(a),
+      auxes: () => [{ id: 'A1', label: '' }],
+      layers: () => [{ key: '1', label: 'L1' }],
+      leaders: () => [{ id: 'S1', layer: '1', label: 'S1 · L1' }],
+      describe: () => ({ roles: [{ role: 'PROGRAM', same: !differs, aux: 'NONE', leader: differs ? 'LIVE_3' : 'NONE' }] }),
+      sourceName: (v) => v, recent: () => [], owed: () => [], ready: () => true, platform: () => true
+    });
+    const picker = view.render().querySelectorAll('select').find((el) => el.getAttribute('aria-label') === 'A1 L1 follows');
+    picker.value = 'S1/1';
+    picker.dispatchEvent({ type: 'change' });
+    const button = (root, text) => root.querySelectorAll('button').find((b) => b.textContent === text);
+    const stale = button(view.render(), 'Follow');
+    assert.ok(stale, 'a one-click Follow while the programs agree');
+
+    differs = true;
+    assert.ok(button(view.render(), 'Follow'), 'drawn again: Follow, now the first of two');
+    stale.click();
+    assert.deepEqual(sets, [], 'the old button cuts nothing');
+    const confirm = button(view.render(), 'Confirm — cuts to LIVE_3');
+    assert.ok(confirm, 'it asks the second time instead');
+    confirm.click();
+    assert.equal(sets.length, 1, 'and the second click makes it');
+  } finally {
+    dom.uninstall();
+  }
+});

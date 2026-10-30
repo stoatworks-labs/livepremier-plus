@@ -73,7 +73,8 @@ than something bolted on.
   or 2X2, each plug loaded with its tile EDID.
 - **Plug names** *(preview, off by default)*: each input plug's EDID renamed after the input's
   label, so the laptop on In3 says "PPT MAIN" in its display settings instead of AQL_HDMI, and
-  numbered with the input, so two plugs are two displays. Not yet tried on a real frame.
+  numbered with the input, so two plugs are two displays. Tried on one real frame, with nothing
+  plugged in to see it.
 - **Pitch Compensation:** the H and V ratios a screen spanning LED walls of different pitches
   needs, worked out from the pitches you give it.
 - **OSC input:** QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
@@ -399,7 +400,8 @@ tells you so rather than just passing on the switcher's error.
 > On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a two-layer look saved via preview into an
 > empty slot, then a different look saved over it. Each time preview showed the look for under two
 > seconds and was put back, program never moved, and recalling the slot afterwards gave the second
-> look. Load there said why it couldn't. Direct hasn't been tried on a real frame.
+> look. Load there said why it couldn't, and so did Direct: the switcher couldn't read the file,
+> nothing was written, and the page said to use Via preview.
 
 ---
 
@@ -913,7 +915,7 @@ The surfaces and bindings are kept per switcher by this app and go into the setu
 
 **Screens / Aux. ▸ ⋯ ▸ UMD**, once it's switched on in **Preconfig ▸ LivePremier Plus →
 Plugins**. It's off to start with because it uploads into the image library and writes a still
-and an aux's layers, and it hasn't met a real frame yet.
+and an aux's layers, and it has only met one real frame so far.
 
 It draws a multiviewer's furniture (a thin line round each box and a dark tab with the source's
 name) as one transparent PNG the size of the screen or aux, from where its
@@ -970,6 +972,10 @@ into the setup file under *UMDs*.
 > handed to the Background Slicer. On a real frame (Aquilon C mini, 6.2.73, 2026-10-30) the screen
 > path ran: a named box drawn, handed to the Background Slicer, written and undone (that box has
 > no aux, so the aux path and whether a frame keys the still's transparency are still unseen).
+> Given an aux of two layers later the same day: a one-box inset laid out, the UMD put on its top
+> layer, a rename caught as out of date and updated, all read back over AWJ. Undo after that update
+> did nothing and said the layers were as they were. It now keeps Undo able to take the UMD down.
+> Whether the frame keys the transparency still hasn't been looked at.
 
 ---
 
@@ -1082,7 +1088,12 @@ app and go into the setup file under *Test cards*.
 > On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a card on Output 1 went onto S1's top
 > layer in preview, from the last free still and library slot, with program and the library's
 > other pictures untouched. A change of pattern was uploaded again and the still followed with no
-> layer write, and Off put the layer, the still and the slot back. Not yet looked at on an output.
+> layer write, and Off put the layer, the still and the slot back. A canvas card on a two-output
+> screen (4800 × 1620, one output pitched) was refused until a still was given 4K capacity, then
+> went up as one 4800 × 1620 still and followed a change of layout. Not yet looked at on an output.
+>
+> When it says **every free still is too small**, give one a bigger capacity and then switch the
+> card off and on again: it doesn't try again by itself, and the switch shows *On* meanwhile.
 
 ---
 
@@ -1128,8 +1139,10 @@ delete; the question says so.
 > C mini, 6.2.73, 2026-10-30): a zip of three pictures went into the three free slots in name
 > order, with the litter left out quietly and a `.txt` named with its reason; then Select picked
 > just those three, the question named them, and they were deleted, with the library's other
-> pictures untouched. The capacity dropdowns read what the switcher said. Delete all and a capacity
-> change haven't been run on a real frame.
+> pictures untouched. A capacity change went through: Image 5 to 4K took the empty Image 6 out of
+> service, as the question said, and back to Dual gave it back; Image 1 to 4K was refused because
+> it would have taken Image 2, which holds a picture. Delete all has only been asked, and answered
+> no, on a real frame.
 
 ---
 
@@ -1153,7 +1166,11 @@ time it acts on what it finds rather than on a change.
 > LivePremier only. Proven on LivePremier Simulator 6.2.73 on 2026-10-20, with the changes made
 > from outside the page: preview edits left alone, a take followed onto the aux's own program
 > letter, a direct program edit followed, both roles mirrored, and an aux taken alone not fought.
-> Not yet on a real frame.
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30), Program only, every change made from
+> outside: a take on the screen cut the aux's program about 0.4 s after it landed, a direct program
+> edit about 0.6 s after, and an aux changed by hand was left alone. There, a Follow staged while
+> the programs agreed and pressed after they stopped agreeing cut on the first click. It now asks
+> the second time.
 
 ---
 
@@ -1174,8 +1191,9 @@ still do those.
 
 > Proven on LivePremier Simulator 6.2.73 on 2026-10-20: the simulator's own 3000×1000 `LEDwall`
 > refused on a 1080p output, then centred on a 3840×1080 output, with the switcher reporting
-> 3000×1000 at 420, 40 and its own fields and canvas redrawn to match. Not yet over a real SDI
-> card, or on a real frame.
+> 3000×1000 at 420, 40 and its own fields and canvas redrawn to match. On a real frame (Aquilon C
+> mini, 6.2.73, 2026-10-30, HDMI outputs): a 1600×600 custom format centred on a 1080p output,
+> 1600×600 at 160, 240 by the switcher's own fields too. Not yet over a real SDI card.
 
 ---
 
@@ -1647,7 +1665,9 @@ group.
 > ⚠️ **Grouping is a preconfig change.** It copies the running preconfig, sets the group, has the
 > switcher check it and applies it, the same steps Preconfig ▸ Inputs sends, and there's no undo in
 > the window: put an input back to single in Preconfig ▸ Inputs. LivePremier only, and proven on
-> the simulator only; no Aquilon has bonded a Mac's outputs this way yet.
+> the simulator only for a Mac; on an Aquilon C mini (6.2.73, 2026-10-30) IN_1 + IN_2 were
+> grouped 2X1 and each plug served its 3072 × 2160 tile in about 23 seconds, with nothing plugged
+> in. No Aquilon has bonded a Mac's outputs this way yet.
 
 ### Plug names
 
@@ -1693,8 +1713,10 @@ timings, and it's refused rather than having a timing thrown out to make room.
 
 The write is the one the switcher's own EDID page sends when you drop a bank slot onto an input,
 and the switcher reads the new name and serial back itself. LivePremier only: a Midra 4K or Alta 4K
-plug takes a requested format, not an EDID written to it. Proven on the simulator only; no Aquilon
-has been renamed this way yet.
+plug takes a requested format, not an EDID written to it. On an Aquilon C mini (6.2.73,
+2026-10-30) In3 named PPT MAIN came back from the switcher as PPT MAIN, serial 3, with its mode
+unchanged, and Undo gave it AQL_HDMI, serial 0 again. Nothing was plugged in, so no computer has
+seen one yet.
 
 ---
 
@@ -1717,6 +1739,10 @@ pixels really aren't square.
 - **Applying takes two presses.** It's a preconfig change that moves every output on the screen at
   once, so it ought to be hard to hit by accident. If the switcher already holds the computed
   ratios, the button says so and does nothing.
+- **It writes the ratios and nothing else.** With the screen's canvas on **Auto** (Preconfig ▸
+  Canvas) the switcher grows the canvas to the **Screen canvas** shown here. On a custom size it
+  doesn't, the pitched outputs run off it, and the panel says so: set it to Auto, or at least that
+  big. The outputs' positions are yours to set, as before.
 
 ![Pitch compensation on S1: output 1 at 2.6 mm as the reference, output 3 at 3.9 mm taking 1.500 H and V, and a 4800 × 1620 canvas](screenshots/pitch.png)
 
@@ -2404,7 +2430,10 @@ Use them on a simulator or a spare box, not in a show.
 
 > Proven on LivePremier Simulator 6.2.73 (and the aux background on an Aquilon RS4's control
 > software too), every write read back. What a frame actually shows for any of them is the open
-> question, and [NOTES.md](NOTES.md) has the tests that would answer it.
+> question, and [NOTES.md](NOTES.md) has the tests that would answer it. On an Aquilon C mini
+> (6.2.73, 2026-10-30) the aux background took an input in preview and in program and reported it
+> back, with no monitor on the output to show what it drew. Picking a source and pressing **To
+> PRW** used to send the one shown before the pick; it now sends the pick.
 
 ---
 

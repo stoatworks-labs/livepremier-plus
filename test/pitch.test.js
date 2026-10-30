@@ -25,7 +25,7 @@ import { dirname, join } from 'node:path';
 
 import { DeviceStore } from '../src/core/device-store.js';
 import {
-  screenOutputs, toProject, pitchWrites, alreadyApplied, outputPitch, outputPitchCommit
+  screenOutputs, toProject, pitchWrites, alreadyApplied, outputPitch, outputPitchCommit, canvasShortfall
 } from '../src/core/pitch.js';
 import { compensate } from '../src/vendor/pitch-engine.js';
 import { parsePitch } from '../plugins/pitch/panel.js';
@@ -189,4 +189,38 @@ test('parsePitch returns null rather than a pitch that cannot be one', () => {
   }
   assert.equal(parsePitch(null), null);
   assert.equal(parsePitch(undefined), null);
+});
+
+/* ----------------------------------------------------------- the canvas */
+
+/*
+ * The ratios are all that is written. A canvas on Auto grows to fit them; a
+ * custom one does not, and on an Aquilon C mini (2026-10-30) the pitched
+ * output ran off a custom 3840 × 1080 canvas.
+ */
+test('a custom canvas smaller than the pitched outputs need is said, Auto and a big enough one are not', () => {
+  const store = outputStore();
+  const result = compensate(toProject(screenOutputs(store, 'S1'), {
+    1: { hMm: 2.6, vMm: 2.6 },
+    2: { hMm: 2.6, vMm: 2.6 },
+    3: { hMm: 5.2, vMm: 5.2 }
+  }));
+  const canvas = ['device', 'screenList', 'items', 'S1', 'control', 'canvas'];
+  const size = (mode, sizeH, sizeV) => {
+    store.set([...canvas, 'pp', 'mode'], 'FREE');
+    store.set([...canvas, 'free', 'control', 'size', 'pp'], { mode, sizeH, sizeV });
+  };
+  const { width, height } = result.canvas;
+
+  size('CUSTOM', width - 1, height);
+  assert.match(canvasShortfall(store, 'S1', result), new RegExp(`custom ${width - 1} × ${height}.*at least ${width} × ${height}`));
+  size('CUSTOM', width, height);
+  assert.equal(canvasShortfall(store, 'S1', result), null, 'big enough');
+  size('AUTO', 1, 1);
+  assert.equal(canvasShortfall(store, 'S1', result), null, 'Auto sizes itself to the pitched outputs');
+  store.set([...canvas, 'pp', 'mode'], 'GRID');
+  size('CUSTOM', 1, 1);
+  store.set([...canvas, 'pp', 'mode'], 'GRID');
+  assert.equal(canvasShortfall(store, 'S1', result), null, 'a grid canvas is not read');
+  assert.equal(canvasShortfall(store, 'S1', compensate(toProject(screenOutputs(store, 'S1'), {}))), null, 'nothing typed, nothing to say');
 });
