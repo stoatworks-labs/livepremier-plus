@@ -1,0 +1,123 @@
+{
+  "recorded": "2026-10-30",
+  "software": "grandMA3 onPC 2.4.2.2 (Release), macOS 26.4.1, Apple Silicon, no wing",
+  "how": "OSC line: Destination 127.0.0.1, Port 9000, Prefix ma3, Send Yes, Preferred IP 127.0.0.1; Sequence 1 (\"Take S1\", cues 1 and 2) on executor 201, Sequence 2 (\"Recall 5\") on 202; moved from the command line, so every fader reading says 1 (on-screen or command). Commands in order: FaderMaster Page 1.201 At 0, At 25.5, At 100, At - 10, At 0; Go+ 1.201; Go- 1.201; Flash On / Off 1.201; Go+ 1.202; Off 1.202; Off 1.201.",
+  "messages": [
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c7369660000000046616465724d6173746572000000000100000000",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "sif",
+      "args": [
+        "FaderMaster",
+        1,
+        0
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c7369660000000046616465724d6173746572000000000141cc0000",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "sif",
+      "args": [
+        "FaderMaster",
+        1,
+        25.5
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c7369660000000046616465724d6173746572000000000142c80000",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "sif",
+      "args": [
+        "FaderMaster",
+        1,
+        100
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c7369660000000046616465724d6173746572000000000142c80000",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "sif",
+      "args": [
+        "FaderMaster",
+        1,
+        100
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c7369660000000046616465724d6173746572000000000100000000",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "sif",
+      "args": [
+        "FaderMaster",
+        1,
+        0
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c73697300000000476f2b000000000154616b65205331203120437565000000",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "sis",
+      "args": [
+        "Go+",
+        1,
+        "Take S1 1 Cue"
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c73697300000000476f2d000000000154616b65205331203220437565000000",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "sis",
+      "args": [
+        "Go-",
+        1,
+        "Take S1 2 Cue"
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c736900466c61736800000000000001",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "si",
+      "args": [
+        "Flash",
+        1
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c736900466c61736800000000000000",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "si",
+      "args": [
+        "Flash",
+        0
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e32000000002c73697300000000476f2b0000000001526563616c6c20352031204375650000",
+      "address": "/ma3/14.14.1.6.2",
+      "types": "sis",
+      "args": [
+        "Go+",
+        1,
+        "Recall 5 1 Cue"
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e32000000002c7369004f66660000000001",
+      "address": "/ma3/14.14.1.6.2",
+      "types": "si",
+      "args": [
+        "Off",
+        1
+      ]
+    },
+    {
+      "hex": "2f6d61332f31342e31342e312e362e31000000002c7369004f66660000000001",
+      "address": "/ma3/14.14.1.6.1",
+      "types": "si",
+      "args": [
+        "Off",
+        1
+      ]
+    }
+  ]
+}

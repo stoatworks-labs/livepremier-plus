@@ -181,6 +181,11 @@ bolted on afterwards:
   keys pick screens, the preview row puts input *n* in preview, CUT, AUTO and the T-bar take, and
   the program row shows tally (it only cuts to air if you tick that, and the tick isn't saved).
   It hasn't been run against a real panel yet. [docs/ATEM-MICRO-PANEL.md](docs/ATEM-MICRO-PANEL.md)
+- **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, drives the
+  switcher from its own executors. It listens to the OSC the desk already sends when a playback
+  moves, so a Go+ can take a screen and a fader can be a T-bar or a layer's opacity. You write
+  one line per executor; the card lists what the desk sends so you can copy it. It has driven the
+  simulator from grandMA3 onPC, but not yet from a wing or a desk. [docs/GRANDMA3.md](docs/GRANDMA3.md)
 - **Experimental features** (off): things the switcher takes and reports back as done, which no
   frame has yet been seen to do. Turn it on and two more switches appear: a **Transitions** tab
   (every layer's opening and closing effect and its timing in seconds of the take, kept styles,

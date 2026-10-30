@@ -645,6 +645,43 @@ Control, with a LivePremier behind it. Load-bearing:
   painting before it sends the dark report, because a tally read still in flight used to relight
   the panel after it (found by `test/atem-micro-panel.test.js`, 2026-10-20).
 
+### grandMA3 (`plugins/grandma3/`) — **preview**
+
+A grandMA3 desk, or onPC with a wing, driving the switcher through the OSC playback feedback the
+desk sends by itself (an OSC line with Send on, Prefix `ma3`). `docs/GRANDMA3.md` is the
+operator's page and the proven/not-proven list. **It has met grandMA3 onPC 2.4.2.2 on a Mac, no
+wing**, both as recorded bytes (`test/fixtures/grandma3-2.4.2.2-feedback.json`) and live through
+the app to the simulator. Load-bearing:
+
+- **It is an `oscAddress` subtree, `/ma3/`, with no socket of its own.** OSC input must be on.
+  A line's target is sent through `server/osc.js`'s `createOscDispatcher`, the function a UDP
+  packet goes through, so it meets the same refusals (`preview`/`program`, releases, `$`
+  variables) with the same words. Never give it a second copy of those rules. Its dispatcher is
+  handed every subtree but its own, and `parseMap` refuses `/ma3/` targets, so a desk cannot feed
+  itself.
+- **The desk's own USB wing is out of scope, on purpose.** It unlocks onPC's parameters; its
+  protocol is unpublished, and impersonating it would be defeating a licence. Listen to the desk.
+- **Type tags matter here.** A fader's position is `,sif` and a knob's nudge is `,sii`, with the
+  same shape otherwise, so `decode` returns `types` on every message and `handle` gets
+  `{ types }` as a third argument from UDP. The Console path has no tags; a typed number is then
+  read as a fader position.
+- **The object address is not a constant.** 2.4.2.2 sends Sequence 1 as `14.14.1.6.1` where MA's
+  2.4 manual says `13.13.1.6.1`. Nothing in the code knows what `14.14.1.6` means: lines name what
+  was heard, and the card lists the unmapped ones. Never hard-code a sequence's address.
+- **A fader is one of three things by its target** (`core.js` `actionFor`): `/norm` with no value
+  follows the fader, one write in flight and the newest waiting (an older reading must never land
+  last); `tbar` is the consoles' stroke (`tbarWrites`, `strokeProgress`, first reading only where
+  it rests); anything else is a button with hysteresis (fires up past 50 %, re-arms below 5 %,
+  never armed at first sight). Keys fire on press only.
+- **A changed line resets only its own handle.** Saving the map mid-show must not drop another
+  fader's stroke or arming (`Grandma3Bridge.apply`, tested).
+- **onPC can be driven headless for testing**:
+  `/Applications/grandMA3.app/Contents/MacOS/gma3_2.4.2/app_terminal HOSTTYPE=onPC`, fed
+  `cmdline 127.0.0.1` then command lines (`Go+ Page 1.201`, `FaderMaster Page 1.201 At 40`,
+  `Lua "…"` with single quotes inside). It does not exit at end of input: put a timer on it. The
+  OSC line can be set from Lua on `ShowData().OSCBase`; set `PreferredIP` to `127.0.0.1` on a Mac
+  with Parallels, or its default `10.0.0.0/8` sends to the VM bridge and nothing arrives.
+
 ### The Background Slicer (`plugins/bg-slicer/`) — **preview**
 
 One picture cut into a background per output, put into the image library, the

@@ -32,6 +32,7 @@ import { PARAMS, PROVENANCE, paramsFor } from '../src/core/osc-dictionary.js';
 import { MATRIX_OSC } from '../src/core/patch.js';
 import { HYPERDECK_OSC } from '../plugins/hyperdeck/core.js';
 import { DANTE_OSC } from '../plugins/dante/core.js';
+import { GRANDMA3_OSC } from '../plugins/grandma3/core.js';
 
 /**
  * The built-in plugins' own subtrees, from the entries each keeps beside its
@@ -42,6 +43,7 @@ export const PLUGIN_OSC = [
   { plugin: 'matrix-routing', prefix: '/lp/matrix/', entries: MATRIX_OSC },
   { plugin: 'hyperdeck', prefix: '/hyperdeck/', entries: HYPERDECK_OSC.map(({ command, ...e }) => e) },
   { plugin: 'dante', prefix: '/lp/dante/', entries: DANTE_OSC },
+  { plugin: 'grandma3', prefix: '/ma3/', entries: GRANDMA3_OSC },
 ];
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -121,6 +123,9 @@ export function generate() {
   lines.push(DANTE.trim());
   lines.push('');
   table(lines, PLUGIN_OSC.find((p) => p.plugin === 'dante').entries);
+  lines.push(GRANDMA3.trim());
+  lines.push('');
+  table(lines, PLUGIN_OSC.find((p) => p.plugin === 'grandma3').entries);
   lines.push(PLUGINS.trim());
   lines.push(FOOTER.trim());
   lines.push('');
@@ -333,6 +338,19 @@ against a real Dante device. \`{device}\` is a Dante device name as the network 
 name takes \`-\` for a space the same way. Every write is planned against what the devices last
 reported — only what differs is sent — and the receivers are read back before the answer is logged,
 so a route that did not take is logged as a failure, naming what the device reports instead.
+`;
+
+const GRANDMA3 = `
+---
+
+## grandMA3 — preview
+
+The grandMA3 plugin's subtree — [GRANDMA3.md](GRANDMA3.md). Nobody types these: a grandMA3 OSC
+line with **Send** on and Prefix \`ma3\` sends one for every fader, key and knob that moves a
+playback, and \`{object}\` is that playback's place in the show (\`14.14.1.6.1\` is Sequence 1 on
+grandMA3 2.4.2.2; it moves between versions). What a message does is a line in the plugin's card
+that names its object and function, and the target there is one of the addresses above. It is off
+by default and has been run against grandMA3 onPC with no wing, never a desk.
 `;
 
 const PLUGINS = `

@@ -28,6 +28,8 @@ AoI from a custom format and Image Library tools (2026-10-20, unreleased) are at
 file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-20, unreleased, in
 `OFF_UNTIL_TESTED`): neither has met a panel, only a pretend one and the 6.2.73 simulator.
 **Plug names** (2026-10-24, unreleased, in `OFF_UNTIL_TESTED`) is the newest entry below.
+**grandMA3** (2026-10-30, unreleased, in `OFF_UNTIL_TESTED`) is at the very end: a desk driving the
+switcher through its own OSC feedback, proven with grandMA3 onPC and the simulator, no wing.
 
 **What real hardware has seen**, all of it:
 
@@ -3376,3 +3378,33 @@ is nothing to compute), anything needing an aux (the UMD's aux path, the aux-bac
 input signal (signal dots, Layer Lock on a live source, thumbnails) or a screen over several
 outputs (the VPU header's link order, rotated or grouped Background Slicer cuts), and the 6.1.x
 arithmetic. Output thumbnails can't stand in for looking at an output on it (above).
+
+## grandMA3 through its own OSC feedback (2026-10-30, grandMA3 onPC and the simulator, no wing)
+
+Started as a research question: could an Avolites Titan Mobile or T3, or an MA onPC wing, be a
+control surface here, as the Barco EC and ATEM panels are? Both are USB peripherals that only their
+own software talks to. The Avolites surfaces (VID 0x0AD9) have no public protocol and Titan has no
+OSC. MA's onPC wings unlock parameters, so driving one would be impersonating a licence key. Not
+done, and not to be. What MA does have is OSC playback feedback, so the plugin listens to the desk
+instead. Avolites stays an Art-Net/sACN dummy-fixture job.
+
+Found on this Mac, grandMA3 onPC 2.4.2.2 (Release), macOS 26.4.1:
+
+- **Sequence 1 is `/14.14.1.6.1`**, not the manual's `/13.13.1.6.1`. `ObjectList('Sequence
+  1')[1]:Addr()` agrees with the wire. Grand master is `14.13.2.1`.
+- **Nothing arrived at first**: the OSC line's `PreferredIP` default `10.0.0.0/8` chose the
+  Parallels bridge (10.211.55.2) as its interface. Setting `Interface` directly didn't stick;
+  `PreferredIP` `127.0.0.1` did (interface 1.1), and packets came.
+- **Shapes**: fader `,sif FaderMaster <via> <0–100>`, via 1 on screen or by command, 3 a physical
+  fader (MA's manual; not seen). Knob `,sii`. Go+/Go−/Toggle `,sis <fn> 1 "<seq> <cue> <name>"`,
+  sent only on press when fired by command. Flash and Temp `,si <fn> 1` then `0`.
+- **app_terminal never exits at end of input.** Each `bin/ma3` call ran to its 60 s alarm, so the
+  end-to-end run took five minutes for five calls.
+
+End to end, onPC → OSC input on 127.0.0.1:9000 → grandma3 → the rack simulator (6.2.73): `Go+ Page
+1.201` took S1; the executor fader 0 → 40 → 100 took it, 60 → 0 took it back; `Go+ Page 1.202`
+cut. Nine messages received, two writes from the keys, two T-bar takes, nothing refused. The
+replayed bytes do the same in `test/sim/grandma3.sim.test.js`.
+
+**Not seen:** a wing (its faders' via 3 and their message rate), a desk, Windows onPC, any other
+grandMA3 version, a real network.

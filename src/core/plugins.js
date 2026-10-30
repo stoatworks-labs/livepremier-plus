@@ -404,6 +404,19 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'grandma3',
+    name: 'grandMA3',
+    where: 'Settings (preview)',
+    description: 'A grandMA3 desk, or grandMA3 onPC with a wing, driving the switcher from its executors through its own OSC feedback, with no browser open. Never yet run against a wing.',
+    /* Off until it has been: it writes to a switcher. It has no socket of its
+       own — it answers `/ma3/` on OSC input's — and nothing in `requires`: a
+       line's target goes through the OSC dispatcher, which spells it for
+       whichever platform is there. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'snapshot-relay',
     name: 'Thumbnail relay',
     where: 'Settings (preview), and every source thumbnail',

@@ -91,6 +91,9 @@ than something bolted on.
   paired with the machine this app runs on, driving the switcher like an ATEM, with no browser
   open. Quit ATEM Software Control first, or it switches your ATEM on every press too. Not yet
   tried on a real panel.
+- **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, driving the
+  switcher from its executors through the OSC the desk already sends. Tried with grandMA3 onPC,
+  not yet with a wing or a desk.
 - **Background Slicer** *(preview)*: one picture cut into a pixel-exact background for every
   output of one or more screens, uploaded and put into a background set, or each output fed live
   from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a
@@ -1822,6 +1825,36 @@ The key map and the rest are in [ATEM-MICRO-PANEL.md](ATEM-MICRO-PANEL.md).
 
 ---
 
+## grandMA3 (preview, off by default)
+
+A grandMA3 desk, or grandMA3 onPC with a wing, driving the switcher from its own executors. The
+desk isn't asked to do anything new: an OSC line with **Send** on already sends a message every
+time a playback moves, and this listens. One line per executor says what it does here:
+
+```text
+14.14.1.6.1 Go+         -> /lp/screen/1/take
+14.14.1.6.3 FaderMaster -> tbar S1
+```
+
+A key sends its target when pressed. A fader follows an address ending `/norm`, throws the T-bar
+for `tbar`, and on anything else is a button that fires on the way up. You don't have to know
+the addresses: move something on the desk and it turns up under **Heard**, with an **Add a line**
+button. Leave **Drive the switcher** off while you write them, and each press tells you what it
+would have done.
+
+Turn on **OSC input** first: this hears nothing without it. On the desk, set the OSC line's
+**Preferred IP**. Its default picks the wrong network card on a Mac running Parallels, and then
+nothing arrives at all.
+
+The setup step by step, and what it has and hasn't been tried on, are in
+[GRANDMA3.md](GRANDMA3.md).
+
+> ⚠️ **Never run against a wing or a desk**, only grandMA3 onPC on a Mac, driving a simulator.
+> And after a grandMA3 update, check the addresses before the show. MA renumbers them between
+> versions.
+
+---
+
 ## Thumbnail relay (preview)
 
 It's off until you switch it on in **Preconfig ▸ LivePremier Plus → Plugins**.
@@ -2257,8 +2290,8 @@ Everything is on until you switch it off, except the ones that haven't met a rea
 which start off: **Preview lock**, **Image Library tools**, **Surfaces**, **Aux follow**, **AoI
 from a custom format**, **Resolume Mapping**, **Aux backgrounds**, **Transitions**, **Experimental
 features**, and the
-**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **Thumbnail
-relay**, **Multiviewer thumbnails** and **Background Slicer** previews.
+**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **grandMA3**,
+**Thumbnail relay**, **Multiviewer thumbnails** and **Background Slicer** previews.
 
 ![Preconfig ▸ LivePremier Plus → Plugins: every feature with its switch, what it does and where it lives](screenshots/plugins.png)
 

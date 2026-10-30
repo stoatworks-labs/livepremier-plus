@@ -129,25 +129,25 @@ async function fakeAwj({ splitReplies = false, answer = 'NLC_RS4', answers = nul
 
 test('decodes the OSC types a surface actually sends', () => {
   assert.deepEqual(decode(omsg('/lp/screen/1/take', 'i', oint(1))),
-    [{ address: '/lp/screen/1/take', args: [1] }]);
+    [{ address: '/lp/screen/1/take', args: [1], types: 'i' }]);
   assert.deepEqual(decode(omsg('/lp/screen/1/take', 'f', oflt(0.5))),
-    [{ address: '/lp/screen/1/take', args: [0.5] }]);
+    [{ address: '/lp/screen/1/take', args: [0.5], types: 'f' }]);
   assert.deepEqual(decode(omsg('/lp/screen/1/memory/5/label', 's', ostr('Act One Top'))),
-    [{ address: '/lp/screen/1/memory/5/label', args: ['Act One Top'] }]);
+    [{ address: '/lp/screen/1/memory/5/label', args: ['Act One Top'], types: 's' }]);
   assert.deepEqual(decode(omsg('/lp/screen/1/take', 'T')),
-    [{ address: '/lp/screen/1/take', args: [true] }]);
+    [{ address: '/lp/screen/1/take', args: [true], types: 'T' }]);
   assert.deepEqual(decode(omsg('/lp/screen/1/take', 'F')),
-    [{ address: '/lp/screen/1/take', args: [false] }]);
+    [{ address: '/lp/screen/1/take', args: [false], types: 'F' }]);
   /* Impulse is a bang with no value. A sender that emits one means a press. */
   assert.deepEqual(decode(omsg('/lp/screen/1/take', 'I')),
-    [{ address: '/lp/screen/1/take', args: [1] }]);
+    [{ address: '/lp/screen/1/take', args: [1], types: 'I' }]);
 });
 
 test('a message with no type tag at all is one with no arguments', () => {
   /* OSC 1.0 makes the type tag optional and some senders omit it. Read as a
      bare trigger, which is what it means. */
   assert.deepEqual(decode(ostr('/lp/screen/1/take')),
-    [{ address: '/lp/screen/1/take', args: [] }]);
+    [{ address: '/lp/screen/1/take', args: [], types: '' }]);
 });
 
 test('unpacks a bundle, because senders emit them routinely', () => {
