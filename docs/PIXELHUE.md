@@ -9,8 +9,11 @@
 > console to try it, a U5 mini, refused the connection (2026-10-22, under
 > [Rigging one](#rigging-one)); once it connected, its bus keys stayed blank,
 > because a mini's keys are not its control service's to label
-> ([A U5 mini's key grid](#a-u5-minis-key-grid)). Turn it on in rehearsal, not
-> in a show.
+> ([A U5 mini's key grid](#a-u5-minis-key-grid)). On 2026-10-30 the same rig —
+> PixelFlow's UCenter and virtual U5 on a Mac — drove a **real LivePremier**, an
+> Aquilon C mini on 6.2.73: the keys labelled from its model, and a source, TAKE,
+> TIME, SAVE TO and DEL each reached the frame. Still no panel on a desk. Turn it
+> on in rehearsal, not in a show.
 
 A Pixelhue U5, U5 Pro or U5 mini is an **event controller**: a console built
 for Pixelhue's own switchers. This makes one drive an Analog Way LivePremier

@@ -363,6 +363,7 @@ function hostFor() {
   const disposers = [];
   const docs = new Map();
   const sent = [];
+  const services = new Map();
   class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
   const ctx = {
     HttpError,
@@ -371,6 +372,7 @@ function hostFor() {
     stream: () => ({ send: (event, data) => sent.push({ event, data }) }),
     onDispose: (fn) => disposers.push(fn),
     contribute: (point, spec) => contributions.push({ point, spec }),
+    provide: (name, api) => services.set(name, api),
     storage: {
       load: async (name) => docs.get(name) ?? null,
       save: async (name, data) => { docs.set(name, data); },
@@ -385,7 +387,7 @@ function hostFor() {
     });
     return { status, body: payload };
   };
-  return { ctx, call, contributions, sent, docs, stop: () => disposers.reverse().forEach((fn) => fn()) };
+  return { ctx, call, contributions, services, sent, docs, stop: () => disposers.reverse().forEach((fn) => fn()) };
 }
 
 test('the plugin saves decks, commands one by name, and answers OSC', async (t) => {

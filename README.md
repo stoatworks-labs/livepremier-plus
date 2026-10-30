@@ -134,6 +134,9 @@ bolted on afterwards:
   the show the way Mitti follows an ATEM: play when it goes on air, load the next clip when it
   comes off, and take when its clip ends, a set number of seconds early so the mix lands on the
   last frame.
+- **Triggers (preview, off by default):** a cue sends OSC, MIDI over TCP, Art-Net or sACN to the
+  rest of the rig (unmute the desk, house lights down, fire the lighting cue) and sends it all back
+  when Mitti's clip ends, after a time or at the next cue, then GOes the next cue if you ask it to.
 - **Dante** *(preview, off by default)*: the Dante audio network's routing as a crosspoint grid
   next to the switcher it feeds. Devices are found over mDNS, and you get every receive channel's
   subscription and its status, a click to subscribe or clear, snapshots recalled from a cue or
@@ -216,7 +219,7 @@ bolted on afterwards:
   background set per page, or every page a still at whatever size you type.
 - **Your setup in one file:** the cue stack, layer groups, names and locks, your variables,
   pixel maps, surfaces, UMDs and Companion triggers, the routers and the patch to them,
-  HyperDecks, Dante snapshots and settings, written as one plain JSON file and read back the same
+  HyperDecks, Triggers, Dante snapshots and settings, written as one plain JSON file and read back the same
   way, so a rig comes back whole alongside its `.awc`, not just the half the `.awc` holds.
 - **Remote access:** reach the app from somewhere else over Tailscale or ZeroTier, with HTTPS on
   the tailnet name if you want MIDI and LTC to work from the far end too. The card lists every
