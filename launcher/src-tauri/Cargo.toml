@@ -1,6 +1,6 @@
 [package]
 name = "av-launcher"
-version = "0.18.6"
+version = "0.18.7"
 description = "Tray launcher for LivePremier Plus"
 authors = ["Allan Sargeant"]
 edition = "2021"
