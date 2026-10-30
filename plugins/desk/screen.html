@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Desk — LivePremier Plus</title>
+<!--
+  The desk's strip screen: an ASUS PA147CDV, 1920 × 550, under the wheels.
+
+  Unlike the other popouts this one does not borrow the vendor's stylesheet.
+  It is not a Web RCS panel in a window; it is the face of a piece of
+  hardware, drawn to the desk's own mock-up (docs/screen.svg in
+  stoatworks-labs/lpp-control-surface), and a vendor restyle should not move
+  a cell off its knob. Everything is laid out in the screen's own pixels on a
+  1920 × 550 stage, scaled to whatever window it is in.
+-->
+<style>
+  :root {
+    --bg: #0f1115; --bar: #171a21; --cell: #1d222b; --cell-line: #2c3340;
+    --wcell: #22262f; --wcell-line: #3a4252; --name: #9aa4b5; --val: #f1f3f6;
+    --amber: #e0a526; --ok: #8fd19e; --warn: #e0a526; --err: #ff7a6b;
+    --tab: #1d222b; --tab-on: #6b4aa0; --tab-on-line: #8f73c4; --tab-text: #e9e6f2;
+    --dim: #5d6678;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: var(--val); }
+  .stage { position: absolute; left: 0; top: 0; width: 1920px; height: 550px; transform-origin: 0 0; background: var(--bg); }
+  .abs { position: absolute; }
+  .bar { left: 0; top: 0; width: 1920px; height: 128px; background: var(--bar); }
+  .scope { left: 24px; top: 26px; min-width: 230px; height: 52px; padding: 0 18px; box-sizing: border-box; border-radius: 10px;
+    background: var(--amber); color: var(--bg); font-size: 28px; font-weight: 600; display: flex; align-items: center; justify-content: center; white-space: nowrap; }
+  .scope.none { background: #2c3340; color: var(--name); font-weight: 400; }
+  .cmd { left: 280px; top: 22px; width: 1180px; height: 60px; font: 46px Menlo, 'SF Mono', 'DejaVu Sans Mono', monospace;
+    white-space: pre; overflow: hidden; text-overflow: ellipsis; line-height: 60px; cursor: text; }
+  .cmd .caret { color: var(--amber); animation: blink 1.1s steps(1) infinite; }
+  .cmd.empty .placeholder { color: var(--dim); }
+  @keyframes blink { 50% { opacity: 0; } }
+  .typing { left: 280px; top: 22px; width: 1180px; height: 60px; opacity: 0; border: 0; padding: 0; font-size: 46px; }
+  .will { left: 282px; top: 88px; width: 1300px; font-size: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .will.ok { color: var(--ok); } .will.warn { color: var(--warn); } .will.error { color: var(--err); } .will.dim { color: var(--dim); }
+  .will.air { color: #fff; font-weight: 600; }
+  .device { right: 24px; top: 40px; font-size: 26px; color: var(--name); text-align: right; white-space: nowrap; }
+  .status { right: 24px; top: 82px; font-size: 20px; color: var(--dim); text-align: right; white-space: nowrap; }
+  .status.warn { color: var(--warn); }
+  .shift { left: 24px; top: 86px; font-size: 20px; color: var(--amber); font-weight: 600; letter-spacing: 0.08em; }
+  .recent { left: 24px; top: 138px; width: 840px; }
+  .row { font-size: 21px; line-height: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--name); }
+  .row code { font: 21px Menlo, 'SF Mono', 'DejaVu Sans Mono', monospace; color: var(--val); margin-right: 14px; }
+  .row.error code { color: var(--err); } .row.warn code { color: var(--warn); }
+  .label { font-size: 20px; color: var(--dim); white-space: nowrap; }
+  .tab { top: 170px; height: 58px; box-sizing: border-box; border-radius: 8px; border: 2px solid var(--wcell-line);
+    background: var(--tab); color: var(--tab-text); font-size: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; }
+  .tab.on { background: var(--tab-on); border-color: var(--tab-on-line); }
+  .cell { box-sizing: border-box; border-radius: 10px; border: 2px solid var(--cell-line); background: var(--cell); }
+  .cell.wheel { border-radius: 12px; border-color: var(--wcell-line); background: var(--wcell); }
+  .cell.unbound { opacity: 0.55; }
+  .name { font-size: 26px; color: var(--name); text-align: center; white-space: nowrap; }
+  .val { font-size: 40px; font-weight: 600; text-align: center; white-space: nowrap; }
+  .wheel-val { font-size: 58px; }
+  .sub { font-size: 20px; color: var(--dim); text-align: center; white-space: nowrap; }
+  .tick { width: 4px; height: 30px; top: 500px; background: var(--amber); }
+  .full { right: 12px; top: 134px; width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: var(--dim); font-size: 22px; cursor: pointer; }
+  .orphan { padding: 40px; font-size: 26px; color: var(--name); }
+</style>
+</head>
+<body>
+<script type="module">
+  import { mountDeskScreen } from './screen.js';
+  mountDeskScreen({ doc: document, opener: window.opener });
+</script>
+</body>
+</html>
