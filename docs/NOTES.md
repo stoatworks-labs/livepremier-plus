@@ -3713,6 +3713,36 @@ back. Against the store at the start of the pass, 37 leaves differ afterwards, e
   xRequest`), back to EMPTY. Against the morning's baseline, 133 leaves differ, 131 of them status;
   the library counter reads 966 kB against 91.
 
+**The last four (2026-10-30, late).** Nothing left on the box afterwards: 0 leaves differ from the
+store before them.
+
+- **Thumbnail relay.** `tools/snapshot-probe.mjs` from the sidecar: inputs with no signal are a
+  128 × 128 RGBA placeholder of 411 bytes (as JPEG, 879: bigger); a timer's thumbnail is 4459 bytes
+  and rewritten every 1000 ms (p10–p90 999–1004); outputs are 147,925 bytes; `If-Modified-Since`
+  is answered with the whole picture. With the relay on and the Outputs page open for 35 s: 350
+  requests, 343 fetches, 8.25 MB in, 186 KB out, 12 encodes in 16 ms, 0 errors; outputs went as
+  1199-byte JPEGs, the placeholders as their own PNG (`relay.js` keeps the smaller). Screens /
+  Aux. had nothing hot (every layer empty) and nothing to save. Not seen: the hot refresh, since
+  nothing was being edited.
+- **Multiviewer thumbnails** (test pattern). MV1 read as six widgets, 960 × 360, IN_1, IN_2, IN_5,
+  IN_6, IN_7, IN_3; every green box on its 16:9 picture; on Screens / Aux. five thumbnails were
+  blobs cut from the pattern and inputs 4 and 8 (not on MV1) kept the switcher's. The card offered
+  Multiviewers 1–8 on a frame with two: `monitoringList` has eight, 3–8 `isAvailable` false. Now
+  only those not marked unavailable (`multiviewers()`, test). No capture, no stream.
+- **Transitions.** L1 opening Slide (bottom to top), 0–0.5 s: preview's copy only, `end` 32768.
+  With L1 and L2 side by side in preview, *Wipe across the screen*, left to right: *10 of 10 writes
+  sent to S1 preview (B)*, L1 WIPE 0–32768, L2 WIPE 32768–65535, both LINEAR, L3 and L4 (empty)
+  untouched. The take ran AT_DOWN → AT_UP in 1.28 s from the trigger (1.0 s take plus polling).
+- **Layer Lock, Take only with** 2 s and a circle: *took S1 L1 in 2.0 s with circle left to right,
+  preview put back (8 properties)*. Timed again for L2 with a watcher reading only the transition
+  and the put-back property, each with its own read time: take times set to 20 at 10.82 s, moving
+  10.92, AT_DOWN 12.83 (≈ 2.0 s), preview's L1 put back 12.92, times back to 10 by 13.1. (A first
+  watcher reading nine paths a second at a time showed the put-back ahead of the landing; it was
+  the watcher, ~0.9 s behind.) The effect is written in and out on the copy that goes to air, and
+  stays there.
+- Put back over AWJ from the snapshot taken before them (17 writes: S1 program's two layers, their
+  effects, windows and speeds, and `xTake`).
+
 ## Triggers: OSC, MIDI over TCP, Art-Net and sACN out of a cue (2026-10-30, pretend receivers only)
 
 Allan asked for a cue to drive the rest of the rig: unmute the desk, house lights down, Mitti

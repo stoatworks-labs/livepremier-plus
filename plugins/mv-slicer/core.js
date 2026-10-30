@@ -135,12 +135,19 @@ export function family(store) {
 /** Whether this switcher has a multiviewer this plugin can read. */
 export const hasMultiviewers = (store) => family(store) !== null;
 
-/** The multiviewers the switcher has, as numbers. A Midra has one. */
+/**
+ * The multiviewers the switcher has, as numbers. A Midra has one.
+ *
+ * A LivePremier lists all eight whatever is fitted: an Aquilon C mini
+ * (2026-10-30) has two and reports 3–8 with `isAvailable` false. Those are
+ * left out; one that does not say either way is kept.
+ */
 export function multiviewers(store) {
   const f = family(store);
   if (f === 'mng') return [1];
   if (f !== 'nlc') return [];
-  return store.itemKeys(['device', 'monitoringList']).map(Number).filter(Number.isFinite);
+  return store.itemKeys(['device', 'monitoringList']).map(Number).filter(Number.isFinite)
+    .filter((n) => store.get([...NLC_MV(n), 'status', 'pp', 'isAvailable']) !== false);
 }
 
 /** The multiviewer's raster, `{ width, height }`, or null. */
