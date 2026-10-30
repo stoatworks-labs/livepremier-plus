@@ -131,6 +131,19 @@ export default async function activate(ctx) {
     return { ok: errors.length === 0, results, ...(errors.length ? { error: errors.join('; ') } : {}) };
   }
 
+  /*
+   * The decks, and their clip ends, for the other plugins in this process.
+   * Triggers holds a cue's back lines until a deck's clip ends, and it has to
+   * hear that here: a page may not be open when it happens.
+   */
+  ctx.provide('decks', Object.freeze({
+    list: () => decks.map((d) => ({ id: d.id, name: d.name })),
+    onEnded(fn) {
+      supervisor.on('ended', fn);
+      return () => supervisor.off('ended', fn);
+    },
+  }));
+
   ctx.route('GET', '/', (req, res, h) => h.json(200, snapshot()));
   const put = async (req, res, h) => {
     const body = await h.readJson(256 * 1024);

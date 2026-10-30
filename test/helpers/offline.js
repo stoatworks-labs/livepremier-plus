@@ -17,15 +17,23 @@
  * fails, printing the stack that dialled. A pretend device belongs on port
  * 0; a device that is not there belongs on port 1, as `exchange`'s own test
  * has it. Ports, not hosts: `local-client.test.js` dials this machine's own LAN
- * address on purpose. TCP only — every protocol here that reaches a
- * switcher, a router, a deck, a console or a Companion is TCP (Dante's ARC is
- * UDP, and its tests never leave a pretend network).
+ * address on purpose. Every protocol here that reaches a switcher, a router,
+ * a deck, a console or a Companion is TCP (Dante's ARC is UDP, and its tests
+ * never leave a pretend network).
+ *
+ * **UDP too, since Triggers.** It sends OSC, Art-Net and sACN, and a datagram
+ * needs no answer to land: an Art-Net test that went to port 6454 on the LAN,
+ * or an sACN one to its multicast group, would set real lights. So a send to
+ * a DMX port, to an sACN multicast group or to a sound desk's or QLab's OSC
+ * port is refused the same way. A pretend receiver is a socket on port 0 at
+ * 127.0.0.1.
  *
  * The live suites (`test/sim/`, `test/console/`) reach a simulator on
  * purpose and do not load this.
  */
 
 import net from 'node:net';
+import dgram from 'node:dgram';
 
 /** Port → whose it is. The defaults in the drivers; a test must never dial one. */
 export const KIT_PORTS = new Map([
@@ -38,8 +46,21 @@ export const KIT_PORTS = new Map([
   [19999, 'UCenter on a U5 or U5 Pro'],
   [9990, 'a Videohub'],
   [6107, 'a Lightware router (LW3)'],
-  [10001, 'a Lightware router (LW2)']
+  [10001, 'a Lightware router (LW2)'],
+  [51325, 'an Allen & Heath desk (MIDI over TCP)']
 ]);
+
+/** UDP port → whose it is. A test must never send to one, on any host. */
+export const KIT_UDP_PORTS = new Map([
+  [6454, 'Art-Net'],
+  [5568, 'sACN'],
+  [10023, 'an X32 or M32'],
+  [2223, 'a Wing'],
+  [53000, 'QLab']
+]);
+
+/** sACN's multicast groups, 239.255.x.x: every receiver on the LAN hears them. */
+const SACN_GROUP = /^239\.255\.\d+\.\d+$/;
 
 const MARK = Symbol.for('livepremier-plus.offline');
 
@@ -63,6 +84,21 @@ function install() {
     attempts.push({ host, port, whose, stack: new Error('dialled from').stack });
     process.nextTick(() => this.destroy(err));
     return this;
+  };
+
+  const send = dgram.Socket.prototype.send;
+  dgram.Socket.prototype.send = function (msg, ...rest) {
+    /* send(msg[, offset, length], port[, address][, callback]) */
+    const long = typeof rest[0] === 'number' && typeof rest[1] === 'number' && typeof rest[2] === 'number';
+    const port = Number(long ? rest[2] : rest[0]);
+    const host = (long ? rest[3] : rest[1]);
+    const address = typeof host === 'string' ? host : 'localhost';
+    const whose = KIT_UDP_PORTS.get(port) || (SACN_GROUP.test(address) ? 'an sACN multicast group' : null);
+    if (!whose) return send.call(this, msg, ...rest);
+    const callback = rest.find((a) => typeof a === 'function');
+    const err = new Error(`the offline suite refused UDP to ${address}:${port} (${whose}) — send to a socket on port 0 at 127.0.0.1`);
+    attempts.push({ host: address, port, whose, stack: new Error('sent from').stack });
+    if (callback) process.nextTick(() => callback(err));
   };
 
   process.on('exit', () => {
