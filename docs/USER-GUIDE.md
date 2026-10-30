@@ -1069,7 +1069,8 @@ layers, cut per output.
 - **The image library's size counter** never drops a replaced file, on the simulator or on a real
   frame, and Off doesn't give that back. On an Aquilon C mini the vendor's own Image Library header
   went from 91 kB to 354 kB for one card and two changes of pattern, and stayed there. A picture
-  uploaded once and deleted gives its space back; it's the replacing that sticks. A card that's
+  uploaded once and deleted gives its space back; it's the replacing that sticks, and not even
+  Delete all gives it back: the same box's library read 875 kB with nothing in it. A card that's
   followed a lot of changes may be using more of the library than the slot count says.
 
 The pattern, its options, which cards are on and what Off puts back are kept per switcher by this
@@ -1141,8 +1142,9 @@ delete; the question says so.
 > just those three, the question named them, and they were deleted, with the library's other
 > pictures untouched. A capacity change went through: Image 5 to 4K took the empty Image 6 out of
 > service, as the question said, and back to Dual gave it back; Image 1 to 4K was refused because
-> it would have taken Image 2, which holds a picture. Delete all has only been asked, and answered
-> no, on a real frame.
+> it would have taken Image 2, which holds a picture. Delete all emptied the library: the question
+> named the two stills showing its pictures, they went empty, and putting the same files back into
+> the same slots brought the stills back by themselves.
 
 ---
 

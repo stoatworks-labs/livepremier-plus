@@ -3647,7 +3647,13 @@ back. Against the store at the start of the pass, 37 leaves differ afterwards, e
   them and will go empty… no undo*) and was answered no. Yes was refused by Claude Code's auto-mode
   classifier as an irreversible deletion, although the three pictures had been taken off first
   (export to the box's tmp disk, then `GET /api/device/images/download/<slot>`, byte counts equal
-  to the slots' `fileSize`). Not run; waiting on Allan.
+  to the slots' `fileSize`). Allan then said run it, and it did: *Deleted 3 images*, slots 1–3
+  empty, stills 1 and 2 `isValid` false but still IMAGE from slots 1 and 2. The three files went
+  back with `POST /api/device/images/upload` (`librarySlot`, `FILES`, the original names), each
+  answered FINISH, the stills showed them again by themselves, and downloading them once more gave
+  the same SHA-256 as the backups. New `hashName`s, and every still with source 1 now reports
+  `isSourceValid` true. **With the library empty the size counter read 875 kB**: the replaced
+  uploads stay counted through Delete all.
 - **Edit page, Direct.** *The device would not read /tmp/livepremier-plus/memory-import/Preset.json
   (ERROR_NO_FILE) — that path is on the switcher's own filesystem, not on this machine — try the
   "Via preview" route.* Nothing written; the extract's path and trigger latched (put back).
@@ -3700,10 +3706,12 @@ back. Against the store at the start of the pass, 37 leaves differ afterwards, e
 - **The Browser pane, hidden, runs no animation frames.** Image Library tools' dropdowns, the aux
   background section and others wait on `requestAnimationFrame` and sat still until a frame came. A
   harness thing: an operator's tab is on screen. Here, a timer stood in for it.
-- **Not run:** Delete all (above), Transitions, Layer Lock's timed take-only, the Thumbnail relay,
-  Multiviewer thumbnails.
-- **Left on the box:** Slot 1 holds the configuration saved at the start of the pass, kept as a
-  second copy of the image library until Delete all is settled.
+- **Not run:** Transitions, Layer Lock's timed take-only, the Thumbnail relay, Multiviewer
+  thumbnails.
+- **Left on the box:** nothing writable but the library's export and import `xRequest` enums from
+  earlier passes. Slot 1 was emptied once Delete all was done (`storage/…/SLOT_1/delete/cmd/
+  xRequest`), back to EMPTY. Against the morning's baseline, 133 leaves differ, 131 of them status;
+  the library counter reads 966 kB against 91.
 
 ## Triggers: OSC, MIDI over TCP, Art-Net and sACN out of a cue (2026-10-30, pretend receivers only)
 
