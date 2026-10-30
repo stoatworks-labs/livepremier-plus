@@ -136,6 +136,10 @@ named by its name (spaces allowed), its position in the list, or a group word: `
 
 Like every contributed cue action, these run as the cue fires, before its take.
 
+To put the rest of the rig back when a clip ends (the desk, the house lights), the Triggers
+plugin's `restore when <deck> ends` hears the same end through this plugin's `decks` service, on
+the server, with no page needed: [docs/TRIGGERS.md](TRIGGERS.md).
+
 ## OSC
 
 `/hyperdeck/<deck>/<command> [argument]`, over UDP and typed at the Console alike —

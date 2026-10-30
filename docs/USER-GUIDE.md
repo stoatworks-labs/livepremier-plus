@@ -1326,6 +1326,50 @@ it's `/hyperdeck/<deck>/play` and the rest, all in docs/OSC.md.
 
 ---
 
+## Triggers (preview, off by default)
+
+**PLUS ▸ Triggers.** A cue that does more than switch: unmute the VT channels on the desk, take
+the house lights down, fire the lighting desk's VT state, and put all of it back when the video
+ends. Switch it on in Preconfig ▸ LivePremier Plus → Plugins; it needs the Timeline.
+
+1. **Add a destination** at the foot of the Destinations list: a name, its kind and address.
+   OSC (UDP) for most desks, QLab and lighting desks. MIDI over TCP for an Allen & Heath dLive or
+   SQ. Art-Net or sACN for a universe this app sends.
+2. **Add a trigger** and give it **go** and **back** lines. A line starts with the destination's
+   name: `Desk /ch/17/mix/on 1`, `AH msc go 45 list 1`, `House 1-4 @ 0 fade 3`. Back lines put it
+   right again, and a DMX level of `before` means whatever the channel was before the go.
+   **Test go** and **Test back** send them now. A line the panel can't read is listed under its
+   trigger with the reason.
+3. **In a cue**, the Timeline's **Triggers** field names the triggers to fire and when to send
+   them back:
+
+   ```text
+   VT audio; House down; restore when Mitti ends or after 5:00 then go
+   ```
+
+   `when <deck> ends` is a HyperDeck or Mitti clip ending. `after` is a time, `at next cue` is the
+   next cue this page fires, and `by hand` is the panel's job. `then go` GOes the stack, and
+   `then cue 13` jumps there and GOes it. The back lines go out in reverse order.
+
+Anything waiting to be put back is at the top of the panel, with **Restore now** and **Discard**,
+and **Restore all** in the toolbar.
+
+> **The server keeps the holds,** so the lights and the desk come back even if the tab that fired
+> the cue has closed. Only `then` needs that page, because it moves that page's cue stack. It's
+> done only when the show got there by itself (a clip end or the time) and nobody has moved the
+> stack since. A hold left from before a restart is offered, never fired by itself.
+>
+> **DMX is a stream, and a universe is shared at your peril.** Art-Net from two sources is merged
+> by the node, and sACN priority wins the whole universe, not just the channels a line set. Use a
+> universe nobody else sends, or fire the lighting desk's own cue instead. On sACN, `release`
+> hands the universe straight back to the desk.
+
+> ⚠️ **Never yet run against a real desk, node or lighting desk.** The bytes are checked against
+> the published formats and pretend receivers. `docs/TRIGGERS.md` has the rest and a short
+> procedure for proving it on the rig; `tools/trigger-sink.mjs` prints what arrives.
+
+---
+
 ## Dante (preview)
 
 **PLUS ▸ Dante.** The Dante audio network's routing (who's listening to what), read off the
@@ -2308,8 +2352,8 @@ was written against, and three separate groups:
 
 - **installation:** the app settings (which plugins are on, and each one's own settings: the
   console language, the OSC port and bind, Remote access, the Companion link, the Pixelhue console,
-  the Dante interface and the rest), your external routers, your HyperDecks and your Dante
-  snapshots. Not tied to a switcher.
+  the Dante interface and the rest), your external routers, your HyperDecks, your Dante
+  snapshots, and the Triggers plugin's destinations and triggers. Not tied to a switcher.
 - **show:** the cue stack, layer groups, layer names, layer locks, your variables, Companion memory
   triggers, pixel maps, surfaces and UMDs. Tied to the switcher they were built on, because they
   name screens and layer slots like `S1/2`.
@@ -2331,7 +2375,7 @@ name everything you want back:
 ```
 { "doc": { … }, "sections": ["stack", "groups", "names", "locks", "variables",
   "companion-triggers", "pixel-maps", "surfaces", "umd", "patch", "matrices",
-  "hyperdecks", "danteSnapshots", "settings"] }
+  "hyperdecks", "triggers", "danteSnapshots", "settings"] }
 ```
 
 **Reload any open page afterwards.** The restore reaches the running app at once (the routers are

@@ -151,7 +151,7 @@ its menu has nothing to offer without one.
 
 **`order`** places an entry among the app's own, which started out in tens and have been filling the
 gaps since: in PLUS, Edit 10, VPU Map 20, Memories 30, Layer Groups 40, Layer Lock 45, Matrix
-Routing 50, Audio Matrix and HyperDecks 55, Variables 57, Dante 58, Background Slicer 59 — and
+Routing 50, Audio Matrix and HyperDecks 55, Triggers 56, Variables 57, Dante 58, Background Slicer 59 — and
 Companion asks for 60. On the strip, Console 10, Timeline 20, Layer 30, Groups 40, Pixel Map 50,
 Surfaces 55, UMD 60, Aux follow 65. An entry with **`after`** is hung under the vendor's own item of that label
 instead of in PLUS, and is left out where the switcher's sidebar has no such item. That happens

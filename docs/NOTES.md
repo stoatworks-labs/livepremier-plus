@@ -3376,3 +3376,44 @@ is nothing to compute), anything needing an aux (the UMD's aux path, the aux-bac
 input signal (signal dots, Layer Lock on a live source, thumbnails) or a screen over several
 outputs (the VPU header's link order, rotated or grouped Background Slicer cuts), and the 6.1.x
 arithmetic. Output thumbnails can't stand in for looking at an output on it (above).
+
+## Triggers: OSC, MIDI over TCP, Art-Net and sACN out of a cue (2026-10-30, pretend receivers only)
+
+Allan asked for a cue to drive the rest of the rig: unmute the desk, house lights down, Mitti
+playing through the HyperDeck plugin, and everything put back when the deck says the video is over.
+Timeline first; deeper integration later. Built as plugin `triggers`, off by default and in
+`OFF_UNTIL_TESTED`. `docs/TRIGGERS.md` has the whole of it.
+
+- **The hold lives on the server, not the page.** The cue fires in a page, but the back lines
+  need no store, and the clip end is heard on the server's own deck link. So HyperDecks now
+  provides a `decks` service (`list()`, `onEnded(fn)` → unsubscribe), and Triggers asks for it
+  every second, so either plugin can be switched off and on in any order. Only `then go` needs the
+  page that fired the cue, matched by a per-load id.
+- **`then` runs only for an end the show reached by itself**, and only while the standby is still
+  the cue after the hold's. Restoring `at next cue` or by hand leaves it, because the operator has
+  already moved the stack. A GO pressed through a VT's end would otherwise skip a cue.
+- **A hold is journalled before its go lines go out**, with each DMX channel's level from before.
+  A hold found at startup is offered, never fired.
+- **sACN priority is per universe.** 150 over a desk's 100 takes every channel, not only the ones
+  set. `release` sends the three stream-terminated packets, which is the real hand-back. Art-Net
+  has no equivalent; the node merges.
+- **The offline guard now refuses UDP** to 6454, 5568, 10023, 2223, 53000 and 239.255.x.x, and TCP to
+  51325. A datagram needs no answer to land, so an Art-Net test aimed at the LAN would set real
+  lights without failing.
+
+Verified: `test/triggers.test.js` (20): bytes against OSC 1.0 (read back through `server/osc.js`),
+Art-Net 4, E1.31's fixed flags and lengths, MIDI and MSC. Sends go to pretend receivers on port 0,
+keep-alive and fade steps are timed, and sACN termination is checked. Holds are ended by a timer,
+the next cue, by hand, Restore all, and a clip ending on `tools/hyperdeck-sim.mjs --mitti` through
+the real HyperDecks server half. The page half runs with a real `CueStack`: one POST per cue, then
+GO only for its own hold and not once the stack has moved, and `/next` on the following cue.
+
+In the browser, against the rack sim, the panel drew, a destination was added through its form,
+a broken line was listed with its reason, and Test go reached `tools/trigger-sink.mjs`. The deck
+list arrived through the service. **Not seen in a browser:** the Timeline editor's Triggers field
+and a GO through to `then`. The rack sim stopped answering on :3000 and :10606 partway through the
+check (the host still answered ping), and it was not restarted from here.
+
+**Not done:** no real desk, node, lighting desk or Mitti. Hardware MIDI ports (it would need a
+native module in `devices/`), OSC over TCP, sACN per-address priority (`0xDD`), reading a desk's
+state back for a real "previous", and firing triggers from anywhere but a cue are not built.

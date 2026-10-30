@@ -304,6 +304,18 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'triggers',
+    name: 'Triggers',
+    where: 'Sidebar, under PLUS (preview), and a field in the Timeline’s cue editor',
+    description: 'A cue sends OSC, MIDI over TCP, Art-Net or sACN to the rest of the rig — unmute the desk, take the house lights down, fire a lighting cue — and sends it back when a HyperDeck or Mitti clip ends, after a time, or at the next cue. Never yet run against real equipment.',
+    /* The cue field is the way in, and a restore's `then` moves the stack. */
+    requires: { capabilities: [], plugins: ['timeline'] },
+    /* Off until it has been: it sends to sound desks and lighting, which belong to other people. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'edid',
     name: 'EDID builder',
     where: 'The vendor’s EDID page: a From Formats tab, Create EDID… and Edit on each bank slot',
@@ -442,7 +454,7 @@ export const BUILTINS = [
     id: 'setup-file',
     name: 'Setup file',
     where: '/__lpp/config',
-    description: 'Everything this app holds as one JSON file, and back: the show (cue stack, groups, names, locks, variables, pixel maps, surfaces, UMDs, Companion triggers), the router patch, and this installation (routers, HyperDecks, Dante snapshots, settings).',
+    description: 'Everything this app holds as one JSON file, and back: the show (cue stack, groups, names, locks, variables, pixel maps, surfaces, UMDs, Companion triggers), the router patch, and this installation (routers, HyperDecks, Triggers, Dante snapshots, settings).',
     /* Where it always was. */
     routeBase: '/config',
     server: 'server.js'
