@@ -27,7 +27,8 @@ are in `OFF_UNTIL_TESTED` (`test/plugins.test.js`) until a real frame has seen t
 AoI from a custom format and Image Library tools (2026-10-20, unreleased) are at the end of this
 file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-20, unreleased, in
 `OFF_UNTIL_TESTED`): neither has met a panel, only a pretend one and the 6.2.73 simulator.
-**Plug names** (2026-10-24, unreleased, in `OFF_UNTIL_TESTED`) is the newest entry below.
+**Plug names** (2026-10-24, unreleased, in `OFF_UNTIL_TESTED`) is below; **Lighting desk control**
+(2026-10-30, unreleased, in `OFF_UNTIL_TESTED`) is the newest.
 
 **What real hardware has seen**, all of it:
 
@@ -74,6 +75,36 @@ payload, the page half on the Midra simulator went from Screens / Aux. to LIVE �
 SOURCE BACKUP is refused on Midra and Alta with the reason: their inputs have no backup (no
 `backup` node in either bundle's input object; the card's ⋮ is plug, Setup, Freeze, Capture).
 Neither key has been pressed on a console.
+
+## Lighting desk control — Art-Net and sACN in (2026-10-30)
+
+Asked for by Allan: Art-Net control with personalities for Avolites, ChamSys and grandMA, modes
+for parameter-limited desks, CITP and sACN, NDI back to the desk, and a take on the switcher
+firing the desk's "VT state". This is phase 1 of that: a desk drives the switcher. The design and
+the later phases are in the plugin's doc (`docs/DESK-CONTROL.md`, "Not here yet").
+
+What I measured first, on the 6.2.73 rack simulator, because it decided the architecture:
+
+- **AWJ pushes nothing.** A second socket held open heard nothing while another client changed
+  S1's take time, and the writer gets no echo. So holding an AWJ connection is not a
+  subscription, which is the argument `server/awj-link.js` makes against `awj.js`'s rule.
+- **A burst of `get`s is fast**: median 8.2 ms for 16, 9.2 ms for 48; about one round in twenty
+  takes ~100 ms. Reading the preset letters before every burst of writes is affordable.
+- `presetBank/status/presetId/…/isNotModified` and the letters' memory ids are readable over AWJ.
+
+What it then did, desk frame to the change on the vendor socket: layer source on preview in
+26–40 ms, a memory recalled to preview in 28–31 ms (three runs of the live test).
+
+Two things found on the way:
+
+- **A desk on the same Mac never saw the app.** Both bind UDP 6454 with SO_REUSEADDR, and macOS
+  26.4 gave the unicast ArtPollReply to the app's own socket. Replies to this machine's own
+  addresses now go by broadcast on that interface; the desk hears them.
+- **The rack simulator was down** when I came to test (16:28–16:47): its web half had died and
+  every restart quit before logging. It is the switcher-sims notes' trap 2: `dist/storage/data`
+  and `logs` point at `AW_USER_INTERNAL/WebApp` and `AW_TRACES/AW_WEBAPP`, which did not exist; the
+  server had run since 24 August on directories it opened before they went. I copied
+  `data_backup` to `WebApp` and made the log directory; it answered six seconds later.
 
 ## Plug names — an input's label as its plug's EDID name (2026-10-24)
 

@@ -91,6 +91,9 @@ than something bolted on.
   paired with the machine this app runs on, driving the switcher like an ATEM, with no browser
   open. Quit ATEM Software Control first, or it switches your ATEM on every press too. Not yet
   tried on a real panel.
+- **Lighting desk control** *(preview, off by default)*: a lighting desk driving the switcher over
+  Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity.
+  Not yet tried with a real desk.
 - **Background Slicer** *(preview)*: one picture cut into a pixel-exact background for every
   output of one or more screens, uploaded and put into a background set, or each output fed live
   from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a
@@ -1869,6 +1872,29 @@ The key map and the rest are in [ATEM-MICRO-PANEL.md](ATEM-MICRO-PANEL.md).
 
 ---
 
+## Lighting desk control (preview, off by default)
+
+A lighting desk (grandMA3, MagicQ, Titan, anything that sends **Art-Net** or **sACN**) driving the
+switcher the way it drives a media server: an **LPP Screen** fixture per screen (Control, Memory,
+Take, Cut) and an **LPP Layer** fixture per layer (source folder, source file, opacity), plus an
+**LPP Master** for master memories and every screen at once.
+
+Switch on **Lighting desk control** in **Preconfig ▸ LivePremier Plus → Plugins**, then tick
+**Listen for a lighting desk** on its card. List the screens and how many layers each gets; the
+card shows the patch and has the **.gdtf** files to import into the desk and a **Patch .csv**.
+
+Nothing happens to a screen until its **Control** channel is raised: 25% and up edits preview, 50%
+and up edits program. Memory recalls to preview, Take and Cut fire on a rise past 50%, and nothing
+fires on the first frame after the app starts or a desk takes over. Opacity is a Dimmer, so it
+follows the desk's grand master. **Only these desks** limits who can drive it.
+
+The channel tables, the patch, sACN priority and backup desks, and what has been run are in
+[DESK-CONTROL.md](DESK-CONTROL.md).
+
+> ⚠️ **Never run with a real desk or a real switcher**, only a pretend desk and a simulator.
+
+---
+
 ## Thumbnail relay (preview)
 
 It's off until you switch it on in **Preconfig ▸ LivePremier Plus → Plugins**.
@@ -2304,8 +2330,8 @@ Everything is on until you switch it off, except the ones that haven't met a rea
 which start off: **Preview lock**, **Image Library tools**, **Surfaces**, **Aux follow**, **AoI
 from a custom format**, **Resolume Mapping**, **Aux backgrounds**, **Transitions**, **Experimental
 features**, and the
-**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **Thumbnail
-relay**, **Multiviewer thumbnails** and **Background Slicer** previews.
+**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **Lighting
+desk control**, **Thumbnail relay**, **Multiviewer thumbnails** and **Background Slicer** previews.
 
 ![Preconfig ▸ LivePremier Plus → Plugins: every feature with its switch, what it does and where it lives](screenshots/plugins.png)
 

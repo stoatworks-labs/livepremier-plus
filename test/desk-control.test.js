@@ -489,6 +489,9 @@ test('supervisor: the allow list refuses other desks; sACN drives the same way; 
     assert.deepEqual(b.sup.describe().universes[0].sources, []);
     await b.sup.apply(normaliseDesk({ deskEnabled: true, deskDestinations: ['S1'], deskLayers: 2, deskProtocol: 'both' }));
     const cid = '0a'.repeat(16);
+    /* This app's own Triggers output is never taken for a desk. */
+    await b.send(buildSacnData(1, b.frame, { cid: '0b'.repeat(16), sourceName: 'LivePremier Plus' }), 'sacn');
+    await until(() => b.sup.counts.own === 1, 1000, 'its own stream ignored');
     b.frame.fill(0);
     await b.send(buildSacnData(1, b.frame, { cid, sequence: 1 }), 'sacn');
     b.frame.set([200, 0, 0, 0], b.at('S1'));

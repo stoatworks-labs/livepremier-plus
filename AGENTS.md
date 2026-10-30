@@ -645,6 +645,56 @@ Control, with a LivePremier behind it. Load-bearing:
   painting before it sends the dark report, because a tally read still in flight used to relight
   the panel after it (found by `test/atem-micro-panel.test.js`, 2026-10-20).
 
+### Lighting desk control (`plugins/desk-control/`) — **preview**
+
+A lighting desk sending Art-Net or sACN drives the switcher the way it drives a media server:
+Master, Screen and Layer fixtures, GDTF files to import, no browser open. `docs/DESK-CONTROL.md` is
+the operator's page and the run/not-run table. **It has never met a real desk or a real switcher**:
+a pretend desk sending real Art-Net at 40 fps, and the 6.2.73 simulator. Load-bearing:
+
+- **The channels are defined once, in `src/core/dmx-personality.js`**, and the engine, the patch,
+  the CSV and the GDTF files (`src/core/desk-gdtf.js`) all read that. Never hand-edit a `.gdtf`.
+  Moving a channel changes every show file that patched the old one: bump `GDTF_VERSION`
+  (`plugins/desk-control/server.js`) so a desk's library keeps both. The files validate against
+  the official GDTF 1.2 `gdtf.xsd` (`xmllint --schema`); keep it that way, and keep names free of
+  dots (GDTF node links are dot-separated).
+- **Nothing fires on a first frame.** After a start, a restart of the desk, a backup desk taking
+  over or a repatch, a fixture's first frame is only a baseline; `DeskEngine.update` with
+  `fresh`, and `DeskEngine.forget`. A desk sitting at Take = full when the app restarts must not
+  take. Triggers fire on a *rising* 50% crossing; memories on a change to non-zero.
+- **A screen ignores the desk until its Control channel rises**, and a lost desk does not let go
+  of a screen (`forget` keeps the control modes; nothing is written meanwhile).
+- **Recalls go to preview**, as everywhere in this app, through `console-intents.js`'s
+  `writesFor`, so a desk's take and a panel's take are one function.
+- **One source in control per universe, never a merge** (`src/core/dmx-input.js`): HTP of two
+  layer sources means nothing. Highest sACN priority, Art-Net as 100, ties to the lowest key,
+  sACN preview data ignored. This app's own sACN (source name `LivePremier Plus`, the Triggers
+  plugin's) is ignored outright; its Art-Net is not distinguishable yet — the loop guard belongs
+  to the bidirectional phase.
+- **The supervisor keeps order per screen** (`supervisor.js` argues it): a queue per destination,
+  one step per burst, `minGapMs` between bursts; layer values coalesce only within a run, never
+  across a recall, take or cut; `settleMs` after each of those; the preset letters read before
+  every burst of layer values, held mid-transition; a recall, take or cut older than `STALE_MS`
+  dropped, not sent. The desk's layer values are written again after anything replaces the buffer
+  it edits (`DeskEngine.layersFor`).
+- **It holds one AWJ connection** — `server/awj-link.js`, the one exception to `awj.js`'s rule,
+  argued at its head (AWJ pushes nothing, measured 2026-10-30, so a held socket cannot become a
+  mirror). `ConsoleSwitcher` takes an `exchange`, so the same reads run on either. Idle close at
+  5 s. Do not hand the link to anything that would subscribe or write into the mirror.
+- **The sockets bind `0.0.0.0` whatever the app is bound to**: Art-Net arrives by broadcast,
+  which a socket bound to one address never sees. The allow list is the lock. `deskInterface`
+  only chooses what ArtPollReply says and where multicast is joined.
+- ⚠️ **A desk on the same machine shares UDP 6454**, and macOS 26.4 hands a unicast datagram to
+  one of the sockets only — the app's own, measured 2026-10-30 — so an ArtPollReply to one of
+  this machine's addresses goes by broadcast on that interface. A unicast reply there is a desk
+  that never sees the app.
+- **Testing:** `test/desk-control.test.js` stands the supervisor up on port 0 on loopback with
+  `pollReplyPort: null` and injected interfaces; `fakeAwj` copies its initial store, so change
+  the pretend switcher through `awj.store`. `test/sim/desk-control.sim.test.js` uses the real
+  ports, sends a desk's 40 fps itself (a desk refreshes; a test that sends only changes lets
+  Art-Net time out after 10 s and the next frame is a baseline), and polls on the simulator's own
+  subnet — a Mac with a VM adapter lists that first.
+
 ### The Background Slicer (`plugins/bg-slicer/`) — **preview**
 
 One picture cut into a background per output, put into the image library, the

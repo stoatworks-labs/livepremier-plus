@@ -102,7 +102,7 @@ count Art-Net from 0 or 1.
 | Desk | What to do |
 |---|---|
 | **grandMA3** | Import the three `.gdtf` files into the fixture library and patch them. |
-| **MagicQ** | Import the `.gdtf` files (Patch ▸ Choose Head ▸ Import GDTF); MagicQ saves a head file from each. |
+| **MagicQ** | Open each `.gdtf` in MagicQ's File Manager. MagicQ saves a head file from it (its mode name starts `G-`) and goes to the patch window with it selected; any warnings are in `MagicQ/log/gdtf.log`. |
 | **Avolites Titan** | Convert the `.gdtf` files to `.d4` in Personality Builder (Windows), then patch the `.d4`. |
 | **grandMA2** | Convert with MA's own GDTF converter; MA2 does not read GDTF itself. |
 | **Anything else** | Patch generic dimmer channels at the addresses in the table, or build a fixture from the channel tables above. |

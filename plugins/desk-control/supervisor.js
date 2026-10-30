@@ -78,6 +78,8 @@ const HISTORY = 60;
 /* Only the screens and their layers: no inputs, stills or memories. */
 const LIMITS = { screens: 24, auxes: 0, inputs: 0, memories: 0, layers: 16, stills: 0 };
 const PROTOCOL_IDS = ['artnet', 'sacn'];
+/* What `plugins/triggers` names its sACN streams. */
+const OWN_SOURCE = 'LivePremier Plus';
 
 export class DeskSupervisor extends EventEmitter {
   #settings = null;
@@ -131,7 +133,7 @@ export class DeskSupervisor extends EventEmitter {
     this.switcher = new ConsoleSwitcher({ deviceHost: () => this.deviceHost(), awjPort, limits: LIMITS, exchange: this.link.exchange });
     this.facts = null;
     this.history = [];
-    this.counts = { artnet: 0, sacn: 0, refused: 0, polls: 0, timecode: 0, bursts: 0, written: 0, held: 0, dropped: 0 };
+    this.counts = { artnet: 0, sacn: 0, refused: 0, own: 0, polls: 0, timecode: 0, bursts: 0, written: 0, held: 0, dropped: 0 };
   }
 
   get patch() { return this.#patch; }
@@ -344,6 +346,9 @@ export class DeskSupervisor extends EventEmitter {
   #onSacn(buf, rinfo) {
     const p = parseSacn(buf);
     if (!p || p.kind !== 'data') return;
+    /* This app's own Triggers output, multicast onto a universe patched here,
+       would be the switcher driving itself. Its streams carry this name. */
+    if (p.sourceName.startsWith(OWN_SOURCE)) { this.counts.own++; return; }
     if (!allowed(this.#settings, rinfo.address)) { this.counts.refused++; return; }
     this.counts.sacn++;
     this.#frame(this.#input.sacn(p, Date.now(), rinfo.address));
