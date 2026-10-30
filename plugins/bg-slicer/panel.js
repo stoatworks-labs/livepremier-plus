@@ -1025,7 +1025,8 @@ export function createBgSlicerPanel({ session, job, onRefresh = () => {}, popout
       confirmText = `Upload ${n} image${n === 1 ? '' : 's'} (${kb(total)}) — the switcher puts ${n === 1 ? 'it' : 'each'} in its first empty library slot (${plan.library.slots.join(', ')}) — `
         + `show ${plan.screens.map((s) => `${s.id} BKG${s.outputs[0].frame}`).join(', ')} at 1:1${sets ? `, and write ${sets} as Auto Crop` : ''}?`;
     } else {
-      confirmText = `Upload ${images.length} images (${kb(total)}) into free library slots, set ${plan.screens.reduce((n, s) => n + s.outputs.length, 0)} free stills${plan.capacityChanges.length ? `, change ${plan.capacityChanges.length} still capacit${plan.capacityChanges.length === 1 ? 'y' : 'ies'} (a preconfig apply)` : ''}${sets ? `, and write ${sets}` : ''}?`;
+      const stills = plan.screens.reduce((n, s) => n + s.outputs.length, 0);
+      confirmText = `Upload ${images.length} image${images.length === 1 ? '' : 's'} (${kb(total)}) into free library slots, set ${stills} free still${stills === 1 ? '' : 's'}${plan.capacityChanges.length ? `, change ${plan.capacityChanges.length} still capacit${plan.capacityChanges.length === 1 ? 'y' : 'ies'} (a preconfig apply)` : ''}${sets ? `, and write ${sets}` : ''}?`;
     }
 
     return h('div', { class: 'aw-flex-col aw-gap-row-small lpp-bgs-section' },

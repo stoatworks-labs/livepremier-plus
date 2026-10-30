@@ -331,7 +331,11 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > mid-take was held and landed in the new preview, not the one fading up), **Layer Groups and
 > Send-to** across opposite letters, **Surfaces** (full screen filled the surface, a write from
 > outside was pulled back on preview, program was flagged and left alone) and **Pixel Map**, and
-> the store diffed clean again bar the export status the library's Download leaves behind.
+> the store diffed clean again bar the export status the library's Download leaves behind. A
+> third pass added **Audio Matrix** (a block patched, a channel muted, both cleared), **OSC input**
+> (a layer, a take, a refusal), **arithmetic and Variables** typed into the vendor's own width field,
+> and the **UMD Generator** handing a screen's UMD to the **Background Slicer**, which wrote a
+> library slot, a still and a background set and undid them again.
 >
 > **The VPU map's header is part-verified from that same pull (2026-09-15).** The header over the
 > grid's columns names each link's region and output plug from `outputList` (`usedInScreenAux`,
@@ -1767,8 +1771,9 @@ source's name. It's one PNG at the canvas's size, transparent everywhere else.
 > full canvas, no rescale) and the library's copy downloaded back with its transparency; a rename
 > marked it out of date; after a take, an update to program asked first and changed only that
 > tab's pixels; a screen's UMD arrived in the Background Slicer as its picture. LivePremier only
-> for writing. Not yet run on a real frame, so whether a frame keys the still's transparency over
-> the layers under it is the first thing to look at.
+> for writing. On a real frame only the screen path has run (Aquilon C mini, 2026-10-30: drawn,
+> handed to the Background Slicer, written and undone); that box has no aux, so whether a frame
+> keys the still's transparency over the layers under it is still the first thing to look at.
 
 ## Test Card — preview
 

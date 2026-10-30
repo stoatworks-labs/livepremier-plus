@@ -41,11 +41,13 @@ file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-2
   opacity written by the Layer tab** and put back, both read over AWJ. Hardware is ask-first.
 - **Aquilon C mini** (`NLC_CMINI`, 6.2.73, 2026-10-30): the Layer tab, Memories (save, rename,
   erase), the Console (a take, a store and raw AWJ lines), **the timeline's GO** (recall, fade,
-  take), then Preview lock, Layer Groups and Send-to, Surfaces and Pixel Map, each read back over
-  AWJ and the whole store diffed clean afterwards. "Aquilon C mini" at the end has the rest.
+  take), then Preview lock, Layer Groups and Send-to, Surfaces and Pixel Map, then Audio Matrix,
+  OSC input, arithmetic and Variables in a vendor field, and the UMD Generator's screen path
+  through the Background Slicer (written and undone), each read back over AWJ and the store
+  diffed afterwards. "Aquilon C mini" at the end has the rest.
 
-Everything else, the UMD Generator, Dante,
-both thumbnail previews and the Background Slicer included, has run on simulators only. The
+Everything else, Dante and both thumbnail previews included, has run on simulators only; the
+UMD Generator's aux path and a Background Slicer set on a real output have not been seen. The
 Pixelhue panel has never met a console; the console suite has only run against its stand-in
 (`LPP_CONSOLE=stand-in`, 31 pass, 3 skip).
 
@@ -3311,7 +3313,38 @@ the end.
   container settle which is yours). It sent nothing. Testing stopped there and the box was put
   back; Audio Matrix, OSC, Variables and the image-upload panels wait for the next pass.
 
-**Not run yet on this box:** the UMD Generator and the Background Slicer, Audio Matrix, OSC input,
-Variables driving a field. **Can't be run on it:** Pitch (every screen is one output, its own
-reference at 1.000, so there is nothing to compute), anything needing an aux, input signal or a
-screen over several outputs (the VPU header's link order), and the 6.1.x arithmetic.
+**The third pass, the same evening** (Allan: carry on with the second client connected; it left
+partway through without having sent anything).
+
+- **Audio Matrix:** the box's matrix as the panel drew it (112 channels patched, 48 kHz, Dante
+  clock). A block click patched Input 8 across Multiviewer 2 (`txList/MVW_2`, all NONE before),
+  the panel saying `8 of 8 channels (1→1 … 8→8)` and the count going to 120; M muted and unmuted
+  MVW 2 channel 1 (AWJ `mute` true, then false); a second click cleared the block. Diff: nothing.
+- **OSC input** (listening on 127.0.0.1:8000 inside the app's container, sent from there):
+  `/lp/screen/1/preset/b/layer/1/opacity/opacity 200` wrote 200 to S1 B and left A; `/take` took
+  S1, `/take 0` did nothing, `/take 1` took it back; `…/preset/preview/…` was refused with *cannot
+  tell which buffer is preview … Address the buffer directly with /a, /b or /c*. The take trigger
+  latches as from anywhere else and was re-armed.
+- **Arithmetic and Variables in a vendor field:** 6.2.73's geometry fields on real hardware are
+  `type=text` with `min`/`max`/`step` (X −960…2880, Y −540…1620, W/H 0…8192). `1920/2` in the
+  vendor's own width committed 960 and `$S1.width` put back 1920; the aspect lock dragged the
+  height along both times.
+- **UMD Generator → Background Slicer:** S1's L1 named (an empty layer is drawn only when named;
+  a full-screen box gets *no room under this box, so its label is inside it*), handed to the
+  Slicer, generated (one 1920×1080 PNG, 35 KB, a pixel copy) and written: library slot 4, still 3
+  (`mode` IMAGE, `source` 4, label), and S1 background set 1 Out 1 ← STILL_3 under
+  `preconfig/backgrounds/…`. No capacity change was needed, and S1's missing NATIVE layer meant the
+  set couldn't be loaded, as the plan said. **Undo what was written** put the set, its label and
+  still 3 back — still 3's `source` back to 1, where it pointed before, not to 0 — and emptied the
+  slot. Left behind, none of it writable or worth writing: still 3's image size and snapshot
+  counter, the deleted slot's old file name and size in its status, the import command's last
+  request, and every output's `contentValidity` now reading `["NONE","COLOR"]` where the first pull
+  had `[]`. **Undo leaves two triggers latched** — the still's `settings/xUpdate` and the slot's
+  `control/xDelete` — which were written back false by hand; the undo could re-arm them itself.
+  The confirmation said *Upload 1 images … set 1 free stills*; fixed.
+
+**Not run on this box:** Pitch (every screen is one output, its own reference at 1.000, so there
+is nothing to compute), anything needing an aux (the UMD's aux path, the aux-background test),
+input signal (signal dots, Layer Lock on a live source, thumbnails) or a screen over several
+outputs (the VPU header's link order, rotated or grouped Background Slicer cuts), and the 6.1.x
+arithmetic.

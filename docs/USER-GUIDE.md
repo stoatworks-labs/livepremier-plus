@@ -940,7 +940,9 @@ into the setup file under *UMDs*.
 
 > Proven on LivePremier Simulator 6.2.73 on 2026-10-16: a 7-box layout on an 8-layer aux; the UMD
 > put on its top layer and checked over AWJ; an update after a rename, on program; a screen's UMD
-> handed to the Background Slicer. Not yet run on a real frame.
+> handed to the Background Slicer. On a real frame (Aquilon C mini, 6.2.73, 2026-10-30) the screen
+> path ran: a named box drawn, handed to the Background Slicer, written and undone (that box has
+> no aux, so the aux path and whether a frame keys the still's transparency are still unseen).
 
 ---
 
@@ -1275,7 +1277,9 @@ The Console's `Set Audio Patch Input 3 Channel 1 Thru 8 To Output 1` is the same
 On a Midra 4K or Alta 4K there's no channel matrix and the entry isn't offered; audio there is
 routed from the Console.
 
-> Proven on the simulator only.
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a block clicked patched Input 8 across
+> Multiviewer 2 channel for channel, M muted and unmuted one of its channels, and a second click
+> cleared it, each read back from the switcher. Signal dots weren't tried; nothing was plugged in.
 
 ---
 
@@ -1664,6 +1668,9 @@ It binds to this machine only unless you choose otherwise, and the other option 
 many words that the network will be able to fire takes.
 
 ![The OSC input card listening on 127.0.0.1:8000, three messages received and three writes sent, spelled for LivePremier](screenshots/osc-input.png)
+
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a layer's opacity on `/b`, a take and a
+> take back, a release (`0`) that took nothing, and a `preview` address refused with its sentence.
 
 ---
 
@@ -2058,9 +2065,12 @@ The same steps, with the platform's own model:
 - **Live inputs** fills a **Custom** set: each output its own input, aligned top left. The EDID
   option is only offered where the input plug lists preferred formats.
 
-> ⚠️ **Proven on the simulator only.** A simulator's outputs are a still picture, so you can't see a
-> background written there. Check the first one on a real output, especially a rotated one, and if
-> the picture comes out turned twice, let me know.
+> ⚠️ **Written to a real frame once, and not yet looked at.** On an Aquilon C mini (6.2.73,
+> 2026-10-30) a UMD from the UMD Generator went into library slot 4, still 3 and S1's background
+> set 1 for its one HDMI output, a pixel copy, and **Undo what was written** took it all back off.
+> That screen had no NATIVE layer allocated, so the set couldn't be shown and nobody saw it on an
+> output. A simulator's outputs are a still picture too. Check the first one on a real output,
+> especially a rotated one, and if the picture comes out turned twice, let me know.
 
 ---
 
@@ -2119,6 +2129,10 @@ and still drags the other axis along if the aspect lock is on.
 putting `min`, `max` and `step` on them. That leaves out everything that mustn't be touched: labels
 have no `step`, and neither does the transition-time field, whose `00:01.000` would be mangled by
 anything treating `:` as arithmetic.
+
+On a real **6.2.73** frame (an Aquilon C mini) the geometry fields are text fields carrying `min`,
+`max` and `step`, which is what this looks for: `1920/2` typed into a layer's width committed 960,
+and `$S1.width` put it back to 1920, the aspect lock dragging the height along both times.
 
 **On firmware 6.1.x it works too.** There the geometry fields are number inputs, which throw away
 anything they can't parse, so while you type in one that has a range it becomes a text field, and

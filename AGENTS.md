@@ -2541,8 +2541,9 @@ extension's `chrome.storage` broker was never exercised.
 Still thinly covered on LivePremier hardware: an Aquilon RS4 (6.1.60) took
 one preview opacity from the Layer tab on 2026-10-16, and an Aquilon C mini
 (6.2.73) on 2026-10-30 took the Layer tab, Memories, the Console, the
-timeline's GO, Preview lock, Layer Groups and Send-to, Surfaces and Pixel Map,
-each read over AWJ and the whole store diffed clean afterwards.
+timeline's GO, Preview lock, Layer Groups and Send-to, Surfaces, Pixel Map,
+Audio Matrix, OSC input, arithmetic and Variables, and the Background Slicer
+(written and undone), each read over AWJ and the store diffed afterwards.
 The panels were opened against a live Aquilon C on 2026-09-10, and the
 Console's lines typed at a live Pulse 4K on 2026-09-13 are the other panel
 writes to real hardware; see the README's Status. The launcher has never been run as a real native tray window (its bundled chain was verified headlessly
