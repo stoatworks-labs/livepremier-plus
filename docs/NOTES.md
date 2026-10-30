@@ -39,8 +39,12 @@ file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-2
 - **Speed Editor** (2026-09-25): a real panel over USB through the device host.
 - **Aquilon RS4** (`NLC_RS4`, 6.1.60, 2026-10-16): read-only pulls of the store, and **one preview
   opacity written by the Layer tab** and put back, both read over AWJ. Hardware is ask-first.
+- **Aquilon C mini** (`NLC_CMINI`, 6.2.73, 2026-10-30): the Layer tab, Memories (save, rename,
+  erase), the Console (a take and raw AWJ lines) and **the timeline's GO** (recall, fade, take),
+  each read back over AWJ and the whole store diffed clean afterwards. "Aquilon C mini" at the end
+  has the rest.
 
-Everything else, Pixel Map, Surfaces, the UMD Generator, the timeline's GO on LivePremier, Dante,
+Everything else, Pixel Map, Surfaces, the UMD Generator, Dante,
 both thumbnail previews and the Background Slicer included, has run on simulators only. The
 Pixelhue panel has never met a console; the console suite has only run against its stand-in
 (`LPP_CONSOLE=stand-in`, 31 pass, 3 skip).
@@ -3212,3 +3216,64 @@ labels nothing on a mini.
 - **Not done:** nothing on a mini, nothing on a simulator. The first person with one will say
   whether the rows, columns 8 / 9, the page rule and the labels are what the firmware suggests,
   and whether TAKE and CUT arrive. A point release is Allan's call.
+
+## Aquilon C mini (2026-10-30)
+
+**The box.** `NLC_CMINI`, label `AQUILON`, firmware **6.2.73**, `isSimulated`
+false. Its Web RCS bundle (`app.9f659f2d9c349cd5962a.js`) is the one the Aquilon C served on
+2026-09-09, so this is the same build on smaller hardware. It was blank: S1 and S2 on one output
+and four 4K layers each, S3 with no outputs, no auxes, every bank empty, every layer NONE, no
+input signal, nobody operating it. Reached remotely, with AWJ at about 95 ms a round trip. The
+app ran in a container on the far side of the link and the browser came in over a tunnel. The
+field kit's read-only phases passed first (30 pass), and a copy of the whole store (124 MB) was
+taken before any write, to diff against at the end.
+
+**What was written, all read back over AWJ:**
+
+- **Layer tab:** S1 preview layer 1 opacity 256 → 240 → 256, program untouched. A typed `256240`
+  was clamped to 256 and said so (`S1 B L1 Opacity = 256 (clamped to 256)`), as it should be.
+- **Memories:** S1's preview saved into empty slot 990 (`isValid` true, the buffer's `presetId`
+  990 unmodified, program's untouched), renamed `LPP hw test`, then erased (two clicks) —
+  `isValid` false, label cleared, `presetId` back to 0.
+- **Timeline:** one cue, recall 990 → S1 preview, take, fade 2 s. GO wrote `takeUpTime` and
+  `takeDownTime` 20, recalled (preview unmodified again) and took: `AT_UP`, `tbarPosition` 65535.
+  The panel logged `4 writes sent`.
+- **Console:** `Take Screen 1` (1/1 write sent) ran `EFFECT_FROM_UP` and landed `AT_DOWN` 2.3 s
+  after firing, which is the 2 s fade and the ~250 ms AGENTS.md records for real hardware. Raw
+  `AWJ … = …` lines put both take times back to 10 and re-armed the triggers below.
+
+The store diff at the end: **0 leaves**. No Edit direct save (still waiting for a share the box
+can see), and no master memory.
+
+**The timeline's New cue form forgot what was typed — the bug this box was for.** The form was
+drawn afresh with every repaint and kept its fields only in the DOM. `keep-focus.js` carries over
+the field that has focus, so the one being typed in survived and every one the operator had
+moved on from went back to its default. The panel repaints on every frame, and this box's four
+running timers send one a second, so a cue typed as slot 990, take, 2 s was slot 1, no take, no
+fade a second later. The simulator's timers don't run, which is why it never showed there. The
+row editor (Edit on a cue) had the same fault. Both now keep a draft in `view`, as the form's
+Companion and HyperDeck fields already did (`test/timeline-form.test.js`); on the box, the
+fields then held through repaints and the cue arrived as typed.
+
+**Things worth knowing next time:**
+
+- **The header's client count includes AWJ connections.** It read `2 Clients` while an AWJ get
+  loop was connected and went back to 1 when it closed. The REMOTE state lists them apart
+  (`system/network/websocketServer/clients`, `…/awjServer/clients`, each with an IP), which is
+  the way to tell a second operator from your own probe.
+- **Triggers latch on hardware as on the simulator.** The save's and the load's `xRequest`,
+  `xDelete` and `xTake` all read true after use and stay true until written false; the store diff
+  shows each one. After a recall or save, write them back.
+- **A delete leaves `isNotModified` true**, as the RS4 recipe predicted from the simulator.
+  Nudging one property and putting it back clears it.
+- **Arrow keys belong to the vendor.** With a layer selected on the vendor's canvas, an ArrowDown
+  meant for one of our dropdowns moved the layer a pixel (`posV` 540 → 541, put back). Deselect
+  on the canvas, or keep arrow keys off the page, when testing.
+- **The constant repaint makes a browser tool's element references go stale** within a second,
+  everywhere. Hold the repaint the way an operator does: a press on a `<select>` holds it
+  (`keep-focus.js`), and a click on a field keeps its place.
+
+**Not run yet on this box:** Preview lock during a take, Layer Groups and Send-to across opposite
+letters, Surfaces, Pixel Map, the UMD Generator and the Background Slicer, Audio Matrix, Pitch,
+OSC input, Variables driving a field. **Can't be run on it:** anything needing an aux, input
+signal or a screen over several outputs (the VPU header's link order), and the 6.1.x arithmetic.

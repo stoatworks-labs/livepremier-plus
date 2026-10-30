@@ -135,8 +135,9 @@ connection of their own when they act, which is worth knowing, because the switc
 > Mapping goes at the foot of the PLUS section instead. The port was proven on a **live Pulse 4K**:
 > every write over the device protocol by a test harness, and the Console panel's own lines typed
 > by the operator, which were the first writes this app's panels have made to real hardware. On
-> LivePremier the one write to a physical device so far is a preview opacity the Layer tab set on
-> an **Aquilon RS4** and put back, and the timeline has only ever fired at a simulator.
+> LivePremier, an **Aquilon RS4** took one preview opacity from the Layer tab, and an **Aquilon C
+> mini** has since taken writes from the Layer tab, Memories, the Console and the timeline, whose
+> GO has now fired at real hardware.
 >
 > **The Edit page and Companion (0.10.0, 0.11.0) have been proven on simulators and a running
 > Companion 5.0.5, not on a physical switcher.** Two of their limits are worth knowing now. The

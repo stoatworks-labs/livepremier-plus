@@ -6,7 +6,9 @@
 > **Pulse 4K**. On the Pulse the Midra port's writes were proven over AWJ, and **the Console panel
 > made this app's first writes to a real device**, typed in by the operator. An **Aquilon RS4** on
 > firmware 6.1.60 has since been read from, and has taken one preview opacity from the Layer tab.
-> The timeline has still only ever fired at a simulator. The Status note below says which is which.
+> An **Aquilon C mini** on 6.2.73 has since taken real writes from the Layer tab, Memories, the
+> Console and the timeline, whose GO has at last fired at something that isn't a simulator. The
+> Status note below says which is which.
 
 # LivePremier Plus
 
@@ -312,6 +314,17 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > collection key is numeric (`1`), not `OUTPUT_1`, which the device refuses. The device store was
 > pulled whole (124 MB) and the VPU model re-checked against it rather than against a capture.
 > Nothing disagreed with what the simulator had taught me.
+>
+> **Written to from the panels (Aquilon C mini `NLC_CMINI`, firmware 6.2.73, 2026-10-30).** A
+> blank box, reached remotely, with nobody else on it. Every write was read back over AWJ, and at
+> the end the whole 124 MB store was diffed against a copy taken first: nothing left behind. The
+> Layer tab set a preview opacity and put it back. Memories saved S1's preview into an empty slot,
+> renamed it and erased it. **The timeline's GO** recalled that memory into S1's preview, wrote the
+> cue's 2 s fade and took it, and the box ran it to `AT_UP`. The Console's `Take Screen 1` took it
+> back (2.3 s from fire to `AT_DOWN`), and its raw `AWJ` lines put the fade times and the latched
+> triggers back. The box also found a bug the simulator never could: the timeline's New cue form
+> forgot what had been typed into it, because a box whose timers run repaints the page every
+> second and the simulator's don't. Fixed, and checked on the same box.
 >
 > **The VPU map's header is part-verified from that same pull (2026-09-15).** The header over the
 > grid's columns names each link's region and output plug from `outputList` (`usedInScreenAux`,
@@ -646,13 +659,13 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > right next to a live connection. The panel is now tested by typing at it, over both platforms'
 > store captures.
 >
-> **Still untested on hardware:** on LivePremier the panels have written only to the simulator
-> and, with the socket stubbed, proven their paths against an Aquilon, apart from one preview
-> opacity the Layer tab wrote to an **Aquilon RS4** on 6.1.60 on 2026-10-16 and put back, both
-> read over AWJ (0.17.3 above has what else that box taught me). On Midra, the Timeline's GO, the
-> Layer tab's edits and the Memories panel's own buttons have written to the simulators only.
-> The Console, on the Pulse 4K, and the Layer tab, on the RS4, are the only panels to have written
-> to a real box.
+> **Still untested on hardware:** on LivePremier, the panels that have written to a real box are
+> the Layer tab (one preview opacity on an **Aquilon RS4**, 6.1.60, 2026-10-16) and, on an
+> **Aquilon C mini** (6.2.73, 2026-10-30), the Layer tab, Memories, the Console and the timeline's
+> GO, every write read back over AWJ (0.17.3 above has what else the RS4 taught me). Everything
+> else has written to the simulator only. On Midra, the Timeline's GO, the Layer tab's edits and
+> the Memories panel's own buttons have written to the simulators only, and the Console, on the
+> Pulse 4K, is the one panel to have written to a real one.
 
 [![A tour of LivePremier Plus: the Edit page, Companion, layer groups, matrix routing, the VPU map, the Console and the Timeline](docs/video-thumb.png)](https://www.youtube.com/watch?v=gYI1xJLEYXE)
 

@@ -2538,12 +2538,13 @@ live, both panels render, the setup flow works, and a cue stack survives a
 reload. **Cue persistence had never once executed before that** — the
 extension's `chrome.storage` broker was never exercised.
 
-Still barely covered: **one panel write has reached a physical LivePremier**,
-a preview opacity the Layer tab set on an Aquilon RS4 (6.1.60) on 2026-10-16
-and put back, both read over AWJ. The panels were opened against a live
-Aquilon C on 2026-09-10, and the Console's lines typed at a live Pulse 4K on
-2026-09-13 are the only other panel writes to real hardware; see the README's
-Status. The launcher has never been run as a real native tray window (its bundled chain was verified headlessly
+Still thinly covered on LivePremier hardware: an Aquilon RS4 (6.1.60) took
+one preview opacity from the Layer tab on 2026-10-16, and an Aquilon C mini
+(6.2.73) on 2026-10-30 took the Layer tab, Memories, the Console and the
+timeline's GO, each read over AWJ and the whole store diffed clean afterwards.
+The panels were opened against a live Aquilon C on 2026-09-10, and the
+Console's lines typed at a live Pulse 4K on 2026-09-13 are the other panel
+writes to real hardware; see the README's Status. The launcher has never been run as a real native tray window (its bundled chain was verified headlessly
 — embedded Node, staged app, proxying with injection).
 
 ## Related work
