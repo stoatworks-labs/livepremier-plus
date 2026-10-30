@@ -118,7 +118,10 @@ export function createNamesPanel({ target, session, storage, log, win = window }
       h('div', { class: 'aw-flex-row-center-v-space-between aw-gap-col-medium', style: { flexWrap: 'wrap' } },
         h('div', { class: 'aw-font-subtitle-1', text: 'What a computer plugged into each input sees' }),
         h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
-          button(todo.length ? `Name ${todo.length} ${todo.length === 1 ? 'plug' : 'plugs'}` : 'All named', {
+          /* "All named" only when there is a name to have: with no label and no
+             short name anywhere it said so over cards reading "no label". */
+          button(todo.length ? `Name ${todo.length} ${todo.length === 1 ? 'plug' : 'plugs'}`
+            : (list || []).some((r) => r.bytes) ? 'All named' : 'Nothing to name', {
             disabled: blocked || !todo.length,
             title: 'Give every plug that is out of date its name and serial, one at a time',
             onClick: () => run('name', todo)

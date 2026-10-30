@@ -578,6 +578,70 @@ test('the tab draws A1’s layers, names, look and preview, and a screen’s han
 });
 
 /*
+ * An Update in place uploads into the slot it already holds and writes the
+ * layer as it already is. Its journal used to replace the put's, so Undo said
+ * the layers were as they were and left the UMD up (Aquilon C mini,
+ * 2026-10-30). Driven through the tab, as an operator would.
+ */
+test('after an Update in place, Undo still takes the UMD down', async () => {
+  const dom = install();
+  const fetchBefore = globalThis.fetch;
+  const offscreenBefore = globalThis.OffscreenCanvas;
+  const store = auxStore();
+  const { session, uploads, fetchImpl } = standIn(store);
+  globalThis.fetch = async (url, init) => (String(url) === '/api/device/images/upload'
+    ? fetchImpl(url, init)
+    : { ok: false, status: 404, json: async () => ({}), text: async () => '' });
+  /* A canvas that draws nothing and hands back a PNG's first bytes. */
+  globalThis.OffscreenCanvas = class {
+    getContext() {
+      return new Proxy({}, {
+        get: (t, k) => (k === 'measureText' ? (s) => ({ width: String(s).length * 8 }) : (k in t ? t[k] : () => {})),
+        set: (t, k, v) => { t[k] = v; return true; }
+      });
+    }
+    async convertToBlob() { return png(); }
+  };
+  try {
+    const tabs = [];
+    const { default: activate } = await import('../plugins/umd/client.js');
+    await activate({
+      id: 'umd', session, can: () => true, refresh() {}, url: (p = '/') => `/__lpp/umd${p === '/' ? '' : p}`,
+      use: () => null, provide() {}, share() {},
+      log: { info() {}, warn() {} },
+      ui: { tab: (e) => tabs.push(e), sidebar() {}, settingsSection() {} }
+    });
+    const settle = async (done) => { for (let i = 0; i < 300 && !done(); i++) await new Promise((r) => setTimeout(r, 10)); };
+    const press = (label) => {
+      const b = tabs[0].render().querySelectorAll('button').find((x) => x.textContent === label);
+      assert.ok(b, `${label} is offered`);
+      b.click();
+    };
+    const l8 = () => at(store, 'auxiliaryList', 'items', 'A1', 'presetList', 'items', 'B', 'layerList', 'items', '8', 'source', 'pp', 'inputNum');
+
+    press('Put on L8 · PRW');
+    await settle(() => l8() === 'STILL_48');
+    assert.equal(l8(), 'STILL_48');
+    await settle(() => tabs[0].render().querySelectorAll('button').some((x) => x.textContent === 'Update UMD'));
+
+    press('Update UMD');
+    await settle(() => uploads.length === 2);
+    await settle(() => tabs[0].render().querySelectorAll('button').some((x) => x.textContent === 'Undo'));
+    assert.equal(uploads.length, 2, 'the update uploaded again');
+
+    press('Undo');
+    await settle(() => l8() === 'NONE');
+    assert.equal(l8(), 'NONE', 'the UMD layer is empty again');
+    assert.equal(at(store, 'stillList', 'items', '48', 'control', 'pp', 'mode'), 'NONE', 'the still is given back');
+    assert.equal(at(store, 'stillList', 'library', 'bankList', 'items', '200', 'status', 'pp', 'isValid'), false, 'and the library slot');
+  } finally {
+    globalThis.fetch = fetchBefore;
+    globalThis.OffscreenCanvas = offscreenBefore;
+    dom.uninstall();
+  }
+});
+
+/*
  * On a Midra 4K the picture is the same arithmetic over the mng dialect's
  * layers, and only Download is offered: putting it on the switcher reads
  * LivePremier's library and stills. Against the Midra 4K simulator's store.

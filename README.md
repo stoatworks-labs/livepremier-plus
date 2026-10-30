@@ -213,8 +213,8 @@ bolted on afterwards:
   effect too. For a simulator or a spare box, not a show.
 - **Thumbnail relay** *(preview, off by default)*: the switcher's source thumbnails re-encoded
   as JPEG and shared between pages. That's a twentieth or less of the bytes the vendor's pages
-  would otherwise pull, and every Web RCS tab gets it without a change to the vendor's code. It
-  hasn't run against a real frame yet.
+  would otherwise pull, and every Web RCS tab gets it without a change to the vendor's code. On an
+  Aquilon C mini its output pictures went out at a hundredth of the bytes.
 - **Multiviewer thumbnails** *(preview, off by default)*: the switcher's multiviewer, captured or
   streamed into the browser, cut up into its sources and put into every thumbnail instead of the
   once-a-second PNGs, so you get live pictures at up to 25 frames a second. The store gives each
@@ -254,7 +254,8 @@ bolted on afterwards:
   input plug's EDID after the input's label, so the laptop on In3 calls its display "PPT MAIN"
   rather than AQL_HDMI, with the input's number as the serial so two plugs are two displays. The
   rest of the EDID stays as it is, a short name covers a label longer than the 13 characters an
-  EDID holds, and Undo puts the original back. Proven on the simulator only.
+  EDID holds, and Undo puts the original back. Run on an Aquilon C mini, with nothing plugged in
+  to see the name.
 
 ![Screens / Aux. with the Timeline tab open beside Properties and Memories: the demo cue stack, its standby cue and GO, inside the vendor's own page](docs/screenshots/screens-timeline.png)
 
@@ -284,7 +285,9 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.6.** The panels render inside a real Web RCS session and the
+> **Status: field testing, v0.18.7.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
+> user guide says, feature by feature, what has met real hardware and what hasn't. The panels
+> render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
 > 6.2.73, along with cue-stack persistence and the whole setup flow. The VPU map has been **read
 > from a live Aquilon C** and is tested against that capture, including Optimized mode,
@@ -406,6 +409,18 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.7 (2026-10-30).** A day on a real frame. Almost every panel ran on an Aquilon C mini,
+> preconfig included, and the user guide's [Feature status](docs/USER-GUIDE.md#feature-status)
+> now says what has met real hardware. Fixed on the way: the Timeline's new-cue form lost what was
+> typed on every repaint; a plugin switch on the settings page could turn OSC input back off; the
+> Edit page started on *Direct* where it can't work, and Load now says why it can't; Aux follow
+> could cut an aux's program on one click; Aux backgrounds sent the source shown before the pick;
+> the UMD Generator's Undo after an update did nothing; Pitch Compensation warns when a custom
+> canvas is too small for the ratios; Multiviewer thumbnails offers only the multiviewers a frame
+> has. New, off by default and previews: **Triggers**, **Lighting desk control** (Art-Net and
+> sACN), **grandMA3** and the **Desk** control surface. The desktop app embeds Node 22.23.4.
+> `docs/NOTES.md` has every run.
 >
 > **0.18.6 (2026-10-24).** **Plug names**, new and off until you switch it on. A Plug Names tab on
 > the EDID page writes each input's label into the EDID its plug already serves, and the input's
@@ -1243,8 +1258,9 @@ That's against the simulator, whose thumbnails are a few KB of flat colour, so t
 nothing to save and the card says so. A real frame's are tens of times the size, which is where
 the saving is.
 
-> ⚠️ **Preview: not yet run against a real frame.** Proved against the LivePremier Simulator,
-> with a stand-in serving hardware-shaped thumbnails. `node tools/snapshot-probe.mjs --device <ip>`,
+> Run on an Aquilon C mini (6.2.73, 2026-10-30): with its Outputs page open, 8.25 MB came from
+> the switcher in 35 seconds and 186 KB went to the page, each 148 KB output picture as a 1.2 KB
+> JPEG. That frame rewrites a thumbnail about once a second. `node tools/snapshot-probe.mjs --device <ip>`,
 > run from a checkout of this repo (the desktop app and the image don't carry `tools/`), measures
 > how often a real switcher rewrites a thumbnail, which is the number that decides what happens
 > next.
@@ -1326,8 +1342,8 @@ pixel-map pack with a recipe for QLab, Mitti, MadMapper and Watchout.
 [docs/BACKGROUNDS.md](docs/BACKGROUNDS.md) has the design, what's proven, and which of those
 formats each server actually imports.
 
-> ⚠️ **Preview: not yet run against a real frame.** Every write was proved on the LivePremier
-> Simulator, whose outputs are a static picture, so you can't see a background written there.
+> ⚠️ **Preview: written to a real frame once (an Aquilon C mini) and undone, never looked at.**
+> Every write was proved on the LivePremier Simulator, whose outputs are a static picture, so you can't see a background written there.
 > The cut is tested on every pixel. What the switcher does with a rotated, grouped, sliced or
 > pitched output hasn't been seen yet, and the panel marks every output that depends on it.
 
@@ -1795,9 +1811,10 @@ source's name. It's one PNG at the canvas's size, transparent everywhere else.
 > full canvas, no rescale) and the library's copy downloaded back with its transparency; a rename
 > marked it out of date; after a take, an update to program asked first and changed only that
 > tab's pixels; a screen's UMD arrived in the Background Slicer as its picture. LivePremier only
-> for writing. On a real frame only the screen path has run (Aquilon C mini, 2026-10-30: drawn,
-> handed to the Background Slicer, written and undone); that box has no aux, so whether a frame
-> keys the still's transparency over the layers under it is still the first thing to look at.
+> for writing. On a real frame (Aquilon C mini, 2026-10-30) the screen path ran (drawn, handed to
+> the Background Slicer, written and undone), and later an aux's: laid out, put on its top layer,
+> updated after a rename. Whether a frame keys the still's transparency over the layers under it
+> is still the first thing to look at.
 
 ## Test Card — preview
 
@@ -1838,7 +1855,9 @@ what it says about them: raster, place on the canvas, slices, turn and pitch. No
 > on one and then two outputs of a screen, a canvas card per output and across, one on program, a
 > pattern change and a rename on the switcher each one upload the still followed, and Off putting
 > everything back. The simulator draws no pictures, so nothing has been seen on an output, and a
-> rotated or pitched output is tested offline only. LivePremier only; not yet run on a real frame.
+> rotated or pitched output is tested offline only. LivePremier only. On an Aquilon C mini
+> (6.2.73, 2026-10-30) a card on an output and one on a two-output canvas went up, followed
+> changes and came down again; nothing was looked at on an output.
 
 ## Gallery
 

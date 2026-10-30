@@ -107,6 +107,11 @@ export default function activate(ctx) {
     const prw = get(banks.preview), prwSaid = get(banks.preview, true);
     const options = choices(store, [pgm, prw]);
     const value = picked.has(dest.id) ? picked.get(dest.id) : (prw || 'NONE');
+    /* Read again at the press, not taken from this drawing: a pick does not
+       redraw the row while its picker has focus (below), so the buttons drawn
+       before it would send the old value — NONE, on an Aquilon C mini on
+       2026-10-30, with LIVE_2 showing in the picker. */
+    const chosen = () => (picked.has(dest.id) ? picked.get(dest.id) : (get(presetBanks(store, dest.id).preview) || 'NONE'));
     const label = (v) => (options.find((c) => c.value === v) || { label: v || '—' }).label;
     const shows = (set, reported) => `${label(set)}${reported !== undefined && reported !== set ? ` (switcher reports ${reported})` : ''}`;
     const blocked = busy || !banks.reported || !banks.settled;
@@ -123,7 +128,7 @@ export default function activate(ctx) {
         }, options.map((c) => h('option', { value: c.value, selected: c.value === value ? 'selected' : null, text: c.label }))),
         button('To PRW', {
           disabled: blocked, title: `Put it on ${dest.id}’s preview (${banks.preview})`,
-          onClick: () => write(dest, 'preview', value)
+          onClick: () => write(dest, 'preview', chosen())
         }),
         button(isArmed ? 'Confirm — on air' : 'To PGM', {
           variant: 'danger', disabled: blocked,
@@ -131,7 +136,7 @@ export default function activate(ctx) {
           onClick: () => {
             if (!isArmed) { armed = dest.id; paint(); return; }
             armed = null;
-            write(dest, 'program', value);
+            write(dest, 'program', chosen());
           }
         })),
       !banks.settled ? note('', `${dest.id} is mid-take; this waits for it to land.`) : null,

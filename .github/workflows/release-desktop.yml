@@ -4,8 +4,9 @@ name: release-desktop
 # runtime + built app) for macOS (arm64 + x86_64), Windows (x86_64) and Linux
 # (x86_64), and attaches the installers to the release.
 #
-# macOS x86_64 is cross-compiled on the Apple-Silicon runner (macos-14) — the
-# Intel macOS runners are retired, so we never use macos-13.
+# macOS x86_64 is cross-compiled on the Apple-Silicon runner (macos-15) — the
+# Intel macOS runners are retired, so we never use macos-13, and macos-14 is
+# retired on 2 November 2026 (its brownouts already fail the job).
 #
 # Installers are unsigned by default. If the Apple signing/notarization secrets
 # are configured (see launcher/SIGNING.md) the macOS jobs produce a signed +
@@ -39,11 +40,14 @@ jobs:
           #
           # rust_target is what rustup installs: universal-apple-darwin is a
           # Tauri bundling target and `rustup target add` on it fails.
-          - { name: macos-universal, os: macos-14,       node_platform: darwin-universal, rust_target: 'aarch64-apple-darwin,x86_64-apple-darwin', tauri_target: universal-apple-darwin }
+          - { name: macos-universal, os: macos-15,       node_platform: darwin-universal, rust_target: 'aarch64-apple-darwin,x86_64-apple-darwin', tauri_target: universal-apple-darwin }
           - { name: windows-x86_64, os: windows-latest, node_platform: win-x64,      rust_target: x86_64-pc-windows-msvc }
           - { name: linux-x86_64,   os: ubuntu-22.04,   node_platform: linux-x64,    rust_target: x86_64-unknown-linux-gnu }
     steps:
+      # A dispatched run builds the tag it attaches to, not the branch it ran from.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v7
         with:

@@ -179,7 +179,7 @@ export const BUILTINS = [
     id: 'image-library',
     name: 'Image Library tools',
     where: 'The vendor’s Image Library and Images pages (preview)',
-    description: 'Delete every image in the library, or a selection of them; upload a zip of pictures into the free slots; and set a still’s capacity from a dropdown on its card on the Images page instead of in Preconfig ▸ Images. Every write asks first, and an image a still on program or preview shows is never deleted. Never yet run against a real frame.',
+    description: 'Delete every image in the library, or a selection of them; upload a zip of pictures into the free slots; and set a still’s capacity from a dropdown on its card on the Images page instead of in Preconfig ▸ Images. Every write asks first, and an image a still on program or preview shows is never deleted. Run on an Aquilon C mini: an upload, Select, Delete all and a capacity change.',
     requires: { capabilities: ['imageLibrary'] },
     /* Off until it has been: it deletes library images and applies still
        capacities, both on an operator's click and after a question. */
@@ -202,7 +202,7 @@ export const BUILTINS = [
     id: 'umd',
     name: 'UMD Generator',
     where: 'A tab on Screens / Aux., behind ⋯ when the strip is full (preview)',
-    description: 'Thin borders and dark name tabs drawn as one transparent PNG from where each layer is and what it shows, put on an aux’s top layer or handed to the Background Slicer for a screen — with 1, 3, 5 and 7-box layouts for an aux. Never yet run against a real frame.',
+    description: 'Thin borders and dark name tabs drawn as one transparent PNG from where each layer is and what it shows, put on an aux’s top layer or handed to the Background Slicer for a screen — with 1, 3, 5 and 7-box layouts for an aux. Run on an Aquilon C mini, on a screen and an aux; nobody has yet looked at what a frame draws.',
     requires: { capabilities: ['screens'] },
     /* Off until it has been: it uploads into the image library and writes a
        still and an aux's layers. */
@@ -214,7 +214,7 @@ export const BUILTINS = [
     id: 'test-card',
     name: 'Test Card',
     where: 'A Test Card tab beside the switcher’s own Pattern tab, on Setup ▸ Outputs ▸ an output and on Preconfig ▸ Canvas (preview)',
-    description: 'Test Card’s patterns — SMPTE and EBU bars, grids, alignment, LED tiles, greyscale, pixel checks, rulers, life-size dinosaurs and a broken wall — drawn for the switcher’s own outputs and canvases and put on a screen’s or an aux’s top layer as a still, over everything, like the built-in patterns. While a card is on it follows: change the pattern, an option or an output’s format and it is drawn again into the same library slot. Off puts back exactly what was there. Never yet run against a real frame.',
+    description: 'Test Card’s patterns — SMPTE and EBU bars, grids, alignment, LED tiles, greyscale, pixel checks, rulers, life-size dinosaurs and a broken wall — drawn for the switcher’s own outputs and canvases and put on a screen’s or an aux’s top layer as a still, over everything, like the built-in patterns. While a card is on it follows: change the pattern, an option or an output’s format and it is drawn again into the same library slot. Off puts back exactly what was there. Run on an Aquilon C mini, on an output and a canvas; not yet looked at on an output.',
     requires: { capabilities: ['screens', 'imageLibrary'] },
     /* Off until it has been: it uploads into the image library and writes a
        still and a destination's top layer, on program if asked. */
@@ -456,7 +456,7 @@ export const BUILTINS = [
     id: 'snapshot-relay',
     name: 'Thumbnail relay',
     where: 'Settings (preview), and every source thumbnail',
-    description: 'The switcher’s source thumbnails re-encoded as JPEG and shared between pages — about a twentieth of the bytes. Never yet run against a real frame.',
+    description: 'The switcher’s source thumbnails re-encoded as JPEG and shared between pages — about a twentieth of the bytes. Run on an Aquilon C mini: its output thumbnails went out at a hundredth of the bytes.',
     /* Off until it has been: it sits in front of every thumbnail the vendor's
        own pages draw. */
     enabledByDefault: false,
@@ -478,7 +478,7 @@ export const BUILTINS = [
     id: 'bg-slicer',
     name: 'Background Slicer',
     where: 'Sidebar, under PLUS (preview)',
-    description: 'One picture cut into pixel-exact backgrounds across screens and their outputs, put into the image library and a background set — per output on a LivePremier, per screen on a Midra 4K or Alta 4K — or each output fed live from an input, with the output map for Resolume, disguise, Pixera and the rest. Opens a PDF, or a PowerPoint or Keynote deck, too: each page as a background set of its own, or as a still at any size. Never yet run against a real frame.',
+    description: 'One picture cut into pixel-exact backgrounds across screens and their outputs, put into the image library and a background set — per output on a LivePremier, per screen on a Midra 4K or Alta 4K — or each output fed live from an input, with the output map for Resolume, disguise, Pixera and the rest. Opens a PDF, or a PowerPoint or Keynote deck, too: each page as a background set of its own, or as a still at any size. Written to an Aquilon C mini once and undone; not yet looked at on an output.',
     requires: { capabilities: ['backgroundSets'] },
     /* Off until it has been: it uploads into the image library and writes
        stills, still capacities and background sets. */
@@ -525,7 +525,7 @@ export const BUILTINS = [
     id: 'edid-names',
     name: 'Plug names',
     where: 'A Plug Names tab on the vendor’s EDID page',
-    description: 'Each input plug’s EDID under the input’s label, so a computer plugged into it sees “PPT MAIN” rather than AQL_HDMI, and the input’s number as its serial, so two plugs are two displays. The rest of the EDID stays as it is. Never yet run against a real frame.',
+    description: 'Each input plug’s EDID under the input’s label, so a computer plugged into it sees “PPT MAIN” rather than AQL_HDMI, and the input’s number as its serial, so two plugs are two displays. The rest of the EDID stays as it is. Run on an Aquilon C mini, with no computer plugged in to see the name.',
     requires: { capabilities: ['plugEdid'], plugins: ['edid'] },
     /* Off until tested on a frame: each write is a hot-plug for whatever is
        connected to that input. The tab lives on the EDID builder's strip. */

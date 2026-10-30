@@ -23,6 +23,7 @@ import { dialectFor } from '../../src/core/dialect.js';
 import { listDestinations, readLayers, presetBanks } from '../../src/core/screens.js';
 import { bankLetter } from '../../src/core/properties.js';
 import { readLibrary, readStills } from '../../src/core/stills.js';
+import { same } from '../../src/core/wire.js';
 import {
   normalise, normaliseDest, withDest, targetOf, labelsFor, layerPlan, readBoxes, layout, fingerprint,
   templatesFor, templateById, fileName, roughMeasure, sourceNames, boxText, layerPath
@@ -200,7 +201,13 @@ export default function activate(ctx) {
           session: ctx.session, dest: m.dest, letter: m.bank.letter, layer: carrier, blob,
           placed: m.entry.placed, assignedSlots, onStep: step
         });
-        if (res.journal.uploads.length || res.journal.stills.length || res.journal.writes.length) run.journal = res.journal;
+        /* An update in place uploads into the slot it already holds and writes
+           the layer as it already is, so its journal takes nothing back. Kept,
+           it would replace the put's, and Undo would say the layers are as they
+           were with the UMD still up (Aquilon C mini, 2026-10-30). */
+        const changed = res.journal.uploads.length || res.journal.stills.length
+          || res.journal.writes.some((w) => !same(store.get(w.path), w.value));
+        if (changed) run.journal = res.journal;
         if (!res.ok) throw new Error(res.error);
         change(withDest(doc, id, { placed: { ...res.placed, fingerprint: m.print } }));
       });

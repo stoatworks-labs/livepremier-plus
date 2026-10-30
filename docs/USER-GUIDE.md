@@ -73,7 +73,8 @@ than something bolted on.
   or 2X2, each plug loaded with its tile EDID.
 - **Plug names** *(preview, off by default)*: each input plug's EDID renamed after the input's
   label, so the laptop on In3 says "PPT MAIN" in its display settings instead of AQL_HDMI, and
-  numbered with the input, so two plugs are two displays. Not yet tried on a real frame.
+  numbered with the input, so two plugs are two displays. Tried on one real frame, with nothing
+  plugged in to see it.
 - **Pitch Compensation:** the H and V ratios a screen spanning LED walls of different pitches
   needs, worked out from the pitches you give it.
 - **OSC input:** QLab, TouchOSC, a lighting desk or Companion driving the switcher over UDP, with
@@ -106,7 +107,7 @@ than something bolted on.
   from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a
   Keynote deck becomes a background set per page, or a still per page at any size. Off until you
   switch it on.
-- **Thumbnail relay** and **Multiviewer thumbnails** *(preview)*: lighter source thumbnails, or
+- **Thumbnail relay** and **Multiviewer thumbnails** *(the second a preview)*: lighter source thumbnails, or
   live ones cut from a multiviewer. Both are off until you switch them on.
 - **Remote access:** the app served over Tailscale (with a real HTTPS certificate) or ZeroTier,
   without binding it to the venue LAN.
@@ -149,10 +150,10 @@ connection of their own when they act, which is worth knowing, because the switc
 > mini** has since taken writes from the Layer tab, Memories, the Console and the timeline, whose
 > GO has now fired at real hardware.
 >
-> **The Edit page and Companion (0.10.0, 0.11.0) have been proven on simulators and a running
-> Companion 5.0.5, not on a physical switcher.** Two of their limits are worth knowing now. The
-> Edit page's *direct* save hands the switcher a file path that the switcher resolves, so it's
-> unproven on real hardware (its *via preview* route works anywhere). And Companion can't add the
+> **The Edit page (0.10.0) has run on an Aquilon C mini, and Companion (0.11.0) on a running
+> Companion 5.0.5.** Two of their limits are worth knowing now. The Edit page's *direct* save hands
+> the switcher a file path that the switcher resolves, so on a frame it needs a shared directory and
+> is otherwise refused, saying so (its *via preview* route works anywhere). And Companion can't add the
 > LivePremier Plus connection until a Companion module for this app exists. The **Pixelhue panel**
 > has met one real console, a U5 mini, which turned it away at the wrong address (0.18.1 is the
 > fix) and then showed blank keys (0.18.2 is the answer), both below.
@@ -167,6 +168,18 @@ connection of their own when they act, which is worth knowing, because the switc
 > **0.15.0 adds Layer Lock, HyperDecks, the EDID builder, Mosaic inputs, Pixelhue Mapping and the
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
+>
+> **0.18.7 is a day on a real frame, and what it found.** Almost every panel ran on an Aquilon C
+> mini, preconfig included, and [Feature status](#feature-status) now says, per feature, what has
+> met real hardware. Fixed on the way: the Timeline's new-cue form kept losing what was typed; a
+> plugin switch on the settings page could switch OSC input back off; the Edit page started on
+> *Direct* on a frame it can't work on; Aux follow could cut an aux's program on one click; Aux
+> backgrounds sent the source shown before the pick; the UMD Generator's Undo after an update did
+> nothing; Pitch now warns when a custom canvas is too small; Multiviewer thumbnails offers only
+> the multiviewers a frame has. Also new, all off by default and previews: **Triggers** (a cue
+> sends OSC, MIDI, Art-Net and sACN to the rest of the rig), **Lighting desk control** (a desk
+> drives the switcher over Art-Net or sACN), **grandMA3** through its own OSC, and the **Desk**
+> control surface. The desktop app embeds Node 22.23.4.
 >
 > **0.18.6 adds Plug names, off until you switch it on.** Each input's label goes into the EDID its
 > plug serves, and its number into the serial, so a laptop sees "PPT MAIN" instead of AQL_HDMI.
@@ -250,6 +263,75 @@ connection of their own when they act, which is worth knowing, because the switc
 > thumbnails are proven on the simulator only.
 >
 > Built with AI assistance, directed and reviewed by a human author.
+
+---
+
+## Feature status
+
+Where each feature stands, as of 0.18.7. Three words, used the same way everywhere:
+
+- **Tested**: run on the real hardware it's for (a LivePremier frame, or the panel, network or
+  program it talks to), every write read back from the switcher, and it did what this guide
+  says.
+- **Preview**: it works on simulators and stand-ins, but it hasn't met that hardware, or only part
+  of it has. Most previews are off until you switch them on.
+- **In development**: behind **Experimental features**. The switcher takes it and reports it back,
+  but nobody has yet seen what a frame does with it.
+
+The frames behind *Tested* are an Aquilon C mini (6.2.73), an Aquilon RS4 (6.1.60), an Aquilon C
+and a Pulse 4K. None of the C mini's outputs had a monitor, so nothing here was *looked at* on an
+output: where what you'd see is the point, that's said.
+
+| Feature | Status | On real hardware |
+|---|---|---|
+| Edit | Tested | Saves via preview, twice into one slot. Load and Direct say why they can't work without a shared directory. Direct itself is unproven on a frame. |
+| VPU Map | Tested | Read from an Aquilon C, an RS4 and a C mini. The C mini's mixers are labelled wrongly (NOTES). |
+| Console | Tested | Takes, stores, recalls and raw AWJ on a C mini; the first panel writes ever made were Console lines on a Pulse 4K. |
+| Timeline and Timecode | Tested | GO, double GO and a streamed timecode chase on a C mini. MIDI Time Code and LTC from real sources haven't been tried. |
+| Memories | Tested | Save, rename, erase and recall on a C mini. |
+| Layer and layer names | Tested | An RS4 and a C mini. |
+| Layer Groups and Send to | Tested | Across screens, to preview and program, on a C mini. |
+| Layer Lock | Tested | Locks and Take only on a C mini, with no live source plugged in. |
+| Preview lock during takes | Tested | A C mini, including the T-bar left mid-way. |
+| Pixel Map | Tested | A C mini's own library. |
+| Surfaces | Tested | A C mini. |
+| UMD Generator | Preview | On a C mini's screen and aux, read back; whether a frame keys the transparency hasn't been looked at. |
+| Test Card | Preview | On a C mini's output and canvas, following changes; not yet looked at on an output. |
+| Image Library tools | Tested | A zip upload, Select, Delete all and capacity changes on a C mini. |
+| Aux follow | Tested | Program mode on a C mini, with every change made from outside. *Program and preview* hasn't met a frame. |
+| AoI from a custom format | Tested | A C mini's HDMI outputs. Not yet over an SDI card. |
+| Pitch Compensation | Tested | A C mini, two outputs. It writes the ratios only. |
+| Resolume Mapping | Preview | Simulator only. |
+| Matrix Routing | Preview | A Videohub emulator only. |
+| Audio Matrix | Tested | A C mini. |
+| HyperDecks | Preview | A real Mitti; an emulated HyperDeck, not a real one. |
+| Triggers | Preview | Pretend receivers only. |
+| Dante | Preview | A simulated network only. |
+| Companion | Tested | A running Companion 5.0.5. The LivePremier Plus connection waits on a Companion module. |
+| EDID builder | Tested | Saving to the bank and From Formats on a C mini. |
+| Mosaic inputs | Preview | Grouping and the tiles on a C mini; no Mac has bonded its outputs through it yet. |
+| Plug names | Preview | On a C mini, read back; no computer has been plugged in to see the name. |
+| OSC input | Tested | A C mini. |
+| Field arithmetic and Variables | Tested | 6.2.73 fields on a C mini. 6.1.x only by its web page, not on a frame. |
+| Setup file | Tested | Nothing on the frame to prove; it saves and loads this app's own settings. |
+| Remote access | Tested | Real Tailscale and ZeroTier, with a simulator behind. |
+| MIDI Mapping | Preview | No physical controller has been attached yet. |
+| Speed Editor | Preview | A real Speed Editor over USB against the simulator, not yet against a frame. |
+| Pixelhue panel | Preview | PixelFlow's virtual U5 against a C mini; a real U5 mini connected but showed blank keys. |
+| Barco EC panel | Preview | A pretend panel only. |
+| ATEM Micro Panel | Preview | A pretend panel only. |
+| Lighting desk control | Preview | MagicQ PC and a pretend desk, against the simulator. |
+| grandMA3 | Preview | grandMA3 onPC against the simulator; no wing or desk. |
+| Desk (control surface) | In development | No desk exists yet; a pretend controller only. |
+| Thumbnail relay | Tested | A C mini: its output pictures went out at a hundredth of the bytes. |
+| Multiviewer thumbnails | Preview | Its test pattern on a C mini's real multiviewer layout; no real capture or stream yet. |
+| Background Slicer | Preview | Written to a C mini once and undone; not looked at on an output. |
+| Transitions | In development | Every write and the take's timing on a C mini; what an output draws hasn't been seen. |
+| Layer Lock: Take only with a time and an effect | In development | A 2 s take with its own effect on a C mini, the screen's time put back after; not looked at. |
+| Aux backgrounds | In development | Taken and reported back by an RS4 and a C mini; not looked at. |
+| UMD Generator on an aux's background | In development | Simulator only. |
+
+The [Experimental features](#experimental-features) section has more on the last four.
 
 ---
 
@@ -401,7 +483,8 @@ tells you so rather than just passing on the switcher's error.
 > On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a two-layer look saved via preview into an
 > empty slot, then a different look saved over it. Each time preview showed the look for under two
 > seconds and was put back, program never moved, and recalling the slot afterwards gave the second
-> look. Load there said why it couldn't. Direct hasn't been tried on a real frame.
+> look. Load there said why it couldn't, and so did Direct: the switcher couldn't read the file,
+> nothing was written, and the page said to use Via preview.
 
 ---
 
@@ -915,7 +998,7 @@ The surfaces and bindings are kept per switcher by this app and go into the setu
 
 **Screens / Aux. ▸ ⋯ ▸ UMD**, once it's switched on in **Preconfig ▸ LivePremier Plus →
 Plugins**. It's off to start with because it uploads into the image library and writes a still
-and an aux's layers, and it hasn't met a real frame yet.
+and an aux's layers, and it has only met one real frame so far.
 
 It draws a multiviewer's furniture (a thin line round each box and a dark tab with the source's
 name) as one transparent PNG the size of the screen or aux, from where its
@@ -972,6 +1055,10 @@ into the setup file under *UMDs*.
 > handed to the Background Slicer. On a real frame (Aquilon C mini, 6.2.73, 2026-10-30) the screen
 > path ran: a named box drawn, handed to the Background Slicer, written and undone (that box has
 > no aux, so the aux path and whether a frame keys the still's transparency are still unseen).
+> Given an aux of two layers later the same day: a one-box inset laid out, the UMD put on its top
+> layer, a rename caught as out of date and updated, all read back over AWJ. Undo after that update
+> did nothing and said the layers were as they were. It now keeps Undo able to take the UMD down.
+> Whether the frame keys the transparency still hasn't been looked at.
 
 ---
 
@@ -1065,7 +1152,8 @@ layers, cut per output.
 - **The image library's size counter** never drops a replaced file, on the simulator or on a real
   frame, and Off doesn't give that back. On an Aquilon C mini the vendor's own Image Library header
   went from 91 kB to 354 kB for one card and two changes of pattern, and stayed there. A picture
-  uploaded once and deleted gives its space back; it's the replacing that sticks. A card that's
+  uploaded once and deleted gives its space back; it's the replacing that sticks, and not even
+  Delete all gives it back: the same box's library read 875 kB with nothing in it. A card that's
   followed a lot of changes may be using more of the library than the slot count says.
 
 The pattern, its options, which cards are on and what Off puts back are kept per switcher by this
@@ -1084,7 +1172,12 @@ app and go into the setup file under *Test cards*.
 > On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a card on Output 1 went onto S1's top
 > layer in preview, from the last free still and library slot, with program and the library's
 > other pictures untouched. A change of pattern was uploaded again and the still followed with no
-> layer write, and Off put the layer, the still and the slot back. Not yet looked at on an output.
+> layer write, and Off put the layer, the still and the slot back. A canvas card on a two-output
+> screen (4800 × 1620, one output pitched) was refused until a still was given 4K capacity, then
+> went up as one 4800 × 1620 still and followed a change of layout. Not yet looked at on an output.
+>
+> When it says **every free still is too small**, give one a bigger capacity and then switch the
+> card off and on again: it doesn't try again by itself, and the switch shows *On* meanwhile.
 
 ---
 
@@ -1130,8 +1223,11 @@ delete; the question says so.
 > C mini, 6.2.73, 2026-10-30): a zip of three pictures went into the three free slots in name
 > order, with the litter left out quietly and a `.txt` named with its reason; then Select picked
 > just those three, the question named them, and they were deleted, with the library's other
-> pictures untouched. The capacity dropdowns read what the switcher said. Delete all and a capacity
-> change haven't been run on a real frame.
+> pictures untouched. A capacity change went through: Image 5 to 4K took the empty Image 6 out of
+> service, as the question said, and back to Dual gave it back; Image 1 to 4K was refused because
+> it would have taken Image 2, which holds a picture. Delete all emptied the library: the question
+> named the two stills showing its pictures, they went empty, and putting the same files back into
+> the same slots brought the stills back by themselves.
 
 ---
 
@@ -1155,7 +1251,11 @@ time it acts on what it finds rather than on a change.
 > LivePremier only. Proven on LivePremier Simulator 6.2.73 on 2026-10-20, with the changes made
 > from outside the page: preview edits left alone, a take followed onto the aux's own program
 > letter, a direct program edit followed, both roles mirrored, and an aux taken alone not fought.
-> Not yet on a real frame.
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30), Program only, every change made from
+> outside: a take on the screen cut the aux's program about 0.4 s after it landed, a direct program
+> edit about 0.6 s after, and an aux changed by hand was left alone. There, a Follow staged while
+> the programs agreed and pressed after they stopped agreeing cut on the first click. It now asks
+> the second time.
 
 ---
 
@@ -1176,8 +1276,9 @@ still do those.
 
 > Proven on LivePremier Simulator 6.2.73 on 2026-10-20: the simulator's own 3000×1000 `LEDwall`
 > refused on a 1080p output, then centred on a 3840×1080 output, with the switcher reporting
-> 3000×1000 at 420, 40 and its own fields and canvas redrawn to match. Not yet over a real SDI
-> card, or on a real frame.
+> 3000×1000 at 420, 40 and its own fields and canvas redrawn to match. On a real frame (Aquilon C
+> mini, 6.2.73, 2026-10-30, HDMI outputs): a 1600×600 custom format centred on a 1080p output,
+> 1600×600 at 160, 240 by the switcher's own fields too. Not yet over a real SDI card.
 
 ---
 
@@ -1649,7 +1750,9 @@ group.
 > ⚠️ **Grouping is a preconfig change.** It copies the running preconfig, sets the group, has the
 > switcher check it and applies it, the same steps Preconfig ▸ Inputs sends, and there's no undo in
 > the window: put an input back to single in Preconfig ▸ Inputs. LivePremier only, and proven on
-> the simulator only; no Aquilon has bonded a Mac's outputs this way yet.
+> the simulator only for a Mac; on an Aquilon C mini (6.2.73, 2026-10-30) IN_1 + IN_2 were
+> grouped 2X1 and each plug served its 3072 × 2160 tile in about 23 seconds, with nothing plugged
+> in. No Aquilon has bonded a Mac's outputs this way yet.
 
 ### Plug names
 
@@ -1695,8 +1798,10 @@ timings, and it's refused rather than having a timing thrown out to make room.
 
 The write is the one the switcher's own EDID page sends when you drop a bank slot onto an input,
 and the switcher reads the new name and serial back itself. LivePremier only: a Midra 4K or Alta 4K
-plug takes a requested format, not an EDID written to it. Proven on the simulator only; no Aquilon
-has been renamed this way yet.
+plug takes a requested format, not an EDID written to it. On an Aquilon C mini (6.2.73,
+2026-10-30) In3 named PPT MAIN came back from the switcher as PPT MAIN, serial 3, with its mode
+unchanged, and Undo gave it AQL_HDMI, serial 0 again. Nothing was plugged in, so no computer has
+seen one yet.
 
 ---
 
@@ -1719,6 +1824,10 @@ pixels really aren't square.
 - **Applying takes two presses.** It's a preconfig change that moves every output on the screen at
   once, so it ought to be hard to hit by accident. If the switcher already holds the computed
   ratios, the button says so and does nothing.
+- **It writes the ratios and nothing else.** With the screen's canvas on **Auto** (Preconfig ▸
+  Canvas) the switcher grows the canvas to the **Screen canvas** shown here. On a custom size it
+  doesn't, the pitched outputs run off it, and the panel says so: set it to Auto, or at least that
+  big. The outputs' positions are yours to set, as before.
 
 ![Pitch compensation on S1: output 1 at 2.6 mm as the reference, output 3 at 3.9 mm taking 1.500 H and V, and a 4800 × 1620 canvas](screenshots/pitch.png)
 
@@ -2021,8 +2130,11 @@ Its card in Preconfig ▸ LivePremier Plus has the five settings and what the re
 That's the simulator, whose thumbnails are a few KB of flat colour, so there's hardly anything to
 save. A real frame's are tens of times the size.
 
-> ⚠️ **Proven on the simulator only.** A hot refresh faster than the switcher redraws its
-> thumbnails just fetches the same picture again. `node tools/snapshot-probe.mjs --device <address>`,
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): with the Outputs page open, 8.25 MB came
+> from the switcher in 35 seconds and 186 KB went to the page. Each 147,925-byte output picture
+> went as a 1,199-byte JPEG, and the 411-byte placeholders of inputs with no signal went on as
+> they were, since a JPEG of them is bigger. That frame rewrites a thumbnail about once a second,
+> so a hot refresh faster than that just fetches the same picture again. `node tools/snapshot-probe.mjs --device <address>`,
 > run from a checkout of the repo, measures how fast that is, so run it against a moving source before raising **Hot refresh**. The
 > switcher still sends each thumbnail it's asked for in full; the saving is largest for a page on
 > another machine.
@@ -2074,8 +2186,11 @@ already streaming something else, since it's the unit's only one. Set the browse
 If the capture stops, or a source leaves the multiviewer, its thumbnails go back to the switcher's
 own within three seconds. Set a browser to **Off** at any time to have them all back.
 
-> ⚠️ **Proven on the simulator only**, with the test pattern. It hasn't seen a real multiviewer
-> output yet, and the simulators never start a stream, so starting the streamer is untested.
+> ⚠️ **Not yet with a real capture or stream.** On a real frame (Aquilon C mini, 6.2.73,
+> 2026-10-30) the test pattern was drawn from its Multiviewer 1 (six widgets, 960×360 each), every
+> green box sat on its picture, and the sources it shows took their thumbnails from it while the
+> two that weren't on it kept the switcher's. It offers only the multiviewers a frame has fitted.
+> The simulators never start a stream, so starting the streamer is untested.
 
 ---
 
@@ -2414,15 +2529,26 @@ Use them on a simulator or a spare box, not in a show.
 
 > Proven on LivePremier Simulator 6.2.73 (and the aux background on an Aquilon RS4's control
 > software too), every write read back. What a frame actually shows for any of them is the open
-> question, and [NOTES.md](NOTES.md) has the tests that would answer it.
+> question, and [NOTES.md](NOTES.md) has the tests that would answer it. On an Aquilon C mini
+> (6.2.73, 2026-10-30) the aux background took an input in preview and in program and reported it
+> back, with no monitor on the output to show what it drew. Picking a source and pressing **To
+> PRW** used to send the one shown before the pick; it now sends the pick.
+>
+> On the same frame, **Transitions** wrote every effect, direction and window it was given to
+> preview only and read back exactly (0.5 s of a 1.0 s take is 32768), and a wipe across the
+> screen gave two side-by-side layers the first and second halves of the take. **Take only with**
+> 2 s and a circle took one layer in 2 s by the switcher's own clock, put the screen's 1.0 s back
+> and preview after it had landed. Nobody watched an output, so what they look like is still the
+> question.
 
 ---
 
 ## Switching features off
 
 **Preconfig ▸ LivePremier Plus → Plugins** lists every feature this app adds, each with a switch.
-Everything is on until you switch it off, except the ones that haven't met a real frame yet,
-which start off: **Preview lock**, **Image Library tools**, **Surfaces**, **Aux follow**, **AoI
+Everything is on until you switch it off, except these, which start off because they hadn't met
+a real frame when they arrived, or write to the switcher on their own (several have met one since:
+[Feature status](#feature-status) says which): **Preview lock**, **Image Library tools**, **Surfaces**, **Aux follow**, **AoI
 from a custom format**, **Resolume Mapping**, **Aux backgrounds**, **Transitions**, **Experimental
 features**, and the
 **UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **Lighting

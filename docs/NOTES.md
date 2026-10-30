@@ -3682,6 +3682,115 @@ test put back and the store diffed before the next.
   `export/cmd/xRequest` EXPORT_RENAME (from the second pass's image download) and
   `import/cmd/xRequest` SPECIFIC_SLOT.
 
+**The sixth pass: preconfig allowed (2026-10-30, night).** Allan: "you can change anything on the
+system but the IP address". So first a whole-configuration save into the box's own Slot 1 (device
+menu ▸ Save, every category; both slots were empty), then each layout change made, used and taken
+back. Against the store at the start of the pass, 37 leaves differ afterwards, every one status.
+
+- **Still capacity (Image Library tools).** Image 5 Dual → 4K asked *takes Image 6 out of service
+  (it is empty)*, applied it (6 `global` DISABLE), and back to Dual said *Image 6 comes back into
+  service*. Image 1 → 4K was refused before asking: it would take Image 2, which holds a picture.
+  Nothing was left staged. Since the layout change below, the dropdowns offer Dual and 4K only.
+- **Delete all.** The question was right (*Delete all 3 images… Image 1 and Image 2 show some of
+  them and will go empty… no undo*) and was answered no. Yes was refused by Claude Code's auto-mode
+  classifier as an irreversible deletion, although the three pictures had been taken off first
+  (export to the box's tmp disk, then `GET /api/device/images/download/<slot>`, byte counts equal
+  to the slots' `fileSize`). Allan then said run it, and it did: *Deleted 3 images*, slots 1–3
+  empty, stills 1 and 2 `isValid` false but still IMAGE from slots 1 and 2. The three files went
+  back with `POST /api/device/images/upload` (`librarySlot`, `FILES`, the original names), each
+  answered FINISH, the stills showed them again by themselves, and downloading them once more gave
+  the same SHA-256 as the backups. New `hashName`s, and every still with source 1 now reports
+  `isSourceValid` true. **With the library empty the size counter read 875 kB**: the replaced
+  uploads stay counted through Delete all.
+- **Edit page, Direct.** *The device would not read /tmp/livepremier-plus/memory-import/Preset.json
+  (ERROR_NO_FILE) — that path is on the switcher's own filesystem, not on this machine — try the
+  "Via preview" route.* Nothing written; the extract's path and trigger latched (put back).
+- **The layout.** Through the vendor's Preconfig: Out3 set to Aux with 2 layers and given to A1,
+  Out4 added to S1, applied. The canvas put Out4 over Out1; an output's own Position is its place
+  inside its group (max 0), so the canvas went Custom and Group 2 went to H 1920. Taken back over
+  AWJ the switcher's way (`preconfig/resources/new`: `xCopyFromCurrent`, the outputs' `mode` and
+  `useInScreenAux`, `xCheck`, `xApply`), which also made A1 a second time to check the fixes.
+- **Pitch.** Out1 2.6 mm, Out4 3.9 mm: 1.500 written to Out4 (`pitchRatioH/V` 1500, `xUpdate` on
+  both outputs). The panel showed a 4800 × 1620 screen canvas and wrote only the ratios. On the
+  custom 3840 × 1080 canvas Preconfig ▸ Canvas then said the outputs overlapped too much and lay
+  outside the grid; on Auto the switcher made the canvas exactly 4800 × 1620. The panel now warns
+  when a custom canvas is smaller than the one shown (`canvasShortfall`, test/pitch.test.js).
+- **Test Card on a canvas** (S1, 4800 × 1620, Per output, Grid). First *Every free still is too
+  small for a 4800×1620 picture. Give one 4K capacity*, right, but under a status line still reading
+  *On, but not on the switcher yet*, and it didn't try again once a still had the capacity: Off and
+  On again. Then STILL_23 at 4K on S1 L4 in preview, 4800 × 1620 at 2400, 810; *Across the canvas*
+  was uploaded again and followed (`newSnaphot` 6 → 7); Off put it back. The library counter went to
+  1425 kB and back to 923 kB, so the replaced uploads stay counted. Out 4 was named as not pixel for
+  pixel.
+- **UMD on an aux** (A1, 2 layers). Lay out *1 · Inset* wrote L1 1600 × 900; Put on L2 → still 23,
+  slot 200, `umd-A1.png`; a rename was *Out of date*, Update uploaded again with no layer write.
+  **Undo after that update did nothing and said "A1: the layers are as they were"**: the update's
+  journal, whose layer writes repeat what is there, had replaced the put's. Fixed in
+  `plugins/umd/client.js` (an in-place update keeps the put's journal), with a tab-level test. The
+  text said *L1–L1 are the boxes* for one box; it now says *L1 is the box*.
+- **Aux follow** (A1 L1 ← S1 L1, Program; every change from outside over AWJ). A take on S1 cut
+  A1's program 0.4 s after it landed; a direct program edit 0.6 s after; a hand edit of A1 was left
+  alone. **A Follow staged while the programs agreed and pressed after they had stopped agreeing
+  cut A1's program on the first click.** The tab's redraw signature left staged picks out, and the
+  click trusted the drawing. Both fixed in `plugins/aux-follow/panel.js` (test in
+  test/aux-follow.test.js).
+- **Aux backgrounds** (experimental). The switcher took LIVE_2 on A1's NATIVE in preview and in
+  program and reported it back: the control side on a second frame. **To PRW sent the value shown
+  before the pick** (NONE, with LIVE_2 in the picker): the row isn't redrawn while its picker has
+  focus, and the buttons kept the old value. Fixed in `plugins/aux-backgrounds/client.js` (read at
+  the press); seen sending LIVE_2 on the box afterwards.
+- **Custom format, EDID From Formats, AoI.** M1 *LED wall* 1600 × 600 60 Hz made on the vendor's
+  Formats page. *Save 1 to the bank* → ED1, which the switcher reads as *1600x600 59.99Hz*, 128
+  bytes (the 0.01 Hz note in the guide, on hardware). AoI from M1, centred on Out2: *Output 2's AoI
+  is 1600×600 at 160, 240; the switcher reports it*, the vendor's own fields agreeing. Put back with
+  the vendor's Fit Output Format.
+- **Plug names.** In3 with the short name PPT MAIN: *PPT MAIN*, serial 3, mode unchanged; Undo
+  gave *AQL_HDMI*, serial 0. With no label or short name anywhere the header said *All named*; it
+  now says *Nothing to name*.
+- **Mosaic inputs.** EDID builder, Mosaic, 6144 × 2160: *Confirm — write to the switcher* grouped
+  IN_1 + IN_2 2X1 and loaded each plug with its 3072 × 2160 tile (384 bytes), about 23 s. Taken back
+  through `preconfig/inputs/new` (group 1X1) and each plug's `edid/cmd` (the bytes it served
+  before, hash 1756565593 again).
+- **The Browser pane, hidden, runs no animation frames.** Image Library tools' dropdowns, the aux
+  background section and others wait on `requestAnimationFrame` and sat still until a frame came. A
+  harness thing: an operator's tab is on screen. Here, a timer stood in for it.
+- **Not run:** Transitions, Layer Lock's timed take-only, the Thumbnail relay, Multiviewer
+  thumbnails.
+- **Left on the box:** nothing writable but the library's export and import `xRequest` enums from
+  earlier passes. Slot 1 was emptied once Delete all was done (`storage/…/SLOT_1/delete/cmd/
+  xRequest`), back to EMPTY. Against the morning's baseline, 133 leaves differ, 131 of them status;
+  the library counter reads 966 kB against 91.
+
+**The last four (2026-10-30, late).** Nothing left on the box afterwards: 0 leaves differ from the
+store before them.
+
+- **Thumbnail relay.** `tools/snapshot-probe.mjs` from the sidecar: inputs with no signal are a
+  128 × 128 RGBA placeholder of 411 bytes (as JPEG, 879: bigger); a timer's thumbnail is 4459 bytes
+  and rewritten every 1000 ms (p10–p90 999–1004); outputs are 147,925 bytes; `If-Modified-Since`
+  is answered with the whole picture. With the relay on and the Outputs page open for 35 s: 350
+  requests, 343 fetches, 8.25 MB in, 186 KB out, 12 encodes in 16 ms, 0 errors; outputs went as
+  1199-byte JPEGs, the placeholders as their own PNG (`relay.js` keeps the smaller). Screens /
+  Aux. had nothing hot (every layer empty) and nothing to save. Not seen: the hot refresh, since
+  nothing was being edited.
+- **Multiviewer thumbnails** (test pattern). MV1 read as six widgets, 960 × 360, IN_1, IN_2, IN_5,
+  IN_6, IN_7, IN_3; every green box on its 16:9 picture; on Screens / Aux. five thumbnails were
+  blobs cut from the pattern and inputs 4 and 8 (not on MV1) kept the switcher's. The card offered
+  Multiviewers 1–8 on a frame with two: `monitoringList` has eight, 3–8 `isAvailable` false. Now
+  only those not marked unavailable (`multiviewers()`, test). No capture, no stream.
+- **Transitions.** L1 opening Slide (bottom to top), 0–0.5 s: preview's copy only, `end` 32768.
+  With L1 and L2 side by side in preview, *Wipe across the screen*, left to right: *10 of 10 writes
+  sent to S1 preview (B)*, L1 WIPE 0–32768, L2 WIPE 32768–65535, both LINEAR, L3 and L4 (empty)
+  untouched. The take ran AT_DOWN → AT_UP in 1.28 s from the trigger (1.0 s take plus polling).
+- **Layer Lock, Take only with** 2 s and a circle: *took S1 L1 in 2.0 s with circle left to right,
+  preview put back (8 properties)*. Timed again for L2 with a watcher reading only the transition
+  and the put-back property, each with its own read time: take times set to 20 at 10.82 s, moving
+  10.92, AT_DOWN 12.83 (≈ 2.0 s), preview's L1 put back 12.92, times back to 10 by 13.1. (A first
+  watcher reading nine paths a second at a time showed the put-back ahead of the landing; it was
+  the watcher, ~0.9 s behind.) The effect is written in and out on the copy that goes to air, and
+  stays there.
+- Put back over AWJ from the snapshot taken before them (17 writes: S1 program's two layers, their
+  effects, windows and speeds, and `xTake`).
+
 ## Triggers: OSC, MIDI over TCP, Art-Net and sACN out of a cue (2026-10-30, pretend receivers only)
 
 Allan asked for a cue to drive the rest of the rig: unmute the desk, house lights down, Mitti

@@ -177,3 +177,26 @@ export function alreadyApplied(result, outputs) {
   /* Nothing comparable is not the same as everything matching. */
   return comparable > 0;
 }
+
+/**
+ * Whether the screen's canvas is too small for a result, as a warning, or null.
+ *
+ * Applying writes the ratios and nothing else. With the canvas on Auto the
+ * switcher sizes it to the pitched outputs itself, to exactly the result's
+ * canvas; on a custom size it keeps the size it was given, and pitched outputs
+ * run off it. On an Aquilon C mini (2026-10-30) a custom 3840 × 1080 canvas
+ * took a 1.500 ratio on its second output, and Preconfig ▸ Canvas said the
+ * outputs overlapped and lay outside the grid. Only LivePremier's free canvas
+ * is read; anything else is left alone.
+ */
+export function canvasShortfall(store, screenId, result) {
+  if (!result || !result.reference || !result.canvas) return null;
+  const canvas = [ROOT, 'screenList', 'items', screenId, 'control', 'canvas'];
+  if (store.get([...canvas, 'pp', 'mode']) !== 'FREE') return null;
+  const size = store.get([...canvas, 'free', 'control', 'size', 'pp']) || {};
+  if (size.mode !== 'CUSTOM' || typeof size.sizeH !== 'number' || typeof size.sizeV !== 'number') return null;
+  const { width, height } = result.canvas;
+  if (size.sizeH >= width && size.sizeV >= height) return null;
+  return `${screenId}’s canvas is a custom ${size.sizeH} × ${size.sizeV} (Preconfig ▸ Canvas), smaller than the `
+    + `${width} × ${height} these ratios need. Set it to Auto, or to at least ${width} × ${height}, or the outputs run off it.`;
+}

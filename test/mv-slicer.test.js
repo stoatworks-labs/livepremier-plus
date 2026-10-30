@@ -115,6 +115,16 @@ test('an <img src> names its source whatever the cache-buster', () => {
 
 /* ------------------------------------------------------------------ tiles */
 
+test('LivePremier: only the multiviewers the frame has fitted are offered', () => {
+  /* An Aquilon C mini lists eight and has two: 3–8 say isAvailable false. */
+  const s = aquilon();
+  for (const n of ['3', '4']) {
+    s.set(['device', 'monitoringList', 'items', n, 'status', 'pp'], { sizeH: 1920, sizeV: 1080, isAvailable: false });
+  }
+  s.set(['device', 'monitoringList', 'items', '2', 'status', 'pp', 'isAvailable'], true);
+  assert.deepEqual(multiviewers(s), [1, 2], 'one that says nothing is kept, one that says no is not');
+});
+
 test('LivePremier: the tiles of the chosen multiviewer, as the Aquilon had them', () => {
   const s = aquilon();
   assert.equal(family(s), 'nlc');

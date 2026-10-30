@@ -85,7 +85,10 @@ export function createUmdPanel({ ready, doc, change, destinations, selected, mod
       if (n < 2) {
         say = note('warn', `${dest.id} has ${n === 1 ? 'one layer' : 'no layers'}, and needs two: one for the UMD over at least one box. An advanced aux’s layers come with its capability — 4K gives 2, 5K 4, “6” 6 and 8K 8 (Preconfig ▸ Resources, on its output).`);
       } else {
-        say = note('', `${dest.id} has ${n} layers: L${layers.umd} carries the UMD, L${layers.boxes[0]}–L${layers.boxes[layers.boxes.length - 1]} are the boxes.`);
+        const boxes = layers.boxes.length === 1
+          ? `L${layers.boxes[0]} is the box`
+          : `L${layers.boxes[0]}–L${layers.boxes[layers.boxes.length - 1]} are the boxes`;
+        say = note('', `${dest.id} has ${n} layers: L${layers.umd} carries the UMD, ${boxes}.`);
       }
     } else if (m.auxBackground) {
       say = note('warn', `${dest.id}’s ${n} layer${n === 1 ? ' is' : 's are'} the boxes and the UMD goes on its background, under them. Experimental: the switcher takes a still there and reports it, but no frame has been seen to draw one.`);
