@@ -12,12 +12,16 @@
  * mode of the personality. A `.gdtf` is a zip holding `description.xml`;
  * nothing else is required, and this adds nothing else.
  *
- * Attribute names: the opacity is GDTF's own `Dimmer`, and the source is
- * `MediaFolder1` / `MediaContent1`, the names media-server fixtures use, so a
- * desk files them where its operator expects. The control channels have no
- * GDTF name and get one of their own (`LPPControl` and so on) under the
- * Control feature; a desk that does not recognise a name still patches it as
- * a plain channel (MagicQ says so in its `gdtf.log`).
+ * Attribute names: the opacity is GDTF's own `Dimmer`, the source is
+ * `MediaFolder1` / `MediaContent1`, the names media-server fixtures use, and
+ * the Colour folder's red, green and blue are `ColorAdd_R/G/B`, so a desk
+ * files them where its operator expects and puts a colour picker on them.
+ * Everything else has no GDTF name that means the same — GDTF's `XYZ_X` is
+ * metres on a stage, `Scale_X` a percentage — and gets one of its own
+ * (`LPPControl`, `LPPPosX`…) under the feature group a desk shows it in:
+ * position and size under Position, crop and mask under Shapers, strobe
+ * under Beam, the rest under Video. A desk that does not recognise a name
+ * still patches it as a plain channel (MagicQ says so in its `gdtf.log`).
  *
  * ⚠️ Node links in GDTF are dot-separated names, so no name here may hold a
  * dot, and the channel names follow the 1.2 rule `<Geometry>_<Attribute>`.
@@ -41,13 +45,46 @@ const ATTRIBUTES = {
   folder: ['MediaFolder1', 'Folder', 'Video.Video', 'None'],
   file: ['MediaContent1', 'File', 'Video.Video', 'None'],
   opacity: ['Dimmer', 'Dim', 'Dimmer.Dimmer', 'LuminousIntensity'],
+  x: ['LPPPosX', 'Pos X', 'Position.Position', 'None'],
+  y: ['LPPPosY', 'Pos Y', 'Position.Position', 'None'],
+  w: ['LPPWidth', 'Width', 'Position.Position', 'None'],
+  h: ['LPPHeight', 'Height', 'Position.Position', 'None'],
+  cropLeft: ['LPPCropLeft', 'Crop L', 'Shapers.Shapers', 'None'],
+  cropRight: ['LPPCropRight', 'Crop R', 'Shapers.Shapers', 'None'],
+  cropTop: ['LPPCropTop', 'Crop T', 'Shapers.Shapers', 'None'],
+  cropBottom: ['LPPCropBottom', 'Crop B', 'Shapers.Shapers', 'None'],
+  red: ['ColorAdd_R', 'R', 'Color.RGB', 'ColorComponent'],
+  green: ['ColorAdd_G', 'G', 'Color.RGB', 'ColorComponent'],
+  blue: ['ColorAdd_B', 'B', 'Color.RGB', 'ColorComponent'],
+  flip: ['LPPFlip', 'Flip', 'Video.Video', 'None'],
+  strobe: ['LPPStrobe', 'Strobe', 'Beam.Beam', 'None'],
+  maskLeft: ['LPPMaskLeft', 'Mask L', 'Shapers.Shapers', 'None'],
+  maskRight: ['LPPMaskRight', 'Mask R', 'Shapers.Shapers', 'None'],
+  maskTop: ['LPPMaskTop', 'Mask T', 'Shapers.Shapers', 'None'],
+  maskBottom: ['LPPMaskBottom', 'Mask B', 'Shapers.Shapers', 'None'],
+  aspect: ['LPPAspect', 'Aspect', 'Video.Video', 'None'],
+  effect: ['LPPEffect', 'Effect', 'Video.Video', 'None'],
+  borderStyle: ['LPPBorderStyle', 'Border', 'Video.Video', 'None'],
+  borderRadius: ['LPPBorderRadius', 'Border rad', 'Video.Video', 'None'],
+  borderWidth: ['LPPBorderWidth', 'Border W', 'Video.Video', 'None'],
+  borderHeight: ['LPPBorderHeight', 'Border H', 'Video.Video', 'None'],
+  borderOpacity: ['LPPBorderOpacity', 'Border op', 'Video.Video', 'None'],
+  borderRed: ['LPPBorderRed', 'Border R', 'Video.Video', 'None'],
+  borderGreen: ['LPPBorderGreen', 'Border G', 'Video.Video', 'None'],
+  borderBlue: ['LPPBorderBlue', 'Border B', 'Video.Video', 'None'],
+  shadowStyle: ['LPPShadowStyle', 'Shadow', 'Video.Video', 'None'],
+  shadowRadius: ['LPPShadowRadius', 'Shadow rad', 'Video.Video', 'None'],
+  shadowX: ['LPPShadowX', 'Shadow X', 'Video.Video', 'None'],
+  shadowY: ['LPPShadowY', 'Shadow Y', 'Video.Video', 'None'],
+  shadowOpacity: ['LPPShadowOpacity', 'Shadow op', 'Video.Video', 'None'],
+  shadowRed: ['LPPShadowRed', 'Shadow R', 'Video.Video', 'None'],
+  shadowGreen: ['LPPShadowGreen', 'Shadow G', 'Video.Video', 'None'],
+  shadowBlue: ['LPPShadowBlue', 'Shadow B', 'Video.Video', 'None'],
+  key: ['LPPKey', 'Key', 'Video.Video', 'None'],
 };
 
-const FEATURE_GROUPS = [
-  ['Dimmer', 'Dimmer'],
-  ['Video', 'Video'],
-  ['Control', 'Control'],
-];
+/* In the order a desk shows them. */
+const FEATURE_GROUPS = ['Dimmer', 'Position', 'Color', 'Beam', 'Shapers', 'Video', 'Control'];
 
 /** The file name GDTF Share would give it: Manufacturer@Name@Revision. */
 export function gdtfName(kind, version) {
@@ -60,7 +97,11 @@ export function descriptionXml(kind, { version = '1' } = {}) {
   const used = new Set();
   for (const mode of Object.keys(ft.modes)) for (const c of ft.modes[mode]) used.add(c.attr);
   const attrs = [...used].map((a) => ATTRIBUTES[a]);
-  const features = new Set(attrs.map((a) => a[2].split('.')[0]));
+  const features = new Map();
+  for (const [group, feature] of attrs.map((a) => a[2].split('.'))) {
+    if (!features.has(group)) features.set(group, new Set());
+    features.get(group).add(feature);
+  }
 
   const out = [];
   out.push('<?xml version="1.0" encoding="UTF-8" standalone="no"?>');
@@ -71,9 +112,9 @@ export function descriptionXml(kind, { version = '1' } = {}) {
   out.push('    <AttributeDefinitions>');
   out.push('      <ActivationGroups/>');
   out.push('      <FeatureGroups>');
-  for (const [name, pretty] of FEATURE_GROUPS.filter(([n]) => features.has(n))) {
-    out.push(`        <FeatureGroup Name="${name}" Pretty="${pretty}">`);
-    out.push(`          <Feature Name="${name}"/>`);
+  for (const name of FEATURE_GROUPS.filter((n) => features.has(n))) {
+    out.push(`        <FeatureGroup Name="${name}" Pretty="${name}">`);
+    for (const feature of features.get(name)) out.push(`          <Feature Name="${feature}"/>`);
     out.push('        </FeatureGroup>');
   }
   out.push('      </FeatureGroups>');
@@ -100,13 +141,15 @@ export function descriptionXml(kind, { version = '1' } = {}) {
       const bytes = c.bits === 16 ? 2 : 1;
       const offsets = bytes === 2 ? `${offset},${offset + 1}` : String(offset);
       const top = bytes === 2 ? 65535 : 255;
+      const [from, to] = c.physical || (c.role === 'dimmer' || ATTRIBUTES[c.attr][3] === 'ColorComponent' ? [0, 1] : [0, top]);
       out.push(`          <DMXChannel DMXBreak="1" Offset="${offsets}" InitialFunction="${GEOMETRY}_${attr}.${attr}.${attr}"`
         + ` Highlight="None" Geometry="${GEOMETRY}">`);
-      const snap = c.role === 'dimmer' ? 'No' : 'Yes';
+      /* A level fades; a choice snaps. */
+      const snap = c.role === 'dimmer' || c.role === 'value' ? 'No' : 'Yes';
       out.push(`            <LogicalChannel Attribute="${attr}" Snap="${snap}" Master="${c.role === 'dimmer' ? 'Grand' : 'None'}"`
         + ' MibFade="0" DMXChangeTimeLimit="0">');
       out.push(`              <ChannelFunction Name="${attr}" Attribute="${attr}" OriginalAttribute="" DMXFrom="0/${bytes}"`
-        + ` Default="0/${bytes}" PhysicalFrom="0" PhysicalTo="${c.role === 'dimmer' ? 1 : top}" RealFade="0" RealAcceleration="0">`);
+        + ` Default="${c.default || 0}/${bytes}" PhysicalFrom="${from}" PhysicalTo="${to}" RealFade="0" RealAcceleration="0">`);
       for (const set of c.sets) {
         out.push(`                <ChannelSet Name="${x(set.name)}" DMXFrom="${set.from}/${bytes}" WheelSlotIndex="0"/>`);
       }

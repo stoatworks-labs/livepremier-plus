@@ -31,7 +31,7 @@ export const settings = {
 
 /* The fixture files' revision. Bumped whenever a channel moves, so a desk's
    library keeps both and an old show file still finds its own. */
-export const GDTF_VERSION = '1';
+export const GDTF_VERSION = '2';
 
 export default async function activate(ctx) {
   const desk = new DeskSupervisor({
@@ -40,6 +40,7 @@ export default async function activate(ctx) {
       return device ? String(device).split(':')[0] : null;
     },
     timecode: () => ctx.use('timecode'),
+    triggers: () => ctx.use('triggers'),
     log: ctx.log,
   });
 

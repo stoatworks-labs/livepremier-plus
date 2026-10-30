@@ -8,12 +8,20 @@
  *
  *   Master  one per switcher   master memory, take all, cut all
  *   Screen  one per screen     control mode, memory, take, cut
- *   Layer   one per layer      source folder, source file, opacity
+ *   Layer   one per layer      source, opacity, and as much of the look as
+ *                              the mode carries
  *
- * Each fixture type has modes — Cue now; Compact, Standard and Full (layer
- * geometry, crop, colour, borders) will join it — and this file is the one
- * definition the engine below, the patch, and the GDTF files a desk imports
- * (`core/desk-gdtf.js`) are all read from, so the three cannot disagree.
+ * Every fixture type has the same four modes, so a desk patches everything in
+ * one of them. Master and Screen are the same in all four; a Layer is
+ *
+ *   Cue       3 ch   source folder and file, opacity
+ *   Compact  11 ch   + position X, Y and size W, H (16-bit)
+ *   Standard 24 ch   + crop, colour (for the Colour folder), flip, strobe
+ *   Full     53 ch   + mask, aspect, effect, border, shadow, key
+ *
+ * This file is the one definition the engine below, the patch, and the GDTF
+ * files a desk imports (`core/desk-gdtf.js`) are all read from, so the three
+ * cannot disagree.
  *
  * ## The rules a show depends on
  *
@@ -30,6 +38,14 @@
  * - **A memory recall goes to preview, always**, as every other recall in this
  *   app does. Reaching air costs a Take.
  * - **Folder 0 is "hold".** A desk at zero never blanks a layer's source.
+ * - **Size 0 is the memory's look.** While W or H is at zero, everything past
+ *   source, opacity and colour — position, size, crop, effects, border,
+ *   shadow, key — is the memory's, and the desk writes none of it. A desk
+ *   sitting at zero edits nothing a memory set up; the memory's look comes
+ *   back with the next recall or take.
+ * - **X and Y are pixels from the centre of the screen**, 32768 being the
+ *   centre, so a layer at the defaults sits in the middle at whatever size W
+ *   and H give it. W and H are pixels.
  *
  * What a source or a level becomes on the wire, and which preset letter it
  * goes to, is the supervisor's business: this only says what the desk asked.
@@ -78,33 +94,137 @@ const CH = {
   opacity: { attr: 'opacity', name: 'Opacity', role: 'dimmer', sets: [{ from: 0, to: 255, name: 'Opacity 0-100%' }] },
 };
 
+/** 16-bit X and Y: this value is the centre of the screen. */
+export const CENTRE = 32768;
+
+/* Step channels: each name owns `width` values, the last to the top. */
+const steps = (names, width) => names.map((name, i) => ({
+  from: i * width, to: i === names.length - 1 ? 255 : (i + 1) * width - 1, name,
+}));
+
+/** Flip, 64 values a step. */
+export const FLIPS = Object.freeze([
+  { name: 'None', h: false, v: false },
+  { name: 'Flip H', h: true, v: false },
+  { name: 'Flip V', h: false, v: true },
+  { name: 'Flip H+V', h: true, v: true },
+]);
+
+/** Effect, 32 values a step; past the last is None again. */
+export const EFFECTS = Object.freeze([
+  { name: 'None', flag: null },
+  { name: 'Black and white', flag: 'BLACK_N_WHITE' },
+  { name: 'Negative', flag: 'NEGATIVE' },
+  { name: 'Sepia', flag: 'SEPIA' },
+  { name: 'Solarise', flag: 'SOLAR' },
+  { name: 'Posterise', flag: 'POSTERIZE' },
+]);
+
+/** Aspect override, 51 values a step, as the LivePremier spells them. */
+export const ASPECTS = Object.freeze([
+  { name: 'None', value: 'NONE' },
+  { name: '1:1', value: '1_1' },
+  { name: 'Centred', value: 'CENTERED' },
+  { name: 'Full screen', value: 'FULLSCREEN' },
+  { name: 'Cropped', value: 'CROPPED' },
+]);
+
+/** Border and shadow style, a set of three flags: every combination, 32 values each. */
+export const STYLES = Object.freeze([[], ['EDGE'], ['SMOOTH'], ['ROUNDED'], ['EDGE', 'SMOOTH'], ['EDGE', 'ROUNDED'],
+  ['SMOOTH', 'ROUNDED'], ['EDGE', 'SMOOTH', 'ROUNDED']]);
+const styleName = (flags) => (flags.length ? flags.map((f) => f[0] + f.slice(1).toLowerCase()).join('+') : 'Off');
+
+/** Key slots on a LivePremier. */
+export const KEY_SLOTS = 50;
+
+const word = (attr, name, sets = [{ from: 0, to: 255, name }]) => ({ attr, name, role: 'value', sets });
+const wide = (attr, name, { def = 0, physical = [0, 65535], sets = [{ from: 0, to: 65535, name }] } = {}) =>
+  ({ attr, name, role: 'value', bits: 16, default: def, physical, sets });
+const step = (attr, name, sets) => ({ attr, name, role: 'step', sets });
+
+const LOOK = {
+  x: wide('x', 'Position X', { def: CENTRE, physical: [-CENTRE, CENTRE - 1], sets: [{ from: 0, to: 65535, name: 'Pixels from centre' }] }),
+  y: wide('y', 'Position Y', { def: CENTRE, physical: [-CENTRE, CENTRE - 1], sets: [{ from: 0, to: 65535, name: 'Pixels from centre' }] }),
+  w: wide('w', 'Width', { sets: [{ from: 0, to: 0, name: 'Memory look' }, { from: 1, to: 65535, name: 'Pixels' }] }),
+  h: wide('h', 'Height', { sets: [{ from: 0, to: 0, name: 'Memory look' }, { from: 1, to: 65535, name: 'Pixels' }] }),
+  cropLeft: wide('cropLeft', 'Crop left'),
+  cropRight: wide('cropRight', 'Crop right'),
+  cropTop: wide('cropTop', 'Crop top'),
+  cropBottom: wide('cropBottom', 'Crop bottom'),
+  red: word('red', 'Red'),
+  green: word('green', 'Green'),
+  blue: word('blue', 'Blue'),
+  flip: step('flip', 'Flip', steps(FLIPS.map((f) => f.name), 64)),
+  strobe: word('strobe', 'Strobe', [{ from: 0, to: 0, name: 'Off' }, { from: 1, to: 255, name: 'Slow to fast' }]),
+  maskLeft: wide('maskLeft', 'Mask left'),
+  maskRight: wide('maskRight', 'Mask right'),
+  maskTop: wide('maskTop', 'Mask top'),
+  maskBottom: wide('maskBottom', 'Mask bottom'),
+  aspect: step('aspect', 'Aspect', steps(ASPECTS.map((a) => a.name), 51)),
+  effect: step('effect', 'Effect', steps([...EFFECTS.map((e) => e.name), 'None'], 32)),
+  borderStyle: step('borderStyle', 'Border style', steps(STYLES.map(styleName), 32)),
+  borderRadius: word('borderRadius', 'Border radius'),
+  borderWidth: word('borderWidth', 'Border width'),
+  borderHeight: word('borderHeight', 'Border height'),
+  borderOpacity: word('borderOpacity', 'Border opacity'),
+  borderRed: word('borderRed', 'Border red'),
+  borderGreen: word('borderGreen', 'Border green'),
+  borderBlue: word('borderBlue', 'Border blue'),
+  shadowStyle: step('shadowStyle', 'Shadow style', steps(STYLES.map(styleName), 32)),
+  shadowRadius: word('shadowRadius', 'Shadow radius'),
+  shadowX: wide('shadowX', 'Shadow X', { def: CENTRE, physical: [-512, 512], sets: [{ from: 0, to: 65535, name: 'Offset -512 to 512 px' }] }),
+  shadowY: wide('shadowY', 'Shadow Y', { def: CENTRE, physical: [-512, 512], sets: [{ from: 0, to: 65535, name: 'Offset -512 to 512 px' }] }),
+  shadowOpacity: word('shadowOpacity', 'Shadow opacity'),
+  shadowRed: word('shadowRed', 'Shadow red'),
+  shadowGreen: word('shadowGreen', 'Shadow green'),
+  shadowBlue: word('shadowBlue', 'Shadow blue'),
+  key: step('key', 'Key', [{ from: 0, to: 0, name: 'Off' }, { from: 1, to: KEY_SLOTS, name: `Slot 1-${KEY_SLOTS}` },
+    { from: KEY_SLOTS + 1, to: 255, name: 'Off' }]),
+};
+
+const CUE = [CH.folder, CH.file, CH.opacity];
+const COMPACT = [...CUE, LOOK.x, LOOK.y, LOOK.w, LOOK.h];
+const STANDARD = [...COMPACT, LOOK.cropLeft, LOOK.cropRight, LOOK.cropTop, LOOK.cropBottom,
+  LOOK.red, LOOK.green, LOOK.blue, LOOK.flip, LOOK.strobe];
+const FULL = [...STANDARD, LOOK.maskLeft, LOOK.maskRight, LOOK.maskTop, LOOK.maskBottom, LOOK.aspect, LOOK.effect,
+  LOOK.borderStyle, LOOK.borderRadius, LOOK.borderWidth, LOOK.borderHeight, LOOK.borderOpacity,
+  LOOK.borderRed, LOOK.borderGreen, LOOK.borderBlue,
+  LOOK.shadowStyle, LOOK.shadowRadius, LOOK.shadowX, LOOK.shadowY, LOOK.shadowOpacity,
+  LOOK.shadowRed, LOOK.shadowGreen, LOOK.shadowBlue, LOOK.key];
+const CONTROLS = [CH.control, CH.memory, CH.take, CH.cut];
+const same = (channels) => ({ cue: channels, compact: channels, standard: channels, full: channels });
+
 /**
- * The fixture types and their modes. A mode is its channels in order, each
- * 8 bits wide for now (a 16-bit channel will say `bits: 16`).
+ * The fixture types and their modes. A mode is its channels in order, 8 bits
+ * wide unless they say `bits: 16` (coarse then fine, as every desk patches
+ * them).
  */
 export const FIXTURES = Object.freeze({
   master: {
     kind: 'master', name: 'LPP Master', short: 'LPPMaster',
     description: 'LivePremier Plus: the whole switcher — master memory, take all, cut all.',
     guid: '83AD3503-A0F3-474D-AD92-5943E00AD40E',
-    modes: { cue: [CH.control, CH.memory, CH.take, CH.cut] },
+    modes: same(CONTROLS),
   },
   screen: {
     kind: 'screen', name: 'LPP Screen', short: 'LPPScreen',
     description: 'LivePremier Plus: one screen or aux — control mode, memory recall to preview, take, cut.',
     guid: '01C5BB6C-193C-4BE8-9F77-B2AE9DECC7CD',
-    modes: { cue: [CH.control, CH.memory, CH.take, CH.cut] },
+    modes: same(CONTROLS),
   },
   layer: {
     kind: 'layer', name: 'LPP Layer', short: 'LPPLayer',
-    description: 'LivePremier Plus: one layer of a screen — source folder and file, and opacity.',
+    description: 'LivePremier Plus: one layer of a screen — source, opacity, and in the larger modes position, size, crop, colour and effects.',
     guid: '7C425188-06C6-4A6B-A928-3A5A9691D485',
-    modes: { cue: [CH.folder, CH.file, CH.opacity] },
+    modes: { cue: CUE, compact: COMPACT, standard: STANDARD, full: FULL },
   },
 });
 
 export const MODES = Object.freeze([
   { id: 'cue', label: 'Cue', what: 'Layers carry source and opacity; the memories hold the geometry. One universe covers most rigs.' },
+  { id: 'compact', label: 'Compact', what: 'Adds position and size, 16-bit. For onPC and other desks short of parameters.' },
+  { id: 'standard', label: 'Standard', what: 'Adds crop, colour, flip and strobe.' },
+  { id: 'full', label: 'Full', what: 'Every layer property worth a fader: adds mask, aspect, effect, border, shadow and key.' },
 ]);
 
 export const footprint = (kind, mode = 'cue') => FIXTURES[kind].modes[mode].reduce((n, c) => n + (c.bits === 16 ? 2 : 1), 0);
@@ -192,6 +312,65 @@ export function sourceOf(values) {
 /** 0–255 on the desk is 0–256 on the switcher, whose full is 256. */
 export const opacityOf = (v) => Math.round((v * 256) / 255);
 
+/** Strobe 1–255, slow to fast, as the frames a strobe cycle lasts (255 to 2); null is off. */
+export const strobeFrames = (v) => (v > 0 ? Math.max(2, Math.min(255, 256 - v)) : null);
+
+/** Shadow offset: 16-bit, centred, scaled to the switcher's ±512 px. */
+export const shadowOffset = (v) => Math.round((v - CENTRE) / 64);
+
+const styleOf = (v) => STYLES[Math.min(STYLES.length - 1, v >> 5)];
+const keyOf = (v) => (v >= 1 && v <= KEY_SLOTS ? v : null);
+
+/**
+ * What a Layer fixture's channels ask of the layer, by part — only the parts
+ * its mode has channels for, and only those the desk owns at these values:
+ *
+ *   source    {kind, number}         absent while the folder holds
+ *   opacity   0–256
+ *   colour    {red, green, blue}     only with the Colour folder
+ *   geometry  {x, y, w, h}           pixels; x, y from the screen's centre
+ *   crop      {left, right, top, bottom}   0–65535, as the switcher has them
+ *   effects   {flipH, flipV, effect, strobe}   effect a flag or null; strobe frames or null
+ *   mask      {left, right, top, bottom}
+ *   aspect    'NONE' | '1_1' | 'CENTERED' | 'FULLSCREEN' | 'CROPPED'
+ *   border    {style, radius, sizeH, sizeV, opacity, red, green, blue}   style a flag list
+ *   shadow    {style, radius, sizeH, sizeV, opacity, red, green, blue}   sizes ±512
+ *   key       {enable, slot}
+ *
+ * Everything from geometry down is absent while W or H is zero: the memory's.
+ */
+export function layerLook(v) {
+  const look = {};
+  const src = sourceOf(v);
+  if (src) look.source = src;
+  look.opacity = opacityOf(v.opacity);
+  if (src && src.kind === 'COLOR' && 'red' in v) look.colour = { red: v.red, green: v.green, blue: v.blue };
+  if (!('w' in v) || !v.w || !v.h) return look;
+  look.geometry = { x: v.x - CENTRE, y: v.y - CENTRE, w: v.w, h: v.h };
+  if ('cropLeft' in v) look.crop = { left: v.cropLeft, right: v.cropRight, top: v.cropTop, bottom: v.cropBottom };
+  if ('flip' in v) {
+    const flip = FLIPS[v.flip >> 6];
+    const effect = 'effect' in v ? (EFFECTS[v.effect >> 5] || EFFECTS[0]).flag : null;
+    look.effects = { flipH: flip.h, flipV: flip.v, effect, strobe: strobeFrames(v.strobe) };
+  }
+  if ('maskLeft' in v) look.mask = { left: v.maskLeft, right: v.maskRight, top: v.maskTop, bottom: v.maskBottom };
+  if ('aspect' in v) look.aspect = ASPECTS[Math.min(ASPECTS.length - 1, Math.floor(v.aspect / 51))].value;
+  if ('borderStyle' in v) {
+    look.border = {
+      style: styleOf(v.borderStyle), radius: v.borderRadius, sizeH: v.borderWidth, sizeV: v.borderHeight,
+      opacity: v.borderOpacity, red: v.borderRed, green: v.borderGreen, blue: v.borderBlue,
+    };
+  }
+  if ('shadowStyle' in v) {
+    look.shadow = {
+      style: styleOf(v.shadowStyle), radius: v.shadowRadius, sizeH: shadowOffset(v.shadowX), sizeV: shadowOffset(v.shadowY),
+      opacity: v.shadowOpacity, red: v.shadowRed, green: v.shadowGreen, blue: v.shadowBlue,
+    };
+  }
+  if ('key' in v) look.key = { enable: keyOf(v.key) !== null, slot: keyOf(v.key) };
+  return look;
+}
+
 /**
  * A source as the switcher spells it, or null where this platform has no such
  * source. LivePremier: LIVE_3, STILL_12, SCREEN_2, NATIVE_1, COLOR, NONE. A
@@ -221,7 +400,7 @@ export function sourceValue(dialectId, source) {
  *   { type: 'take' | 'cut', destination }
  *   { type: 'recallMaster', slot }               to preview
  *   { type: 'takeAll' | 'cutAll' }               every engaged destination
- *   { type: 'layer', destination, layer, param, value }   'source' {kind, number} | 'opacity' 0–256
+ *   { type: 'layer', destination, layer, param, value }   param a part of `layerLook`
  */
 export class DeskEngine {
   #fixtures = [];
@@ -313,12 +492,13 @@ export class DeskEngine {
     for (const f of fixtures) {
       if (f.kind !== 'layer' || engagedNow.has(f.destination)) continue;
       if (this.control(f.destination) === CONTROL.OFF) continue;
-      const v = now.get(f.id);
       const prev = before.get(f.id);
       if (!prev) continue;
-      const src = sourceOf(v);
-      if (src && !sameSource(src, sourceOf(prev))) layers.push(layerAction(f, 'source', src));
-      if (v.opacity !== prev.opacity) layers.push(layerAction(f, 'opacity', opacityOf(v.opacity)));
+      const look = layerLook(now.get(f.id));
+      const was = layerLook(prev);
+      for (const [param, value] of Object.entries(look)) {
+        if (!sameValue(value, was[param])) layers.push(layerAction(f, param, value));
+      }
     }
 
     /* A destination taken over in this frame gets everything its layers
@@ -331,9 +511,10 @@ export class DeskEngine {
    * Everything the desk holds for one destination's layers, wherever they are
    * patched — as far as their universes have been heard from. Written when
    * the desk takes a screen over, and again whenever something else replaces
-   * the buffer it edits (a recall into preview, a take): the desk owns source
-   * and opacity, and the memory owns the rest. A layer at folder 0 (hold)
-   * keeps whatever source the memory gave it.
+   * the buffer it edits (a recall into preview, a take): the desk owns what
+   * its mode has channels for, and the memory owns the rest. A layer at
+   * folder 0 (hold) keeps whatever source the memory gave it, and one at size
+   * 0 its whole look.
    */
   layersFor(destination) {
     const out = [];
@@ -341,9 +522,7 @@ export class DeskEngine {
       if (f.kind !== 'layer' || f.destination !== destination) continue;
       const v = this.#last.get(f.id);
       if (!v) continue;
-      const src = sourceOf(v);
-      if (src) out.push(layerAction(f, 'source', src));
-      out.push(layerAction(f, 'opacity', opacityOf(v.opacity)));
+      for (const [param, value] of Object.entries(layerLook(v))) out.push(layerAction(f, param, value));
     }
     return out;
   }
@@ -351,7 +530,5 @@ export class DeskEngine {
 
 const layerAction = (f, param, value) => ({ type: 'layer', destination: f.destination, layer: f.layer, param, value });
 
-function sameSource(a, b) {
-  if (!a || !b) return false;
-  return a.kind === b.kind && a.number === b.number;
-}
+/* The parts of a look are numbers, strings, or small objects of them built in one key order. */
+const sameValue = (a, b) => a !== undefined && b !== undefined && JSON.stringify(a) === JSON.stringify(b);

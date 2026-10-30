@@ -17,14 +17,16 @@ import {
 import { parseSacn, buildSacnData, outOfOrder, multicastGroup, OPTION_PREVIEW, OPTION_TERMINATED } from '../src/core/sacn.js';
 import { DmxInput, SACN_LOSS_MS, ARTNET_LOSS_MS, MAX_SOURCES } from '../src/core/dmx-input.js';
 import {
-  layout, patchCsv, DeskEngine, CONTROL, readFixture, sourceOf, sourceValue, opacityOf, footprint,
+  layout, patchCsv, DeskEngine, CONTROL, readFixture, sourceOf, sourceValue, opacityOf, footprint, layerLook, CENTRE,
+  strobeFrames, shadowOffset, MODES,
 } from '../src/core/dmx-personality.js';
 import { descriptionXml, gdtfFile, gdtfName, FIXTURE_KINDS } from '../src/core/desk-gdtf.js';
 import { unzipStore } from '../src/core/zip.js';
-import { normaliseDesk, deskChanged, DEFAULT_DESK, allowed } from '../plugins/desk-control/core.js';
+import { normaliseDesk, deskChanged, DEFAULT_DESK, allowed, lookParams, fitValue, layerSpec } from '../plugins/desk-control/core.js';
 import { DeskSupervisor } from '../plugins/desk-control/supervisor.js';
+import { TakeWatch, matchRules, describeTake, COOLDOWN_MS } from '../plugins/desk-control/feedback.js';
 import { AwjLink } from '../server/awj-link.js';
-import { NLC } from '../src/core/dialect.js';
+import { NLC, MNG } from '../src/core/dialect.js';
 import { commandsFor } from '../src/core/commands.js';
 import { toAwj } from '../src/core/paths.js';
 import { fakeAwj } from './helpers/fake-awj.js';
@@ -199,6 +201,84 @@ test('the channels: a layer is folder, file and opacity; folder 0 holds; full is
   assert.equal(sourceValue('mng', { kind: 'STILL', number: 3 }), null);
 });
 
+const word16 = (v) => [v >> 8, v & 255];
+
+test('the modes: Cue 3, Compact 11, Standard 24, Full 53 channels a layer; Master and Screen 4 in all', () => {
+  assert.deepEqual(MODES.map((m) => m.id), ['cue', 'compact', 'standard', 'full']);
+  assert.deepEqual(MODES.map((m) => footprint('layer', m.id)), [3, 11, 24, 53]);
+  for (const m of MODES) assert.equal(footprint('screen', m.id), 4);
+  for (const m of MODES) assert.equal(footprint('master', m.id), 4);
+  const [f] = layout({ destinations: ['S1'], layers: 1, firstUniverse: 1, master: false, mode: 'compact' }).fixtures.slice(1);
+  const frame = new Uint8Array(512);
+  frame.set([1, 3, 255, ...word16(CENTRE + 100), ...word16(CENTRE - 50), ...word16(640), ...word16(360)], f.address - 1);
+  assert.deepEqual(readFixture(f, frame), { folder: 1, file: 3, opacity: 255, x: CENTRE + 100, y: CENTRE - 50, w: 640, h: 360 },
+    '16-bit, coarse then fine');
+  const csv = patchCsv(layout({ destinations: ['S1'], layers: 1, firstUniverse: 1, mode: 'full' }).fixtures).split('\r\n');
+  assert.equal(csv[3], 'S1 L1,LPP Layer,Full,1,9,53');
+});
+
+test('the look: W or H at zero is the memory’s, whatever else the desk holds', () => {
+  const at = { folder: 1, file: 2, opacity: 255, x: CENTRE, y: CENTRE, w: 0, h: 1080 };
+  assert.deepEqual(layerLook(at), { source: { kind: 'LIVE', number: 2 }, opacity: 256 }, 'W 0: source and opacity only');
+  assert.deepEqual(layerLook({ ...at, w: 1920, h: 0 }), layerLook(at), 'H 0 as well');
+  assert.deepEqual(layerLook({ ...at, w: 1920, x: CENTRE - 960 }).geometry, { x: -960, y: 0, w: 1920, h: 1080 });
+  assert.deepEqual(layerLook({ folder: 0, file: 0, opacity: 0 }), { opacity: 0 }, 'Cue mode is what it was');
+
+  const std = { ...at, w: 960, h: 540, cropLeft: 1000, cropRight: 0, cropTop: 0, cropBottom: 65535, red: 10, green: 20, blue: 30, flip: 0, strobe: 0 };
+  const look = layerLook(std);
+  assert.equal(look.colour, undefined, 'colour only with the Colour folder');
+  assert.deepEqual(look.crop, { left: 1000, right: 0, top: 0, bottom: 65535 });
+  assert.deepEqual(look.effects, { flipH: false, flipV: false, effect: null, strobe: null });
+  assert.deepEqual(layerLook({ ...std, folder: 5 }).colour, { red: 10, green: 20, blue: 30 });
+  assert.deepEqual(layerLook({ ...std, folder: 5, w: 0 }).colour, { red: 10, green: 20, blue: 30 }, 'colour is the source’s, not the look’s');
+  assert.deepEqual([64, 128, 192, 255].map((flip) => { const e = layerLook({ ...std, flip }).effects; return [e.flipH, e.flipV]; }),
+    [[true, false], [false, true], [true, true], [true, true]]);
+  assert.deepEqual([0, 1, 128, 255].map(strobeFrames), [null, 255, 128, 2], 'slow to fast');
+
+  const full = { ...std, maskLeft: 0, maskRight: 0, maskTop: 5, maskBottom: 0, aspect: 60, effect: 40, borderStyle: 0,
+    borderRadius: 0, borderWidth: 4, borderHeight: 4, borderOpacity: 255, borderRed: 255, borderGreen: 0, borderBlue: 0,
+    shadowStyle: 224, shadowRadius: 0, shadowX: CENTRE + 640, shadowY: 0, shadowOpacity: 128, shadowRed: 0, shadowGreen: 0, shadowBlue: 0, key: 7 };
+  const lf = layerLook(full);
+  assert.equal(lf.aspect, '1_1');
+  assert.equal(lf.effects.effect, 'BLACK_N_WHITE');
+  assert.equal(layerLook({ ...full, effect: 200 }).effects.effect, null, 'past the last effect is none');
+  assert.deepEqual(lf.border.style, []);
+  assert.deepEqual(lf.shadow.style, ['EDGE', 'SMOOTH', 'ROUNDED']);
+  assert.deepEqual([lf.shadow.sizeH, lf.shadow.sizeV], [10, -512]);
+  assert.equal(shadowOffset(65535), 512);
+  assert.deepEqual(lf.key, { enable: true, slot: 7 });
+  assert.deepEqual(layerLook({ ...full, key: 0 }).key, { enable: false, slot: null });
+  assert.deepEqual(layerLook({ ...full, key: 51 }).key, { enable: false, slot: null });
+});
+
+test('the look on the wire: LivePremier anchors the centre; a Midra has no anchor, key or strobe frames', () => {
+  const canvas = { width: 3840, height: 1080 };
+  const geo = { x: -100, y: 40, w: 640, h: 360 };
+  assert.deepEqual(lookParams(NLC, 'geometry', geo, canvas), [
+    ['position.anchor', 'MIDDLE_CENTER'], ['position.posH', 1820], ['position.posV', 580],
+    ['position.sizeH', 640], ['position.sizeV', 360],
+  ]);
+  assert.deepEqual(lookParams(NLC, 'geometry', geo, null), [], 'no canvas, no position');
+  assert.deepEqual(lookParams(MNG, 'geometry', geo, canvas).map(([id]) => id),
+    ['position.posH', 'position.posV', 'size.sizeH', 'size.sizeV']);
+  assert.deepEqual(lookParams(NLC, 'crop', { left: 1, right: 2, top: 3, bottom: 4 }, canvas).map(([id]) => id),
+    ['cropping.classic.left', 'cropping.classic.right', 'cropping.classic.top', 'cropping.classic.bottom']);
+  assert.deepEqual(lookParams(MNG, 'colour', { red: 1, green: 2, blue: 3 }).map(([id]) => id), ['color.red', 'color.green', 'color.blue']);
+
+  const fx = { flipH: true, flipV: false, effect: 'POSTERIZE', strobe: 10 };
+  assert.deepEqual(lookParams(NLC, 'effects', fx), [['effects.flags', ['FLIP_H', 'POSTERIZE', 'STROBE']], ['effects.strobe.frames', 10]]);
+  const [[id, flags]] = lookParams(MNG, 'effects', fx);
+  assert.deepEqual(fitValue(layerSpec(MNG, id), flags), ['FLIP_H'], 'a Midra has no posterise or strobe');
+  assert.deepEqual(lookParams(MNG, 'key', { enable: true, slot: 2 }), []);
+  assert.deepEqual(lookParams(NLC, 'key', { enable: true, slot: 2 }), [['keying.enable', true], ['keying.source', 'SLOT_2']]);
+  assert.deepEqual(lookParams(NLC, 'key', { enable: false, slot: null }), [['keying.enable', false]]);
+  assert.deepEqual(lookParams(MNG, 'aspect', 'NONE'), [['crop.aspectOverride', 'GLOBAL_SETTING']]);
+
+  assert.equal(fitValue(layerSpec(NLC, 'border.shadow.sizeH'), -900), -512, 'clamped to the catalogue');
+  assert.equal(fitValue(layerSpec(NLC, 'cropping.classic.aspectOverride'), 'SIDEWAYS'), null);
+  assert.equal(fitValue(null, 1), null);
+});
+
 /* ------------------------------------------------------------- the engine */
 
 function rig(layers = 2) {
@@ -262,6 +342,23 @@ test('engine: a new desk in control starts from a baseline', () => {
   assert.equal(engine.control('S1'), CONTROL.PROGRAM, 'a lost desk does not let go of a screen');
 });
 
+test('engine: in Compact a moved layer writes its geometry; size to zero writes nothing more', () => {
+  const patch = layout({ destinations: ['S1'], layers: 1, firstUniverse: 1, mode: 'compact' });
+  const engine = new DeskEngine(patch.fixtures);
+  const frame = new Uint8Array(512);
+  const at = (id) => patch.fixtures.find((f) => f.id === id).address - 1;
+  const set = (id, values) => { frame.set(values, at(id)); return engine.update(1, frame); };
+  set('S1', [100, 0, 0, 0]);
+  set('S1', [100, 0, 0, 0]);
+  assert.deepEqual(set('S1.L1', [0, 0, 255, ...word16(CENTRE), ...word16(CENTRE), ...word16(0), ...word16(0)]),
+    [{ type: 'layer', destination: 'S1', layer: 1, param: 'opacity', value: 256 }], 'W and H 0: no geometry');
+  assert.deepEqual(set('S1.L1', [0, 0, 255, ...word16(CENTRE + 5), ...word16(CENTRE), ...word16(640), ...word16(360)]),
+    [{ type: 'layer', destination: 'S1', layer: 1, param: 'geometry', value: { x: 5, y: 0, w: 640, h: 360 } }]);
+  assert.deepEqual(set('S1.L1', [0, 0, 255, ...word16(CENTRE + 5), ...word16(CENTRE), ...word16(0), ...word16(360)]), [],
+    'back to zero hands the look to the memory without writing');
+  assert.deepEqual(engine.layersFor('S1').map((a) => a.param), ['opacity']);
+});
+
 test('engine: the Master recalls master memories and takes every screen the desk holds', () => {
   const { set } = rig();
   set('master', [0, 0, 0, 0]);
@@ -276,8 +373,19 @@ test('GDTF: one file per fixture type, a zip holding description.xml, a mode per
   assert.deepEqual([...FIXTURE_KINDS], ['master', 'screen', 'layer']);
   const xml = descriptionXml('layer');
   assert.match(xml, /<GDTF DataVersion="1.2">/);
-  assert.match(xml, /<DMXMode Name="Cue" Geometry="Base">/);
-  assert.equal((xml.match(/<DMXChannel /g) || []).length, 3);
+  const modes = [...xml.matchAll(/<DMXMode Name="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(modes, ['Cue', 'Compact', 'Standard', 'Full']);
+  const cue = xml.slice(xml.indexOf('<DMXMode Name="Cue"'), xml.indexOf('<DMXMode Name="Compact"'));
+  assert.equal((cue.match(/<DMXChannel /g) || []).length, 3);
+  const full = xml.slice(xml.indexOf('<DMXMode Name="Full"'));
+  assert.equal((full.match(/<DMXChannel /g) || []).length, 39, '53 slots: 14 channels are 16-bit');
+  assert.match(full, /Offset="4,5" InitialFunction="Base_LPPPosX/);
+  assert.match(full, /Attribute="LPPPosX" OriginalAttribute="" DMXFrom="0\/2" Default="32768\/2" PhysicalFrom="-32768"/);
+  assert.match(full, /Attribute="ColorAdd_R" Snap="No"/);
+  assert.match(xml, /<FeatureGroup Name="Color" Pretty="Color">\s*<Feature Name="RGB"\/>/);
+  assert.match(xml, /<Attribute Name="ColorAdd_R" Pretty="R" Feature="Color.RGB" PhysicalUnit="ColorComponent"\/>/);
+  assert.doesNotMatch(xml, /Name="[^"]*\.[^"]*"/, 'no dots in a name');
+  assert.equal((descriptionXml('screen').match(/<DMXMode /g) || []).length, 4, 'the Screen has the same four modes');
   assert.match(xml, /Attribute="Dimmer" Snap="No" Master="Grand"/);
   assert.match(xml, /InitialFunction="Base_MediaFolder1.MediaFolder1.MediaFolder1"/);
   assert.equal(gdtfName('layer', '1'), 'Stoatworks@LPP_Layer@v1.gdtf');
@@ -287,13 +395,70 @@ test('GDTF: one file per fixture type, a zip holding description.xml, a mode per
   assert.deepEqual(gdtfFile('master'), gdtfFile('master'), 'the same bytes every time');
 });
 
+/* ------------------------------------------------------------ the other way */
+
+const reading = (transition, memories, { up = 'B', down = 'A' } = {}) => {
+  const isDown = transition.endsWith('DOWN');
+  return { transition, program: isDown ? down : up, preview: isDown ? up : down, memories };
+};
+
+test('takes: a start fires with the memory going to air, once; its landing does not fire again', () => {
+  const w = new TakeWatch();
+  assert.equal(w.observe('S1', reading('AT_DOWN', { A: 3, B: 12 })), null, 'the first reading is a baseline');
+  assert.deepEqual(w.observe('S1', reading('EFFECT_FROM_DOWN', { A: 3, B: 12 })), { destination: 'S1', memory: 12, how: 'start' });
+  assert.equal(w.observe('S1', reading('EFFECT_FROM_DOWN', { A: 3, B: 12 })), null, 'still the same take');
+  assert.equal(w.observe('S1', reading('AT_UP', { A: 3, B: 12 })), null, 'its landing is the same take');
+  assert.equal(w.observe('S1', reading('AT_UP', { A: 3, B: 12 })), null);
+});
+
+test('takes: a flip with no start seen is a take at its landing; a T-bar pulled back is not a second take', () => {
+  const w = new TakeWatch();
+  w.observe('S1', reading('AT_DOWN', { A: 3, B: 12 }));
+  assert.deepEqual(w.observe('S1', reading('AT_UP', { A: 3, B: 12 })), { destination: 'S1', memory: 12, how: 'land' },
+    'a cut, or the simulator, which reports no state between');
+  assert.deepEqual(w.observe('S1', reading('EFFECT_FROM_UP', { A: 3, B: 12 })).memory, 3);
+  assert.equal(w.observe('S1', reading('AT_UP', { A: 3, B: 12 })), null, 'abandoned, back where it was: fired at its start already');
+  assert.equal(w.observe('S1', reading('COPY_FROM_UP', { A: 3, B: 12 })), null, 'a copy is not a take');
+  assert.equal(w.observe('S1', reading('AT_UP', { A: 3, B: 12 })), null);
+});
+
+test('takes: a memory loaded straight to program fires; a screen that cannot be read starts again', () => {
+  const w = new TakeWatch();
+  w.observe('S1', reading('AT_DOWN', { A: 3, B: 12 }));
+  assert.equal(w.observe('S1', reading('AT_DOWN', { A: 3, B: 9 })), null, 'preview (B) changing is a recall, not a take');
+  assert.deepEqual(w.observe('S1', reading('AT_DOWN', { A: 40, B: 9 })), { destination: 'S1', memory: 40, how: 'load' });
+  assert.equal(w.observe('S1', null), null);
+  assert.equal(w.observe('S1', reading('AT_UP', { A: 40, B: 9 })), null, 'after a gap, a baseline again');
+  assert.equal(describeTake({ destination: 'S1', memory: 40, how: 'load' }), 'S1 loaded memory 40');
+  assert.equal(describeTake({ destination: 'S2', memory: null, how: 'land' }), 'S2 took a look from no memory');
+});
+
+test('takes: rules by screen and memory, any of either; one fire per rule per cooldown', () => {
+  const rules = normaliseDesk({ deskFeedbackRules: [
+    { destination: 's1', memory: '12', trigger: 'vt' },
+    { destination: '', memory: null, trigger: 'any-take' },
+    { destination: 'S2', memory: 12, trigger: 'vt' },
+    { destination: 'S1', memory: 0, trigger: '' },
+    { destination: 'nope', memory: 12, trigger: 'vt' },
+  ] }).deskFeedbackRules;
+  assert.deepEqual(rules[0], { destination: 'S1', memory: 12, trigger: 'vt' });
+  assert.deepEqual(rules[3], { destination: 'S1', memory: null, trigger: '' }, 'no trigger chosen yet: kept, never fires');
+  assert.deepEqual(rules[4], { destination: '', memory: 12, trigger: 'vt' });
+  const fired = new Map();
+  assert.deepEqual(matchRules(rules, { destination: 'S1', memory: 12 }, 1000, fired), ['vt', 'any-take']);
+  assert.deepEqual(matchRules(rules, { destination: 'S1', memory: 12 }, 1000 + COOLDOWN_MS - 1, fired), [], 'within the cooldown');
+  assert.deepEqual(matchRules(rules, { destination: 'S2', memory: 5 }, 1000 + COOLDOWN_MS, fired), ['any-take']);
+  assert.deepEqual(matchRules(rules, { destination: 'S2', memory: 12 }, 5000, fired), ['any-take', 'vt'], 'in rule order, each trigger once');
+  assert.equal(normaliseDesk({ deskFeedbackRules: Array.from({ length: 50 }, () => ({})) }).deskFeedbackRules.length, 32);
+});
+
 /* -------------------------------------------------------------- settings */
 
 test('settings: off, one screen, four layers, the Master, universe 1', () => {
   assert.deepEqual(normaliseDesk({}), { ...DEFAULT_DESK, deskAllow: [], deskDestinations: ['S1'] });
   const s = normaliseDesk({
     deskEnabled: true, deskProtocol: 'nonsense', deskInterface: '10.0.0.300', deskAllow: '2.0.0.1, bad 2.0.0.2',
-    deskFirstUniverse: 70000, deskDestinations: ['s2', 'S2', 'X9', 'A1'], deskLayers: 40, deskMaster: false, deskMode: 'full',
+    deskFirstUniverse: 70000, deskDestinations: ['s2', 'S2', 'X9', 'A1'], deskLayers: 40, deskMaster: false, deskMode: 'huge',
   });
   assert.equal(s.deskProtocol, 'both');
   assert.equal(s.deskInterface, '');
@@ -303,6 +468,7 @@ test('settings: off, one screen, four layers, the Master, universe 1', () => {
   assert.equal(s.deskLayers, 4);
   assert.equal(s.deskMaster, false);
   assert.equal(s.deskMode, 'cue');
+  assert.equal(normaliseDesk({ deskMode: 'full' }).deskMode, 'full');
   assert.deepEqual(normaliseDesk({ deskDestinations: [] }).deskDestinations, [], 'no screens is a choice');
   assert.equal(deskChanged(s, normaliseDesk(s)), false);
   assert.equal(deskChanged(s, { ...s, deskLayers: 2 }), true);
@@ -346,7 +512,7 @@ test('the held link: no switcher is an error, not a hang', async () => {
 
 const LOOPBACK = () => ({ lo0: [{ address: '127.0.0.1', netmask: '255.0.0.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal: true }] });
 
-async function bench({ settings = {}, store: extra = [], landsAfter = 0, landMarginMs } = {}) {
+async function bench({ settings = {}, store: extra = [], landsAfter = 0, landMarginMs, triggers = null } = {}) {
   const store = new Map([['DeviceObject/system/$device/@items/1/@props/dev', 'NLC_AQL_C']]);
   const set = (path, v) => store.set(toAwj(path), v);
   set(NLC.takeStatus('S1', 'isUsed'), true);
@@ -372,6 +538,7 @@ async function bench({ settings = {}, store: extra = [], landsAfter = 0, landMar
     ports: { artnet: 0, sacn: 0 }, bindAddress: '127.0.0.1', pollReplyPort: null,
     interfaces: LOOPBACK, settleMs: 60, idleMs: 2000, ...(landMarginMs === undefined ? {} : { landMarginMs }),
     timecode: () => ({ push: (tc) => timecodes.push(tc) }),
+    triggers: () => triggers, watchMs: 20,
   });
   await sup.apply(normaliseDesk({ deskEnabled: true, deskDestinations: ['S1'], deskLayers: 2, ...settings }));
   const desk = dgram.createSocket('udp4');
@@ -445,6 +612,55 @@ test('supervisor: a desk takes S1 over, sets a layer in preview, recalls, takes 
     await until(() => b.writes().some((x) => x.path === layerPath('B', 2, source)), 2000, 'the re-push to the new preview');
     assert.equal(b.writes().find((x) => x.path === layerPath('B', 2, source)).value, 'STILL_4');
     assert.equal(b.sup.link.stats.connects, 1, 'one held connection throughout');
+  } finally { await b.close(); }
+});
+
+test('supervisor: in Compact the desk places a layer from the screen’s centre, on its canvas as read now', async () => {
+  const b = await bench({
+    settings: { deskMode: 'compact', deskLayers: 1 },
+    store: [[NLC.canvasSize('S1', 'sizeH'), 3840], [NLC.canvasSize('S1', 'sizeV'), 1080]],
+  });
+  try {
+    const tail = (id) => NLC.catalogue.layer.find((p) => p.id === id).path;
+    await b.dmx(null);
+    await b.dmx('S1', [100, 0, 0, 0]);
+    await until(() => b.writes().length >= 1, 2000, 'the engage writes');
+    b.awj.clear();
+    await b.dmx('S1.L1', [0, 0, 255, ...word16(CENTRE - 960), ...word16(CENTRE + 10), ...word16(1920), ...word16(1080)]);
+    await until(() => b.writes().length >= 6, 2000, 'the geometry writes');
+    assert.deepEqual(b.writes(), [
+      { path: layerPath('A', 1, tail('opacity.opacity')), value: 256 },
+      { path: layerPath('A', 1, tail('position.anchor')), value: 'MIDDLE_CENTER' },
+      { path: layerPath('A', 1, tail('position.posH')), value: 960 },
+      { path: layerPath('A', 1, tail('position.posV')), value: 550 },
+      { path: layerPath('A', 1, tail('position.sizeH')), value: 1920 },
+      { path: layerPath('A', 1, tail('position.sizeV')), value: 1080 },
+    ]);
+
+    /* The screen resized under the desk: the next move is placed on the new canvas. */
+    b.set(NLC.canvasSize('S1', 'sizeH'), 1920);
+    b.awj.clear();
+    await b.dmx('S1.L1', [0, 0, 255, ...word16(CENTRE), ...word16(CENTRE + 10), ...word16(1920), ...word16(1080)]);
+    await until(() => b.writes().length >= 5, 2000, 'the second geometry writes');
+    assert.equal(b.writes().find((w) => w.path === layerPath('A', 1, tail('position.posH'))).value, 960);
+  } finally { await b.close(); }
+});
+
+test('supervisor: a screen whose size cannot be read gets the rest of the look, not a guessed position', async () => {
+  const b = await bench({ settings: { deskMode: 'standard', deskLayers: 1 } });
+  try {
+    const tail = (id) => NLC.catalogue.layer.find((p) => p.id === id).path;
+    await b.dmx(null);
+    await b.dmx('S1', [100, 0, 0, 0]);
+    await until(() => b.writes().length >= 1, 2000, 'the engage writes');
+    b.awj.clear();
+    const crop = [...word16(100), ...word16(0), ...word16(0), ...word16(0)];
+    await b.dmx('S1.L1', [0, 0, 255, ...word16(CENTRE), ...word16(CENTRE), ...word16(640), ...word16(360), ...crop, 0, 0, 0, 64, 0]);
+    await until(() => b.writes().some((w) => w.path === layerPath('A', 1, tail('effects.flags'))), 2000, 'the effects write');
+    const paths = b.writes().map((w) => w.path);
+    assert.ok(!paths.includes(layerPath('A', 1, tail('position.posH'))), 'no position');
+    assert.equal(b.writes().find((w) => w.path === layerPath('A', 1, tail('cropping.classic.left'))).value, 100);
+    assert.deepEqual(b.writes().find((w) => w.path === layerPath('A', 1, tail('effects.flags'))).value, ['FLIP_H']);
   } finally { await b.close(); }
 });
 
@@ -554,6 +770,67 @@ test('supervisor: the allow list refuses other desks; sACN drives the same way; 
   } finally { await b.close(); }
 });
 
+const memoryOf = (letter) => NLC.bufferMemory('S1', letter);
+
+test('supervisor: a take from elsewhere fires the rule’s trigger, a desk’s own take is not fired back', async () => {
+  const fires = [];
+  const triggers = {
+    list: () => [{ id: 'vt', name: 'VT state' }],
+    fire: async (ids, why) => { fires.push({ ids, why }); return { ok: true, results: [], names: ['VT state'] }; },
+  };
+  const b = await bench({
+    triggers,
+    settings: { deskFeedback: true, deskFeedbackRules: [{ destination: 'S1', memory: 7, trigger: 'vt' }] },
+    store: [[memoryOf('A'), 7], [memoryOf('B'), 2], [memoryOf('C'), 0]],
+  });
+  try {
+    await sleep(80);
+    assert.deepEqual(b.sup.describe().feedback.watching, ['S1']);
+    assert.deepEqual(b.sup.describe().feedback.triggers, [{ id: 'vt', name: 'VT state' }]);
+
+    /* Someone takes on the switcher: A (memory 7) goes to air. */
+    b.set(NLC.takeStatus('S1', 'transition'), 'AT_UP');
+    await until(() => fires.length === 1, 2000, 'the trigger');
+    assert.deepEqual(fires[0], { ids: ['vt'], why: 'S1 took memory 7' });
+    await until(() => b.sup.history.some((e) => e.kind === 'fired'), 1000, 'the history');
+
+    /* Back again: B (memory 2) to air matches nothing. */
+    b.set(NLC.takeStatus('S1', 'transition'), 'AT_DOWN');
+    await until(() => b.sup.describe().counts.takes === 2, 2000, 'the second take');
+    assert.equal(fires.length, 1);
+
+    /* The desk takes S1: A to air again, which the rule matches — but it was the desk’s own. */
+    await b.dmx(null);
+    await b.dmx('S1', [100, 0, 0, 0]);
+    await b.dmx('S1', [100, 0, 255, 0]);
+    await until(() => b.sup.describe().counts.echoes === 1, 3000, 'the desk’s take seen');
+    await sleep(100);
+    assert.equal(fires.length, 1, 'not fired back to the desk');
+
+    /* And one from elsewhere after it fires again. */
+    await sleep(600);
+    b.set(NLC.takeStatus('S1', 'transition'), 'AT_DOWN');
+    await sleep(100);
+    b.set(NLC.takeStatus('S1', 'transition'), 'AT_UP');
+    await until(() => fires.length === 2, 2000, 'the trigger again');
+  } finally { await b.close(); }
+});
+
+test('supervisor: the watch runs with no desk listened to, and says so when the Triggers plugin is off', async () => {
+  const b = await bench({
+    settings: { deskEnabled: false, deskFeedback: true, deskFeedbackRules: [{ destination: 'S1', memory: null, trigger: 'vt' }] },
+    store: [[memoryOf('A'), 7]],
+  });
+  try {
+    assert.equal(b.sup.bound.artnet, null, 'no desk: no Art-Net port');
+    await sleep(80);
+    b.set(NLC.takeStatus('S1', 'transition'), 'AT_UP');
+    await until(() => b.sup.history.some((e) => /Triggers plugin is off/.test(e.error || '')), 2000, 'the warning');
+    await b.sup.apply(normaliseDesk({ deskFeedback: false, deskFeedbackRules: [{ destination: 'S1', trigger: 'vt' }] }));
+    assert.deepEqual(b.sup.describe().feedback.watching, []);
+  } finally { await b.close(); }
+});
+
 test('supervisor: switched off, it closes its ports', async () => {
   const b = await bench();
   try {
@@ -563,4 +840,42 @@ test('supervisor: switched off, it closes its ports', async () => {
     assert.equal(b.sup.bound.sacn, null);
     assert.equal(b.sup.describe().enabled, false);
   } finally { await b.close(); }
+});
+
+/* ------------------------------------------------------------------ the card */
+
+test('the card: says what the chosen mode carries, and lists the switcher-to-desk rules', async () => {
+  const { install } = await import('./helpers/fake-dom.js');
+  const dom = install();
+  const realFetch = globalThis.fetch;
+  try {
+    const { KIT } = await import('../src/ui/plugin-host.js');
+    const { default: activate } = await import('../plugins/desk-control/client.js');
+    let settings = normaliseDesk({
+      deskEnabled: true, deskMode: 'standard', deskFeedback: true,
+      deskFeedbackRules: [{ destination: 'S1', memory: 12, trigger: 'vt' }, { trigger: 'gone' }],
+    });
+    const live = {
+      interfaces: [], switcher: { destinations: [] }, patch: { fixtures: [] }, universes: [], sockets: {}, history: [], screens: [],
+      counts: { written: 0, refused: 0, dropped: 0, takes: 3, fired: 2, echoes: 1 },
+      feedback: { on: true, watching: ['S1'], triggers: [{ id: 'vt', name: 'VT state' }] },
+    };
+    globalThis.fetch = async () => ({ ok: true, json: async () => live });
+    let render;
+    activate({
+      kit: KIT, url: (p) => p, refresh: () => {},
+      settings: { get: () => settings, set: async (p) => (settings = normaliseDesk({ ...settings, ...p })) },
+      ui: { settingsSection: (s) => { render = s.render; } },
+    });
+    render();
+    await sleep(10);
+    const text = render().textContent;
+    for (const want of ['Standard mode is 4 channels a screen and 24 a layer', 'while W or H is at zero', 'Switcher to desk',
+      'VT state', 'gone (not in Triggers now)', 'Takes seen', 'Not echoed', 'Add a rule']) {
+      assert.ok(text.includes(want), want);
+    }
+  } finally {
+    globalThis.fetch = realFetch;
+    dom.uninstall();
+  }
 });

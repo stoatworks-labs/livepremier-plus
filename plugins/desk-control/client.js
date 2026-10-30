@@ -7,13 +7,13 @@
  * the switcher: the server does, with or without this page open.
  */
 
-import { PROTOCOLS, normaliseDesk } from './core.js';
-import { MODES, FIXTURES } from '../../src/core/dmx-personality.js';
+import { PROTOCOLS, normaliseDesk, MAX_FEEDBACK_RULES } from './core.js';
+import { MODES, FIXTURES, footprint } from '../../src/core/dmx-personality.js';
 
 const CONTROL_TEXT = { off: 'not the desk’s', preview: 'desk edits preview', program: 'desk edits PROGRAM' };
 
 export default function activate(ctx) {
-  const { h, readout, card, note, picker } = ctx.kit;
+  const { h, button, readout, card, note, picker } = ctx.kit;
 
   /* Normalised here as well: before the first save the page may hold nothing at all. */
   let settings = normaliseDesk(ctx.settings.get());
@@ -113,6 +113,51 @@ export default function activate(ctx) {
       })));
   }
 
+  /* The other way: which takes fire which of the Triggers plugin's triggers. */
+  function feedbackSection() {
+    const rules = settings.deskFeedbackRules;
+    const triggers = live && live.feedback ? live.feedback.triggers : null;
+    const setRule = (i, patch) => put({ deskFeedbackRules: rules.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
+    const choices = [{ id: '', label: 'Choose a trigger…' }, ...(triggers || []).map((t) => ({ id: t.id, label: t.name }))];
+    const rows = rules.map((r, i) => {
+      if (r.trigger && !choices.some((c) => c.id === r.trigger)) choices.push({ id: r.trigger, label: `${r.trigger} (not in Triggers now)` });
+      return h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' },
+        field('Screen', r.destination, (v) => setRule(i, { destination: v }), { width: '5rem', placeholder: 'any' }),
+        field('Memory', r.memory === null ? '' : String(r.memory), (v) => setRule(i, { memory: v.trim() === '' ? null : Number(v) }),
+          { width: '5rem', placeholder: 'any' }),
+        picker('Fires', choices, r.trigger, (v) => setRule(i, { trigger: v }), { disabled: saving }),
+        button('Remove', { onClick: () => put({ deskFeedbackRules: rules.filter((_, j) => j !== i) }), disabled: saving }));
+    });
+    const add = rules.length < MAX_FEEDBACK_RULES
+      ? button('Add a rule', {
+        onClick: () => put({ deskFeedbackRules: [...rules, { destination: settings.deskDestinations[0] || 'S1', memory: null, trigger: '' }] }),
+        disabled: saving,
+      })
+      : null;
+    const notes = [];
+    if (settings.deskFeedback && live && !triggers) {
+      notes.push(note('warn', 'The Triggers plugin is off. Switch it on, and make the triggers there: an OSC command, '
+        + 'a MIDI note or MSC GO, or a DMX level on a channel the desk listens to.'));
+    }
+    if (settings.deskFeedback) {
+      notes.push(note('info',
+        'A take on the switcher — its own panel, the Web RCS, a T-bar, another console — fires these, at the start of '
+        + 'the transition where the switcher reports one, at its landing where it does not. A memory loaded straight to '
+        + 'program fires as a take. A take this desk asked for is never fired back to it. Blank screen or memory is any.'));
+    }
+    const counts = settings.deskFeedback && live && live.feedback
+      ? h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
+        readout('Watching', live.feedback.watching.join(' ') || '—', { tone: live.feedback.watching.length ? null : 'tertiary' }),
+        readout('Takes seen', String(live.counts.takes)),
+        readout('Fired', String(live.counts.fired)),
+        readout('Not echoed', String(live.counts.echoes), { tone: live.counts.echoes ? null : 'tertiary' }))
+      : null;
+    return h('div', { class: 'aw-flex-col aw-gap-row-small' },
+      check('Fire triggers when the switcher takes', settings.deskFeedback, (v) => put({ deskFeedback: v })),
+      ...(settings.deskFeedback ? [...rows, add, counts] : []),
+      ...notes);
+  }
+
   function render() {
     if (!asked) { asked = true; void load(); }
     listen();
@@ -187,11 +232,16 @@ export default function activate(ctx) {
         'This listens on the network (UDP 6454 and 5568) whatever address the app itself is bound to. '
         + '“Only these desks” is the lock: list the desks’ addresses and nothing else can drive the switcher. '
         + 'Writes go over AWJ on TCP 10606, which can be switched off in the Web RCS security settings.'));
+      const mode = MODES.find((m) => m.id === settings.deskMode) || MODES[0];
       notes.push(note('info',
-        `Cue mode is ${FIXTURES.screen.modes.cue.length} channels a screen and ${FIXTURES.layer.modes.cue.length} a layer — `
-        + 'a parameter count grandMA3 onPC with a small node, MagicQ PC and Titan Go all carry. '
+        `${mode.label} mode is ${footprint('screen', mode.id)} channels a screen and ${footprint('layer', mode.id)} a layer. `
+        + `${mode.what} `
+        + (mode.id === 'cue' ? ''
+          : 'X and Y are pixels from the screen’s centre, W and H are pixels, and while W or H is at zero '
+            + 'the memory keeps the layer’s whole look — position, crop, effects and all. ')
         + 'Import the .gdtf files into the desk (grandMA3 and MagicQ read them directly; Titan converts '
-        + 'them in Personality Builder) and patch as the table says. docs/DESK-CONTROL.md has the rest.'));
+        + 'them in Personality Builder), patch every fixture in the same mode, as the table says. '
+        + 'docs/DESK-CONTROL.md has the rest.'));
     }
     const history = live && live.history && live.history.length
       ? h('div', { class: 'aw-flex-col aw-gap-row-mini' },
@@ -202,7 +252,8 @@ export default function activate(ctx) {
       : null;
 
     return card('Lighting desk control',
-      toggle, network, patchRow, files, patchTable(live ? live.patch : null), readouts, history, ...notes);
+      toggle, network, patchRow, files, patchTable(live ? live.patch : null), readouts, history, ...notes,
+      h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Switcher to desk' }), feedbackSection());
   }
 
   ctx.ui.settingsSection({ id: 'desk-control', order: 13, render });

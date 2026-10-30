@@ -12,6 +12,7 @@
 
 import { layout, MODES } from '../../src/core/dmx-personality.js';
 import { validUniverse } from '../../src/core/sacn.js';
+import { coerce } from '../../src/core/properties.js';
 
 export const PROTOCOLS = Object.freeze([
   { id: 'both', label: 'Art-Net and sACN' },
@@ -44,7 +45,27 @@ export const DEFAULT_DESK = Object.freeze({
   deskLayers: 4,
   deskMaster: true,
   deskMode: 'cue',
+  /* The other way: takes on the switcher fire Triggers-plugin triggers
+     (`feedback.js`). Its own switch, as it needs no desk patched. */
+  deskFeedback: false,
+  deskFeedbackRules: Object.freeze([]),
 });
+
+export const MAX_FEEDBACK_RULES = 32;
+/* A LivePremier's screen bank; a Midra's is 200. */
+const MAX_MEMORY = 1000;
+
+/** One rule: a screen ('' any), a memory (null any), a Triggers-plugin trigger id ('' none chosen yet). */
+function normaliseRule(raw) {
+  const r = raw && typeof raw === 'object' ? raw : {};
+  const destination = String(r.destination ?? '').trim().toUpperCase();
+  const memory = r.memory === null || r.memory === '' || r.memory === undefined ? null : Number(r.memory);
+  return {
+    destination: DESTINATION.test(destination) ? destination : '',
+    memory: Number.isInteger(memory) && memory >= 1 && memory <= MAX_MEMORY ? memory : null,
+    trigger: typeof r.trigger === 'string' ? r.trigger.trim().slice(0, 64) : '',
+  };
+}
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 const DESTINATION = /^[SA]\d{1,2}$/;
@@ -73,6 +94,9 @@ export function normaliseDesk(raw) {
     deskLayers: int(input.deskLayers, 0, MAX_LAYERS, d.deskLayers),
     deskMaster: input.deskMaster !== false,
     deskMode: MODES.some((m) => m.id === input.deskMode) ? input.deskMode : d.deskMode,
+    deskFeedback: input.deskFeedback === true,
+    deskFeedbackRules: (Array.isArray(input.deskFeedbackRules) ? input.deskFeedbackRules : [])
+      .slice(0, MAX_FEEDBACK_RULES).map(normaliseRule),
   };
 }
 
@@ -85,7 +109,9 @@ export const deskChanged = (a, b) =>
   || a.deskDestinations.join() !== b.deskDestinations.join()
   || a.deskLayers !== b.deskLayers
   || a.deskMaster !== b.deskMaster
-  || a.deskMode !== b.deskMode;
+  || a.deskMode !== b.deskMode
+  || a.deskFeedback !== b.deskFeedback
+  || JSON.stringify(a.deskFeedbackRules) !== JSON.stringify(b.deskFeedbackRules);
 
 /** The patch these settings make. */
 export function patchOf(settings, labelOf) {
@@ -102,12 +128,80 @@ export function patchOf(settings, labelOf) {
 /** Whether a packet from `ip` may drive anything. */
 export const allowed = (settings, ip) => !settings.deskAllow.length || settings.deskAllow.includes(ip);
 
+/** A layer parameter's catalogue entry (type, range, path under the layer), by its id. */
+export function layerSpec(dialect, id) {
+  const list = (dialect && dialect.catalogue && dialect.catalogue.layer) || [];
+  return (id && list.find((p) => p.id === id)) || null;
+}
+
 /**
  * Where a catalogue parameter is under a layer, by its catalogue id —
  * `layerSourcePath` (console-intents.js) for any parameter.
  */
 export function layerTail(dialect, id) {
-  const list = (dialect && dialect.catalogue && dialect.catalogue.layer) || [];
-  const found = list.find((p) => p.id === id);
+  const found = layerSpec(dialect, id);
   return found ? found.path : null;
+}
+
+/* The catalogue ids that differ between LivePremier and Midra/Alta; null is
+   a platform without it. Border and shadow are spelt alike on both. */
+const LOOK_IDS = {
+  nlc: { colour: 'source.color', crop: 'cropping.classic', mask: 'cropping.mask', frames: 'effects.strobe.frames', keying: 'keying' },
+  mng: { colour: 'color', crop: 'crop', mask: 'mask', frames: null, keying: null },
+};
+
+/**
+ * One part of a desk's layer look (`layerLook` in dmx-personality.js) as
+ * `[catalogue id, value]` pairs for this platform, before they are fitted to
+ * the catalogue's ranges. Source goes its own way (`sourceValue`). Geometry
+ * needs the screen's canvas, `{width, height}`: X and Y are from its centre,
+ * and on a LivePremier the anchor is written with them so they mean the
+ * centre whatever the memory anchored the layer by.
+ */
+export function lookParams(dialect, param, value, canvas = null) {
+  const ids = LOOK_IDS[dialect.id] || LOOK_IDS.nlc;
+  const lp = dialect.layerParams || {};
+  const sides = (base) => (base ? ['left', 'right', 'top', 'bottom'].map((side) => [`${base}.${side}`, value[side]]) : []);
+  const box = (base) => [
+    [`${base}.style`, value.style], [`${base}.radius`, value.radius], [`${base}.sizeH`, value.sizeH], [`${base}.sizeV`, value.sizeV],
+    [`${base}.opacity`, value.opacity],
+    [`${base}.color.red`, value.red], [`${base}.color.green`, value.green], [`${base}.color.blue`, value.blue],
+  ];
+  switch (param) {
+    case 'opacity': return [[lp.opacity, value]];
+    case 'colour': return ['red', 'green', 'blue'].map((c) => [`${ids.colour}.${c}`, value[c]]);
+    case 'geometry':
+      if (!canvas) return [];
+      return [
+        ...(lp.anchor ? [[lp.anchor, 'MIDDLE_CENTER']] : []),
+        [lp.posH, Math.round(canvas.width / 2 + value.x)], [lp.posV, Math.round(canvas.height / 2 + value.y)],
+        [lp.sizeH, value.w], [lp.sizeV, value.h],
+      ];
+    case 'crop': return sides(ids.crop);
+    case 'mask': return sides(ids.mask);
+    case 'aspect': return [[`${ids.crop}.aspectOverride`, dialect.id === 'mng' && value === 'NONE' ? 'GLOBAL_SETTING' : value]];
+    case 'effects': {
+      const flags = [value.flipH && 'FLIP_H', value.flipV && 'FLIP_V', value.effect, value.strobe && 'STROBE'].filter(Boolean);
+      return [['effects.flags', flags], ...(value.strobe && ids.frames ? [[ids.frames, value.strobe]] : [])];
+    }
+    case 'border': return box('border.edge');
+    case 'shadow': return box('border.shadow');
+    case 'key':
+      if (!ids.keying) return [];
+      return [[`${ids.keying}.enable`, value.enable], ...(value.enable ? [[`${ids.keying}.source`, `SLOT_${value.slot}`]] : [])];
+    default: return [];
+  }
+}
+
+/**
+ * A value fitted to its catalogue entry: numbers clamped, a flag set kept to
+ * the flags this platform has (a Midra has no strobe or posterise), anything
+ * else that does not fit refused with null.
+ */
+export function fitValue(spec, raw) {
+  if (!spec) return null;
+  const value = spec.type === 'map' && Array.isArray(raw) && Array.isArray(spec.values)
+    ? raw.filter((f) => spec.values.includes(f)) : raw;
+  const r = coerce(spec, value);
+  return r.ok ? r.value : null;
 }

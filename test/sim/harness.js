@@ -73,6 +73,15 @@ export const AWJ = target
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/*
+ * With no host a socket connects to localhost, and 127.0.0.1:10606 can be a
+ * tunnel to a real switcher (one was, 2026-10-30). So no simulator, no AWJ.
+ */
+function awjTarget() {
+  if (!AWJ) throw new Error(SKIP);
+  return AWJ;
+}
+
 /* ------------------------------------------------------------------ *
  * AWJ, as an independent witness
  * ------------------------------------------------------------------ */
@@ -88,7 +97,7 @@ export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  */
 export async function awjGetAll(paths) {
   const replies = await exchange({
-    ...AWJ,
+    ...awjTarget(),
     messages: paths.map((p) => ({ op: 'get', path: toAwj(p) }))
   });
   /* Replies carry their path, so match on it rather than trusting order. */
@@ -105,7 +114,7 @@ export async function awjGet(path) {
 
 /** Write over AWJ, as an outside client would. */
 export async function awjReplace(path, value) {
-  await exchange({ ...AWJ, messages: [{ op: 'replace', path: toAwj(path), value }] });
+  await exchange({ ...awjTarget(), messages: [{ op: 'replace', path: toAwj(path), value }] });
 }
 
 /**

@@ -14,10 +14,10 @@ import dgram from 'node:dgram';
 import os from 'node:os';
 
 import {
-  SKIP, SIM, startApp, Link, sag, settled, guardScreen, layerPath, spareSlots, saveFromPreview, deleteSlots, sleep,
+  SKIP, SIM, startApp, Link, sag, settled, take, guardScreen, layerPath, spareSlots, saveFromPreview, deleteSlots, sleep,
 } from './harness.js';
 import { buildArtDmx, buildArtPoll, parsePollReply, ARTNET_PORT } from '../../src/core/artnet.js';
-import { layout, opacityOf } from '../../src/core/dmx-personality.js';
+import { layout, opacityOf, CENTRE } from '../../src/core/dmx-personality.js';
 
 let app;
 let link;
@@ -29,10 +29,11 @@ let seq = 0;
 
 /* The patch the plugin makes from these settings: Master at 1, S1 at 5, its layers at 9 and 12. */
 const SETTINGS = { deskEnabled: true, deskDestinations: ['S1'], deskLayers: 2, deskAllow: ['127.0.0.1'] };
-const PATCH = layout({ destinations: ['S1'], layers: 2, firstUniverse: 1 });
+let PATCH = layout({ destinations: ['S1'], layers: 2, firstUniverse: 1 });
 const at = (id) => PATCH.fixtures.find((f) => f.id === id).address - 1;
 const frame = new Uint8Array(512);
 const set = (id, values) => frame.set(values, at(id));
+const word16 = (v) => [v >> 8, v & 255];
 
 const until = async (fn, ms = 6000) => {
   const end = Date.now() + ms;
@@ -189,6 +190,93 @@ test('Control lowered: the screen is let go, and a layer change after that write
   set('S1.L1', [1, other, 255]);
   await sleep(600);
   assert.equal(sourceOn(preview), was, 'preview untouched');
+});
+
+test('Compact: the desk places layer 1 from the screen’s centre, on preview, at the canvas the switcher reports', { skip: SKIP }, async (t) => {
+  await settled(link, 'S1');
+  await app.configure({ plugins: { 'desk-control': { settings: { deskMode: 'compact' } } } });
+  PATCH = layout({ destinations: ['S1'], layers: 2, firstUniverse: 1, mode: 'compact' });
+  /* A new patch: every address means something else now, so a clean baseline with S1 not the desk's. */
+  frame.fill(0);
+  set('S1.L1', [0, 0, 255, ...word16(CENTRE), ...word16(CENTRE), 0, 0, 0, 0]);
+  await sleep(400);
+  const { program, preview } = letters();
+  const pos = (letter, prop) => link.get(layerPath('S1', letter, 1, 'position', 'pp', prop));
+  const onAir = ['posH', 'posV', 'sizeH', 'sizeV'].map((p) => pos(program, p));
+  const width = link.get(['device', 'screenList', 'items', 'S1', 'status', 'size', 'pp', 'sizeH']);
+  const height = link.get(['device', 'screenList', 'items', 'S1', 'status', 'size', 'pp', 'sizeV']);
+
+  set('S1', [100, 0, 0, 0]);
+  assert.ok(await until(async () => (await app.api('/desk-control/state')).json.screens[0].control === 'preview'), 'engaged');
+  /* A quarter-size layer, 100 px right of centre and 50 px up. */
+  const started = Date.now();
+  set('S1.L1', [0, 0, 255, ...word16(CENTRE + 100), ...word16(CENTRE - 50), ...word16(width / 4), ...word16(height / 4)]);
+  await link.waitFor(layerPath('S1', preview, 1, 'position', 'pp', 'posH'), width / 2 + 100, { timeout: 4000 });
+  t.diagnostic(`position on preview: ${Date.now() - started} ms (canvas ${width} × ${height})`);
+  await link.waitFor(layerPath('S1', preview, 1, 'position', 'pp', 'posV'), height / 2 - 50, { timeout: 4000 });
+  await link.waitFor(layerPath('S1', preview, 1, 'position', 'pp', 'sizeH'), width / 4, { timeout: 4000 });
+  await link.waitFor(layerPath('S1', preview, 1, 'position', 'pp', 'sizeV'), height / 4, { timeout: 4000 });
+  assert.equal(link.get(layerPath('S1', preview, 1, 'position', 'pp', 'anchor')), 'MIDDLE_CENTER');
+  assert.deepEqual(['posH', 'posV', 'sizeH', 'sizeV'].map((p) => pos(program, p)), onAir, 'program untouched');
+
+  /* Width to zero hands the look back: a move after it writes nothing. */
+  set('S1.L1', [0, 0, 255, ...word16(CENTRE + 300), ...word16(CENTRE - 50), 0, 0, ...word16(height / 4)]);
+  await sleep(600);
+  assert.equal(pos(preview, 'posH'), width / 2 + 100, 'held at size 0');
+  set('S1', [0, 0, 0, 0]);
+  assert.ok(await until(async () => (await app.api('/desk-control/state')).json.screens[0].control === 'off'), 'released');
+});
+
+test('a take on the switcher fires the Triggers plugin’s trigger; the desk’s own take is not fired back', { skip: SKIP }, async (t) => {
+  await settled(link, 'S1');
+  /* The desk end: an OSC listener, as a desk's OSC input would be. */
+  const osc = dgram.createSocket('udp4');
+  await new Promise((r) => osc.bind(0, '127.0.0.1', r));
+  const heard = [];
+  osc.on('message', (b) => heard.push({ at: Date.now(), text: b.toString('latin1') }));
+  try {
+    await app.configure({ plugins: { triggers: { enabled: true } } });
+    const put = await app.api('/triggers/', {
+      method: 'PUT',
+      body: {
+        destinations: [{ name: 'Desk', kind: 'osc', host: '127.0.0.1', port: osc.address().port }],
+        triggers: [{ name: 'VT state', go: ['Desk /vt/state 1'], back: [] }],
+      },
+    });
+    assert.equal(put.status, 200, put.text);
+    await app.configure({ plugins: { 'desk-control': { settings: {
+      deskFeedback: true, deskFeedbackRules: [{ destination: 'S1', memory: null, trigger: 'vt-state' }],
+    } } } });
+    await sleep(400);
+    const state0 = (await app.api('/desk-control/state')).json;
+    assert.deepEqual(state0.feedback.watching, ['S1']);
+    assert.deepEqual(state0.feedback.triggers, [{ id: 'vt-state', name: 'VT state' }]);
+
+    /* Somebody else takes: the Web RCS, a T-bar, another console. */
+    const fired = Date.now();
+    await take(link, 'S1');
+    const landed = Date.now();
+    assert.ok(await until(() => heard.length === 1, 3000), 'the desk heard the trigger');
+    assert.match(heard[0].text, /\/vt\/state/);
+    t.diagnostic(`take written to OSC heard: ${heard[0].at - fired} ms; after the landing was seen here: ${heard[0].at - landed} ms`);
+    const history = (await app.api('/desk-control/state')).json.history;
+    assert.ok(history.some((e) => e.kind === 'fired' && /^S1 took/.test(e.note)), 'the history says why');
+
+    /* The desk takes S1 itself: not fired back to it. */
+    await sleep(600);
+    set('S1', [100, 0, 0, 0]);
+    assert.ok(await until(async () => (await app.api('/desk-control/state')).json.screens[0].control === 'preview'), 'engaged');
+    const before = link.get(sag('S1', 'status', 'transition'));
+    set('S1', [100, 0, 255, 0]);
+    await link.waitFor(sag('S1', 'status', 'transition'), before === 'AT_DOWN' ? 'AT_UP' : 'AT_DOWN', { timeout: 15000 });
+    assert.ok(await until(async () => (await app.api('/desk-control/state')).json.counts.echoes === 1, 3000), 'the take was seen');
+    await sleep(300);
+    assert.equal(heard.length, 1, 'and not fired');
+    set('S1', [0, 0, 0, 0]);
+  } finally {
+    osc.close();
+    await app.configure({ plugins: { 'desk-control': { settings: { deskFeedback: false } } } });
+  }
 });
 
 test('switched off, the ports close', { skip: SKIP }, async () => {

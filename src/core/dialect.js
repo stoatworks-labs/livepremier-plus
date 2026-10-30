@@ -160,6 +160,13 @@ export const NLC = {
   takeControl: (id, prop) => [ROOT, 'screenAuxGroupList', 'items', id, 'control', 'pp', prop],
   takeStatus: (id, prop) => [ROOT, 'screenAuxGroupList', 'items', id, 'status', 'pp', prop],
 
+  /** A destination's canvas, `sizeH` or `sizeV` in pixels — what `destinations` reads as `canvas`. */
+  canvasSize: (id, prop) => [ROOT, NLC.listNameFor(id), 'items', id, 'status', 'size', 'pp', prop],
+
+  /** The buffers' names, and where the memory each holds is read one at a time (`assignments` reads the store). */
+  bufferLetters: Object.freeze(['A', 'B', 'C']),
+  bufferMemory: (id, letter) => [ROOT, 'presetBank', 'status', 'presetId', NLC.listNameFor(id), 'items', id, 'presetList', 'items', letter, 'pp', 'id'],
+
   /** A fade time is written to both directions. Tenths of a second. */
   fadeCmds: (id, tenths) => [
     { path: NLC.takeControl(id, 'takeUpTime'), value: tenths },
@@ -829,6 +836,19 @@ export const MNG = {
   takeStatus(id, prop) {
     const s = this.split(id) || { list: 'screenList', key: String(id) };
     return [ROOT, 'transition', s.list, 'items', s.key, 'status', 'pp', prop];
+  },
+
+  /** A screen's canvas, `sizeH` or `sizeV`; an aux has no canvas node here. */
+  canvasSize(id, prop) {
+    const s = this.split(id);
+    return s && s.kind === 'screen' ? [ROOT, s.list, 'items', s.key, 'canvas', 'status', 'size', 'pp', prop] : null;
+  },
+
+  /** The buffers, and the memory one holds (`memoryId`, 0 for none), as `assignments` reads it. */
+  bufferLetters: Object.freeze(['UP', 'DOWN']),
+  bufferMemory(id, buffer) {
+    const s = this.split(id);
+    return s ? [ROOT, s.list, 'items', s.key, 'presetList', 'items', buffer, 'status', 'pp', 'memoryId'] : null;
   },
 
   /** One time serves both directions here. Tenths of a second, as on nlc. */

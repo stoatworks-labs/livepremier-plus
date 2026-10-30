@@ -340,6 +340,26 @@ export default async function activate(ctx) {
     h.json(200, { ok: true });
   });
 
+  /* For another plugin: desk control fires triggers when the switcher takes
+     (its `feedback.js`). Go lines only, and no hold: a take is not a cue with
+     a VT to wait for. */
+  ctx.provide('triggers', {
+    list: () => setup.triggers.map((t) => ({ id: t.id, name: t.name })),
+    async fire(ids, why) {
+      const results = [];
+      const names = [];
+      for (const id of [].concat(ids).map(String)) {
+        const trigger = triggerNamed(id);
+        if (!trigger) { results.push({ line: id, ok: false, error: 'no such trigger' }); continue; }
+        names.push(trigger.name);
+        results.push(...await sendTrigger(trigger, 'go', null));
+      }
+      const bad = failures(results);
+      note(`${why}: ${names.length ? names.join(', ') : 'no triggers'}${bad.length ? `; ${bad.join('; ')}` : ''}`, bad.length > 0);
+      return { ok: bad.length === 0, results, names };
+    },
+  });
+
   ctx.contribute('configSection', {
     key: 'triggers',
     group: 'installation',

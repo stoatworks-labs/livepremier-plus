@@ -670,8 +670,26 @@ simulator. Load-bearing:
 - **One source in control per universe, never a merge** (`src/core/dmx-input.js`): HTP of two
   layer sources means nothing. Highest sACN priority, Art-Net as 100, ties to the lowest key,
   sACN preview data ignored. This app's own sACN (source name `LivePremier Plus`, the Triggers
-  plugin's) is ignored outright; its Art-Net is not distinguishable yet — the loop guard belongs
-  to the bidirectional phase.
+  plugin's) is ignored outright; its Art-Net is not distinguishable — don't point a Triggers
+  Art-Net destination at a universe desk control listens to.
+- **The modes only add.** Cue, Compact, Standard and Full are each the one before with channels
+  on the end; Master and Screen are the same in all four. **Size 0 is the memory's look**:
+  `layerLook` returns nothing past source, opacity and colour while W or H is 0, and the engine
+  only writes a part whose value changed (`sameValue`). Keep both, or a desk patched in a bigger
+  mode and sitting at zero overwrites every memory's geometry. What a part becomes on the wire is
+  `lookParams` → `layerSpec` → `fitValue` (`core.js`): a value the platform's catalogue refuses
+  is dropped, not sent, and a part the platform lacks (a Midra's key) is passed over.
+- **A position needs the screen's size**, read with the preset letters before every burst
+  (`dialect.canvasSize`), never cached: a preconfig can change it. No size, no position written,
+  a quiet note. X and Y are from the centre; NLC needs the anchor written `MIDDLE_CENTER` with them.
+- **Switcher to desk (`feedback.js`, the watcher in `supervisor.js`)**: `TakeWatch` decides, the
+  supervisor polls (`WATCH_MS`) on the held link and fires through the Triggers plugin's
+  `triggers` service (`ctx.use`, null when that plugin is off — say so, don't fail silently). A
+  take fires once: at `EFFECT_FROM_…` when seen, else at landing; the first reading is a baseline.
+  **The echo guard is `#ownTakes`**: every take or cut desk control writes is recorded before it
+  goes, and the next take seen on that screen is the desk's own and fires nothing. Any new path
+  that writes a take for the desk must go through `#taken`, or the "VT state" cue that takes the
+  switcher loops. It watches with desk listening off, so `#shut` keeps the link while watching.
 - **The supervisor keeps order per screen** (`supervisor.js` argues it): a queue per destination,
   one step per burst, `minGapMs` between bursts; layer values coalesce only within a run, never
   across a recall, take or cut; `settleMs` after each of those; the preset letters read before
@@ -704,12 +722,20 @@ simulator. Load-bearing:
   Art-Net time out after 10 s and the next frame is a baseline), and polls on the simulator's own
   subnet — a Mac with a VM adapter lists that first. `guardScreen` puts back only the layers in
   use (`fittedLayers`), so a test that writes an empty layer leaves it changed on the shared rack.
+  ⚠️ A scratch script using the harness needs `LPP_SIM` too: without it there was no AWJ host and
+  Node connected to localhost:10606, which on this Mac was another session's tunnel to a switcher
+  on the tailnet. `awjGetAll`/`awjReplace` now throw instead; keep it that way.
 - **Testing with MagicQ PC on this Mac:** back up `~/Documents/MagicQ/show/{lastshow.shw,
   status.dat,laststatus.dat,heads/headindex.csv}` first; the GDTF import adds three `.hed` files,
   index lines and `~/Library/Application Support/MagicQ/recent_saved_heads.txt`. Network IP a real
   interface, Art-Net type *V4 Unicast only*, universe 1 unicast to 127.0.0.1, the app started
   before MagicQ opens its socket. Its soft keys ignore AXPress (a one-pixel drag presses them), and
-  it ignores SIGTERM; its quit confirmation can open on another Space.
+  it ignores SIGTERM; its quit confirmation can open on another Space, and is a window of its own
+  (`CONFIRM`) that a click on the main window doesn't reach. A multi-mode GDTF asks for the mode on
+  import. In the programmer's advanced view, click a cell, type, Return; select only the head you
+  mean, as the columns are shared between head types. Check **Rec Options** before recording: a
+  latched *Rec Remove* makes REC + S remove instead. In demo mode its OSC, MIDI and remote inputs
+  are locked, so it can't receive the switcher's triggers.
 
 ### grandMA3 (`plugins/grandma3/`) — **preview**
 

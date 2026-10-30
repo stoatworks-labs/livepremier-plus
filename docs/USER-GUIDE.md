@@ -92,8 +92,10 @@ than something bolted on.
   open. Quit ATEM Software Control first, or it switches your ATEM on every press too. Not yet
   tried on a real panel.
 - **Lighting desk control** *(preview, off by default)*: a lighting desk driving the switcher over
-  Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity.
-  Driven from MagicQ PC against the simulator; not yet tried on a real switcher.
+  Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity,
+  and in the bigger modes its position, size and look. A take on the switcher can fire the desk's
+  "VT state" through the Triggers plugin. Driven from MagicQ PC against the simulator; not yet
+  tried on a real switcher, and the triggers have only been heard by a test socket, not a desk.
 - **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, driving the
   switcher from its executors through the OSC the desk already sends. Tried with grandMA3 onPC,
   not yet with a wing or a desk.

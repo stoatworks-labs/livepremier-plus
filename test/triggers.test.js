@@ -322,6 +322,21 @@ async function rig(t, { services, docs } = {}) {
 
 const CUE = { id: 'c12', number: '12', label: 'Sizzle reel' };
 
+test('another plugin fires go lines through the triggers service — no hold, and a note of why', async (t) => {
+  const services = new Map();
+  const { host, sent } = await rig(t, { services });
+  const svc = services.get('triggers');
+  assert.deepEqual(svc.list(), [{ id: 'vt-audio', name: 'VT audio' }, { id: 'house-down', name: 'House down' }]);
+  const r = await svc.fire(['vt-audio', 'nope'], 'S1 took memory 12');
+  assert.equal(r.ok, false);
+  assert.deepEqual(r.names, ['VT audio']);
+  assert.deepEqual(r.results.filter((x) => !x.ok).map((x) => x.error), ['no such trigger']);
+  assert.ok(await until(() => sent().includes('/ch/18/mix/on 1')));
+  const state = (await host.call('GET', '/')).body;
+  assert.deepEqual(state.holds, [], 'no hold: a take is not a cue with a VT to wait for');
+  assert.match(state.log[0].text, /^S1 took memory 12: VT audio; nope: no such trigger$/);
+});
+
 test('a cue fires its triggers, and after its time the back lines go in reverse, levels from before', async (t) => {
   const { host, sent, level } = await rig(t);
   /* The house is up, as the lighting look left it. */

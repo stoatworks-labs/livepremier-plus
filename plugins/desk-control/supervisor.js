@@ -43,12 +43,23 @@
  *   `STALE_MS` of the desk asking is dropped and reported, not sent late: a
  *   take three seconds after the cue is a wrong take.
  *
- * ## The desk owns source and opacity, the memory owns the rest
+ * ## The desk owns what its mode has channels for, the memory the rest
  *
  * Whenever something replaces the buffer the desk edits — the desk taking the
  * screen over, a recall into preview, a take — the desk's layer values for
  * that screen are written again (`DeskEngine.layersFor`). That is what makes a
- * Cue-mode Layer fixture mean the same thing whatever memory is loaded.
+ * Layer fixture mean the same thing whatever memory is loaded: source and
+ * opacity in Cue mode, and in the larger modes position, size and the rest
+ * too, unless W or H is at zero (`layerLook`). X and Y are from the screen's
+ * centre, so its canvas is read with the letters.
+ *
+ * ## The other way
+ *
+ * With `deskFeedback` on, the same held connection reads the watched screens
+ * about ten times a second and a take fires the Triggers plugin's triggers
+ * (`feedback.js` decides what is a take and which rules it matches). It runs
+ * whether or not a desk is listened to. A take this supervisor wrote is
+ * remembered until it has had its time, and not fired back.
  *
  * ## The held connection
  *
@@ -72,7 +83,8 @@ import { ARTNET_PORT, OP, parseArtnet, buildPollReplies } from '../../src/core/a
 import { SACN_PORT, parseSacn, multicastGroup } from '../../src/core/sacn.js';
 import { DmxInput, portAddressOfUniverse } from '../../src/core/dmx-input.js';
 import { DeskEngine, CONTROL, sourceValue } from '../../src/core/dmx-personality.js';
-import { patchOf, allowed, layerTail } from './core.js';
+import { patchOf, allowed, layerSpec, lookParams, fitValue } from './core.js';
+import { TakeWatch, matchRules, describeTake } from './feedback.js';
 
 export const MIN_GAP_MS = 33;
 export const SETTLE_MS = 150;
@@ -81,6 +93,8 @@ export const LAND_MARGIN_MS = 1500;
 /* A take whose time could not be read: longer than any take a show runs on a cue. */
 const LAND_UNKNOWN_MS = 10_000;
 const HOLD_RETRY_MS = 40;
+/* How often a watched screen is read for takes: AWJ pushes nothing. */
+export const WATCH_MS = 100;
 const ERROR_RETRY_MS = 1000;
 const EXPIRE_EVERY_MS = 500;
 const REFRESH_MS = 30_000;
@@ -114,25 +128,35 @@ export class DeskSupervisor extends EventEmitter {
   #held = new Map();
   /* id → { from, until }: a take or cut written, not yet seen to land. */
   #landing = new Map();
+  /* id → until: a take or cut this wrote, not to be fired back to the desk. */
+  #ownTakes = new Map();
+  #takeWatch = new TakeWatch();
+  #watchTimer = null;
+  /* Bumped by every stop, so a read still in flight when the watch stopped cannot start a second loop. */
+  #watchRun = 0;
+  #fired = new Map();
 
   /**
    * @param {object} o
    * @param {() => string|null} o.deviceHost  the switcher's host, read per use
    * @param {() => {push: Function}|null} [o.timecode]  the timecode plugin's service
+   * @param {() => {list: Function, fire: Function}|null} [o.triggers]  the Triggers plugin's service
    * @param {{artnet?: number, sacn?: number}} [o.ports]  0 for any (tests)
    * @param {string} [o.bindAddress]   '0.0.0.0'; tests bind loopback
    * @param {number|null} [o.pollReplyPort]  where ArtPollReply goes; null answers the poll's own port
    */
   constructor({
-    deviceHost = () => null, awjPort = AWJ_PORT, log = () => {}, timecode = () => null,
+    deviceHost = () => null, awjPort = AWJ_PORT, log = () => {}, timecode = () => null, triggers = () => null,
     ports = {}, bindAddress = '0.0.0.0', pollReplyPort = ARTNET_PORT,
     interfaces = () => os.networkInterfaces(), minGapMs = MIN_GAP_MS, settleMs = SETTLE_MS, idleMs,
-    landMarginMs = LAND_MARGIN_MS,
+    landMarginMs = LAND_MARGIN_MS, watchMs = WATCH_MS,
   } = {}) {
     super();
     this.deviceHost = deviceHost;
     this.log = log;
     this.timecode = timecode;
+    this.triggers = triggers;
+    this.watchMs = watchMs;
     this.ports = { artnet: ARTNET_PORT, sacn: SACN_PORT, ...ports };
     this.bound = { artnet: null, sacn: null };
     this.socketErrors = { artnet: null, sacn: null };
@@ -147,7 +171,10 @@ export class DeskSupervisor extends EventEmitter {
     this.switcher = new ConsoleSwitcher({ deviceHost: () => this.deviceHost(), awjPort, limits: LIMITS, exchange: this.link.exchange });
     this.facts = null;
     this.history = [];
-    this.counts = { artnet: 0, sacn: 0, refused: 0, own: 0, polls: 0, timecode: 0, bursts: 0, written: 0, held: 0, dropped: 0 };
+    this.counts = {
+      artnet: 0, sacn: 0, refused: 0, own: 0, polls: 0, timecode: 0, bursts: 0, written: 0, held: 0, dropped: 0,
+      takes: 0, fired: 0, echoes: 0,
+    };
   }
 
   get patch() { return this.#patch; }
@@ -159,6 +186,7 @@ export class DeskSupervisor extends EventEmitter {
     const was = this.#settings;
     this.#settings = settings;
     this.#repatch();
+    this.#followFeedback(was);
     if (!settings?.deskEnabled) {
       if (was?.deskEnabled) {
         this.#shut();
@@ -180,6 +208,7 @@ export class DeskSupervisor extends EventEmitter {
   /** The plugin is stopping. */
   stop() {
     this.#shut();
+    this.#stopWatching();
     this.link.dispose();
   }
 
@@ -197,7 +226,7 @@ export class DeskSupervisor extends EventEmitter {
     this.#readyAt.clear();
     this.#held.clear();
     this.#landing.clear();
-    this.link.close();
+    if (!this.#watchTimer) this.link.close();
   }
 
   #wants(protocol) {
@@ -624,7 +653,7 @@ export class DeskSupervisor extends EventEmitter {
           }
           this.#held.delete(id);
           const letter = buffer === CONTROL.PROGRAM ? r.program : r.preview;
-          writes.push(...this.#layerWrites(dialect, id, letter, run));
+          writes.push(...this.#layerWrites(dialect, id, letter, run, r.canvas));
         }
       }
 
@@ -677,7 +706,9 @@ export class DeskSupervisor extends EventEmitter {
   /** A take or cut has just been written to `id`; `r` is its letters read before it. */
   #taken(id, type, r) {
     const ms = type === 'cut' ? 0 : r && r.tenths !== null ? r.tenths * 100 : LAND_UNKNOWN_MS;
-    this.#landing.set(id, { from: r ? r.transition : null, until: Date.now() + ms + this.landMarginMs });
+    const until = Date.now() + ms + this.landMarginMs;
+    this.#landing.set(id, { from: r ? r.transition : null, until });
+    this.#ownTakes.set(id, until);
   }
 
   /** Whether the last take or cut written to `id` has been seen to land, given its letters read now. */
@@ -692,47 +723,167 @@ export class DeskSupervisor extends EventEmitter {
   }
 
   /**
-   * Each screen's preset letters, with whether they are settled and how long
-   * its next take runs (`tenths`, null if unknown), read now.
+   * Each screen's preset letters, with whether they are settled, how long its
+   * next take runs (`tenths`, null if unknown) and its canvas (null if
+   * unknown), read now. The canvas is read every time for the same reason
+   * the letters are: a preconfig change resizes it under the desk.
    */
-  async #letters(ids, dialect) {
+  async #letters(ids, dialect, { watch = false } = {}) {
     const props = ['presetUp', 'presetDown', 'presetPrevious'];
     /* Both directions' take times: which one runs next depends on the transition read with them. */
-    const times = (id) => [...new Map(['AT_DOWN', 'AT_UP'].map((t) => takeTimePath(dialect, id, t))
-      .filter(Boolean).map((p) => [toAwj(p), p])).values()];
+    const times = (id) => (watch ? [] : [...new Map(['AT_DOWN', 'AT_UP'].map((t) => takeTimePath(dialect, id, t))
+      .filter(Boolean).map((p) => [toAwj(p), p])).values()]);
+    const canvas = (id) => (!watch && dialect.canvasSize ? ['sizeH', 'sizeV'].map((p) => dialect.canvasSize(id, p)).filter(Boolean) : []);
+    /* For the watch, the memory every buffer holds: which one is going to air is read in the same burst. */
+    const memory = (id) => (watch && dialect.bufferMemory ? dialect.bufferLetters.map((l) => [l, dialect.bufferMemory(id, l)]).filter(([, p]) => p) : []);
     const paths = [];
     for (const id of ids) {
       for (const p of props) paths.push(dialect.takeControl(id, p));
-      paths.push(dialect.takeStatus(id, 'transition'), ...times(id));
+      paths.push(dialect.takeStatus(id, 'transition'), ...times(id), ...canvas(id), ...memory(id).map(([, p]) => p));
     }
     const got = await this.switcher.read(paths);
     return new Map(ids.map((id) => {
       const transition = got.get(toAwj(dialect.takeStatus(id, 'transition')));
       const time = takeTimePath(dialect, id, transition);
       const tenths = time ? got.get(toAwj(time)) : null;
+      const [width, height] = canvas(id).map((p) => got.get(toAwj(p)));
       const r = resolve({
         control: { pp: Object.fromEntries(props.map((p) => [p, got.get(toAwj(dialect.takeControl(id, p)))])) },
         status: { pp: { transition } },
       });
-      return [id, r && { ...r, tenths: Number.isFinite(tenths) ? tenths : null }];
+      const memories = Object.fromEntries(memory(id).map(([l, p]) => {
+        const slot = got.get(toAwj(p));
+        return [l, Number.isInteger(slot) && slot > 0 ? slot : null];
+      }));
+      return [id, r && {
+        ...r,
+        tenths: Number.isFinite(tenths) ? tenths : null,
+        canvas: width > 0 && height > 0 ? { width, height } : null,
+        memories,
+      }];
     }));
   }
 
-  #layerWrites(dialect, id, letter, run) {
+  #layerWrites(dialect, id, letter, run, canvas) {
     const out = [];
     const sourceTail = layerSourcePath(dialect);
-    const opacityTail = layerTail(dialect, dialect.layerParams?.opacity);
     for (const a of run) {
       if (a.param === 'source') {
         const value = sourceValue(dialect.id, a.value);
         const path = value && sourceTail ? dialect.layerParamPath(id, letter, a.layer, sourceTail) : null;
         if (path) out.push({ path, value });
-      } else if (a.param === 'opacity') {
-        const path = opacityTail ? dialect.layerParamPath(id, letter, a.layer, opacityTail) : null;
-        if (path) out.push({ path, value: a.value });
+        continue;
+      }
+      if (a.param === 'geometry' && !canvas) {
+        this.#note({ kind: 'noted', destination: id, note: `${id} L${a.layer}: position not written, the screen's size is not known` }, { quiet: true });
+        continue;
+      }
+      /* A part this platform lacks — a Midra's key, an aux's layers — is passed over. */
+      for (const [param, raw] of lookParams(dialect, a.param, a.value, canvas)) {
+        const spec = layerSpec(dialect, param);
+        const value = fitValue(spec, raw);
+        const path = spec && value !== null ? dialect.layerParamPath(id, letter, a.layer, spec.path) : null;
+        if (path) out.push({ path, value });
       }
     }
     return out;
+  }
+
+  /* ----------------------------------------------------------- the other way */
+
+  #watching() {
+    const s = this.#settings;
+    return !!s?.deskFeedback && s.deskFeedbackRules.some((r) => r.trigger);
+  }
+
+  /** The screens a rule names; a rule for any screen watches the patched ones. */
+  #watchIds() {
+    const rules = this.#settings.deskFeedbackRules.filter((r) => r.trigger);
+    const ids = new Set(rules.map((r) => r.destination).filter(Boolean));
+    if (rules.some((r) => !r.destination)) for (const id of this.#settings.deskDestinations) ids.add(id);
+    return [...ids];
+  }
+
+  #followFeedback(was) {
+    const on = this.#watching();
+    const wasOn = !!was?.deskFeedback && was.deskFeedbackRules.some((r) => r.trigger);
+    if (on && !this.#watchTimer) {
+      this.#takeWatch.clear();
+      this.#fired.clear();
+      const run = this.#watchRun;
+      this.#watchTimer = setTimeout(() => { void this.#watchTick(run); }, 0);
+      this.#watchTimer.unref?.();
+    }
+    if (!on) this.#stopWatching();
+    if (on !== wasOn) this.#note({ kind: on ? 'watching' : 'unwatched', note: on ? 'watching the switcher for takes' : 'stopped watching for takes' });
+    /* A changed rule list starts every screen from a baseline again. */
+    if (on && wasOn && JSON.stringify(was.deskFeedbackRules) !== JSON.stringify(this.#settings.deskFeedbackRules)) this.#takeWatch.clear();
+  }
+
+  #stopWatching() {
+    clearTimeout(this.#watchTimer);
+    this.#watchTimer = null;
+    this.#watchRun++;
+    this.#takeWatch.clear();
+    if (!this.#settings?.deskEnabled) this.link.close();
+  }
+
+  async #watchTick(run) {
+    if (run !== this.#watchRun || !this.#watching()) return;
+    let delay = this.watchMs;
+    try {
+      const dialect = await this.#ensureDialect();
+      const ids = this.#watchIds();
+      const readings = await this.#letters(ids, dialect, { watch: true });
+      for (const id of ids) {
+        const take = this.#takeWatch.observe(id, readings.get(id) || null);
+        if (take) this.#onTake(take);
+      }
+    } catch (err) {
+      this.#takeWatch.clear();
+      this.#error(`watching the switcher for takes: ${err.message}`);
+      delay = ERROR_RETRY_MS;
+    }
+    if (run !== this.#watchRun || !this.#watching()) return;
+    this.#watchTimer = setTimeout(() => { void this.#watchTick(run); }, delay);
+    this.#watchTimer.unref?.();
+  }
+
+  #onTake(take) {
+    this.counts.takes++;
+    const id = take.destination;
+    const what = describeTake(take);
+    const own = this.#ownTakes.get(id);
+    this.#ownTakes.delete(id);
+    if (own && own >= Date.now()) {
+      this.counts.echoes++;
+      this.#note({ kind: 'echo', destination: id, note: `${what}: the desk’s own take, not fired back` }, { quiet: true });
+      return;
+    }
+    const ids = matchRules(this.#settings.deskFeedbackRules, take, Date.now(), this.#fired);
+    if (!ids.length) {
+      this.#note({ kind: 'take', destination: id, note: `${what}: no rule` }, { quiet: true });
+      return;
+    }
+    const svc = this.triggers();
+    if (!svc) {
+      this.#error(`${what}: the Triggers plugin is off, so nothing was fired`);
+      return;
+    }
+    void (async () => {
+      try {
+        const r = await svc.fire(ids, what);
+        this.counts.fired++;
+        const bad = (r?.results || []).filter((x) => !x.ok);
+        this.#note({
+          kind: 'fired', destination: id,
+          note: `${what}: fired ${r?.names?.join(', ') || ids.join(', ')}${bad.length ? ` — ${bad.map((x) => `${x.line}: ${x.error}`).join('; ')}` : ''}`,
+          ...(bad.length ? { error: `firing ${ids.join(', ')}: ${bad[0].error}` } : {}),
+        });
+      } catch (err) {
+        this.#error(`${what}: firing ${ids.join(', ')}: ${err.message}`);
+      }
+    })();
   }
 
   #drop(a, why) {
@@ -804,6 +955,11 @@ export class DeskSupervisor extends EventEmitter {
       universes: this.#input.describe(at),
       master: this.#patch.fixtures.some((f) => f.kind === 'master') ? this.#engine.control('master') : null,
       screens,
+      feedback: {
+        on: this.#watching(),
+        watching: this.#watching() ? this.#watchIds() : [],
+        triggers: (() => { try { return this.triggers()?.list() ?? null; } catch { return null; } })(),
+      },
       counts: { ...this.counts },
       history: this.history,
     };

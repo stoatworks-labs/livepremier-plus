@@ -144,6 +144,48 @@ files were backed up first and put back after.
 - **Not run from MagicQ**: Memory, Cut, the Master fixture, a cue stack (only the programmer),
   sACN. Nor grandMA3 or Titan.
 
+### Phase 2: the layer modes, and the switcher back to the desk (same evening)
+
+Allan said "start phase 2". Two things, both in the doc now:
+
+- **Compact, Standard and Full.** A layer is 3, 11, 24 or 53 channels; Master and Screen are the
+  same four in every mode. Position and size are 16-bit, X and Y in pixels from the screen's
+  centre so a layer at the defaults sits in the middle, and **size 0 is the memory's look**: while
+  W or H is zero the desk writes nothing past source, opacity and colour. That last rule is what
+  makes a bigger mode safe to patch: a desk at zero edits nothing a memory set up. A position
+  needs the screen's size, read with the preset letters before each burst (NLC
+  `screenList/…/status/size`; on the sim S1 is 1920 × 1080); no size, no position, a note.
+  The GDTF files went to version 2, since every address after channel 3 moved.
+- **Switcher to desk.** The desk-control plugin watches the screens (letters, transition, and the
+  memory each buffer holds, ten times a second on the held link) and fires triggers through a
+  service the Triggers plugin now provides, so OSC, MIDI, MSC, Art-Net and sACN all come for
+  free. A take fires at `EFFECT_FROM_…` if the switcher reports it, or at landing if not, which
+  on the 6.2.73 simulator is always: 1.02–1.14 s after a 1.0 s take was written, 8–112 ms after
+  the landing. A take the desk asked for is remembered and not fired back (the loop the "VT
+  state" request would otherwise make), and each rule has a 500 ms cooldown.
+
+MagicQ again, Standard mode, the v2 files:
+
+- **It offered all four modes** on import and reads `LPPPosX`/`LPPPosY` as its own position
+  (`XYZ_X`/`XYZ_Y`); the rest are "not recognised" and patch as plain channels.
+- **Geometry from its programmer reached the sim's preview**: W 960, H 512, X 486 px left of
+  centre gave posH 474, sizeH 960, sizeV 512, anchor `MIDDLE_CENTER`, program untouched. MagicQ's
+  packet to the simulator, timed on the wire against a 50 ms poll: X 85 ms, Flip 19 ms, Crop 111 ms.
+- **Its Locate sets Flip to 255**, H+V, and the colour to white. Harmless at size 0, wrong once a
+  layer has a size. Left as it is and written in the doc; the top of Effect, Aspect and Key are
+  safe values for the same reason, Flip has no spare range.
+- **The loop guard with a real desk**: a take written by another AWJ client fired the trigger at an
+  OSC listener 52 ms after its landing was seen; MagicQ's own Take (channel to 255) landed 1.04 s
+  later and was counted as an echo, nothing sent.
+- **MagicQ can't be the desk at the other end in demo mode**: OSC, MIDI, timecode and the remote
+  trigger inputs are all `[Locked]` in its settings. So the switcher-to-desk direction has been
+  heard by a socket, never by a desk.
+- **A trap of mine, now closed**: a peek script run without `LPP_SIM` had no AWJ host, so Node
+  connected to localhost:10606, which was another session's SSH tunnel to a switcher on the
+  tailnet. Only `get`s went (two peeks and a 20 s poll), and they showed nothing moving, which cost
+  ten minutes. `awjGetAll` and `awjReplace` in the harness now throw without `LPP_SIM`; a
+  `replace` would have gone there just as easily.
+
 ## Plug names — an input's label as its plug's EDID name (2026-10-24)
 
 Asked for by Allan: In1 labelled "powerpoint main" should show up on the laptop as that, not

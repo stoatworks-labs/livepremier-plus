@@ -8,7 +8,8 @@
 A lighting desk — grandMA3, ChamSys MagicQ, Avolites Titan, anything that sends **Art-Net** or
 **sACN** — drives the switcher the way it drives a media server: fixtures patched on a universe,
 one per screen and one per layer, programmed into cues like everything else on the rig. Recall a
-memory, set a layer's source and opacity, take, all from a cue stack, with no browser open.
+memory, set a layer's source, opacity, position, size and look, take, all from a cue stack, with
+no browser open. And the other way: a take on the switcher can fire the desk's "VT state" cue.
 A grandMA3 can also drive the switcher with nothing patched, from its executors through the OSC
 it already sends: that is the **grandMA3** plugin, [GRANDMA3.md](GRANDMA3.md).
 
@@ -19,13 +20,24 @@ Plus → Plugins**, then tick **Listen for a lighting desk** on its card.
 
 ## The fixtures
 
-Three fixture types, each with a GDTF file to import (the card has the downloads):
+Three fixture types, each with a GDTF file to import (the card has the downloads), and four modes,
+the same four in every file, so a desk patches everything in one of them:
 
-| Fixture | One per | Channels (Cue mode) |
+| Fixture | One per | Channels |
 |---|---|---|
-| **LPP Master** | switcher | Control, Memory, Take, Cut — for master memories and every screen at once |
-| **LPP Screen** | screen or aux you patch | Control, Memory, Take, Cut |
-| **LPP Layer** | layer of that screen | Source folder, Source file, Opacity |
+| **LPP Master** | switcher | Control, Memory, Take, Cut — for master memories and every screen at once; 4 in every mode |
+| **LPP Screen** | screen or aux you patch | Control, Memory, Take, Cut; 4 in every mode |
+| **LPP Layer** | layer of that screen | 3, 11, 24 or 53, by mode |
+
+| Mode | A layer | What the desk owns |
+|---|---|---|
+| **Cue** | 3 ch | Source and opacity. The switcher's memories hold everything else. One universe covers most rigs. |
+| **Compact** | 11 ch | + position X, Y and size W, H, 16-bit. For grandMA3 onPC and other desks short of parameters. |
+| **Standard** | 24 ch | + crop, colour (for the Colour folder), flip, strobe. |
+| **Full** | 53 ch | + mask, aspect, effect, border, shadow, key. Every layer property worth a fader. |
+
+A screen with four layers is 16 channels in Cue, 48 in Compact, 100 in Standard, 216 in Full.
+MA counts a 16-bit channel as one parameter, so a Compact layer is 7 of them.
 
 ### Screen and Master
 
@@ -38,16 +50,31 @@ Three fixture types, each with a GDTF file to import (the card has the downloads
 
 ### Layer
 
-| Ch | Name | Values |
-|---|---|---|
-| 1 | **Source folder** | 0 hold · 1 live inputs · 2 stills · 3 screens · 4 backgrounds · 5 colour · 6 none (black) · 7+ hold |
-| 2 | **Source file** | 0 hold · 1–255 that input, still, screen or background |
-| 3 | **Opacity** | 0–255, a Dimmer: it follows the desk's grand master and blackout |
+Each mode is the one before it with more on the end, so a cue programmed in Cue mode means the
+same thing in Full.
 
-That is **Cue mode**: the layers carry the source and the opacity, and the switcher's own
-memories hold everything else — position, size, crop, borders. Sixteen channels for a screen with
-four layers, so one universe covers most rigs, and it fits a desk that counts its parameters.
-Compact, Standard and Full modes, which put the geometry on the desk as well, come later.
+| Ch | Name | Values | Modes |
+|---|---|---|---|
+| 1 | **Source folder** | 0 hold · 1 live inputs · 2 stills · 3 screens · 4 backgrounds · 5 colour · 6 none (black) · 7+ hold | all |
+| 2 | **Source file** | 0 hold · 1–255 that input, still, screen or background | all |
+| 3 | **Opacity** | 0–255, a Dimmer: it follows the desk's grand master and blackout | all |
+| 4–5 | **Position X** (16-bit) | pixels from the centre of the screen, 32768 the centre | Compact up |
+| 6–7 | **Position Y** (16-bit) | the same, down the screen | Compact up |
+| 8–9 | **Width** (16-bit) | 0 the memory's look · 1–65535 pixels | Compact up |
+| 10–11 | **Height** (16-bit) | 0 the memory's look · 1–65535 pixels | Compact up |
+| 12–19 | **Crop** left, right, top, bottom (16-bit each) | pixels | Standard up |
+| 20–22 | **Red, Green, Blue** | the colour of a layer whose folder is 5 (colour); ignored otherwise | Standard up |
+| 23 | **Flip** | 0–63 none · 64–127 H · 128–191 V · 192–255 H+V | Standard up |
+| 24 | **Strobe** | 0 off · 1–255 slow to fast | Standard up |
+| 25–32 | **Mask** left, right, top, bottom (16-bit each) | pixels | Full |
+| 33 | **Aspect** | 0–50 none · 51–101 1:1 · 102–152 centred · 153–203 full screen · 204–255 cropped | Full |
+| 34 | **Effect** | 0–31 none · 32–63 black and white · 64–95 negative · 96–127 sepia · 128–159 solarise · 160–191 posterise · 192–255 none | Full |
+| 35–42 | **Border** style, radius, width, height, opacity, red, green, blue | style: 0–31 off, then edge, smooth, rounded and their mixes in steps of 32 | Full |
+| 43–52 | **Shadow** style, radius, X (16-bit), Y (16-bit), opacity, red, green, blue | X and Y −512 to 512 px, 32768 none | Full |
+| 53 | **Key** | 0 off · 1–50 key slot 1–50 · 51–255 off | Full |
+
+A Midra 4K or Alta 4K has no posterise, strobe or key; those channels do nothing there (and the
+Midra side of this has only been run against a pretend switcher).
 
 ---
 
@@ -75,10 +102,21 @@ in that order: the memory loads, the layer goes on top of it, and the take carri
 waits a beat after a recall before anything else on that screen, because a memory is still
 loading when its recall has been sent.
 
-**The desk owns source and opacity.** Whenever something replaces the buffer the desk edits — a
-memory recalled into preview, a take — the desk's layer values for that screen are written to it
-again. A layer at folder 0 (hold) keeps whatever source the memory gave it; opacity has no hold,
-because a Dimmer at zero means dark on every desk.
+**The desk owns what its mode has channels for.** Whenever something replaces the buffer the desk
+edits — a memory recalled into preview, a take — the desk's layer values for that screen are
+written to it again. A layer at folder 0 (hold) keeps whatever source the memory gave it; opacity
+has no hold, because a Dimmer at zero means dark on every desk.
+
+**Size 0 is the memory's look.** While a layer's Width or Height is at zero, everything past
+source, opacity and colour — position, size, crop, flip, strobe, mask, effect, border, shadow,
+key — is the memory's, and the desk writes none of it. A desk sitting at zero edits nothing a
+memory set up. Raise both and the desk owns the lot; drop either back to zero and the memory's look
+returns with the next recall or take.
+
+**X and Y are pixels from the centre of the screen**, 32768 being the centre, so a layer at the
+defaults sits in the middle at whatever size W and H give it. The app reads the screen's size from
+the switcher when it writes a position; a screen whose size it can't read gets no position, and
+the card says so.
 
 **Mid-transition, the desk waits.** While a take is running neither buffer is honestly preview or
 program, so layer changes for that screen wait until it lands, then go to whichever is preview
@@ -108,7 +146,7 @@ count Art-Net from 0 or 1.
 | Desk | What to do |
 |---|---|
 | **grandMA3** | Import the three `.gdtf` files into the fixture library and patch them. |
-| **MagicQ** | Open each `.gdtf` in MagicQ's File Manager (**Setup → File Manager**). MagicQ saves a head file from it (its mode name starts `G-`) and goes to the patch window with it selected. MagicQ 1.9.6.5 warns that the files are GDTF 1.2 and it reads 1.1, shows Control as **Lamp**, and doesn't recognise the other names below; every channel still patches and works. The warnings are in `MagicQ/log/gdtf.log`. |
+| **MagicQ** | Open each `.gdtf` in MagicQ's File Manager (**Setup → File Manager**). It asks which mode; pick the one you set on the card. MagicQ saves a head file from it (its mode name starts `G-`) and goes to the patch window with it selected. MagicQ 1.9.6.5 warns that the files are GDTF 1.2 and it reads 1.1, shows Control as **Lamp**, reads X and Y as its own position, and doesn't recognise the other names below; every channel still patches and works. The warnings are in `MagicQ/log/gdtf.log`. Its **Locate** sets Flip to 255 (H+V) and the colour to white: harmless while Width or Height is 0, but set Flip back to 0 before giving a layer a size. |
 | **Avolites Titan** | Convert the `.gdtf` files to `.d4` in Personality Builder (Windows), then patch the `.d4`. |
 | **grandMA2** | Convert with MA's own GDTF converter; MA2 does not read GDTF itself. |
 | **Anything else** | Patch generic dimmer channels at the addresses in the table, or build a fixture from the channel tables above. |
@@ -176,24 +214,66 @@ burst, never remembered, because anything else can take that screen between two 
 
 ---
 
+## The switcher back to the desk
+
+A take on the switcher — from its front panel, the Web RCS, a T-bar, another console — can fire
+a cue on the desk: the VT goes to air and the desk goes to its "VT state". This side sends nothing
+itself; it fires triggers in the **Triggers** plugin ([TRIGGERS.md](TRIGGERS.md)), which already
+speaks OSC, MIDI, MIDI Show Control, Art-Net and sACN to whatever the desk listens to. So switch the
+Triggers plugin on, make a trigger whose **Go** lines send the desk what its cue needs, then on the
+desk control card tick **Fire triggers when the switcher takes** and add a rule:
+
+| Screen | Memory | Fires |
+|---|---|---|
+| a screen, or blank for any | a memory number, or blank for any | a trigger from the Triggers plugin |
+
+"When S1 takes memory 12, fire VT state". Rules are checked in order, every one that matches fires,
+each trigger once per take, and a rule fires at most once in half a second, so a take seen twice
+can't fire twice. It works with **Listen for a lighting desk** off: a desk that takes no orders
+from Art-Net can still be told when the switcher takes.
+
+**What counts as a take.** The switcher pushes nothing, so the app reads each watched screen's
+transition and the memory in each preset buffer ten times a second, over the same held AWJ
+connection as the desk's writes (a rule for any screen watches the screens patched on the card).
+
+- **A transition starting** fires at once, with the memory going to air, so the desk's cue runs
+  alongside the switcher's transition. A real switcher reports the transition in progress; the
+  6.2.73 simulator doesn't (it reports the old resting state for the whole take).
+- **A transition that is just over**, with no start seen — a cut, a take faster than a read, or
+  the simulator — fires on landing, with the memory now on program. About a second late after a
+  one-second take, on the simulator.
+- **A take and its landing are one take**, fired once. A T-bar pulled part way and back has fired
+  already; nothing takes that back.
+- **A memory recalled straight to program** fires like a take.
+
+**Never an echo.** A take the desk itself asked for through desk control isn't fired back to it:
+the app knows which screens it has just taken, and the next take it sees on one of those is that
+one. Otherwise a desk cue that takes the switcher and is also fired by the take is a loop. The card
+counts the takes it saw, the triggers it fired and the echoes it didn't.
+
+If the Triggers plugin is off, a matching take says so on the card instead of firing.
+
+---
+
 ## Not here yet
 
-Planned, in roughly this order: the layer modes (Compact, Standard, Full) with geometry on the
-desk; MVR and a patch export for each desk; **bidirectional** — a take on the switcher firing the
-desk's "VT state" cue, through the Triggers plugin; **CITP/MSEX** so MagicQ and MA2 see the
-switcher as a media server with thumbnails; **NDI** of each screen back to the desk (desktop app
-only, for the NDI licence's sake); Titan `.d4` and MA2 fixture files ready-made.
+Planned, in roughly this order: MVR and a patch export for each desk; **CITP/MSEX** so MagicQ and
+MA2 see the switcher as a media server with thumbnails; **NDI** of each screen back to the desk
+(desktop app only, for the NDI licence's sake); Titan `.d4` and MA2 fixture files ready-made.
 
 ## What has been run
 
 | What | How | Result |
 |---|---|---|
-| Art-Net and sACN parsing, arbitration, the engine, the patch, GDTF, the held AWJ link, the whole supervisor, a take the switcher reports late or never | `test/desk-control.test.js`: real UDP on loopback, a pretend switcher on AWJ | 29 pass |
-| The three `.gdtf` files | validated against the official GDTF 1.2 `gdtf.xsd` with `xmllint --schema` | valid |
-| Control → preview, memory recall, Take with the desk's level arriving on the new preview, let go, ports closing, ArtPoll on the LAN | `test/sim/desk-control.sim.test.js`, the 6.2.73 rack simulator, a pretend desk at 40 frames a second | 5 pass, three runs in a row; S1 and the memory put back each time. With the take guard switched off the Take test fails, as it should |
-| How long it takes | the same, desk frame to the change on the vendor socket | layer source on preview 26–40 ms; memory recall to preview 28–32 ms; after a 1.0 s take, the desk's level on the new preview 1.04–1.17 s after the cue |
+| Art-Net and sACN parsing, arbitration, the engine, the four modes and their 16-bit channels, the patch, GDTF, the held AWJ link, the whole supervisor, the layer look on the NLC and Midra paths, a take the switcher reports late or never, takes seen and fired, the echo guard, the card | `test/desk-control.test.js`: real UDP on loopback, a pretend switcher on AWJ; `test/triggers.test.js` for the service another plugin fires | 42 + 21 pass |
+| The three `.gdtf` files, version 2 | validated against the official GDTF 1.2 `gdtf.xsd` with `xmllint --schema` | valid |
+| Control → preview, memory recall, Take with the desk's level arriving on the new preview, let go, Compact geometry from the screen's centre at the size the switcher reports, a take on the switcher firing a trigger heard over OSC, the desk's own take not fired back, ports closing, ArtPoll on the LAN | `test/sim/desk-control.sim.test.js`, the 6.2.73 rack simulator, a pretend desk at 40 frames a second | 7 pass, three runs in a row; S1 and the memory put back each time. With the take guard switched off the Take test fails, as it should |
+| How long it takes | the same, desk frame to the change on the vendor socket | layer source on preview 26–40 ms; memory recall to preview 28–32 ms; Compact position on preview 36–41 ms; after a 1.0 s take, the desk's level on the new preview 1.04–1.17 s after the cue; a take written by someone else to the trigger heard over OSC 1.02–1.14 s (the simulator only shows the landing) |
 | A desk on the same Mac hearing ArtPollReply | a socket sharing 6454 beside the app, macOS 26.4 | heard, after replies to this machine went to broadcast |
-| **ChamSys MagicQ PC 1.9.6.5** (demo mode) on the same Mac, macOS 26.4 | the three `.gdtf` files imported through File Manager and patched at 1.1, 1.5, 1.9, 1.12; Control, a layer's source, Take and Control set by hand in MagicQ's programmer, Art-Net over loopback | Imported with warnings only. Control raised: the layer went to preview, program untouched. Take took S1. Control lowered let the screen go, and a layer change after it wrote nothing (MagicQ's packet checked on the wire). The first takes found the desk's layers re-written to the letter going to air instead of the new preview; fixed, and the take re-run from MagicQ put them on the new preview |
-| From a real desk: Memory, Cut, the Master fixture, a cue stack rather than the programmer, sACN | — | **not yet** |
+| **ChamSys MagicQ PC 1.9.6.5** (demo mode) on the same Mac, macOS 26.4, Cue mode | the three `.gdtf` files imported through File Manager and patched at 1.1, 1.5, 1.9, 1.12; Control, a layer's source, Take and Control set by hand in MagicQ's programmer, Art-Net over loopback | Imported with warnings only. Control raised: the layer went to preview, program untouched. Take took S1. Control lowered let the screen go, and a layer change after it wrote nothing (MagicQ's packet checked on the wire). The first takes found the desk's layers re-written to the letter going to air instead of the new preview; fixed, and the take re-run from MagicQ put them on the new preview |
+| **MagicQ again, Standard mode**, the version 2 files | Screen and Layer imported (MagicQ offered all four modes) and patched at 1.5 and 1.9; X, Y, W, H, Flip and Crop set in MagicQ's programmer; then switcher-to-desk on, with a rule firing an OSC trigger at a listener standing in for the desk | Imported with warnings only. With Control at preview: W 960 and H 512 put a 960 × 512 layer on the simulator's preview, X 486 px left of centre put it at 474, program untouched; X back to 32768 centred it (85 ms from MagicQ's packet to the simulator), Flip 100 flipped it horizontally (19 ms), Crop left 256 cropped it (111 ms). A take written to the simulator by another client fired the trigger, heard 1.09 s after the take was written and 52 ms after its landing was seen. A take MagicQ asked for (Take channel to 255) landed 1.04 s later and was counted as the desk's own: nothing fired |
+| A real desk receiving the switcher's take | MagicQ PC in demo mode locks its OSC, MIDI, timecode and remote-trigger inputs | **not yet** |
+| From a real desk: Memory, Cut, the Master fixture, a cue stack rather than the programmer, sACN, Full mode | — | **not yet** |
 | grandMA3, Titan | — | **not yet** |
-| A real switcher | — | **not yet** |
+| A real switcher, which reports a transition in progress: the take firing at its start | — | **not yet** |
+| A Midra 4K or Alta 4K | the paths, against a pretend switcher only | **not yet** |
