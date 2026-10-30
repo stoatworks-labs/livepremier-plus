@@ -3470,20 +3470,27 @@ test put back and the store diffed before the next.
   200 `control/xDelete` latched (re-armed by hand), the library import `cmd` path and slot (put
   back), and **the library's size counter, 91 → 354 kB, which the vendor's Image Library header
   shows**. It didn't drop when the slot was emptied: the guide's simulator note holds on a real
-  frame, and every replaced upload stays counted. Whether a reboot gives it back is not known.
+  frame, and every replaced upload stays counted. A plain upload and delete gives its space back
+  (Image Library tools, below), so it is the replacing that leaks. Whether a reboot gives it back
+  is not known.
 - **Image Library tools.** The header bar arrives once the store is in (about 20 s here). A zip
   built in the page (`lpp test 1/9/10.png`, a `__MACOSX/._` entry, `.DS_Store`, `notes.txt`) asked
   *Upload 3 pictures into slots 4–6?* and named `notes.txt` with its reason; the litter went
-  unmentioned and the owner's slots weren't offered. Answered no: nothing written. **Not run:** the
-  upload itself and Select-and-delete of it (Claude Code's auto-mode classifier refused the
-  scripted yes as a write to a shared device; Allan's call), Delete all (never on this box), and a
-  capacity change (Preconfig). The 24 capacity dropdowns render, one per still, reading Dual as the
-  box does.
-- **Put back after:** against the original baseline, 50 leaves differ. 48 are status: the earlier
-  passes', plus the bank export's `ERROR_INVALID_PATH`, S1 L1–L2 `up` OPEN, still 24's and slot
-  200's leftover sizes and names, the library size counter, and the EDID editor's `isValid`. (Of
-  the earlier 34, the library's export path and its import path and slot are now put back, so 31
-  remain.) Two are writable enums, left alone because writing one could fire it: the library's
+  unmentioned and the owner's slots weren't offered. Answered no: nothing written. Then, Allan's
+  go-ahead given (Claude Code's auto-mode classifier had refused the scripted yes until he did),
+  answered yes: `lpp test 1` landed in 4, `9` in 5, `10` in 6, in name order, and the counter went
+  354 → 363 kB. Select picked 4–6 by their cards (the owner's 1–3 were offered and left), *Delete
+  selected* asked *Delete 3 images from the switcher's image library (4–6)?* and named no stills,
+  as none showed them; yes emptied 4–6 and the counter went back to 354. Each slot's
+  `control/xDelete` was left latched (re-armed by hand) and the import `cmd` path and slot were
+  put back. **Not run:** Delete all (never on this box) and a capacity change (Preconfig). The 24
+  capacity dropdowns render, one per still, reading Dual as the box does.
+- **Put back after:** against the original baseline, 64 leaves differ. 62 are status: the earlier
+  passes', plus the bank export's `ERROR_INVALID_PATH`, S1 L1–L2 `up` OPEN, still 24's and the
+  emptied library slots' leftover sizes and names (200 and 4–6), the library size counter, and the
+  EDID editor's `isValid`. (Of the earlier 34, the library's export path and its import path and
+  slot are now put back, so 31 remain.) Two are writable enums, left alone because writing one
+  could fire it: the library's
   `export/cmd/xRequest` EXPORT_RENAME (from the second pass's image download) and
   `import/cmd/xRequest` SPECIFIC_SLOT.
 

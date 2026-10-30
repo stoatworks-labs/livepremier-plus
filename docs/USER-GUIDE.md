@@ -1056,9 +1056,10 @@ layers, cut per output.
   switcher resamples the card on the way out. The tab names the outputs that aren't pixel for
   pixel.
 - **The image library's size counter** never drops a replaced file, on the simulator or on a real
-  frame, and Off doesn't give it back either. On an Aquilon C mini the vendor's own Image Library
-  header went from 91 kB to 354 kB for one card and two changes of pattern, and stayed there. A
-  card that's followed a lot of changes may be using more of the library than the slot count says.
+  frame, and Off doesn't give that back. On an Aquilon C mini the vendor's own Image Library header
+  went from 91 kB to 354 kB for one card and two changes of pattern, and stayed there. A picture
+  uploaded once and deleted gives its space back; it's the replacing that sticks. A card that's
+  followed a lot of changes may be using more of the library than the slot count says.
 
 The pattern, its options, which cards are on and what Off puts back are kept per switcher by this
 app and go into the setup file under *Test cards*.
@@ -1083,8 +1084,8 @@ app and go into the setup file under *Test cards*.
 ## Image Library tools (off by default)
 
 Switch on **Image Library tools** in **Preconfig ▸ LivePremier Plus → Plugins**. It's off to
-start with because it deletes library images and applies still capacities, and it hasn't met a
-real frame yet.
+start with because it deletes library images and applies still capacities, and it has only met
+one real frame so far.
 
 The vendor's **Image Library** page gives every card a bin and nothing else, which is fine until
 there are two hundred of them. This puts three things on the end of the page's header:
@@ -1119,10 +1120,11 @@ delete; the question says so.
 > Proven on LivePremier Simulator 6.2.73 on 2026-10-20: selecting and deleting, Delete all, a zip
 > dropped on the page (thirteen pictures in name order round two filled slots, the litter left
 > out), assigned slots left alone, and capacities changed and refused. On a real frame (Aquilon
-> C mini, 6.2.73, 2026-10-30) only the questions so far: a zip's upload question named the free
-> slots, said nothing about the litter and named a `.txt` with its reason, and answering no wrote
-> nothing; the capacity dropdowns read what the switcher said. Nothing has been uploaded, deleted
-> or changed with these on a real frame yet.
+> C mini, 6.2.73, 2026-10-30): a zip of three pictures went into the three free slots in name
+> order, with the litter left out quietly and a `.txt` named with its reason; then Select picked
+> just those three, the question named them, and they were deleted, with the library's other
+> pictures untouched. The capacity dropdowns read what the switcher said. Delete all and a capacity
+> change haven't been run on a real frame.
 
 ---
 
