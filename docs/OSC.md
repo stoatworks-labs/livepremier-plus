@@ -505,6 +505,21 @@ so a route that did not take is logged as a failure, naming what the device repo
 
 ---
 
+## grandMA3 — preview
+
+The grandMA3 plugin's subtree — [GRANDMA3.md](GRANDMA3.md). Nobody types these: a grandMA3 OSC
+line with **Send** on and Prefix `ma3` sends one for every fader, key and knob that moves a
+playback, and `{object}` is that playback's place in the show (`14.14.1.6.1` is Sequence 1 on
+grandMA3 2.4.2.2; it moves between versions). What a message does is a line in the plugin's card
+that names its object and function, and the target there is one of the addresses above. It is off
+by default and has been run against grandMA3 onPC with no wing, never a desk.
+
+| Address | Argument | What it does |
+|---|---|---|
+| `/ma3/{object}` | function, handle, value — as grandMA3 sends it | Playback feedback from a grandMA3 OSC line with Send on and Prefix "ma3". What it does is the line in the grandMA3 card that names this object and function. |
+
+---
+
 ## Addresses a plugin adds
 
 A plugin may answer a subtree of addresses of its own — the

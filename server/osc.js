@@ -113,10 +113,10 @@ export function decode(buf) {
 
   /* The type tag is optional in OSC 1.0, and some senders omit it for a
      message with no arguments. A missing one means exactly that. */
-  if (addr.next >= buf.length) return [{ address: addr.value, args: [] }];
+  if (addr.next >= buf.length) return [{ address: addr.value, args: [], types: '' }];
 
   const tags = readString(buf, addr.next);
-  if (!tags.value.startsWith(',')) return [{ address: addr.value, args: [] }];
+  if (!tags.value.startsWith(',')) return [{ address: addr.value, args: [], types: '' }];
 
   const args = [];
   let at = tags.next;
@@ -141,7 +141,205 @@ export function decode(buf) {
       default: throw new Error(`unsupported OSC type tag "${tag}"`);
     }
   }
-  return [{ address: addr.value, args }];
+  /* The tags travel with the message: a number read from `i` and one read
+     from `f` are both numbers here, and some senders mean different things by
+     them — grandMA3 sends a fader's position as `sif` and a knob's nudge to the
+     same fader as `sii`. */
+  return [{ address: addr.value, args, types: tags.value.slice(1) }];
+}
+
+/* --------------------------------------------------------------- dispatch */
+
+/**
+ * What one decoded message does, from address to switcher write — the path a
+ * UDP packet takes, for anything else in this process that has an OSC message
+ * in hand. The grandMA3 plugin is one: it turns a desk's playback feedback
+ * into this app's own addresses and sends them here, so they meet the same
+ * refusals a packet would (`preview`/`program` over UDP, a release, a `$`
+ * variable) rather than a second copy of those rules.
+ *
+ * Moved out of `createOscServer` (2026-10-30) unchanged; the server is now
+ * this plus a socket.
+ *
+ * @param {object} opts  `createOscServer`'s, less the socket's: `deviceHost`,
+ *   `addresses`, `log`, `awjPort`, `awj`, `variables`
+ * @param {(name: string) => void} [opts.onPlatform]  the platform's name, once
+ *   the switcher has been asked which it is
+ * @returns {{ dispatch(msg: {address: string, args: unknown[]}): Promise<object> }}
+ *   `dispatch` answers what became of the message — `{address, args, summary?,
+ *   writes?, paths?, error?}` — and never throws: a failure is an `error`.
+ */
+export function createOscDispatcher({
+  deviceHost,
+  addresses = () => [],
+  log = () => {},
+  awjPort = AWJ_PORT,
+  awj = null,
+  variables = null,
+  onPlatform = () => {},
+}) {
+  const talk = (host, messages) => (awj ? awj(messages) : exchange({ host, port: awjPort, messages }));
+
+  /*
+   * Which platform the switcher is, asked of the switcher.
+   *
+   * This process holds no store mirror, so it cannot tell a Pulse 4K from an
+   * Aquilon the way the page does. It can ask: `system/@props/platformLabel`
+   * is the vendor naming its own platform on Midra 4K / Alta 4K, and does
+   * not exist on LivePremier — the device answers a missing path with a null
+   * frame. One AWJ exchange, remembered per host, forgotten when the host
+   * changes (re-pointing at a backup frame mid-show must not keep the old
+   * answer). A failure to ask is a failure to send, reported as such; it is
+   * never resolved by assuming.
+   */
+  const known = { host: null, platform: null };
+  const IDENTITY = {
+    /* LivePremier keeps identity per frame; a Midra or Alta names its platform. */
+    nlc: 'DeviceObject/system/$device/@items/1/@props/dev',
+    mng: 'DeviceObject/system/@props/platformLabel'
+  };
+  async function platformFor(host) {
+    if (known.host === host && known.platform) return known.platform;
+    const replies = await talk(host, [{ op: 'get', path: IDENTITY.nlc }, { op: 'get', path: IDENTITY.mng }]);
+    /* A path the device has answers with that path echoed and a value; one it
+       does not have answers with an empty path and null. Matching on the
+       echoed path is what makes this a fact about the device rather than a
+       guess about a string. */
+    const answered = (path) => replies.find((r) => r.path === path && typeof r.value === 'string' && r.value !== '');
+    const nlc = answered(IDENTITY.nlc);
+    const mng = answered(IDENTITY.mng);
+    if (!nlc && !mng) throw new Error('it answered neither identity path — is AWJ enabled on it?');
+    const platform = nlc ? LIVEPREMIER : MIDRA;
+    known.host = host;
+    known.platform = platform;
+    onPlatform(platform.name);
+    log(`OSC: ${host} is ${platform.name} (${(nlc || mng).value}) — addresses resolve for it`);
+    return platform;
+  }
+
+  async function dispatch(msg) {
+    const seen = { address: msg.address, args: msg.args };
+    /*
+     * A plugin's half of the address space, answered before the switcher is
+     * consulted at all.
+     *
+     * ⚠️ These addresses are **the plugins' own**, not mynah's — mynah
+     * describes the switcher, and has no business describing a router in
+     * front of it or anything else a plugin talks to. A contribution may still
+     * decline an address (null), which is how an address it does not
+     * recognise falls through to the switcher untouched.
+     *
+     * No switcher is required. A matrix route does not touch the device, so
+     * refusing it because no frame is configured, or because the frame is
+     * unreachable, would be refusing it for a reason that has nothing to do
+     * with it.
+     */
+    const owner = oscAddressFor(addresses(), msg.address);
+    if (owner) {
+      let answer;
+      try {
+        answer = await owner.handle(msg.address, msg.args, { types: msg.types });
+      } catch (err) {
+        answer = { ok: false, error: err && err.message ? err.message : String(err) };
+      }
+      if (answer) {
+        if (!answer.ok) return { ...seen, summary: answer.summary, error: answer.error || 'refused' };
+        return { ...seen, summary: answer.summary, writes: answer.count || 0 };
+      }
+    }
+
+    /*
+     * Resolved from the decoded message, never from a rendered line.
+     *
+     * `resolveOsc` takes an address and already-typed arguments, which is what
+     * came off the wire. Rendering the message back to text and re-parsing it
+     * would lose exactly the things OSC bothers to type — a float that happens
+     * to be whole would come back an int, and a string argument with a space
+     * in it would come back as two arguments. A memory label is a string with
+     * spaces in it.
+     *
+     * No `buffer` fact is supplied, so `preview` and `program` are refused
+     * with their own explanation rather than guessed at. That is the right
+     * answer and not a gap: this process holds no store mirror, the take state
+     * is device state, and a fader that landed in whichever buffer happened to
+     * be live would be the exact failure rule 5 exists to prevent. A sender
+     * that wants a live layer addresses the buffer — /a, /b, /c.
+     */
+    const host = deviceHost();
+    if (!host) return { ...seen, error: 'no switcher configured' };
+
+    /*
+     * A button release is recognised before the switcher is consulted. Rule 2
+     * of the dictionary — a trigger with a zero argument is the release half
+     * of a press — holds on both platforms, and a release that had to wait on
+     * an AWJ round trip, or failed because the box was unreachable, would be
+     * logged as an error for doing exactly the right thing. Resolving against
+     * LivePremier's spelling is enough to see it: a release is an empty op
+     * list either way, and anything that is not a release is resolved again
+     * below, for the platform that is really there.
+     */
+    let platform = known.host === host ? known.platform : null;
+    if (!platform) {
+      const probe = resolveOsc(msg, { params: paramsFor(LIVEPREMIER), platform: LIVEPREMIER });
+      if (probe.ok && probe.ops.length === 0) return { ...seen, summary: probe.summary, writes: 0 };
+    }
+
+    /* Spelled for the switcher that is actually there. The first packet after
+       a start, or after re-pointing, pays one AWJ round trip to find out. */
+    if (!platform) {
+      try {
+        platform = await platformFor(host);
+      } catch (err) {
+        return { ...seen, error: `could not identify ${host}: ${err.message}` };
+      }
+    }
+
+    /* Asked only for a message with a string argument — the only place a
+       variable can be — so a fader's stream of floats never waits on it. */
+    let vars;
+    if (variables && msg.args.some((a) => typeof a === 'string')) {
+      try {
+        const resolve = await variables();
+        if (resolve) vars = { resolve };
+      } catch (err) {
+        log(`OSC: variables could not be read: ${err.message}`);
+      }
+    }
+
+    const resolved = resolveOsc(msg, { params: paramsFor(platform), platform, vars });
+
+    if (!resolved.ok) return { ...seen, error: resolved.errors[0].message };
+
+    if (resolved.ops.length === 0) {
+      /* A button release. Logged rather than dropped, so a surface sending
+         something correctly ignored still shows up when someone is wondering
+         why nothing happened. */
+      return { ...seen, summary: resolved.summary, writes: 0 };
+    }
+
+    try {
+      await talk(host, resolved.ops.map((op) => ({ op: 'replace', path: op.path.toAwj(), value: op.value })));
+      return {
+        ...seen,
+        summary: resolved.summary,
+        writes: resolved.ops.length,
+        paths: resolved.ops.map((op) => op.path.toAwj()),
+      };
+    } catch (err) {
+      return { ...seen, error: err.message };
+    }
+  }
+
+  return {
+    /** Never throws: whatever goes wrong comes back as the answer's `error`. */
+    async dispatch(msg) {
+      try {
+        return await dispatch(msg);
+      } catch (err) {
+        return { address: msg.address, args: msg.args, error: err && err.message ? err.message : String(err) };
+      }
+    },
+  };
 }
 
 /* ------------------------------------------------------------------- server */
@@ -188,7 +386,6 @@ export function createOscServer({
   awj = null,
   variables = null,
 }) {
-  const talk = (host, messages) => (awj ? awj(messages) : exchange({ host, port: awjPort, messages }));
   const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
   const state = {
     listening: false, port, address, received: 0, sent: 0, failed: 0, lastError: null,
@@ -196,43 +393,10 @@ export function createOscServer({
        been asked — see `platformFor`. Shown on the settings page. */
     platform: null
   };
-
-  /*
-   * Which platform the switcher is, asked of the switcher.
-   *
-   * This process holds no store mirror, so it cannot tell a Pulse 4K from an
-   * Aquilon the way the page does. It can ask: `system/@props/platformLabel`
-   * is the vendor naming its own platform on Midra 4K / Alta 4K, and does
-   * not exist on LivePremier — the device answers a missing path with a null
-   * frame. One AWJ exchange, remembered per host, forgotten when the host
-   * changes (re-pointing at a backup frame mid-show must not keep the old
-   * answer). A failure to ask is a failure to send, reported as such; it is
-   * never resolved by assuming.
-   */
-  const known = { host: null, platform: null };
-  const IDENTITY = {
-    /* LivePremier keeps identity per frame; a Midra or Alta names its platform. */
-    nlc: 'DeviceObject/system/$device/@items/1/@props/dev',
-    mng: 'DeviceObject/system/@props/platformLabel'
-  };
-  async function platformFor(host) {
-    if (known.host === host && known.platform) return known.platform;
-    const replies = await talk(host, [{ op: 'get', path: IDENTITY.nlc }, { op: 'get', path: IDENTITY.mng }]);
-    /* A path the device has answers with that path echoed and a value; one it
-       does not have answers with an empty path and null. Matching on the
-       echoed path is what makes this a fact about the device rather than a
-       guess about a string. */
-    const answered = (path) => replies.find((r) => r.path === path && typeof r.value === 'string' && r.value !== '');
-    const nlc = answered(IDENTITY.nlc);
-    const mng = answered(IDENTITY.mng);
-    if (!nlc && !mng) throw new Error('it answered neither identity path — is AWJ enabled on it?');
-    const platform = nlc ? LIVEPREMIER : MIDRA;
-    known.host = host;
-    known.platform = platform;
-    state.platform = platform.name;
-    log(`OSC: ${host} is ${platform.name} (${(nlc || mng).value}) — addresses resolve for it`);
-    return platform;
-  }
+  const dispatcher = createOscDispatcher({
+    deviceHost, addresses, log, awjPort, awj, variables,
+    onPlatform: (name) => { state.platform = name; },
+  });
 
   socket.on('error', (err) => {
     state.lastError = err.message;
@@ -256,137 +420,14 @@ export function createOscServer({
       return note({ from, address: '(undecodable)', error: err.message });
     }
 
-    for (const msg of messages) void handle(msg, from);
-  });
-
-  async function handle(msg, from) {
-    /*
-     * A plugin's half of the address space, answered before the switcher is
-     * consulted at all.
-     *
-     * ⚠️ These addresses are **the plugins' own**, not mynah's — mynah
-     * describes the switcher, and has no business describing a router in
-     * front of it or anything else a plugin talks to. A contribution may still
-     * decline an address (null), which is how an address it does not
-     * recognise falls through to the switcher untouched.
-     *
-     * No switcher is required. A matrix route does not touch the device, so
-     * refusing it because no frame is configured, or because the frame is
-     * unreachable, would be refusing it for a reason that has nothing to do
-     * with it.
-     */
-    const owner = oscAddressFor(addresses(), msg.address);
-    if (owner) {
-      let answer;
-      try {
-        answer = await owner.handle(msg.address, msg.args);
-      } catch (err) {
-        answer = { ok: false, error: err && err.message ? err.message : String(err) };
-      }
-      if (answer) {
-        if (!answer.ok) {
-          state.failed++;
-          return note({ from, address: msg.address, args: msg.args, summary: answer.summary, error: answer.error });
-        }
-        state.sent += answer.count || 0;
-        return note({ from, address: msg.address, args: msg.args, summary: answer.summary, writes: answer.count || 0 });
-      }
-    }
-
-    /*
-     * Resolved from the decoded message, never from a rendered line.
-     *
-     * `resolveOsc` takes an address and already-typed arguments, which is what
-     * came off the wire. Rendering the message back to text and re-parsing it
-     * would lose exactly the things OSC bothers to type — a float that happens
-     * to be whole would come back an int, and a string argument with a space
-     * in it would come back as two arguments. A memory label is a string with
-     * spaces in it.
-     *
-     * No `buffer` fact is supplied, so `preview` and `program` are refused
-     * with their own explanation rather than guessed at. That is the right
-     * answer and not a gap: this process holds no store mirror, the take state
-     * is device state, and a fader that landed in whichever buffer happened to
-     * be live would be the exact failure rule 5 exists to prevent. A sender
-     * that wants a live layer addresses the buffer — /a, /b, /c.
-     */
-    const host = deviceHost();
-    if (!host) {
-      state.failed++;
-      return note({ from, address: msg.address, args: msg.args, error: 'no switcher configured' });
-    }
-
-    /*
-     * A button release is recognised before the switcher is consulted. Rule 2
-     * of the dictionary — a trigger with a zero argument is the release half
-     * of a press — holds on both platforms, and a release that had to wait on
-     * an AWJ round trip, or failed because the box was unreachable, would be
-     * logged as an error for doing exactly the right thing. Resolving against
-     * LivePremier's spelling is enough to see it: a release is an empty op
-     * list either way, and anything that is not a release is resolved again
-     * below, for the platform that is really there.
-     */
-    let platform = known.host === host ? known.platform : null;
-    if (!platform) {
-      const probe = resolveOsc(msg, { params: paramsFor(LIVEPREMIER), platform: LIVEPREMIER });
-      if (probe.ok && probe.ops.length === 0) {
-        return note({ from, address: msg.address, args: msg.args, summary: probe.summary, writes: 0 });
-      }
-    }
-
-    /* Spelled for the switcher that is actually there. The first packet after
-       a start, or after re-pointing, pays one AWJ round trip to find out. */
-    if (!platform) {
-      try {
-        platform = await platformFor(host);
-      } catch (err) {
-        state.failed++;
-        return note({ from, address: msg.address, args: msg.args, error: `could not identify ${host}: ${err.message}` });
-      }
-    }
-
-    /* Asked only for a message with a string argument — the only place a
-       variable can be — so a fader's stream of floats never waits on it. */
-    let vars;
-    if (variables && msg.args.some((a) => typeof a === 'string')) {
-      try {
-        const resolve = await variables();
-        if (resolve) vars = { resolve };
-      } catch (err) {
-        log(`OSC: variables could not be read: ${err.message}`);
-      }
-    }
-
-    const resolved = resolveOsc(msg, { params: paramsFor(platform), platform, vars });
-
-    if (!resolved.ok) {
-      state.failed++;
-      return note({ from, address: msg.address, args: msg.args, error: resolved.errors[0].message });
-    }
-
-    if (resolved.ops.length === 0) {
-      /* A button release. Logged rather than dropped, so a surface sending
-         something correctly ignored still shows up when someone is wondering
-         why nothing happened. */
-      return note({ from, address: msg.address, args: msg.args, summary: resolved.summary, writes: 0 });
-    }
-
-    try {
-      await talk(host, resolved.ops.map((op) => ({ op: 'replace', path: op.path.toAwj(), value: op.value })));
-      state.sent += resolved.ops.length;
-      note({
-        from,
-        address: msg.address,
-        args: msg.args,
-        summary: resolved.summary,
-        writes: resolved.ops.length,
-        paths: resolved.ops.map((op) => op.path.toAwj()),
+    for (const msg of messages) {
+      void dispatcher.dispatch(msg).then((entry) => {
+        if (entry.error) state.failed++;
+        else state.sent += entry.writes || 0;
+        note({ from, ...entry });
       });
-    } catch (err) {
-      state.failed++;
-      note({ from, address: msg.address, args: msg.args, error: err.message });
     }
-  }
+  });
 
   function note(entry) {
     const full = { at: Date.now(), ...entry };

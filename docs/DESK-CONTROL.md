@@ -9,6 +9,8 @@ A lighting desk — grandMA3, ChamSys MagicQ, Avolites Titan, anything that send
 **sACN** — drives the switcher the way it drives a media server: fixtures patched on a universe,
 one per screen and one per layer, programmed into cues like everything else on the rig. Recall a
 memory, set a layer's source and opacity, take, all from a cue stack, with no browser open.
+A grandMA3 can also drive the switcher with nothing patched, from its executors through the OSC
+it already sends: that is the **grandMA3** plugin, [GRANDMA3.md](GRANDMA3.md).
 
 It is off until you turn it on: switch on **Lighting desk control** in **Preconfig ▸ LivePremier
 Plus → Plugins**, then tick **Listen for a lighting desk** on its card.

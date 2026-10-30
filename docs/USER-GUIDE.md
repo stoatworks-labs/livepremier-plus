@@ -94,6 +94,9 @@ than something bolted on.
 - **Lighting desk control** *(preview, off by default)*: a lighting desk driving the switcher over
   Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity.
   Driven from MagicQ PC against the simulator; not yet tried on a real switcher.
+- **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, driving the
+  switcher from its executors through the OSC the desk already sends. Tried with grandMA3 onPC,
+  not yet with a wing or a desk.
 - **Background Slicer** *(preview)*: one picture cut into a pixel-exact background for every
   output of one or more screens, uploaded and put into a background set, or each output fed live
   from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a
@@ -381,10 +384,20 @@ a label, and choose a route:
   switcher is right that the buffer was written to). It's refused while a take is in flight. This
   route works on any switcher, and it's the only one on Midra 4K and Alta 4K.
 
+On a real switcher with no Shared directory set, the tab starts on **Via preview**, because Direct
+has nothing it can work with there. Direct is still there to pick once the share is set up.
+
 **Load into the programmer** reads a slot back the other way. A memory's contents aren't in the
 device's own data (a slot only publishes its name, its canvas and what categories it holds), so
 reading it out is the only way to see inside one, and it's how you pick up yesterday's look and
-change it.
+change it. It needs what Direct needs, the other way round: the switcher writes the memory onto its
+own disk, so on real hardware it only works with the Shared directory set, and without it the page
+tells you so rather than just passing on the switcher's error.
+
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a two-layer look saved via preview into an
+> empty slot, then a different look saved over it. Each time preview showed the look for under two
+> seconds and was put back, program never moved, and recalling the slot afterwards gave the second
+> look. Load there said why it couldn't. Direct hasn't been tried on a real frame.
 
 ---
 
@@ -690,7 +703,9 @@ switcher agreeing. A simulator cheerfully says *stays* for every layer, whatever
 > preview, changed from outside the app, was back to its program copy within a third of a second,
 > and the switcher's own verdict beside it read *stays*. Nothing was plugged into it, so no frame
 > has yet been asked what it does with a locked layer that has a live source on it. The first time
-> you use this on a show, lock a layer in rehearsal, take, and watch it.
+> you use this on a show, lock a layer in rehearsal, take, and watch it. **Take only** did as it
+> says on the same box: with two layers changed in preview, the one taken went to air and the other
+> was still waiting in the new preview.
 
 ---
 
@@ -966,8 +981,8 @@ A **Test Card** tab beside the switcher's own **Pattern** tab, in two places:
   left: a card for the whole canvas.
 
 Switch it on in **Preconfig ▸ LivePremier Plus → Plugins** first. It's off to start with because
-it uploads into the image library and writes a still and a layer, and it hasn't met a real frame
-yet.
+it uploads into the image library and writes a still and a layer, and it has only met one real
+frame so far.
 
 ![Setup ▸ Outputs ▸ Output 1 on the simulator with the Test Card tab open between the vendor's Pattern tab and Router: the Enable switch, off, and sixteen pattern tiles drawn by Test Card itself, from SMPTE RP 219 (picked) and 75% bars to the volcano and the broken wall, the moving ones marked still](screenshots/test-card-output.png)
 
@@ -1043,8 +1058,11 @@ layers, cut per output.
 - **A pitched output** (a ratio other than 1.000) has a footprint that isn't its raster, so the
   switcher resamples the card on the way out. The tab names the outputs that aren't pixel for
   pixel.
-- **The image library's size counter** never dropped a replaced file on the simulator. A card
-  that's followed a lot of changes may be using more of the library than the slot count says.
+- **The image library's size counter** never drops a replaced file, on the simulator or on a real
+  frame, and Off doesn't give that back. On an Aquilon C mini the vendor's own Image Library header
+  went from 91 kB to 354 kB for one card and two changes of pattern, and stayed there. A picture
+  uploaded once and deleted gives its space back; it's the replacing that sticks. A card that's
+  followed a lot of changes may be using more of the library than the slot count says.
 
 The pattern, its options, which cards are on and what Off puts back are kept per switcher by this
 app and go into the setup file under *Test cards*.
@@ -1057,16 +1075,20 @@ app and go into the setup file under *Test cards*.
 > the canvas, each on the top layer in preview; one on S2's program; a change of pattern, and a
 > rename on the switcher, each a re-upload into the same slot that the still followed with
 > nothing else written; and Off putting the layer, the still and the library slot back. The
-> simulator draws no pictures, so nothing here has been seen on an output. Not yet run on a
-> real frame.
+> simulator draws no pictures, so nothing here has been seen on an output.
+>
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a card on Output 1 went onto S1's top
+> layer in preview, from the last free still and library slot, with program and the library's
+> other pictures untouched. A change of pattern was uploaded again and the still followed with no
+> layer write, and Off put the layer, the still and the slot back. Not yet looked at on an output.
 
 ---
 
 ## Image Library tools (off by default)
 
 Switch on **Image Library tools** in **Preconfig ▸ LivePremier Plus → Plugins**. It's off to
-start with because it deletes library images and applies still capacities, and it hasn't met a
-real frame yet.
+start with because it deletes library images and applies still capacities, and it has only met
+one real frame so far.
 
 The vendor's **Image Library** page gives every card a bin and nothing else, which is fine until
 there are two hundred of them. This puts three things on the end of the page's header:
@@ -1100,7 +1122,12 @@ delete; the question says so.
 
 > Proven on LivePremier Simulator 6.2.73 on 2026-10-20: selecting and deleting, Delete all, a zip
 > dropped on the page (thirteen pictures in name order round two filled slots, the litter left
-> out), assigned slots left alone, and capacities changed and refused. Not yet on a real frame.
+> out), assigned slots left alone, and capacities changed and refused. On a real frame (Aquilon
+> C mini, 6.2.73, 2026-10-30): a zip of three pictures went into the three free slots in name
+> order, with the litter left out quietly and a `.txt` named with its reason; then Select picked
+> just those three, the question named them, and they were deleted, with the library's other
+> pictures untouched. The capacity dropdowns read what the switcher said. Delete all and a capacity
+> change haven't been run on a real frame.
 
 ---
 
@@ -1598,6 +1625,10 @@ inputs 2 × 1 and loads each plug with the tile for its place.
 
 The save finishes when the switcher reports the new EDID, not when it accepts the request.
 
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): an EDID saved into ED100 came back with its
+> name and turned up on the vendor's EDID Bank tab. The switcher's own save route also leaves a
+> copy in its EDID editor, as Web RCS's does; that's harmless, and nothing else on the box changed.
+
 The window works through the Web RCS tab it came from, like every popped-out panel here. Close that
 tab and it tells you it can't save any more.
 
@@ -1894,6 +1925,34 @@ The channel tables, the patch, sACN priority and backup desks, and what has been
 > ⚠️ **Never run with a real switcher.** It has driven the simulator from MagicQ PC on the same Mac
 > and from a pretend desk. A desk on the same Mac has its own settings to get right; DESK-CONTROL.md
 > has them.
+
+## grandMA3 (preview, off by default)
+
+A grandMA3 desk, or grandMA3 onPC with a wing, driving the switcher from its own executors. The
+desk isn't asked to do anything new: an OSC line with **Send** on already sends a message every
+time a playback moves, and this listens. One line per executor says what it does here:
+
+```text
+14.14.1.6.1 Go+         -> /lp/screen/1/take
+14.14.1.6.3 FaderMaster -> tbar S1
+```
+
+A key sends its target when pressed. A fader follows an address ending `/norm`, throws the T-bar
+for `tbar`, and on anything else is a button that fires on the way up. You don't have to know
+the addresses: move something on the desk and it turns up under **Heard**, with an **Add a line**
+button. Leave **Drive the switcher** off while you write them, and each press tells you what it
+would have done.
+
+Turn on **OSC input** first: this hears nothing without it. On the desk, set the OSC line's
+**Preferred IP**. Its default picks the wrong network card on a Mac running Parallels, and then
+nothing arrives at all.
+
+The setup step by step, and what it has and hasn't been tried on, are in
+[GRANDMA3.md](GRANDMA3.md).
+
+> ⚠️ **Never run against a wing or a desk**, only grandMA3 onPC on a Mac, driving a simulator.
+> And after a grandMA3 update, check the addresses before the show. MA renumbers them between
+> versions.
 
 ---
 
@@ -2333,7 +2392,8 @@ which start off: **Preview lock**, **Image Library tools**, **Surfaces**, **Aux 
 from a custom format**, **Resolume Mapping**, **Aux backgrounds**, **Transitions**, **Experimental
 features**, and the
 **UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **Lighting
-desk control**, **Thumbnail relay**, **Multiviewer thumbnails** and **Background Slicer** previews.
+desk control**, **grandMA3**, **Thumbnail relay**, **Multiviewer thumbnails** and **Background Slicer**
+previews.
 
 ![Preconfig ▸ LivePremier Plus → Plugins: every feature with its switch, what it does and where it lives](screenshots/plugins.png)
 

@@ -21,6 +21,18 @@ import { createPropertiesPanel } from '../../src/ui/properties-panel.js';
 import { createProgrammer, EDIT } from '../../src/core/programmer.js';
 import { composeMemory, saveViaPreview, applyLook, lookFromMemory } from '../../src/core/save-look.js';
 import { fromMemory } from '../../src/core/preset-file.js';
+import { readIdentity } from '../../src/core/identity.js';
+
+/**
+ * Whether the switcher can read a file this app writes, and write one this app
+ * can read: on a simulator they share a disk, and on real hardware only once a
+ * shared directory has been set. The Direct route and Load both need it.
+ */
+function canShareFiles(ctx) {
+  if (ctx.settings.get().memoryImportDir) return true;
+  const frame = readIdentity(ctx.session.store).primary;
+  return Boolean(frame && frame.simulated);
+}
 
 /**
  * Save a programmed look into a real memory slot.
@@ -55,7 +67,14 @@ async function saveLook(ctx, programmer, { id, slot, label, route }) {
 async function loadLook(ctx, programmer, { id, slot }) {
   const res = await fetch(`${ctx.url('/')}?slots=${encodeURIComponent(slot)}`, { cache: 'no-store' });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok || !body.ok) return { ok: false, message: body.error || `could not read memory ${slot}` };
+  if (!res.ok || !body.ok) {
+    /* An Aquilon with no shared directory answers ERROR_INVALID_PATH, which
+       tells the operator nothing about what to do next. */
+    const why = canShareFiles(ctx) ? ''
+      : ' — the switcher writes the memory onto its own disk, so reading one back needs a '
+        + 'Shared directory both machines can see (Preconfig ▸ LivePremier Plus)';
+    return { ok: false, message: (body.error || `could not read memory ${slot}`) + why };
+  }
 
   const first = (body.memories || [])[0];
   if (!first) return { ok: false, message: `memory ${slot} is empty` };
@@ -134,7 +153,8 @@ export default function activate(ctx) {
     names,
     surfaces: () => ctx.use('surfaces'),
     onSave: (req) => saveLook(ctx, programmer, req),
-    onLoad: (req) => loadLook(ctx, programmer, req)
+    onLoad: (req) => loadLook(ctx, programmer, req),
+    directFirst: () => canShareFiles(ctx)
   });
   programmer.addEventListener('changed', ctx.refresh);
 

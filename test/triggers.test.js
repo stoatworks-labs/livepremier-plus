@@ -66,8 +66,8 @@ async function tcpSink() {
 test('an OSC message reads back through the OSC input’s own decoder', () => {
   const buf = encodeOsc('/ch/17/mix/on', [{ type: 'i', value: 1 }, { type: 'f', value: 0.75 }, { type: 's', value: 'VT' }, { type: 'T' }, { type: 'F' }]);
   assert.equal(buf.length % 4, 0);
-  assert.deepEqual(decode(buf), [{ address: '/ch/17/mix/on', args: [1, 0.75, 'VT', true, false] }]);
-  assert.deepEqual(decode(encodeOsc('/eos/cue/1/45/fire')), [{ address: '/eos/cue/1/45/fire', args: [] }]);
+  assert.deepEqual(decode(buf), [{ address: '/ch/17/mix/on', args: [1, 0.75, 'VT', true, false], types: 'ifsTF' }]);
+  assert.deepEqual(decode(encodeOsc('/eos/cue/1/45/fire')), [{ address: '/eos/cue/1/45/fire', args: [], types: '' }]);
 });
 
 test('ArtDmx is Art-Net 4’s: OpCode low byte first, version 14, Net and SubUni split', () => {
@@ -219,7 +219,7 @@ test('OSC and MIDI over TCP reach their receivers', async (t) => {
 
   await out.send(desk, parseLine('Desk /ch/17/mix/on 1', [desk]));
   assert.ok(await until(() => osc.got.length === 1));
-  assert.deepEqual(decode(osc.got[0].buf), [{ address: '/ch/17/mix/on', args: [1] }]);
+  assert.deepEqual(decode(osc.got[0].buf), [{ address: '/ch/17/mix/on', args: [1], types: 'i' }]);
 
   await out.send(ah, parseLine('AH note 1 60 127', [ah]));
   await out.send(ah, parseLine('AH msc go 3', [ah]));

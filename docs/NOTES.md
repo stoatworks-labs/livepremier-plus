@@ -28,7 +28,9 @@ AoI from a custom format and Image Library tools (2026-10-20, unreleased) are at
 file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-20, unreleased, in
 `OFF_UNTIL_TESTED`): neither has met a panel, only a pretend one and the 6.2.73 simulator.
 **Plug names** (2026-10-24, unreleased, in `OFF_UNTIL_TESTED`) is below; **Lighting desk control**
-(2026-10-30, unreleased, in `OFF_UNTIL_TESTED`) is the newest.
+(2026-10-30, unreleased, in `OFF_UNTIL_TESTED`) is the newest dated entry. **grandMA3** (2026-10-30,
+unreleased, in `OFF_UNTIL_TESTED`) is at the very end: a desk driving the switcher through its own
+OSC feedback, proven with grandMA3 onPC and the simulator, no wing.
 
 **What real hardware has seen**, all of it:
 
@@ -3488,6 +3490,77 @@ arithmetic. Output thumbnails can't stand in for looking at an output on it (abo
   yet).
 - Put back after, the store diffed clean against the third pass's.
 
+**The fifth pass: the last five panels (2026-10-30, night).** Every write read back over AWJ, each
+test put back and the store diffed before the next.
+
+- **Layer Lock's Take only.** S1 preview (B) staged L1 LIVE_1 and L2 LIVE_2; Take only on L1 said
+  *took S1 L1, preview put back (1 property)*. The box landed AT_UP with program L1 LIVE_1, L2 NONE,
+  and LIVE_2 still waiting on L2 of the new preview. Right.
+- **Edit page, save via preview.** S1 programmed off the buses (L1 IN2, L2 IN3; nothing on the wire
+  while programming), saved into 990: preview got LIVE_2 / LIVE_3, the save fired, the slot came
+  back valid with its label, and preview was NONE / NONE again about 1.7 s later. Program and the
+  transition never moved. A second save into the now-valid slot, a different look and the save
+  trigger still latched, landed too: recalling 990 into preview gave LIVE_4 / LIVE_5.
+  (`waitForValid` returns at once for a slot that is already valid; the look, the save and the
+  put-back go down one socket in order, and the box kept that order.) Slot and label survive the
+  1 s repaint and losing focus.
+- **Direct was the default route on a real switcher**, where it can't work without a shared
+  directory, so the first save of the day would fail. Fixed: the rail starts on Via preview unless
+  a Shared directory is set or the device says it is a simulator; Direct is still offered
+  (`test/edit.test.js`). Seen on the box after the fix. The Direct save itself was not tried here.
+- **Load can't work on real hardware without that directory either**: the bank export answers
+  `ERROR_INVALID_PATH` (the path is on the switcher's disk), and the page said only that. It now
+  says why and where to set it. Load leaves `presetBank/export/cmd` latched (`xRequest` true, the
+  path, the slot selected), as the import leaves its own; put back by hand. Not changed: the
+  vendor's own pages leave their triggers latched too (`xStore` false, true).
+- **The Edit page lists S3**, DISABLED on this box, as a destination with 0 layers. Noted.
+- **A recall into preview left a stale layer status.** After recalling 990 into S1's preview and
+  putting both layers back to NONE, S1 layers 1–2 report `status/pp/up` OPEN while every writable
+  leaf matches the earlier snapshot. Source nudges and two takes there and back didn't clear it.
+  Layer Lock's *Next take* reads this field. Status only.
+- **EDID builder.** The Claude browser pane opens `window.open` in the same tab, so the popout had
+  no opener (*No Web RCS session*). It ran instead in an iframe over the Web RCS tab, booted with
+  `bootPopout({ opener: parent })`: the same page. An EDID named LPP TEST (3840×2160 60, 256 bytes)
+  saved to ED100 through `POST /api/device/edid/save`: the slot came back with the name and the
+  vendor's EDID Bank showed it. As the simulator notes say, that route also loads the EDID into the
+  switcher's editor and checks it: `edit/control/xCheck` and `save/…/100/xRequest` latched, and the
+  editor's `isValid` went UNKNOWN → VALID. Undo: `xDelete`; the editor back to 512 zeros at "256";
+  a valid one-block EDID (DEFAULT_DP_1080P's block 0, extension count 0, checksum redone) checked
+  first so the extension lists went back to `[]`, then the zeros checked. `isValid` INVALID is all
+  that differs; UNKNOWN can't come back. The name was set by script and only reached the bytes
+  after Calculate; not checked by hand.
+- **Test Card on Out 1.** On: S1 L4 (4K, the top layer) in preview as STILL_24 from library slot
+  200, the *last* free still and slot, not the first. Program and the owner's three pictures in
+  slots 1–3 untouched. It follows on the hardware: a pattern change uploaded into slot 200 again
+  and the still's `newSnaphot` went 6 → 7, with no layer write. Off put L4 back to NONE, still 24
+  back to NONE (source 1), and emptied slot 200. Left behind: still 24 `settings/xUpdate` and slot
+  200 `control/xDelete` latched (re-armed by hand), the library import `cmd` path and slot (put
+  back), and **the library's size counter, 91 → 354 kB, which the vendor's Image Library header
+  shows**. It didn't drop when the slot was emptied: the guide's simulator note holds on a real
+  frame, and every replaced upload stays counted. A plain upload and delete gives its space back
+  (Image Library tools, below), so it is the replacing that leaks. Whether a reboot gives it back
+  is not known.
+- **Image Library tools.** The header bar arrives once the store is in (about 20 s here). A zip
+  built in the page (`lpp test 1/9/10.png`, a `__MACOSX/._` entry, `.DS_Store`, `notes.txt`) asked
+  *Upload 3 pictures into slots 4–6?* and named `notes.txt` with its reason; the litter went
+  unmentioned and the owner's slots weren't offered. Answered no: nothing written. Then, Allan's
+  go-ahead given (Claude Code's auto-mode classifier had refused the scripted yes until he did),
+  answered yes: `lpp test 1` landed in 4, `9` in 5, `10` in 6, in name order, and the counter went
+  354 → 363 kB. Select picked 4–6 by their cards (the owner's 1–3 were offered and left), *Delete
+  selected* asked *Delete 3 images from the switcher's image library (4–6)?* and named no stills,
+  as none showed them; yes emptied 4–6 and the counter went back to 354. Each slot's
+  `control/xDelete` was left latched (re-armed by hand) and the import `cmd` path and slot were
+  put back. **Not run:** Delete all (never on this box) and a capacity change (Preconfig). The 24
+  capacity dropdowns render, one per still, reading Dual as the box does.
+- **Put back after:** against the original baseline, 64 leaves differ. 62 are status: the earlier
+  passes', plus the bank export's `ERROR_INVALID_PATH`, S1 L1–L2 `up` OPEN, still 24's and the
+  emptied library slots' leftover sizes and names (200 and 4–6), the library size counter, and the
+  EDID editor's `isValid`. (Of the earlier 34, the library's export path and its import path and
+  slot are now put back, so 31 remain.) Two are writable enums, left alone because writing one
+  could fire it: the library's
+  `export/cmd/xRequest` EXPORT_RENAME (from the second pass's image download) and
+  `import/cmd/xRequest` SPECIFIC_SLOT.
+
 ## Triggers: OSC, MIDI over TCP, Art-Net and sACN out of a cue (2026-10-30, pretend receivers only)
 
 Allan asked for a cue to drive the rest of the rig: unmute the desk, house lights down, Mitti
@@ -3543,3 +3616,33 @@ Triggers-only cue would be safe on a live box. The form just can't make one.
 **Not done:** no real desk, node, lighting desk or Mitti. Hardware MIDI ports (it would need a
 native module in `devices/`), OSC over TCP, sACN per-address priority (`0xDD`), reading a desk's
 state back for a real "previous", and firing triggers from anywhere but a cue are not built.
+
+## grandMA3 through its own OSC feedback (2026-10-30, grandMA3 onPC and the simulator, no wing)
+
+Started as a research question: could an Avolites Titan Mobile or T3, or an MA onPC wing, be a
+control surface here, as the Barco EC and ATEM panels are? Both are USB peripherals that only their
+own software talks to. The Avolites surfaces (VID 0x0AD9) have no public protocol and Titan has no
+OSC. MA's onPC wings unlock parameters, so driving one would be impersonating a licence key. Not
+done, and not to be. What MA does have is OSC playback feedback, so the plugin listens to the desk
+instead. Avolites stays an Art-Net/sACN dummy-fixture job.
+
+Found on this Mac, grandMA3 onPC 2.4.2.2 (Release), macOS 26.4.1:
+
+- **Sequence 1 is `/14.14.1.6.1`**, not the manual's `/13.13.1.6.1`. `ObjectList('Sequence
+  1')[1]:Addr()` agrees with the wire. Grand master is `14.13.2.1`.
+- **Nothing arrived at first**: the OSC line's `PreferredIP` default `10.0.0.0/8` chose the
+  Parallels bridge (10.211.55.2) as its interface. Setting `Interface` directly didn't stick;
+  `PreferredIP` `127.0.0.1` did (interface 1.1), and packets came.
+- **Shapes**: fader `,sif FaderMaster <via> <0–100>`, via 1 on screen or by command, 3 a physical
+  fader (MA's manual; not seen). Knob `,sii`. Go+/Go−/Toggle `,sis <fn> 1 "<seq> <cue> <name>"`,
+  sent only on press when fired by command. Flash and Temp `,si <fn> 1` then `0`.
+- **app_terminal never exits at end of input.** Each `bin/ma3` call ran to its 60 s alarm, so the
+  end-to-end run took five minutes for five calls.
+
+End to end, onPC → OSC input on 127.0.0.1:9000 → grandma3 → the rack simulator (6.2.73): `Go+ Page
+1.201` took S1; the executor fader 0 → 40 → 100 took it, 60 → 0 took it back; `Go+ Page 1.202`
+cut. Nine messages received, two writes from the keys, two T-bar takes, nothing refused. The
+replayed bytes do the same in `test/sim/grandma3.sim.test.js`.
+
+**Not seen:** a wing (its faders' via 3 and their message rate), a desk, Windows onPC, any other
+grandMA3 version, a real network.

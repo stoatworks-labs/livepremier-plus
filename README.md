@@ -189,6 +189,11 @@ bolted on afterwards:
   screen and per layer, GDTF files to import, memories recalled to preview, Take and Cut, each
   layer's source and opacity, sACN priority for a backup desk. It has driven the simulator from
   MagicQ PC and a pretend desk, not yet a real switcher. [docs/DESK-CONTROL.md](docs/DESK-CONTROL.md)
+- **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, drives the
+  switcher from its own executors. It listens to the OSC the desk already sends when a playback
+  moves, so a Go+ can take a screen and a fader can be a T-bar or a layer's opacity. You write
+  one line per executor; the card lists what the desk sends so you can copy it. It has driven the
+  simulator from grandMA3 onPC, but not yet from a wing or a desk. [docs/GRANDMA3.md](docs/GRANDMA3.md)
 - **Experimental features** (off): things the switcher takes and reports back as done, which no
   frame has yet been seen to do. Turn it on and two more switches appear: a **Transitions** tab
   (every layer's opening and closing effect and its timing in seconds of the take, kept styles,

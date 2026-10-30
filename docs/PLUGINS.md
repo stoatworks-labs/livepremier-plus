@@ -246,7 +246,7 @@ A **contribution point** is a place in the app that takes additions from any plu
 | Point | Half | A contribution is |
 |---|---|---|
 | `cueAction` | page | `{ kind, label, run(action, { cue }), describe?(action), field? }` — a new thing a cue can do |
-| `oscAddress` | server | `{ prefix, describe?, entries?, handle(address, args) }` — a subtree of OSC addresses |
+| `oscAddress` | server | `{ prefix, describe?, entries?, handle(address, args, meta?) }` — a subtree of OSC addresses |
 | `configSection` | server | `{ key, group, label, perDevice?, byDefault?, export(device), import(data, device) }` — a section of the setup file |
 
 **`cueAction`.** `kind` is the name a cue stores its action under — start it with your plugin's id
@@ -278,8 +278,11 @@ called for any address at or below it, whether it arrived over UDP or was typed 
 answers `{ ok: true, summary?, count? }`, `{ ok: false, error }`, or **null to decline**, in which
 case the address goes on to the switcher's own. `describe` is one line for a listing, and
 `entries` is the listing itself: rows of `{ group, address, args, summary }`, with `{placeholders}`
-in the address, which `GET /__lpp/addresses` serves. All three built-in contributors give one, and
-theirs are what [OSC.md](OSC.md) is generated from. The longest
+in the address, which `GET /__lpp/addresses` serves. All four built-in contributors give one, and
+theirs are what [OSC.md](OSC.md) is generated from. A message that came over UDP also hands
+`handle` a third argument, `{ types }` — its OSC type tags without the comma (`'sif'`), for a
+sender whose meaning hangs on an int being an int: grandMA3 sends a fader's position as a float and
+a knob's nudge as an int. A line typed in the Console has no tags, and no third argument. The longest
 prefix wins, so a plugin can answer `/a/` and — itself — `/a/b/` differently.
 
 The rules, each one there to stop a plugin quietly taking something over:

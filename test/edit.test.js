@@ -329,3 +329,46 @@ test('on LivePremier the Edit page writes what it always wrote', () => {
     dom.uninstall();
   }
 });
+
+test('on LivePremier the memory rail starts on Direct only where the switcher can read the file', async () => {
+  const dom = install();
+  try {
+    const store = new DeviceStore();
+    const merge = (a, b) => {
+      if (!a || typeof a !== 'object' || Array.isArray(a) || !b || typeof b !== 'object' || Array.isArray(b)) return b;
+      const out = { ...a };
+      for (const [k, v] of Object.entries(b)) out[k] = k in out ? merge(out[k], v) : v;
+      return out;
+    };
+    store.hydrate(['sim-6.2.73-identity.json', 'sim-6.2.73-screens.json', 'sim-6.2.73-destinations.json',
+      'sim-6.2.73-connectors.json', 'sim-6.2.73-outputs.json', 'sim-6.2.73-resources.json']
+      .map(fixture).reduce(merge, {}));
+
+    /* A real Aquilon with no shared directory (the C mini, 2026-10-30) and a
+       simulator, which shares this machine's disk. */
+    for (const [shared, route] of [[false, 'preview'], [true, 'direct']]) {
+      const asked = [];
+      const { programmer, panel } = editPage(store, fakeSession(store), {
+        onSave: async (req) => { asked.push(req); return { ok: true }; },
+        onLoad: async () => ({ ok: true }),
+        directFirst: () => shared
+      });
+      panel.select('S1', '1');
+      programmer.seed('S1', 'PREVIEW');
+      panel.view.rail = 'memory';
+      panel.view.saving = { slot: '7' };
+
+      const root = panel.render();
+      const chips = root.querySelectorAll('.lpp-edit-rail button');
+      assert.ok(chips.some((b) => b.textContent === 'Direct'), 'Direct is still offered');
+      assert.equal(chips.find((b) => b.textContent === (route === 'direct' ? 'Direct' : 'Via preview'))
+        .getAttribute('class').includes('lpp-chip--on'), true);
+
+      chips.find((b) => b.textContent === 'Save to memory').click();
+      await new Promise((r) => setImmediate(r));
+      assert.deepEqual(asked.map((r) => r.route), [route]);
+    }
+  } finally {
+    dom.uninstall();
+  }
+});

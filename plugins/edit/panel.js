@@ -94,11 +94,15 @@ const HANDLES = [
  * @param {Function} [opts.names]   layer names
  * @param {Function} [opts.onSave]  ({id, slot, label, route}) => Promise, saves a memory
  * @param {Function} [opts.onLoad]  ({id, slot}) => Promise, reads one back in
+ * @param {Function} [opts.directFirst] whether the switcher can read the file a
+ *        Direct save writes (a simulator, or a shared directory has been set);
+ *        the rail starts on Via preview when it cannot
  * @param {Function} [opts.surfaces] the Surfaces service, or null while it is off
  */
 export function createEditPanel({
   session, programmer, properties, onRefresh = () => {},
-  names = () => ({}), onSave = null, onLoad = null, surfaces = () => null, doc = document
+  names = () => ({}), onSave = null, onLoad = null, directFirst = () => true,
+  surfaces = () => null, doc = document
 }) {
   const view = {
     /* null means "every destination in service", which is the vendor's ALL.
@@ -620,9 +624,14 @@ export function createEditPanel({
    */
   const memoryFile = () => !!(dialectFor(store()) || {}).memoryFile;
   const routes = () => ROUTES.filter((r) => r.id !== 'direct' || memoryFile());
+  /* Direct is still offered on a real Aquilon, but not chosen for the
+     operator: with no shared directory the box cannot see the file, and the
+     first save of the day would fail (Aquilon C mini, 2026-10-30). */
   const routeOf = () => {
     const offeredRoutes = routes();
-    return (offeredRoutes.find((r) => r.id === view.saving?.route) || offeredRoutes[0]).id;
+    const preferred = directFirst() ? 'direct' : 'preview';
+    return (offeredRoutes.find((r) => r.id === view.saving?.route)
+      || offeredRoutes.find((r) => r.id === preferred) || offeredRoutes[0]).id;
   };
 
   function memoryRail() {
