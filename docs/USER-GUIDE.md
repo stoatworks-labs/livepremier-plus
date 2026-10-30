@@ -536,7 +536,10 @@ Choose a source under **Preconfig ▸ LivePremier Plus → Timecode**:
 - **MIDI Time Code** from any MIDI input the browser can see;
 - **Audio (LTC)** from an audio input on this machine;
 - **Pushed to LivePremier Plus**: anything that can POST a timecode to this app, such as a
-  generator on another machine, a lighting desk or a script.
+  generator on another machine, a lighting desk or a script. **Send it as a stream**, at least
+  four a second and ideally every frame: a reading is counted as stopped a quarter of a second
+  after it arrives, and a stopped clock fires nothing, so a single POST at a cue's time does
+  nothing at all.
 
 Then give the cues a timecode and press **Chase** on the Timeline; it reads **Chasing** while it's
 armed. Nothing fires from timecode until you do, and arming it part-way through doesn't fire the

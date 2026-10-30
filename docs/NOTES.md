@@ -3377,6 +3377,50 @@ input signal (signal dots, Layer Lock on a live source, thumbnails) or a screen 
 outputs (the VPU header's link order, rotated or grouped Background Slicer cuts), and the 6.1.x
 arithmetic. Output thumbnails can't stand in for looking at an output on it (above).
 
+**The fourth pass, and the U5 on a real frame (2026-10-30, evening).**
+
+- **The VPU map misreads this box's layout.** The resource mapping (`preconfig/resources/current/
+  …/vpuMixerList`) names S1's four mixer pairs `NATIVE`, `1`, `2`, `3`, but the screen's own layer
+  status says NATIVE `capability: OFF` and layers 1–4 at 4K (`layerCount` 4), and the vendor's
+  Preconfig ▸ Screens shows Layer 1–4 and no background layer. The map follows the mapping, so its
+  rows read NAT / L1–L3 where the screen has L1–L4, and it calls VPU 1 `12/8 layer links …
+  overflows 8 links` on a layout the box is running. It also lists **8 staged changes** (mixers
+  9–16 `usedOnOutPipe3` → `usedOnOutPipe2`, already in the first store pull) where the vendor's
+  Summary says *Pending Modifications* is empty. The model is aquilon-vpu-map's; the fix belongs
+  there, with this store. The Background Slicer reads the layer status and was right.
+- **Timeline, GO pressed twice half a second apart** (two cues, recall 990 / 991 → S1 PRW, take,
+  2 s; Preview lock on): cue 1 recalled into B and took; cue 2 said *waiting for take: 2 → S1*,
+  recalled into **A** as cue 1 landed, and took back. Right on the hardware.
+- **Timecode chase, pushed to `/__lpp/timecode`.** Single POSTs a few seconds apart fire nothing:
+  `TimecodeClock` calls a feed stopped 250 ms after its last reading, and the chase ignores a
+  stopped clock (`lastPosition` stays null). The guide now says to stream. Streamed at 25 fps:
+  01:00 → 04:00 then a jump to 09:00 → 10:00 fired neither cue (05:00, 08:00), as a jump should;
+  back to 02:00 and straight through to 10:00 fired cue 1 at 05:00 and cue 2 at 08:00, once each,
+  each recall and take seen on the box.
+- **The U5 integration against the frame.** The app ran on this Mac (`--device 127.0.0.1:18080`)
+  so it could reach PixelFlow's UCenter on 127.0.0.1:19999, with the C mini's :80 and :10606
+  carried to it over ssh from a relay beside the remote link; the virtual U5 was
+  `pixelhue-re/tools/rig/virtual-panel.mjs`, PixelFlow itself closed. The panel connected,
+  published 3 screens, 8 layers, 8 inputs, and the U5's buses showed S1–S3, Layer 1–4 (no phantom
+  NATIVE) and LIVE_1–8. Then, each read back over AWJ: S1 select → Layer 1 → LIVE_2 wrote LIVE_2 to
+  S1's preview layer 1 and left program; TAKE took S1 only; TIME made the take 1.1 s; SAVE TO on an
+  empty preset key stored S1's preview as *Memory 1* in slot 1 and republished (the key appeared);
+  DEL and that key deleted it. ⚠️ A relay that tears down both sides when one closes drops an AWJ
+  write — the app sends a write and closes at once — so the first press "sent" and nothing landed;
+  the relay has to pass half-close.
+- **Faders on the virtual U5 report indices 4, 5, … from the left** (the press inspector: the
+  first two were `fader 4` and `fader 5`). The app binds `lpp.fader.1`–`8` and reads index *n* as
+  layer *n*, so there the leftmost fader drives layer 4, the next layer 5 (not allocated on S1),
+  and the last three are never bound. Whether a physical U5 numbers them the same is not known;
+  PixelFlow's virtual panel is the vendor's own drawing of one. Not changed.
+- **A fader gesture's history line can name the wrong value.** It is written 500 ms after the last
+  *report* (`GESTURE_IDLE_MS`), but each move here took about 650 ms (a `lettersFor` read and the
+  write, ~320 ms each over this link), so the timer fired mid-write and logged the move before
+  last (`= 74`) while the frame ended where the fader did (154, 60 %). The switcher is right, the
+  history is not. The timer wants restarting when a write lands; not changed (no test rig for it
+  yet).
+- Put back after, the store diffed clean against the third pass's.
+
 ## Triggers: OSC, MIDI over TCP, Art-Net and sACN out of a cue (2026-10-30, pretend receivers only)
 
 Allan asked for a cue to drive the rest of the rig: unmute the desk, house lights down, Mitti
