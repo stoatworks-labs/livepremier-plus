@@ -378,6 +378,9 @@ its surface — the Edit page uses it;
 **`edid-names`**, from Plug names — `{ title, mount(target) }`, the Plug Names panel, which the EDID
 builder mounts into its pane under a tab of that title and stops when the pane closes;
 **`timecode`**, from Timecode — `{ source, chase }`, the clock and the chase the Timeline draws;
+**`console`**, from the Console — `line(opts)`, a Console line of the caller's own with a
+sticky scope (`state`, `setLine`, `execute`, `runCommand`, `clear`, `scope()`, `render()`), which
+the Desk's keypad types into;
 **`matrix`**, from Matrix Routing — `describeSurfaces()`, what its Router tabs found on the vendor's
 pages; **`variables`**, from Variables — `list()`, `resolve('$S1.width')`, `resolver()` (the
 `(name, kind)` function mynah's `vars` and `core/expr.js` take; fresh per call), `evaluate(text)` and

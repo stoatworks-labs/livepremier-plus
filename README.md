@@ -194,6 +194,11 @@ bolted on afterwards:
   moves, so a Go+ can take a screen and a fader can be a T-bar or a layer's opacity. You write
   one line per executor; the card lists what the desk sends so you can copy it. It has driven the
   simulator from grandMA3 onPC, but not yet from a wing or a desk. [docs/GRANDMA3.md](docs/GRANDMA3.md)
+- **Desk (control surface)** *(preview, off by default)*: the software for the LivePremier Plus
+  desk. A Mynah keypad types whole words onto a Console line of its own; TAKE takes the scope at
+  once; four encoders and three paged wheels move the selected layer on preview; and a 1920 × 550
+  strip screen shows the line, whether it reaches program, and a cell over every knob. No desk has
+  been built yet, so it has only met a pretend controller and the simulator. [docs/DESK.md](docs/DESK.md)
 - **Experimental features** (off): things the switcher takes and reports back as done, which no
   frame has yet been seen to do. Turn it on and two more switches appear: a **Transitions** tab
   (every layer's opening and closing effect and its timing in seconds of the take, kept styles,

@@ -748,6 +748,42 @@ the app to the simulator. Load-bearing:
   OSC line can be set from Lua on `ShowData().OSCBase`; set `PreferredIP` to `127.0.0.1` on a Mac
   with Parallels, or its default `10.0.0.0/8` sends to the VM bridge and nothing arrives.
 
+### Desk (`plugins/desk/`) — **preview**
+
+The software for the LivePremier Plus desk (`stoatworks-labs/lpp-control-surface`, prototype one,
+not built): a Mynah keypad typing into a Console line, four encoders and three paged wheels
+through awj-surface's engine with `lpp-surface-p1`, and a 1920 × 550 strip screen.
+`docs/DESK.md` is the operator's page and the run/not-run table. **It has only met a CoreMIDI
+virtual source** on the same Mac, in Chromium, against the 6.2.73 rack simulator. Load-bearing:
+
+- **The key table is the hardware repo's, not ours.** `KEYS` in `keypad.js` follows the keymap
+  block of that repo's `docs/KEYPAD.md`, which `mechanical/layout.py` writes; the knob pixels in
+  `core.js` come from the same file. `test/desk.test.js` reads it when a checkout is at
+  `~/hardware/video/lpp-control-surface` (or `LPP_DESK_KEYPAD`) and skips otherwise. Move a key
+  there and change it here; never the other way round.
+- **A big key's other switches are swallowed** (`SECOND_SWITCHES`). If a firmware sends all four
+  of TAKE's notes and more than one gets through, the take is followed by the take back.
+- **TAKE is `runCommand('Take')`, not a word.** It goes the way a typed line does (Preview lock,
+  the log) and leaves the line alone. Shift+TAKE types it.
+- **Nothing types Program but the Program key**, and the line under the command line says whether
+  Enter reaches program (`reachesProgram` in `plugins/console/panel.js`). Say "can't tell" for raw
+  languages; never "no".
+- **The sticky scope is the desk's line only.** The `console` service's `line()` passes
+  `stickyScope: true`; the typed Console tab and pop-out keep none, as before. Don't change that
+  default: a Select typed weeks ago silently scoping a Take is the failure.
+- **The desk lives in the Web RCS tab; the screen only draws.** `screen.js` reads
+  `own.snapshot()` and calls back into the desk, so closing the screen never stops TAKE. It
+  doesn't borrow the vendor's stylesheet and it scales, never reflows: a cell has to stay over
+  its knob.
+- **One desk per browser** (Web Lock `lpp-desk`). MIDI Mapping takes no lock, so the profile isn't
+  on its list: both on one port would double every write.
+- **Wheel pages are awj-surface's `page` modifier** (`profile.pages`, `binding.page`,
+  `engine.showPage`), vendored from upstream a129def. Change it upstream and sync; never edit
+  `src/vendor/surface/` here.
+- **Testing in Playwright:** Chromium 149 refuses `requestMIDIAccess`, even without sysex, unless
+  both `midi` and `midi-sysex` are granted. The page's writes are best witnessed from
+  `page.on('websocket')` frames plus the harness `Link`, with `guardScreen` around everything.
+
 ### The Background Slicer (`plugins/bg-slicer/`) — **preview**
 
 One picture cut into a background per output, put into the image library, the
