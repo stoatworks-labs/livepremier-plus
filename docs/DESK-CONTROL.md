@@ -372,8 +372,15 @@ the NDI runtime from the machine, so install [NDI Tools](https://ndi.video/tools
 `NDI_RUNTIME_DIR_V6`). The card says which runtime it found, and how many are receiving each feed.
 The Docker image has no NDI, as NDI's licence has it.
 
-**Which desks take it in:** grandMA3, and MagicQ from 1.9.8. Titan dropped NDI in v19 and takes
-RTSP instead (below). None has received these feeds yet; only the tests' own NDI receiver has.
+**Which desks take it in:** grandMA3, and MagicQ from 1.9.8 on a console or a fully unlocked
+MagicQ PC. MagicQ PC in demo mode finds the feeds and lists them by name, then marks the server
+**Locked** and never connects. Titan dropped NDI in v19 and takes RTSP instead (below). No desk has
+received these feeds yet; only the tests' own NDI receiver has.
+
+**In MagicQ:** Setup → View System → Media, an unused server's Type to *NDI*, then double-click its
+IP address cell for *Select NDI sender* and pick "LivePremier Plus S1" or "LivePremier Plus layers"
+(each comes up as the machine's name with the feed's in brackets). ChamSys says its Con state then
+reads Receiving with the picture's size; not seen here yet.
 
 NDI® is a registered trademark of Vizrt NDI AB.
 
@@ -406,7 +413,8 @@ ask for it.
 | From a real desk: Memory, Cut, the Master fixture, a cue stack rather than the programmer, sACN, Full mode | — | **not yet** |
 | grandMA3, Titan | — | **not yet** |
 | The `.d4` files in Titan, the MA2 files in grandMA2 | — | **not yet** |
-| A desk receiving the NDI feeds | MagicQ here is 1.9.6.5, which has no NDI; grandMA3 onPC wasn't used | **not yet** |
+| **MagicQ PC 1.9.8.3, NDI** (demo mode, the Intel build under Rosetta) on the same Mac, macOS 26.4, NDI 6.3.2 | media server 1 set to type *NDI* in Setup → View System → Media, in a new show; the app sending both feeds at 720p | Found both: *Select NDI sender* listed "MAC (LivePremier Plus layers)" and "MAC (LivePremier Plus S1)", and took S1. Con state **Locked** from the moment the type was NDI (*CITP Live Feed* shows the same). MagicQ opened no TCP connection to the feed, the card's count stayed 0 and the Media window showed nothing. The tests' receiver, run beside it, connected and had a 1280 × 720 frame in 1.2 s. ChamSys puts NDI on MagicQ PC with a full unlock only, so this is the demo's lock, not the feed |
+| A desk receiving the NDI feeds | needs a ChamSys console or a fully unlocked MagicQ PC; grandMA3 onPC wasn't used | **not yet** |
 | The MVR in grandMA3 or Vectorworks; CITP from grandMA2 or Titan; a desk patching layers from CITP, which is what would check the Art-Net net and universe in each layer's DMX source string | — | **not yet** |
 | Thumbnails and previews of real pictures | the simulator has no snapshots; it needs a real switcher | **not yet** |
 | A real switcher, which reports a transition in progress: the take firing at its start | — | **not yet** |

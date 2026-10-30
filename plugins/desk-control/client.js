@@ -207,7 +207,7 @@ export default function activate(ctx) {
       notes.push(note('info',
         'An NDI feed per patched screen, drawing its program — each patched layer where the switcher has it, with '
         + 'its source’s snapshot and name — and one of every layer as a tile, for a desk’s video window (grandMA3, '
-        + 'MagicQ 1.9.8 and later). A drawing of the switcher about once a second, not its video, and only while '
+        + 'MagicQ 1.9.8 and later on a console or a fully unlocked MagicQ PC). A drawing of the switcher about once a second, not its video, and only while '
         + 'somebody receives it. NDI® is a registered trademark of Vizrt NDI AB.'));
     }
     return h('div', { class: 'aw-flex-col aw-gap-row-small' },

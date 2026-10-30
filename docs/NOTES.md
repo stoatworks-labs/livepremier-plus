@@ -301,9 +301,26 @@ doc. RTSP for Titan 19.2 waits until a Titan user asks.
   channel default is in 8-bit steps whatever the resolution, and its channel sets are in the
   channel's own DMX, so a 16-bit channel gets a function per range instead, in 24-bit DMX.
 
-**Not done:** no desk has received the NDI (MagicQ here is 1.9.6.5, which has none, and the
+**Not done:** no desk has received the NDI (MagicQ 1.9.8.3 in demo mode won't, below, and the
 grandMA3 onPC on this Mac belongs to other work); neither file has been imported into a real
 Titan or grandMA2; no real snapshots, since the simulator has none.
+
+**MagicQ 1.9.8.3 against the feeds (later the same day).** Allan picked MagicQ 1.9.8+ to test on.
+1.9.8.3 is the newest release and an Intel build (the 1.9.9 beta is the first native one), so it
+ran under Rosetta. It went into `~/Applications/MagicQ 1.9.8.3/` beside the 1.9.6.5 in
+`/Applications`, with `~/Documents/MagicQ` and its Application Support folder backed up first and
+the show files it changed put back afterwards.
+
+- **Discovery works.** With media server 1's type at *NDI* (sixteen Returns on from None),
+  double-clicking the IP address cell opened *Select NDI sender* with both feeds by name, and S1
+  went in.
+- **The demo locks it.** Con state said *Locked* from the moment the type was NDI, as it does
+  for *CITP Live Feed*. MagicQ opened no TCP connection to the sender's ports (lsof), the card's
+  count stayed 0 and the Media window stayed blank. Meanwhile the tests' receiver in another
+  process connected and had a 1280 × 720 frame in 1.2 s. ChamSys's notes for 1.9.8 say NDI and
+  CITP Live Feed need a console or a MagicQ PC with full unlock, which fits.
+- So a desk receiving the feeds still waits for a console, a fully unlocked MagicQ PC or a
+  grandMA3. The card and DESK-CONTROL.md now say MagicQ PC needs the unlock.
 
 ## Plug names — an input's label as its plug's EDID name (2026-10-24)
 

@@ -764,6 +764,12 @@ simulator. The patch also comes as an MVR, and the switcher can be a CITP media 
   steps the Type list; *CITP MSEX* is the sixth), and a head's **Media → Server Type** takes a
   number (5 is CITP MSEX). Import an MVR only into an empty show (**NEW SHOW**): over a clashing
   patch it imported nothing and the second attempt hung MagicQ until SIGKILL.
+  **NDI** needs MagicQ 1.9.8 or later (the 1.9.6.5 in `/Applications` has none; 1.9.8.3 ran from a
+  folder of its own beside it). Type *NDI* is sixteen Returns on from None; double-click the IP address cell to pick the
+  sender. In demo mode it lists the senders and shows **Locked**, and never connects, so it cannot
+  test NDI. Its *Simple generic console* start opens the Simple layout, which has no SETUP key:
+  press **Full**, top right. Its windows can't be brought onto a full-screen Space, so ask for a
+  desktop Space before driving it.
 
 ### grandMA3 (`plugins/grandma3/`) — **preview**
 
