@@ -71,4 +71,16 @@ export default function activate(ctx) {
   };
   ctx.route('PUT', '/', push);
   ctx.route('POST', '/', push);
+
+  /* The same, for another plugin: desk control hands on a desk's
+     ArtTimeCode this way. False for a timecode `normaliseTimecode` refuses. */
+  ctx.provide('timecode', {
+    push(input) {
+      const tc = normaliseTimecode(input);
+      if (!tc) return false;
+      last = tc;
+      stream.send('timecode', tc);
+      return true;
+    }
+  });
 }

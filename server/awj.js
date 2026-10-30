@@ -26,7 +26,8 @@
  *
  * If you are about to make this hold a connection open, subscribe to anything,
  * or write into the store mirror, the original argument applies to you and you
- * have to beat it first.
+ * have to beat it first. `server/awj-link.js` is the one place that holds a
+ * connection (for a lighting desk's rate of writes), and argues it at its head.
  *
  * ## The wire
  *

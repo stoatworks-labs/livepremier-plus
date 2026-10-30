@@ -17,7 +17,7 @@
  * Nothing here touches the store mirror, and no reply outlives its caller.
  */
 
-import { exchange, AWJ_PORT } from './awj.js';
+import { exchange as awjExchange, AWJ_PORT } from './awj.js';
 import { NLC, MNG } from '../src/core/dialect.js';
 import { letterFor } from '../src/vendor/surface/preset.js';
 import { toAwj } from '../src/core/paths.js';
@@ -46,10 +46,13 @@ export class ConsoleSwitcher {
    *        (the app can be re-pointed under a console that is already talking)
    * @param {number} [o.awjPort]
    * @param {object} [o.limits]  how far along each list to read; see DEFAULT_LIMITS
+   * @param {Function} [o.exchange]  `awj.js`'s `exchange` (a socket per burst),
+   *        or an `AwjLink`'s, which holds one: `server/awj-link.js` says when
    */
-  constructor({ deviceHost = () => null, awjPort = AWJ_PORT, limits = {} } = {}) {
+  constructor({ deviceHost = () => null, awjPort = AWJ_PORT, limits = {}, exchange = awjExchange } = {}) {
     this.deviceHost = deviceHost;
     this.awjPort = awjPort;
+    this.exchange = exchange;
     this.limits = { ...DEFAULT_LIMITS, ...limits };
     /** `core/dialect.js`'s NLC or MNG, once a read has identified the switcher. */
     this.dialect = null;
@@ -60,7 +63,7 @@ export class ConsoleSwitcher {
   /** Which platform the switcher is, from the one path each dialect answers. */
   async identify(host = this.deviceHost()) {
     if (!host) throw new Error('no switcher configured');
-    const replies = await exchange({
+    const replies = await this.exchange({
       host,
       port: this.awjPort,
       messages: [{ op: 'get', path: IDENTITY.nlc }, { op: 'get', path: IDENTITY.mng }],
@@ -120,7 +123,7 @@ export class ConsoleSwitcher {
       if (valid) gets.push({ op: 'get', path: toAwj(valid) });
     }
 
-    const replies = await exchange({ host, port: this.awjPort, messages: gets });
+    const replies = await this.exchange({ host, port: this.awjPort, messages: gets });
     const byPath = new Map(replies.map((r) => [r.path, r.value]));
     const at = (path) => byPath.get(toAwj(path));
 
@@ -186,7 +189,7 @@ export class ConsoleSwitcher {
       const ftb = dialect.fadeToBlackPath(d.id);
       if (ftb) more.push({ op: 'get', path: toAwj(ftb) });
     }
-    const second = more.length ? await exchange({ host, port: this.awjPort, messages: more }) : [];
+    const second = more.length ? await this.exchange({ host, port: this.awjPort, messages: more }) : [];
     const got = new Map(second.map((r) => [r.path, r.value]));
     const layers = [];
     for (const d of used) {
@@ -213,7 +216,7 @@ export class ConsoleSwitcher {
   async read(paths) {
     const host = this.deviceHost();
     if (!host || !paths.length) return new Map();
-    const replies = await exchange({
+    const replies = await this.exchange({
       host, port: this.awjPort, messages: paths.map((p) => ({ op: 'get', path: toAwj(p) })),
     });
     return new Map(replies.map((r) => [r.path, r.value]));
@@ -297,7 +300,7 @@ export class ConsoleSwitcher {
       for (const prop of props) gets.push({ op: 'get', path: toAwj(dialect.takeControl(id, prop)) });
       gets.push({ op: 'get', path: toAwj(dialect.takeStatus(id, 'transition')) });
     }
-    const replies = await exchange({ host, port: this.awjPort, messages: gets });
+    const replies = await this.exchange({ host, port: this.awjPort, messages: gets });
     const byPath = new Map(replies.map((r) => [r.path, r.value]));
     const out = new Map();
     for (const id of ids) {
@@ -374,7 +377,7 @@ export class ConsoleSwitcher {
     const host = this.deviceHost();
     if (!host) throw new Error('no switcher configured');
     if (!writes.length) return [];
-    return exchange({
+    return this.exchange({
       host,
       port: this.awjPort,
       messages: writes.map((w) => ({ op: 'replace', path: toAwj(w.path), value: w.value })),
