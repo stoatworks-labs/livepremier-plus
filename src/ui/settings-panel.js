@@ -289,7 +289,12 @@ export function createSettingsPanel({
     const can = (cap) => !(here.ready && here.capabilities[cap] && here.capabilities[cap].supported === false);
     const plugins = (state.settings && state.settings.plugins) || {};
 
-    const toggle = (id, enabled) => put({ plugins: { ...plugins, [id]: { enabled } } })
+    /* One switch, not the page's copy of every plugin with it: that copy is
+       from when the page loaded, and a plugin's own card may have changed its
+       settings since (Listen for OSC was put back off by switching another
+       plugin on, Aquilon C mini, 2026-10-30). The server merges a plugin's
+       entry a level deeper, so the rest are kept without being restated. */
+    const toggle = (id, enabled) => put({ plugins: { [id]: { enabled } } })
       .then(() => { state.pluginsChanged = true; return loadPlugins(); });
 
     return card('Plugins',
