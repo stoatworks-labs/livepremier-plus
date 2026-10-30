@@ -381,10 +381,20 @@ a label, and choose a route:
   switcher is right that the buffer was written to). It's refused while a take is in flight. This
   route works on any switcher, and it's the only one on Midra 4K and Alta 4K.
 
+On a real switcher with no Shared directory set, the tab starts on **Via preview**, because Direct
+has nothing it can work with there. Direct is still there to pick once the share is set up.
+
 **Load into the programmer** reads a slot back the other way. A memory's contents aren't in the
 device's own data (a slot only publishes its name, its canvas and what categories it holds), so
 reading it out is the only way to see inside one, and it's how you pick up yesterday's look and
-change it.
+change it. It needs what Direct needs, the other way round: the switcher writes the memory onto its
+own disk, so on real hardware it only works with the Shared directory set, and without it the page
+tells you so rather than just passing on the switcher's error.
+
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a two-layer look saved via preview into an
+> empty slot, then a different look saved over it. Each time preview showed the look for under two
+> seconds and was put back, program never moved, and recalling the slot afterwards gave the second
+> look. Load there said why it couldn't. Direct hasn't been tried on a real frame.
 
 ---
 
@@ -690,7 +700,9 @@ switcher agreeing. A simulator cheerfully says *stays* for every layer, whatever
 > preview, changed from outside the app, was back to its program copy within a third of a second,
 > and the switcher's own verdict beside it read *stays*. Nothing was plugged into it, so no frame
 > has yet been asked what it does with a locked layer that has a live source on it. The first time
-> you use this on a show, lock a layer in rehearsal, take, and watch it.
+> you use this on a show, lock a layer in rehearsal, take, and watch it. **Take only** did as it
+> says on the same box: with two layers changed in preview, the one taken went to air and the other
+> was still waiting in the new preview.
 
 ---
 
@@ -966,8 +978,8 @@ A **Test Card** tab beside the switcher's own **Pattern** tab, in two places:
   left: a card for the whole canvas.
 
 Switch it on in **Preconfig ▸ LivePremier Plus → Plugins** first. It's off to start with because
-it uploads into the image library and writes a still and a layer, and it hasn't met a real frame
-yet.
+it uploads into the image library and writes a still and a layer, and it has only met one real
+frame so far.
 
 ![Setup ▸ Outputs ▸ Output 1 on the simulator with the Test Card tab open between the vendor's Pattern tab and Router: the Enable switch, off, and sixteen pattern tiles drawn by Test Card itself, from SMPTE RP 219 (picked) and 75% bars to the volcano and the broken wall, the moving ones marked still](screenshots/test-card-output.png)
 
@@ -1043,8 +1055,10 @@ layers, cut per output.
 - **A pitched output** (a ratio other than 1.000) has a footprint that isn't its raster, so the
   switcher resamples the card on the way out. The tab names the outputs that aren't pixel for
   pixel.
-- **The image library's size counter** never dropped a replaced file on the simulator. A card
-  that's followed a lot of changes may be using more of the library than the slot count says.
+- **The image library's size counter** never drops a replaced file, on the simulator or on a real
+  frame, and Off doesn't give it back either. On an Aquilon C mini the vendor's own Image Library
+  header went from 91 kB to 354 kB for one card and two changes of pattern, and stayed there. A
+  card that's followed a lot of changes may be using more of the library than the slot count says.
 
 The pattern, its options, which cards are on and what Off puts back are kept per switcher by this
 app and go into the setup file under *Test cards*.
@@ -1057,8 +1071,12 @@ app and go into the setup file under *Test cards*.
 > the canvas, each on the top layer in preview; one on S2's program; a change of pattern, and a
 > rename on the switcher, each a re-upload into the same slot that the still followed with
 > nothing else written; and Off putting the layer, the still and the library slot back. The
-> simulator draws no pictures, so nothing here has been seen on an output. Not yet run on a
-> real frame.
+> simulator draws no pictures, so nothing here has been seen on an output.
+>
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): a card on Output 1 went onto S1's top
+> layer in preview, from the last free still and library slot, with program and the library's
+> other pictures untouched. A change of pattern was uploaded again and the still followed with no
+> layer write, and Off put the layer, the still and the slot back. Not yet looked at on an output.
 
 ---
 
@@ -1100,7 +1118,11 @@ delete; the question says so.
 
 > Proven on LivePremier Simulator 6.2.73 on 2026-10-20: selecting and deleting, Delete all, a zip
 > dropped on the page (thirteen pictures in name order round two filled slots, the litter left
-> out), assigned slots left alone, and capacities changed and refused. Not yet on a real frame.
+> out), assigned slots left alone, and capacities changed and refused. On a real frame (Aquilon
+> C mini, 6.2.73, 2026-10-30) only the questions so far: a zip's upload question named the free
+> slots, said nothing about the litter and named a `.txt` with its reason, and answering no wrote
+> nothing; the capacity dropdowns read what the switcher said. Nothing has been uploaded, deleted
+> or changed with these on a real frame yet.
 
 ---
 
@@ -1597,6 +1619,10 @@ inputs 2 × 1 and loads each plug with the tile for its place.
 ![The builder in Mosaic mode: a 6144x2160 canvas split into two 3072x2160 tiles, saved as ED1 and ED2, with Apply to inputs for IN_1 + IN_2 and what a Mac will make of it](screenshots/edid-mosaic.png)
 
 The save finishes when the switcher reports the new EDID, not when it accepts the request.
+
+> On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): an EDID saved into ED100 came back with its
+> name and turned up on the vendor's EDID Bank tab. The switcher's own save route also leaves a
+> copy in its EDID editor, as Web RCS's does; that's harmless, and nothing else on the box changed.
 
 The window works through the Web RCS tab it came from, like every popped-out panel here. Close that
 tab and it tells you it can't save any more.

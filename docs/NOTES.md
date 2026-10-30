@@ -3423,6 +3423,70 @@ arithmetic. Output thumbnails can't stand in for looking at an output on it (abo
   yet).
 - Put back after, the store diffed clean against the third pass's.
 
+**The fifth pass: the last five panels (2026-10-30, night).** Every write read back over AWJ, each
+test put back and the store diffed before the next.
+
+- **Layer Lock's Take only.** S1 preview (B) staged L1 LIVE_1 and L2 LIVE_2; Take only on L1 said
+  *took S1 L1, preview put back (1 property)*. The box landed AT_UP with program L1 LIVE_1, L2 NONE,
+  and LIVE_2 still waiting on L2 of the new preview. Right.
+- **Edit page, save via preview.** S1 programmed off the buses (L1 IN2, L2 IN3; nothing on the wire
+  while programming), saved into 990: preview got LIVE_2 / LIVE_3, the save fired, the slot came
+  back valid with its label, and preview was NONE / NONE again about 1.7 s later. Program and the
+  transition never moved. A second save into the now-valid slot, a different look and the save
+  trigger still latched, landed too: recalling 990 into preview gave LIVE_4 / LIVE_5.
+  (`waitForValid` returns at once for a slot that is already valid; the look, the save and the
+  put-back go down one socket in order, and the box kept that order.) Slot and label survive the
+  1 s repaint and losing focus.
+- **Direct was the default route on a real switcher**, where it can't work without a shared
+  directory, so the first save of the day would fail. Fixed: the rail starts on Via preview unless
+  a Shared directory is set or the device says it is a simulator; Direct is still offered
+  (`test/edit.test.js`). Seen on the box after the fix. The Direct save itself was not tried here.
+- **Load can't work on real hardware without that directory either**: the bank export answers
+  `ERROR_INVALID_PATH` (the path is on the switcher's disk), and the page said only that. It now
+  says why and where to set it. Load leaves `presetBank/export/cmd` latched (`xRequest` true, the
+  path, the slot selected), as the import leaves its own; put back by hand. Not changed: the
+  vendor's own pages leave their triggers latched too (`xStore` false, true).
+- **The Edit page lists S3**, DISABLED on this box, as a destination with 0 layers. Noted.
+- **A recall into preview left a stale layer status.** After recalling 990 into S1's preview and
+  putting both layers back to NONE, S1 layers 1–2 report `status/pp/up` OPEN while every writable
+  leaf matches the earlier snapshot. Source nudges and two takes there and back didn't clear it.
+  Layer Lock's *Next take* reads this field. Status only.
+- **EDID builder.** The Claude browser pane opens `window.open` in the same tab, so the popout had
+  no opener (*No Web RCS session*). It ran instead in an iframe over the Web RCS tab, booted with
+  `bootPopout({ opener: parent })`: the same page. An EDID named LPP TEST (3840×2160 60, 256 bytes)
+  saved to ED100 through `POST /api/device/edid/save`: the slot came back with the name and the
+  vendor's EDID Bank showed it. As the simulator notes say, that route also loads the EDID into the
+  switcher's editor and checks it: `edit/control/xCheck` and `save/…/100/xRequest` latched, and the
+  editor's `isValid` went UNKNOWN → VALID. Undo: `xDelete`; the editor back to 512 zeros at "256";
+  a valid one-block EDID (DEFAULT_DP_1080P's block 0, extension count 0, checksum redone) checked
+  first so the extension lists went back to `[]`, then the zeros checked. `isValid` INVALID is all
+  that differs; UNKNOWN can't come back. The name was set by script and only reached the bytes
+  after Calculate; not checked by hand.
+- **Test Card on Out 1.** On: S1 L4 (4K, the top layer) in preview as STILL_24 from library slot
+  200, the *last* free still and slot, not the first. Program and the owner's three pictures in
+  slots 1–3 untouched. It follows on the hardware: a pattern change uploaded into slot 200 again
+  and the still's `newSnaphot` went 6 → 7, with no layer write. Off put L4 back to NONE, still 24
+  back to NONE (source 1), and emptied slot 200. Left behind: still 24 `settings/xUpdate` and slot
+  200 `control/xDelete` latched (re-armed by hand), the library import `cmd` path and slot (put
+  back), and **the library's size counter, 91 → 354 kB, which the vendor's Image Library header
+  shows**. It didn't drop when the slot was emptied: the guide's simulator note holds on a real
+  frame, and every replaced upload stays counted. Whether a reboot gives it back is not known.
+- **Image Library tools.** The header bar arrives once the store is in (about 20 s here). A zip
+  built in the page (`lpp test 1/9/10.png`, a `__MACOSX/._` entry, `.DS_Store`, `notes.txt`) asked
+  *Upload 3 pictures into slots 4–6?* and named `notes.txt` with its reason; the litter went
+  unmentioned and the owner's slots weren't offered. Answered no: nothing written. **Not run:** the
+  upload itself and Select-and-delete of it (Claude Code's auto-mode classifier refused the
+  scripted yes as a write to a shared device; Allan's call), Delete all (never on this box), and a
+  capacity change (Preconfig). The 24 capacity dropdowns render, one per still, reading Dual as the
+  box does.
+- **Put back after:** against the original baseline, 50 leaves differ. 48 are status: the earlier
+  passes', plus the bank export's `ERROR_INVALID_PATH`, S1 L1–L2 `up` OPEN, still 24's and slot
+  200's leftover sizes and names, the library size counter, and the EDID editor's `isValid`. (Of
+  the earlier 34, the library's export path and its import path and slot are now put back, so 31
+  remain.) Two are writable enums, left alone because writing one could fire it: the library's
+  `export/cmd/xRequest` EXPORT_RENAME (from the second pass's image download) and
+  `import/cmd/xRequest` SPECIFIC_SLOT.
+
 ## Triggers: OSC, MIDI over TCP, Art-Net and sACN out of a cue (2026-10-30, pretend receivers only)
 
 Allan asked for a cue to drive the rest of the rig: unmute the desk, house lights down, Mitti
