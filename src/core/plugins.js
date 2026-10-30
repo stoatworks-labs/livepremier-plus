@@ -427,6 +427,19 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'desk-control',
+    name: 'Lighting desk control',
+    where: 'Settings (preview)',
+    description: 'A lighting desk — grandMA3, MagicQ, Titan, anything that sends Art-Net or sACN — driving the switcher as it drives a media server: memories, takes, layer sources and opacity, with GDTF fixture files to import. Never yet run against a real switcher.',
+    /* Off until it has been: it listens on the network, which nothing else in
+       this app does by default, and it writes to a switcher with no browser
+       open. Nothing in `requires`: it writes through the dialect, as the
+       consoles do. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'grandma3',
     name: 'grandMA3',
     where: 'Settings (preview)',

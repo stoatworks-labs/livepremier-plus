@@ -184,6 +184,11 @@ bolted on afterwards:
   keys pick screens, the preview row puts input *n* in preview, CUT, AUTO and the T-bar take, and
   the program row shows tally (it only cuts to air if you tick that, and the tick isn't saved).
   It hasn't been run against a real panel yet. [docs/ATEM-MICRO-PANEL.md](docs/ATEM-MICRO-PANEL.md)
+- **Lighting desk control** *(preview, off by default)*: a grandMA3, MagicQ, Titan or anything
+  else sending Art-Net or sACN drives the switcher the way it drives a media server. A fixture per
+  screen and per layer, GDTF files to import, memories recalled to preview, Take and Cut, each
+  layer's source and opacity, sACN priority for a backup desk. It has driven the simulator from
+  MagicQ PC and a pretend desk, not yet a real switcher. [docs/DESK-CONTROL.md](docs/DESK-CONTROL.md)
 - **grandMA3** *(preview, off by default)*: a grandMA3 desk, or onPC with a wing, drives the
   switcher from its own executors. It listens to the OSC the desk already sends when a playback
   moves, so a Go+ can take a screen and a fader can be a T-bar or a layer's opacity. You write

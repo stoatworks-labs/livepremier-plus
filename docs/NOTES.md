@@ -27,9 +27,10 @@ are in `OFF_UNTIL_TESTED` (`test/plugins.test.js`) until a real frame has seen t
 AoI from a custom format and Image Library tools (2026-10-20, unreleased) are at the end of this
 file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-20, unreleased, in
 `OFF_UNTIL_TESTED`): neither has met a panel, only a pretend one and the 6.2.73 simulator.
-**Plug names** (2026-10-24, unreleased, in `OFF_UNTIL_TESTED`) is the newest entry below.
-**grandMA3** (2026-10-30, unreleased, in `OFF_UNTIL_TESTED`) is at the very end: a desk driving the
-switcher through its own OSC feedback, proven with grandMA3 onPC and the simulator, no wing.
+**Plug names** (2026-10-24, unreleased, in `OFF_UNTIL_TESTED`) is below; **Lighting desk control**
+(2026-10-30, unreleased, in `OFF_UNTIL_TESTED`) is the newest dated entry. **grandMA3** (2026-10-30,
+unreleased, in `OFF_UNTIL_TESTED`) is at the very end: a desk driving the switcher through its own
+OSC feedback, proven with grandMA3 onPC and the simulator, no wing.
 
 **What real hardware has seen**, all of it:
 
@@ -76,6 +77,72 @@ payload, the page half on the Midra simulator went from Screens / Aux. to LIVE �
 SOURCE BACKUP is refused on Midra and Alta with the reason: their inputs have no backup (no
 `backup` node in either bundle's input object; the card's ⋮ is plug, Setup, Freeze, Capture).
 Neither key has been pressed on a console.
+
+## Lighting desk control — Art-Net and sACN in (2026-10-30)
+
+Asked for by Allan: Art-Net control with personalities for Avolites, ChamSys and grandMA, modes
+for parameter-limited desks, CITP and sACN, NDI back to the desk, and a take on the switcher
+firing the desk's "VT state". This is phase 1 of that: a desk drives the switcher. The design and
+the later phases are in the plugin's doc (`docs/DESK-CONTROL.md`, "Not here yet").
+
+What I measured first, on the 6.2.73 rack simulator, because it decided the architecture:
+
+- **AWJ pushes nothing.** A second socket held open heard nothing while another client changed
+  S1's take time, and the writer gets no echo. So holding an AWJ connection is not a
+  subscription, which is the argument `server/awj-link.js` makes against `awj.js`'s rule.
+- **A burst of `get`s is fast**: median 8.2 ms for 16, 9.2 ms for 48; about one round in twenty
+  takes ~100 ms. Reading the preset letters before every burst of writes is affordable.
+- `presetBank/status/presetId/…/isNotModified` and the letters' memory ids are readable over AWJ.
+
+What it then did, desk frame to the change on the vendor socket: layer source on preview in
+26–40 ms, a memory recalled to preview in 28–31 ms (three runs of the live test).
+
+Two things found on the way:
+
+- **A desk on the same Mac never saw the app.** Both bind UDP 6454 with SO_REUSEADDR, and macOS
+  26.4 gave the unicast ArtPollReply to the app's own socket. Replies to this machine's own
+  addresses now go by broadcast on that interface; the desk hears them.
+- **The rack simulator was down** when I came to test (16:28–16:47): its web half had died and
+  every restart quit before logging. It is the switcher-sims notes' trap 2: `dist/storage/data`
+  and `logs` point at `AW_USER_INTERNAL/WebApp` and `AW_TRACES/AW_WEBAPP`, which did not exist; the
+  server had run since 24 August on directories it opened before they went. I copied
+  `data_backup` to `WebApp` and made the log directory; it answered six seconds later.
+
+### MagicQ, the first real desk (later the same day)
+
+ChamSys MagicQ PC 1.9.6.5, demo mode, on the same Mac as the app, against the simulator. Its
+files were backed up first and put back after.
+
+- **The files import.** File Manager → each `.gdtf` makes a `G-Cue` head. MagicQ warns that they
+  are GDTF 1.2 and it reads 1.1, reads `LPPControl` as LampControl (the column says Lamp), and
+  doesn't recognise `LPPMemory`, `LPPTake`, `LPPCut`, `MediaFolder1` or `MediaContent1`. All of
+  them patch as plain channels and work. MagicQ's universe 1 is Art-Net 0:0:0, as the doc says.
+- **Getting its Art-Net to the app took three settings.** Its network IP was 2.9.200.223, an
+  address this Mac doesn't have, so it sent nothing. On *Normal* it then broadcast universe 1 to
+  the LAN. *V4 Unicast only* with the universe unicast to 127.0.0.1 keeps it on loopback.
+- **Which socket gets a unicast packet is about order.** With both on UDP 6454, macOS 26.4 handed
+  MagicQ's loopback ArtDmx to whichever socket bound first: the app's while the app was older,
+  MagicQ's own after the app restarted, and nothing to a third socket bound later. MagicQ reopens
+  its socket when its IP address changes, which put the app first again. MagicQ's own node list
+  stayed empty throughout: it seems to ignore replies from its own address.
+- **What it drove** from the programmer: Control raised edited preview only, a layer's source
+  reached preview, Take took S1, Control lowered let the screen go and a layer change after it
+  wrote nothing (checked on the wire: MagicQ sent Control 0 and the new file).
+- **It found a real bug.** After a take, the desk's layers went to the letter going to air, not
+  the new preview. The simulator reports the resting state a take left for the whole take: S1's
+  1.0 s take read `AT_DOWN` throughout, polled every 20 ms, and `AT_UP` at +1.02 s, no
+  `EFFECT_…` state in between. So the re-push 150 ms after the take read "settled" and wrote to
+  the old preview. The supervisor now holds a screen's layer values after a take or cut until the
+  transition reads differently from before it, or the take time (read with the letters) plus 1.5 s
+  has passed. It costs each take one read of the letters before it is written (one AWJ round,
+  8–15 ms here): read after, a cut would already show the new state. Re-run from MagicQ: held
+  22 times over the second, then the new preview had the desk's LIVE_1 where it had kept LIVE_2
+  before. The unit test and the simulator's Take test both
+  fail with the guard switched off.
+- **The old Take test passed by accident**: it waited for opacity 256 on the new preview, which
+  both buffers already had. It now sets a level only the desk would, and puts program at 0 first.
+- **Not run from MagicQ**: Memory, Cut, the Master fixture, a cue stack (only the programmer),
+  sACN. Nor grandMA3 or Titan.
 
 ## Plug names — an input's label as its plug's EDID name (2026-10-24)
 

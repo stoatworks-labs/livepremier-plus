@@ -62,8 +62,8 @@ go near that. The desk already turns the wing into OSC, so this listens to the d
 
 Avolites was looked at in the same pass (2026-10-30). Titan runs only on Windows, has no OSC, and
 its surfaces (the Titan Mobile, T1, T2, T3 and Mobile Wing) are USB devices that only Titan talks
-to. A Titan desk reaches this app the way any lighting desk without OSC does: Art-Net or sACN
-channels patched as a dummy fixture.
+to. A Titan desk reaches this app the way any lighting desk without OSC does: Art-Net or sACN,
+through **Lighting desk control** and its fixtures ([DESK-CONTROL.md](DESK-CONTROL.md)).
 
 ## Setting up the desk
 
