@@ -3454,9 +3454,24 @@ GO only for its own hold and not once the stack has moved, and `/next` on the fo
 
 In the browser, against the rack sim, the panel drew, a destination was added through its form,
 a broken line was listed with its reason, and Test go reached `tools/trigger-sink.mjs`. The deck
-list arrived through the service. **Not seen in a browser:** the Timeline editor's Triggers field
-and a GO through to `then`. The rack sim stopped answering on :3000 and :10606 partway through the
-check (the host still answered ping), and it was not restarted from here.
+list arrived through the service. The rack sim then stopped answering on :3000 and :10606 for about
+40 minutes: `aw-livepremier-web` exited 1 with nothing but deprecation warnings on every restart,
+while the Wine half stayed up, and came back by itself on its 26th restart.
+
+Then, against it again, in the Timeline (main 5967c6c, the emulated Mitti, the pretend receiver):
+the New cue form carries a Triggers field beside HyperDeck's, and the Actions column read the
+typed text back (`Triggers VT audio, House down · restore when Mitti ends or after 30s then go`).
+GO sent both unmutes. The 8 s clip ended 8.0 s later, the unmutes went back, the page GOed, and
+cue 2's line went out, in the same millisecond. GO, then GO again by hand before the clip ended:
+the restore still ran at the end, the log said *GO not done: the stack has moved on since*, and
+cue 2's line went out once. With the house at full first, `@ 0 fade 2` stepped down every 40 ms
+for 2 s, and on the clip end `@ before fade 2` stepped back up to 255.
+
+While the rack sim was down, the live Aquilon C mini was tried first, with Allan's OK, from a
+throwaway container. It was dropped before anything was added: the New cue form
+always carries a preset recall, and the rack sim came back. Nothing was fired there. A cue holding
+only plugin actions sends nothing to the switcher (`_fireNow` writes only recalls and takes), so a
+Triggers-only cue would be safe on a live box. The form just can't make one.
 
 **Not done:** no real desk, node, lighting desk or Mitti. Hardware MIDI ports (it would need a
 native module in `devices/`), OSC over TCP, sACN per-address priority (`0xDD`), reading a desk's
