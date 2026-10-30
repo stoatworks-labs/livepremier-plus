@@ -123,14 +123,18 @@ const GOING_UP = new Set(['AT_DOWN', 'EFFECT_FROM_DOWN', 'COPY_FROM_DOWN']);
 export function takeTenths(store, id) {
   const d = dialectFor(store);
   if (!d) return null;
-  let path = d.fadeTimePath ? d.fadeTimePath(id) : null;
-  const transition = d.id === 'nlc' ? store.get(d.takeStatus(id, 'transition')) : null;
-  /* Not reported yet: the up time, which is the one a screen at rest down uses. */
-  if (typeof transition === 'string') {
-    path = d.takeControl(id, GOING_UP.has(transition) ? 'takeUpTime' : 'takeDownTime');
-  }
+  const path = takeTimePath(d, id, d.id === 'nlc' ? store.get(d.takeStatus(id, 'transition')) : null);
   const v = path ? store.get(path) : null;
   return Number.isFinite(v) ? v : null;
+}
+
+/** Where `takeTenths` reads, for a destination whose transition state is `transition`. */
+export function takeTimePath(d, id, transition) {
+  /* Not reported yet: the up time, which is the one a screen at rest down uses. */
+  if (d.id === 'nlc' && typeof transition === 'string') {
+    return d.takeControl(id, GOING_UP.has(transition) ? 'takeUpTime' : 'takeDownTime');
+  }
+  return d.fadeTimePath ? d.fadeTimePath(id) : null;
 }
 
 /** Seconds as tenths the switcher accepts, or null for anything that is not a time. */

@@ -346,7 +346,7 @@ test('the held link: no switcher is an error, not a hang', async () => {
 
 const LOOPBACK = () => ({ lo0: [{ address: '127.0.0.1', netmask: '255.0.0.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal: true }] });
 
-async function bench({ settings = {}, store: extra = [] } = {}) {
+async function bench({ settings = {}, store: extra = [], landsAfter = 0, landMarginMs } = {}) {
   const store = new Map([['DeviceObject/system/$device/@items/1/@props/dev', 'NLC_AQL_C']]);
   const set = (path, v) => store.set(toAwj(path), v);
   set(NLC.takeStatus('S1', 'isUsed'), true);
@@ -357,17 +357,20 @@ async function bench({ settings = {}, store: extra = [] } = {}) {
   for (const [p, v] of extra) set(p, v);
   const takePath = toAwj(NLC.takeControl('S1', 'xTake'));
   const transitionPath = toAwj(NLC.takeStatus('S1', 'transition'));
-  /* A take swaps which letter is on air, as the switcher does. */
+  /* A take swaps which letter is on air, as the switcher does: `landsAfter`
+     ms after it is written, and never if null (a take the switcher refused). */
+  const flip = (st) => st.set(transitionPath, st.get(transitionPath) === 'AT_DOWN' ? 'AT_UP' : 'AT_DOWN');
   const awj = await fakeAwj(store, {
     onReplace: (path, value, st) => {
-      if (path === takePath && value === true) st.set(transitionPath, st.get(transitionPath) === 'AT_DOWN' ? 'AT_UP' : 'AT_DOWN');
+      if (path !== takePath || value !== true || landsAfter === null) return;
+      if (landsAfter) setTimeout(() => flip(st), landsAfter); else flip(st);
     },
   });
   const timecodes = [];
   const sup = new DeskSupervisor({
     deviceHost: () => '127.0.0.1', awjPort: awj.port,
     ports: { artnet: 0, sacn: 0 }, bindAddress: '127.0.0.1', pollReplyPort: null,
-    interfaces: LOOPBACK, settleMs: 60, idleMs: 2000,
+    interfaces: LOOPBACK, settleMs: 60, idleMs: 2000, ...(landMarginMs === undefined ? {} : { landMarginMs }),
     timecode: () => ({ push: (tc) => timecodes.push(tc) }),
   });
   await sup.apply(normaliseDesk({ deskEnabled: true, deskDestinations: ['S1'], deskLayers: 2, ...settings }));
@@ -462,6 +465,54 @@ test('supervisor: mid-transition the layer values wait, and go to the letter tha
     await until(() => b.writes().length, 2000, 'the held write');
     /* AT_UP: A on air, B preview. */
     assert.deepEqual(b.writes()[0], { path: layerPath('B', 1, source), value: 'LIVE_7' });
+  } finally { await b.close(); }
+});
+
+test('supervisor: after a take the layers wait for it to land, however long the switcher reports the old state', async () => {
+  /* As the 6.2.73 simulator does: AT_DOWN for the whole take, then AT_UP. A 0.4 s take. */
+  const b = await bench({ landsAfter: 400, store: [[NLC.takeControl('S1', 'takeUpTime'), 4]] });
+  try {
+    const source = NLC.catalogue.layer.find((p) => p.id === NLC.sourceParam).path;
+    const opacity = NLC.catalogue.layer.find((p) => p.id === NLC.layerParams.opacity).path;
+    await b.dmx(null);
+    await b.dmx('S1.L1', [1, 2, 255]);
+    await b.dmx('S1', [100, 0, 0, 0]);
+    await until(() => b.writes().length >= 3, 2000, 'the engage writes');
+    b.awj.clear();
+    const take = toAwj(NLC.takeControl('S1', 'xTake'));
+    await b.dmx('S1', [100, 0, 255, 0]);
+    await until(() => b.writes().some((w) => w.path === take), 2000, 'the take');
+    const fired = Date.now();
+    await sleep(250);
+    /* Still AT_DOWN, so A reads as preview — and A is what the take is putting on air. */
+    assert.deepEqual(b.writes().map((w) => w.path), [take], 'nothing written while the take runs');
+    assert.equal(b.sup.describe().screens[0].held, 'the take landing');
+    await until(() => b.writes().length > 1, 2000, 'the re-push');
+    assert.ok(Date.now() - fired >= 350, `not before the take landed (${Date.now() - fired} ms)`);
+    /* AT_UP: A on air, B preview. */
+    assert.deepEqual(b.writes()[1], { path: layerPath('B', 1, source), value: 'LIVE_2' });
+    const onAir = [1, 2].flatMap((l) => [layerPath('A', l, source), layerPath('A', l, opacity)]);
+    assert.ok(!b.writes().some((w) => onAir.includes(w.path)), 'nothing written to the letter on air');
+  } finally { await b.close(); }
+});
+
+test('supervisor: a take that never lands holds the layers only for its take time and a margin', async () => {
+  const b = await bench({ landsAfter: null, landMarginMs: 100, store: [[NLC.takeControl('S1', 'takeUpTime'), 2]] });
+  try {
+    const source = NLC.catalogue.layer.find((p) => p.id === NLC.sourceParam).path;
+    await b.dmx(null);
+    await b.dmx('S1.L1', [1, 2, 255]);
+    await b.dmx('S1', [100, 0, 0, 0]);
+    await until(() => b.writes().length >= 3, 2000, 'the engage writes');
+    b.awj.clear();
+    const take = toAwj(NLC.takeControl('S1', 'xTake'));
+    await b.dmx('S1', [100, 0, 255, 0]);
+    await until(() => b.writes().some((w) => w.path === take), 2000, 'the take');
+    const fired = Date.now();
+    await until(() => b.writes().length > 1, 2000, 'the re-push');
+    assert.ok(Date.now() - fired >= 250, `0.2 s and the margin first (${Date.now() - fired} ms)`);
+    /* Nothing moved, so A is still preview. */
+    assert.deepEqual(b.writes()[1], { path: layerPath('A', 1, source), value: 'LIVE_2' });
   } finally { await b.close(); }
 });
 

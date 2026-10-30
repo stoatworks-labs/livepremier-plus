@@ -166,8 +166,8 @@ export default function activate(ctx) {
     const notes = [];
     if (error) notes.push(note('warn', `Could not save: ${error}`));
     notes.push(note('warn',
-      'Preview. This has been tested against the simulator with a pretend desk sending real Art-Net, never '
-      + 'against a real switcher with a real desk in a show. Treat the first one as a rehearsal.'));
+      'Preview. This has driven the simulator from MagicQ PC and from a pretend desk sending real Art-Net, '
+      + 'never a real switcher in a show. Treat the first one as a rehearsal.'));
     if (on && live) {
       if (live.switcher && live.switcher.error) notes.push(note('warn', live.switcher.error));
       if (live.sockets && live.sockets.sacn && live.sockets.sacn.multicastError) {

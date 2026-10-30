@@ -33,6 +33,12 @@
  *   letters between two bursts, and a write to a remembered letter is a write
  *   to air. Mid-transition there is no honest answer, so that destination's
  *   values wait until the transition has finished.
+ * - **A take is not trusted to have started until it has landed.** The
+ *   switcher can go on reporting the resting state a take left for the whole
+ *   take — the 6.2.73 simulator does, for the full take time — so after a
+ *   take or cut that screen's values wait until the transition reads
+ *   differently from before it, or the take has had its time and
+ *   `landMarginMs` (a take the switcher refused never moves it).
  * - **Late is dropped.** A recall, take or cut that could not go within
  *   `STALE_MS` of the desk asking is dropped and reported, not sent late: a
  *   take three seconds after the cue is a wrong take.
@@ -61,6 +67,7 @@ import { commandsFor } from '../../src/core/commands.js';
 import { writesFor, layerSourcePath } from '../../src/core/console-intents.js';
 import { resolve } from '../../src/vendor/surface/preset.js';
 import { toAwj } from '../../src/core/paths.js';
+import { takeTimePath } from '../../src/core/transitions.js';
 import { ARTNET_PORT, OP, parseArtnet, buildPollReplies } from '../../src/core/artnet.js';
 import { SACN_PORT, parseSacn, multicastGroup } from '../../src/core/sacn.js';
 import { DmxInput, portAddressOfUniverse } from '../../src/core/dmx-input.js';
@@ -70,6 +77,9 @@ import { patchOf, allowed, layerTail } from './core.js';
 export const MIN_GAP_MS = 33;
 export const SETTLE_MS = 150;
 export const STALE_MS = 2000;
+export const LAND_MARGIN_MS = 1500;
+/* A take whose time could not be read: longer than any take a show runs on a cue. */
+const LAND_UNKNOWN_MS = 10_000;
 const HOLD_RETRY_MS = 40;
 const ERROR_RETRY_MS = 1000;
 const EXPIRE_EVERY_MS = 500;
@@ -102,6 +112,8 @@ export class DeskSupervisor extends EventEmitter {
   #dialectHost = null;
   #lastError = null;
   #held = new Map();
+  /* id → { from, until }: a take or cut written, not yet seen to land. */
+  #landing = new Map();
 
   /**
    * @param {object} o
@@ -115,6 +127,7 @@ export class DeskSupervisor extends EventEmitter {
     deviceHost = () => null, awjPort = AWJ_PORT, log = () => {}, timecode = () => null,
     ports = {}, bindAddress = '0.0.0.0', pollReplyPort = ARTNET_PORT,
     interfaces = () => os.networkInterfaces(), minGapMs = MIN_GAP_MS, settleMs = SETTLE_MS, idleMs,
+    landMarginMs = LAND_MARGIN_MS,
   } = {}) {
     super();
     this.deviceHost = deviceHost;
@@ -129,6 +142,7 @@ export class DeskSupervisor extends EventEmitter {
     this.interfaces = interfaces;
     this.minGapMs = minGapMs;
     this.settleMs = settleMs;
+    this.landMarginMs = landMarginMs;
     this.link = new AwjLink({ host: () => this.deviceHost(), port: awjPort, ...(idleMs ? { idleMs } : {}) });
     this.switcher = new ConsoleSwitcher({ deviceHost: () => this.deviceHost(), awjPort, limits: LIMITS, exchange: this.link.exchange });
     this.facts = null;
@@ -182,6 +196,7 @@ export class DeskSupervisor extends EventEmitter {
     this.#queues.clear();
     this.#readyAt.clear();
     this.#held.clear();
+    this.#landing.clear();
     this.link.close();
   }
 
@@ -537,6 +552,8 @@ export class DeskSupervisor extends EventEmitter {
       const writes = [];
       const sent = [];            /* { a, note, after } for each recall, take or cut */
       const runs = new Map();
+      const taking = [];
+      let letters = new Map();
 
       /* The Master's recalls first: a memory for the whole switcher. */
       while (this.#global.length) {
@@ -571,10 +588,12 @@ export class DeskSupervisor extends EventEmitter {
         const built = writesFor(intent, { dialect, commands, selected: [id] });
         if (!built.writes.length) { this.#note({ kind: 'noted', destination: id, note: built.note }); continue; }
         writes.push(...built.writes);
+        if (a.type !== 'recall') taking.push(id);
         sent.push({
           a, note: built.note,
           after: () => {
             this.#readyAt.set(id, Date.now() + this.settleMs);
+            if (a.type !== 'recall') this.#taken(id, a.type, letters.get(id));
             const buffer = this.#engine.control(id);
             /* A recall replaced preview; a take or cut replaced both. */
             if (buffer === CONTROL.PREVIEW || (a.type !== 'recall' && buffer !== CONTROL.OFF)) this.#repush(id);
@@ -582,11 +601,11 @@ export class DeskSupervisor extends EventEmitter {
         });
       }
 
-      /* Then the layer values, to the letters read now. */
-      if (runs.size) {
-        let letters = new Map();
+      /* Then the layer values, to the letters read now. A screen about to
+         take is read too: the state its take leaves is how it is seen to land. */
+      if (runs.size || taking.length) {
         try {
-          letters = await this.#letters([...runs.keys()], dialect);
+          letters = await this.#letters([...new Set([...runs.keys(), ...taking])], dialect);
         } catch (err) {
           this.#error(`reading the preset letters: ${err.message}`);
         }
@@ -594,10 +613,12 @@ export class DeskSupervisor extends EventEmitter {
           const buffer = this.#engine.control(id);
           if (buffer === CONTROL.OFF) continue;
           const r = letters.get(id);
-          if (!r || !r.settled) {
+          const wait = !r ? 'preset letters not known' : !r.settled ? 'mid-transition'
+            : this.#landed(id, r) ? null : 'the take landing';
+          if (wait) {
             this.#unshiftRun(id, run);
             this.counts.held++;
-            if (!this.#held.has(id)) this.#held.set(id, r ? 'mid-transition' : 'preset letters not known');
+            this.#held.set(id, wait);
             soon(Date.now() + (r ? HOLD_RETRY_MS : ERROR_RETRY_MS));
             continue;
           }
@@ -653,19 +674,48 @@ export class DeskSupervisor extends EventEmitter {
     return this.switcher.dialect;
   }
 
-  /** Each screen's preset letters, with whether they are settled, read now. */
+  /** A take or cut has just been written to `id`; `r` is its letters read before it. */
+  #taken(id, type, r) {
+    const ms = type === 'cut' ? 0 : r && r.tenths !== null ? r.tenths * 100 : LAND_UNKNOWN_MS;
+    this.#landing.set(id, { from: r ? r.transition : null, until: Date.now() + ms + this.landMarginMs });
+  }
+
+  /** Whether the last take or cut written to `id` has been seen to land, given its letters read now. */
+  #landed(id, r) {
+    const l = this.#landing.get(id);
+    if (!l) return true;
+    if ((l.from !== null && r.transition !== l.from) || Date.now() >= l.until) {
+      this.#landing.delete(id);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Each screen's preset letters, with whether they are settled and how long
+   * its next take runs (`tenths`, null if unknown), read now.
+   */
   async #letters(ids, dialect) {
     const props = ['presetUp', 'presetDown', 'presetPrevious'];
+    /* Both directions' take times: which one runs next depends on the transition read with them. */
+    const times = (id) => [...new Map(['AT_DOWN', 'AT_UP'].map((t) => takeTimePath(dialect, id, t))
+      .filter(Boolean).map((p) => [toAwj(p), p])).values()];
     const paths = [];
     for (const id of ids) {
       for (const p of props) paths.push(dialect.takeControl(id, p));
-      paths.push(dialect.takeStatus(id, 'transition'));
+      paths.push(dialect.takeStatus(id, 'transition'), ...times(id));
     }
     const got = await this.switcher.read(paths);
-    return new Map(ids.map((id) => [id, resolve({
-      control: { pp: Object.fromEntries(props.map((p) => [p, got.get(toAwj(dialect.takeControl(id, p)))])) },
-      status: { pp: { transition: got.get(toAwj(dialect.takeStatus(id, 'transition'))) } },
-    })]));
+    return new Map(ids.map((id) => {
+      const transition = got.get(toAwj(dialect.takeStatus(id, 'transition')));
+      const time = takeTimePath(dialect, id, transition);
+      const tenths = time ? got.get(toAwj(time)) : null;
+      const r = resolve({
+        control: { pp: Object.fromEntries(props.map((p) => [p, got.get(toAwj(dialect.takeControl(id, p)))])) },
+        status: { pp: { transition } },
+      });
+      return [id, r && { ...r, tenths: Number.isFinite(tenths) ? tenths : null }];
+    }));
   }
 
   #layerWrites(dialect, id, letter, run) {

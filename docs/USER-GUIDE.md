@@ -93,7 +93,7 @@ than something bolted on.
   tried on a real panel.
 - **Lighting desk control** *(preview, off by default)*: a lighting desk driving the switcher over
   Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity.
-  Not yet tried with a real desk.
+  Driven from MagicQ PC against the simulator; not yet tried on a real switcher.
 - **Background Slicer** *(preview)*: one picture cut into a pixel-exact background for every
   output of one or more screens, uploaded and put into a background set, or each output fed live
   from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a
@@ -1891,7 +1891,9 @@ follows the desk's grand master. **Only these desks** limits who can drive it.
 The channel tables, the patch, sACN priority and backup desks, and what has been run are in
 [DESK-CONTROL.md](DESK-CONTROL.md).
 
-> ⚠️ **Never run with a real desk or a real switcher**, only a pretend desk and a simulator.
+> ⚠️ **Never run with a real switcher.** It has driven the simulator from MagicQ PC on the same Mac
+> and from a pretend desk. A desk on the same Mac has its own settings to get right; DESK-CONTROL.md
+> has them.
 
 ---
 

@@ -17,7 +17,7 @@ import {
   SKIP, SIM, startApp, Link, sag, settled, guardScreen, layerPath, spareSlots, saveFromPreview, deleteSlots, sleep,
 } from './harness.js';
 import { buildArtDmx, buildArtPoll, parsePollReply, ARTNET_PORT } from '../../src/core/artnet.js';
-import { layout } from '../../src/core/dmx-personality.js';
+import { layout, opacityOf } from '../../src/core/dmx-personality.js';
 
 let app;
 let link;
@@ -46,6 +46,7 @@ const letters = () => {
   return t === 'AT_DOWN' ? { program: down, preview: up } : { program: up, preview: down };
 };
 const sourceOn = (letter, layer = 1) => link.get(layerPath('S1', letter, layer, 'source', 'pp', 'inputNum'));
+const opacityPath = (letter, layer) => layerPath('S1', letter, layer, 'opacity', 'pp', 'opacity');
 const liveInputs = () => Object.keys(link.get(['device', 'inputList', 'items']) || {})
   .map((k) => Number(/^IN_(\d+)$/.exec(k)?.[1]))
   .filter((n) => n && link.get(['device', 'inputList', 'items', `IN_${n}`, 'mapping', 'pp', 'isValid']) === true)
@@ -145,15 +146,31 @@ test('a memory recalls to preview, Take takes it, and the desk’s layers follow
   await link.waitFor(layerPath('S1', preview, 1, 'source', 'pp', 'inputNum'), `LIVE_${b}`, { timeout: 4000 });
   t.diagnostic(`memory ${slot} recalled to preview: ${Date.now() - started} ms`);
 
+  /* Layer 1 at a level only the desk sets, and program at another: the level
+     reaching the new preview after the take is the re-push, nothing else.
+     Layer 1, because it has a source: the guard puts back only layers in use. */
+  const level = opacityOf(200);
+  set('S1.L1', [0, a, 200]);
+  await link.waitFor(opacityPath(preview, 1), level, { timeout: 4000 });
+  const { program } = letters();
+  link.send({ path: opacityPath(program, 1), value: 0 });
+  await link.waitFor(opacityPath(program, 1), 0);
+
   const before = link.get(sag('S1', 'status', 'transition'));
   const after = before === 'AT_DOWN' ? 'AT_UP' : 'AT_DOWN';
   const fired = Date.now();
   set('S1', [100, slot, 255, 0]);
   await link.waitFor(sag('S1', 'status', 'transition'), after, { timeout: 15000 });
   t.diagnostic(`Take to transition landed: ${Date.now() - fired} ms`);
+  assert.equal(letters().preview, program, 'the take swapped the letters');
   assert.equal(sourceOn(letters().program), `LIVE_${b}`, 'the memory is on air');
-  /* The desk holds layer 1's source (folder 0), so the new preview keeps its own; its opacity is the desk's. */
-  await link.waitFor(layerPath('S1', letters().preview, 1, 'opacity', 'pp', 'opacity'), 256, { timeout: 4000 });
+  /* The desk holds layer 1's source (folder 0), so the new preview keeps its
+     own; the desk's levels are written to it. The simulator reports the old
+     resting state for the whole take, so this is the supervisor waiting for
+     the take to land rather than writing to the letter going to air. */
+  await link.waitFor(opacityPath(program, 1), level, { timeout: 4000 });
+  t.diagnostic(`Take to the desk's level on the new preview: ${Date.now() - fired} ms`);
+  assert.equal(link.get(opacityPath(letters().program, 1)), level, 'and the take carried it to air');
   set('S1', [100, slot, 0, 0]);
   const history = (await app.api('/desk-control/state')).json.history;
   assert.ok(history.some((e) => /recall/.test(e.note || '')), 'the recall is in the history');

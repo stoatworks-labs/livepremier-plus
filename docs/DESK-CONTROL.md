@@ -1,8 +1,8 @@
 # Driving the switcher from a lighting desk — **preview**
 
-> ⚠️ **This has never met a real switcher with a real desk in front of it.** It has driven the
-> LivePremier 6.2.73 simulator from a pretend desk sending real Art-Net at a desk's 40 frames a
-> second, and the status block at the bottom says exactly what else has been run. Try it in
+> ⚠️ **This has never met a real switcher.** It has driven the LivePremier 6.2.73 simulator from
+> ChamSys MagicQ PC on the same Mac and from a pretend desk sending real Art-Net at a desk's 40
+> frames a second, and the status block at the bottom says exactly what has been run. Try it in
 > rehearsal, not in a show.
 
 A lighting desk — grandMA3, ChamSys MagicQ, Avolites Titan, anything that sends **Art-Net** or
@@ -80,8 +80,12 @@ because a Dimmer at zero means dark on every desk.
 
 **Mid-transition, the desk waits.** While a take is running neither buffer is honestly preview or
 program, so layer changes for that screen wait until it lands, then go to whichever is preview
-now. A recall, take or cut that couldn't go within two seconds of the desk asking is dropped and
-listed on the card, not sent late: a take three seconds after the cue is a wrong take.
+now. A take of the desk's own isn't believed to have started until the switcher says it has
+landed: the simulator goes on reporting the state the take left for the whole of the take, so
+after a take or cut the screen's layer values wait until that changes, or until the take has had
+its own time and a second and a half more (a take the switcher refused never changes it). A
+recall, take or cut that couldn't go within two seconds of the desk asking is dropped and listed
+on the card, not sent late: a take three seconds after the cue is a wrong take.
 
 ---
 
@@ -102,7 +106,7 @@ count Art-Net from 0 or 1.
 | Desk | What to do |
 |---|---|
 | **grandMA3** | Import the three `.gdtf` files into the fixture library and patch them. |
-| **MagicQ** | Open each `.gdtf` in MagicQ's File Manager. MagicQ saves a head file from it (its mode name starts `G-`) and goes to the patch window with it selected; any warnings are in `MagicQ/log/gdtf.log`. |
+| **MagicQ** | Open each `.gdtf` in MagicQ's File Manager (**Setup → File Manager**). MagicQ saves a head file from it (its mode name starts `G-`) and goes to the patch window with it selected. MagicQ 1.9.6.5 warns that the files are GDTF 1.2 and it reads 1.1, shows Control as **Lamp**, and doesn't recognise the other names below; every channel still patches and works. The warnings are in `MagicQ/log/gdtf.log`. |
 | **Avolites Titan** | Convert the `.gdtf` files to `.d4` in Personality Builder (Windows), then patch the `.d4`. |
 | **grandMA2** | Convert with MA's own GDTF converter; MA2 does not read GDTF itself. |
 | **Anything else** | Patch generic dimmer channels at the addresses in the table, or build a fixture from the channel tables above. |
@@ -142,6 +146,23 @@ broadcast, because two programs sharing port 6454 can't both have a unicast repl
 **ArtTimeCode** from the desk goes to the **Timecode** plugin, as if it had been pushed there, so a
 Timeline can chase the desk's clock.
 
+### A desk on the same Mac
+
+Desk software on the machine running this app (MagicQ PC, grandMA3 onPC) works, with four things
+to know:
+
+- **The desk's own address has to be one of the Mac's.** MagicQ's **Setup → Network → IP
+  address** starts at a 2.x.x.x address no Mac has, and then sends nothing at all.
+- **Whoever opened UDP 6454 first gets what is sent to one address.** Both programs listen on
+  6454, and macOS hands a unicast packet to one of them only. A desk sending to 127.0.0.1 reaches
+  this app only if the app was listening first: start the app, then the desk. After restarting the
+  app, make the desk open its Art-Net again (in MagicQ, change the network IP address and change
+  it back). Broadcast reaches both, whatever the order.
+- **To keep it off the LAN**, set MagicQ's **Art-Net type** to *V4 Unicast only* and unicast the
+  universe to 127.0.0.1. In *Normal* it broadcasts every universe to the LAN as well.
+- **MagicQ's own node list stays empty** (**Net Manager → View Art-Net**): it shows nothing from
+  its own address, not even itself. It drives the switcher all the same.
+
 ## What reaches the switcher
 
 Writes go over **AWJ on TCP 10606**, which can be switched off in the Web RCS security settings.
@@ -165,10 +186,12 @@ only, for the NDI licence's sake); Titan `.d4` and MA2 fixture files ready-made.
 
 | What | How | Result |
 |---|---|---|
-| Art-Net and sACN parsing, arbitration, the engine, the patch, GDTF, the held AWJ link, the whole supervisor | `test/desk-control.test.js`: real UDP on loopback, a pretend switcher on AWJ | 27 pass |
+| Art-Net and sACN parsing, arbitration, the engine, the patch, GDTF, the held AWJ link, the whole supervisor, a take the switcher reports late or never | `test/desk-control.test.js`: real UDP on loopback, a pretend switcher on AWJ | 29 pass |
 | The three `.gdtf` files | validated against the official GDTF 1.2 `gdtf.xsd` with `xmllint --schema` | valid |
-| Control → preview, memory recall, Take, let go, ports closing, ArtPoll on the LAN | `test/sim/desk-control.sim.test.js`, the 6.2.73 rack simulator, a pretend desk at 40 frames a second | 5 pass, three runs in a row; S1 and the memory put back each time |
-| How long it takes | the same, desk frame to the change on the vendor socket | layer source on preview 26–40 ms; memory recall to preview 28–31 ms |
-| A desk on the same Mac hearing ArtPollReply | a socket sharing 6454 beside the app, macOS 26.4 | heard, after replies to this machine went to broadcast (unicast went to the app's own socket) |
-| A real desk importing the files and driving it | — | **not yet** |
+| Control → preview, memory recall, Take with the desk's level arriving on the new preview, let go, ports closing, ArtPoll on the LAN | `test/sim/desk-control.sim.test.js`, the 6.2.73 rack simulator, a pretend desk at 40 frames a second | 5 pass, three runs in a row; S1 and the memory put back each time. With the take guard switched off the Take test fails, as it should |
+| How long it takes | the same, desk frame to the change on the vendor socket | layer source on preview 26–40 ms; memory recall to preview 28–32 ms; after a 1.0 s take, the desk's level on the new preview 1.04–1.17 s after the cue |
+| A desk on the same Mac hearing ArtPollReply | a socket sharing 6454 beside the app, macOS 26.4 | heard, after replies to this machine went to broadcast |
+| **ChamSys MagicQ PC 1.9.6.5** (demo mode) on the same Mac, macOS 26.4 | the three `.gdtf` files imported through File Manager and patched at 1.1, 1.5, 1.9, 1.12; Control, a layer's source, Take and Control set by hand in MagicQ's programmer, Art-Net over loopback | Imported with warnings only. Control raised: the layer went to preview, program untouched. Take took S1. Control lowered let the screen go, and a layer change after it wrote nothing (MagicQ's packet checked on the wire). The first takes found the desk's layers re-written to the letter going to air instead of the new preview; fixed, and the take re-run from MagicQ put them on the new preview |
+| From a real desk: Memory, Cut, the Master fixture, a cue stack rather than the programmer, sACN | — | **not yet** |
+| grandMA3, Titan | — | **not yet** |
 | A real switcher | — | **not yet** |

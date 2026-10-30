@@ -106,6 +106,42 @@ Two things found on the way:
   server had run since 24 August on directories it opened before they went. I copied
   `data_backup` to `WebApp` and made the log directory; it answered six seconds later.
 
+### MagicQ, the first real desk (later the same day)
+
+ChamSys MagicQ PC 1.9.6.5, demo mode, on the same Mac as the app, against the simulator. Its
+files were backed up first and put back after.
+
+- **The files import.** File Manager → each `.gdtf` makes a `G-Cue` head. MagicQ warns that they
+  are GDTF 1.2 and it reads 1.1, reads `LPPControl` as LampControl (the column says Lamp), and
+  doesn't recognise `LPPMemory`, `LPPTake`, `LPPCut`, `MediaFolder1` or `MediaContent1`. All of
+  them patch as plain channels and work. MagicQ's universe 1 is Art-Net 0:0:0, as the doc says.
+- **Getting its Art-Net to the app took three settings.** Its network IP was 2.9.200.223, an
+  address this Mac doesn't have, so it sent nothing. On *Normal* it then broadcast universe 1 to
+  the LAN. *V4 Unicast only* with the universe unicast to 127.0.0.1 keeps it on loopback.
+- **Which socket gets a unicast packet is about order.** With both on UDP 6454, macOS 26.4 handed
+  MagicQ's loopback ArtDmx to whichever socket bound first: the app's while the app was older,
+  MagicQ's own after the app restarted, and nothing to a third socket bound later. MagicQ reopens
+  its socket when its IP address changes, which put the app first again. MagicQ's own node list
+  stayed empty throughout: it seems to ignore replies from its own address.
+- **What it drove** from the programmer: Control raised edited preview only, a layer's source
+  reached preview, Take took S1, Control lowered let the screen go and a layer change after it
+  wrote nothing (checked on the wire: MagicQ sent Control 0 and the new file).
+- **It found a real bug.** After a take, the desk's layers went to the letter going to air, not
+  the new preview. The simulator reports the resting state a take left for the whole take: S1's
+  1.0 s take read `AT_DOWN` throughout, polled every 20 ms, and `AT_UP` at +1.02 s, no
+  `EFFECT_…` state in between. So the re-push 150 ms after the take read "settled" and wrote to
+  the old preview. The supervisor now holds a screen's layer values after a take or cut until the
+  transition reads differently from before it, or the take time (read with the letters) plus 1.5 s
+  has passed. It costs each take one read of the letters before it is written (one AWJ round,
+  8–15 ms here): read after, a cut would already show the new state. Re-run from MagicQ: held
+  22 times over the second, then the new preview had the desk's LIVE_1 where it had kept LIVE_2
+  before. The unit test and the simulator's Take test both
+  fail with the guard switched off.
+- **The old Take test passed by accident**: it waited for opacity 256 on the new preview, which
+  both buffers already had. It now sets a level only the desk would, and puts program at 0 first.
+- **Not run from MagicQ**: Memory, Cut, the Master fixture, a cue stack (only the programmer),
+  sACN. Nor grandMA3 or Titan.
+
 ## Plug names — an input's label as its plug's EDID name (2026-10-24)
 
 Asked for by Allan: In1 labelled "powerpoint main" should show up on the laptop as that, not
