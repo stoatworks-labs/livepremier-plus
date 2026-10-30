@@ -680,9 +680,11 @@ switcher agreeing. A simulator cheerfully says *stays* for every layer, whatever
 > but a recall and a take from outside in the same instant will move it. The panel says this at the
 > top every time.
 
-> ⚠️ **Proven on the simulator only.** No real frame has yet been asked what it does with a locked
-> layer that has a live source on it. The first time you use this on a frame, lock a layer in
-> rehearsal, take, and watch it.
+> ⚠️ **On a real frame without a live source only.** On an Aquilon C mini (6.2.73) a locked layer's
+> preview, changed from outside the app, was back to its program copy within a third of a second,
+> and the switcher's own verdict beside it read *stays*. Nothing was plugged into it, so no frame
+> has yet been asked what it does with a locked layer that has a live source on it. The first time
+> you use this on a show, lock a layer in rehearsal, take, and watch it.
 
 ---
 
@@ -756,7 +758,9 @@ buttons, so with this switched on the app holds its own recalls back itself:
 > moment the take landed, and with the T-bar parked half way the recall gave up and wasn't sent.
 > On a real frame (Aquilon C mini, 6.2.73): the PRW padlock shut for a 5 s take and opened when it
 > landed, and a Console recall typed a second into the take was held and sent as it landed, into
-> the new preview. Not yet run on a real Midra 4K / Alta 4K.
+> the new preview; with the T-bar parked half way from outside, a recall waited and then said
+> *not sent — S1 still mid-take after 3.0 s*, and nothing reached the switcher. Not yet run on a
+> real Midra 4K / Alta 4K.
 
 ---
 

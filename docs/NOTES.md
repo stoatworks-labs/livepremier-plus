@@ -3343,8 +3343,36 @@ partway through without having sent anything).
   `control/xDelete` — which were written back false by hand; the undo could re-arm them itself.
   The confirmation said *Upload 1 images … set 1 free stills*; fixed.
 
+**Edge cases, the same night** (Allan: "keep poking around and see what breaks"). Each read
+back over AWJ or the store and put back; the store diffed clean against the third pass's.
+
+- **The settings page put Listen for OSC back off.** Its plugin switch sent the page's copy of
+  every plugin's entry, read when the page opened, so the OSC card's own save from since was
+  overwritten when UMD Generator was switched on. Reproduced against `/__lpp/settings` from the
+  app's container; fixed to send the one switch (`test/settings-toggle.test.js`).
+- **Output thumbnails are not a picture of the output here.** `/api/device/snapshots/outputs/1`
+  answers a fresh 256×144 PNG (RGBA, uncompressed, so 147,925 bytes) that stayed solid black
+  with a full-red COLOR layer on S1's program, with `snapshot/highPriority` raised and with S1's
+  test-pattern `inhibit` lifted (`type` refused `GRID`). The vendor's card draws the red from the
+  store, not from the output. So this box can't answer the aux-background render question either.
+- **The Console sends to screens that aren't in service, and the switcher takes them.** `Take
+  Screen 3` (S3 `DISABLED`, no outputs) and `Take Screen 9` (not in use) each said `1/1 write sent`
+  and each screen went `AT_UP`. `Recall Screen 1 Memory 999` (an empty slot) was sent and only
+  latched its trigger. An `AWJ` line to a path that doesn't exist reports `1/1 write sent`, as it
+  must over the vendor's socket, which answers nothing. Worth a word on the feedback line before
+  Enter for the first three; not changed.
+- **What it refuses, it refuses before sending:** `Set Screen 1 Layer 1 Opacity 999` (*out of range
+  — the device's scale is 0 to 256*), an unknown keyword, and `$S1.PGM.L1.x` mid-take (*S1 is
+  mid-take — program is changing hands*), which read 960 once the take landed.
+- **A T-bar parked half way** (control `tbarPosition` 32768 from outside) reports `EFFECT_FROM_DOWN`
+  with the *status* `tbarPosition` still 0. Preview lock held a Console recall and gave up with
+  *not sent — S1 still mid-take after 3.0 s*; the guide says take time plus three seconds, so one of
+  them wants a look. Moving the T-bar leaves `isTbarPositionValid` false until the next take.
+- **Layer Lock:** S1 L1 locked; its preview opacity set to 200 from outside was back at 256, its
+  program value, within 0.3 s; *Next take* read *stays*.
+
 **Not run on this box:** Pitch (every screen is one output, its own reference at 1.000, so there
 is nothing to compute), anything needing an aux (the UMD's aux path, the aux-background test),
 input signal (signal dots, Layer Lock on a live source, thumbnails) or a screen over several
 outputs (the VPU header's link order, rotated or grouped Background Slicer cuts), and the 6.1.x
-arithmetic.
+arithmetic. Output thumbnails can't stand in for looking at an output on it (above).
