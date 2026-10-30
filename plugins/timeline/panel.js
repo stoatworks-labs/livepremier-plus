@@ -40,7 +40,16 @@ const POPOUT = new URL('./popout.html', import.meta.url).href;
  *        this panel's own `actions()`, the toolbar
  */
 export function createTimelinePanel({ session, stack, storage, timecode = null, chase = null, onRefresh, cueActions = () => [] }) {
-  const view = { editing: null, adding: false, armedUntil: null, lastFired: null, warning: null };
+  /*
+   * `draft` and `editDraft` hold what is typed into New cue and into a cue's
+   * row until Add or Save reads it. Both forms are drawn afresh with the
+   * panel, and the panel repaints on every frame — once a second on a box
+   * whose timers run — and `keep-focus.js` carries over only the field that
+   * has focus. A field the operator had moved on from was back to its default
+   * before Add read it: on an Aquilon C mini (2026-10-30) a cue typed as slot
+   * 990, take, 2 s arrived as slot 1, no take, no fade.
+   */
+  const view = { editing: null, adding: false, draft: null, editDraft: null, armedUntil: null, lastFired: null, warning: null };
   /* The timecode source and the chase, or functions answering them: the
      Timeline plugin passes functions, because they belong to the Timecode
      plugin, which may be off — then there is no clock and no Chase button. */
@@ -300,36 +309,45 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
   }
 
   function editRow(cue, cls) {
-    const num = h('input', { class: 'wru-input wru-input--narrow', value: cue.number });
+    /* Started from the cue the first time the row is drawn for editing, then
+       kept across repaints — see `view` at the top. */
+    const d = view.editDraft && view.editDraft.id === cue.id ? view.editDraft : (view.editDraft = {
+      id: cue.id, number: cue.number, timecode: cue.timecode || '', label: cue.label,
+      fade: cue.fade ?? '', delay: cue.delay ?? 0, follow: Boolean(cue.follow), followTime: cue.followTime ?? 0
+    });
+    const keep = (key) => (ev) => { d[key] = ev.target.value; };
+    const num = h('input', { class: 'wru-input wru-input--narrow', value: d.number, onInput: keep('number') });
     /* Free text rather than four spinners: an operator reads a timecode off a
        screen and types it, and `parseTimecodeString` refuses anything that is
        not one rather than half-accepting it. */
     const tc = h('input', {
-      class: 'wru-input wru-input--narrow', value: cue.timecode || '',
+      class: 'wru-input wru-input--narrow', value: d.timecode,
       placeholder: '––:––:––:––', spellcheck: 'false',
-      title: 'Fire this cue when timecode reaches here. Leave empty for a GO cue.'
+      title: 'Fire this cue when timecode reaches here. Leave empty for a GO cue.',
+      onInput: keep('timecode')
     });
-    const label = h('input', { class: 'wru-input', value: cue.label });
-    const fade = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: cue.fade ?? '' });
-    const delay = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: cue.delay ?? 0 });
-    const follow = h('input', { type: 'checkbox', checked: cue.follow ? 'checked' : null });
-    const followTime = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: cue.followTime ?? 0 });
+    const label = h('input', { class: 'wru-input', value: d.label, onInput: keep('label') });
+    const fade = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: d.fade, onInput: keep('fade') });
+    const delay = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: d.delay, onInput: keep('delay') });
+    const follow = h('input', { type: 'checkbox', checked: d.follow ? 'checked' : null, onChange: (ev) => { d.follow = ev.target.checked; } });
+    const followTime = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', value: d.followTime, onInput: keep('followTime') });
 
     const commit = () => {
-      const typed = tc.value.trim();
+      const typed = String(d.timecode).trim();
       stack.update(cue.id, {
-        number: num.value,
+        number: d.number,
         /* Kept as the operator typed it, and only if it is readable — a
            half-typed timecode saved as a cue trigger is a cue that fires at
            some other moment entirely. */
         timecode: typed && parseTimecodeString(typed) ? typed : null,
-        label: label.value,
-        fade: fade.value === '' ? null : Number(fade.value),
-        delay: Number(delay.value) || 0,
-        follow: follow.checked,
-        followTime: Number(followTime.value) || 0
+        label: d.label,
+        fade: d.fade === '' ? null : Number(d.fade),
+        delay: Number(d.delay) || 0,
+        follow: d.follow,
+        followTime: Number(d.followTime) || 0
       });
       view.editing = null;
+      view.editDraft = null;
       save();
       onRefresh();
     };
@@ -345,7 +363,7 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
       h('td', {}, h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' }, follow, followTime)),
       h('td', {}, h('div', { class: 'aw-flex-row-center-v aw-gap-col-mini' },
         button('Save', { onClick: commit }),
-        button('Cancel', { onClick: () => { view.editing = null; onRefresh(); }, variant: 'ghost' }))));
+        button('Cancel', { onClick: () => { view.editing = null; view.editDraft = null; onRefresh(); }, variant: 'ghost' }))));
   }
 
   function describe(cue) {
@@ -366,22 +384,35 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
 
   function addForm() {
     const used = targets();
-    const kind = h('select', { class: 'wru-input' },
-      h('option', { value: ACTION_KINDS.SCREEN_PRESET, text: 'Screen preset' }),
-      h('option', { value: ACTION_KINDS.MASTER_PRESET, text: 'Master preset' }));
-    const slot = h('input', { class: 'wru-input wru-input--narrow', type: 'number', min: '1', value: '1' });
-    const mode = h('select', { class: 'wru-input' },
-      h('option', { value: 'PREVIEW', text: 'to Preview' }),
-      h('option', { value: 'PROGRAM', text: 'to Program' }));
-    const takeKind = h('select', { class: 'wru-input' },
-      h('option', { value: '', text: 'no take' }),
-      h('option', { value: ACTION_KINDS.TAKE, text: 'take (fade)' }),
-      h('option', { value: ACTION_KINDS.CUT, text: 'cut' }));
-    const label = h('input', { class: 'wru-input', placeholder: 'Cue label' });
-    const fade = h('input', { class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', placeholder: 's' });
+    /* Targets are kept as the ones unticked, so a destination that comes into
+       use while the form is open starts ticked, as every one did at first. */
+    const d = view.draft || (view.draft = { kind: ACTION_KINDS.SCREEN_PRESET, slot: '1', mode: 'PREVIEW', take: '', label: '', fade: '', off: [] });
+    const option = (value, text, current) => h('option', { value, text, selected: value === current ? 'selected' : null });
+    const kind = h('select', { class: 'wru-input', onChange: (ev) => { d.kind = ev.target.value; } },
+      option(ACTION_KINDS.SCREEN_PRESET, 'Screen preset', d.kind),
+      option(ACTION_KINDS.MASTER_PRESET, 'Master preset', d.kind));
+    const slot = h('input', {
+      class: 'wru-input wru-input--narrow', type: 'number', min: '1', value: d.slot,
+      onInput: (ev) => { d.slot = ev.target.value; }
+    });
+    const mode = h('select', { class: 'wru-input', onChange: (ev) => { d.mode = ev.target.value; } },
+      option('PREVIEW', 'to Preview', d.mode),
+      option('PROGRAM', 'to Program', d.mode));
+    const takeKind = h('select', { class: 'wru-input', onChange: (ev) => { d.take = ev.target.value; } },
+      option('', 'no take', d.take),
+      option(ACTION_KINDS.TAKE, 'take (fade)', d.take),
+      option(ACTION_KINDS.CUT, 'cut', d.take));
+    const label = h('input', { class: 'wru-input', placeholder: 'Cue label', value: d.label, onInput: (ev) => { d.label = ev.target.value; } });
+    const fade = h('input', {
+      class: 'wru-input wru-input--narrow', type: 'number', step: '0.1', min: '0', placeholder: 's', value: d.fade,
+      onInput: (ev) => { d.fade = ev.target.value; }
+    });
 
     const boxes = used.map((id) => {
-      const cb = h('input', { type: 'checkbox', value: id, checked: 'checked' });
+      const cb = h('input', {
+        type: 'checkbox', value: id, checked: d.off.includes(id) ? null : 'checked',
+        onChange: (ev) => { d.off = ev.target.checked ? d.off.filter((x) => x !== id) : [...d.off, id]; }
+      });
       return { id, cb, node: h('label', { class: 'aw-flex-row-center-v aw-gap-col-mini' }, cb, h('span', { text: id })) };
     });
 
@@ -410,14 +441,14 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
     });
 
     const commit = () => {
-      const chosen = boxes.filter((b) => b.cb.checked).map((b) => b.id);
+      const chosen = used.filter((id) => !d.off.includes(id));
       let actions = [];
-      if (kind.value === ACTION_KINDS.SCREEN_PRESET) {
-        actions.push({ kind: ACTION_KINDS.SCREEN_PRESET, slot: Number(slot.value), targets: chosen, mode: mode.value });
+      if (d.kind === ACTION_KINDS.SCREEN_PRESET) {
+        actions.push({ kind: ACTION_KINDS.SCREEN_PRESET, slot: Number(d.slot), targets: chosen, mode: d.mode });
       } else {
-        actions.push({ kind: ACTION_KINDS.MASTER_PRESET, slot: Number(slot.value), mode: mode.value });
+        actions.push({ kind: ACTION_KINDS.MASTER_PRESET, slot: Number(d.slot), mode: d.mode });
       }
-      if (takeKind.value) actions.push({ kind: takeKind.value, targets: chosen });
+      if (d.take) actions.push({ kind: d.take, targets: chosen });
       /* Refused whole, with the plugin's own sentence, rather than adding a
          cue that quietly lost the half of it that did not read. */
       try {
@@ -428,11 +459,12 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
       }
       stack.add({
         number: String(stack.cues.length + 1),
-        label: label.value,
-        fade: fade.value === '' ? null : Number(fade.value),
+        label: d.label,
+        fade: d.fade === '' ? null : Number(d.fade),
         actions
       });
       view.adding = false;
+      view.draft = null;
       view.extraText = null;
       save();
       onRefresh();
@@ -452,7 +484,7 @@ export function createTimelinePanel({ session, stack, storage, timecode = null, 
       warn,
       h('div', { class: 'aw-flex-row-center-v aw-gap-col-small' },
         button('Add', { onClick: commit }),
-        button('Cancel', { onClick: () => { view.adding = false; view.extraText = null; onRefresh(); }, variant: 'ghost' })));
+        button('Cancel', { onClick: () => { view.adding = false; view.draft = null; view.extraText = null; onRefresh(); }, variant: 'ghost' })));
   }
 
   const field = (label, control) =>
