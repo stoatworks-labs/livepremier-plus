@@ -305,7 +305,9 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > layer 1 in letter **A**, leaving S2's preview alone. A group send in preview wrote both members'
 > preview buffers and neither program. A program send was held behind the confirmation step while
 > the vendor's PGM padlock was shut and went straight through once it was opened, both read from
-> the vendor's own buttons. No physical LivePremier has seen any of it.
+> the vendor's own buttons. On an **Aquilon C mini** (6.2.73, 2026-10-30), with S1 on program B
+> and S2 on program A, a ganged follow and a group send in preview each landed in both previews and
+> neither program, and a program send with the PGM padlocks shut stopped at the confirmation.
 >
 > **Verified against real hardware (Aquilon C `NLC_C`, firmware 6.2.73, 2026-09-09).** Every
 > path this app sends was checked against the box: the command table resolved with no `E12`, the
@@ -324,7 +326,12 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > back (2.3 s from fire to `AT_DOWN`), and its raw `AWJ` lines put the fade times and the latched
 > triggers back. The box also found a bug the simulator never could: the timeline's New cue form
 > forgot what had been typed into it, because a box whose timers run repaints the page every
-> second and the simulator's don't. Fixed, and checked on the same box.
+> second and the simulator's don't. Fixed, and checked on the same box. A second pass the same
+> day added **Preview lock** (the PRW padlock shut for a 5 s take, and a Console recall typed
+> mid-take was held and landed in the new preview, not the one fading up), **Layer Groups and
+> Send-to** across opposite letters, **Surfaces** (full screen filled the surface, a write from
+> outside was pulled back on preview, program was flagged and left alone) and **Pixel Map**, and
+> the store diffed clean again bar the export status the library's Download leaves behind.
 >
 > **The VPU map's header is part-verified from that same pull (2026-09-15).** The header over the
 > grid's columns names each link's region and output plug from `outputList` (`usedInScreenAux`,
@@ -1660,7 +1667,9 @@ with one-pixel panel edges stays sharp when you zoom the card.
 > deleted; a 960×540 map drew at half size 1:1 and full size stretched. On **6.1.60**, the RS4's
 > firmware, the library and both image routes answer the same, and the Web RCS modules that draw
 > the card are the same source as 6.2.73's, but that simulator had no screen in service, so no
-> card was drawn there. LivePremier only. Not yet run on a real frame.
+> card was drawn there. LivePremier only. On a real frame (Aquilon C mini, 6.2.73, 2026-10-30) the
+> map came off the box's original-file route at its own size and sat over S1's PRW canvas taking
+> no clicks; fetching it runs the box's library export, as the vendor's Download button does.
 
 ## Surfaces
 
@@ -1707,7 +1716,11 @@ fits are flagged until they're next moved.
 > drag past the edge stopped there on the switcher and on the vendor's own card; a write from
 > outside the page (AWJ) on preview was pulled back within 40 ms, and one on program was left alone;
 > the Edit page's drag stopped at the edge as it moved, and nothing reached the switcher. 6.1.60's
-> bundle has the same toolbar and the same drag code. LivePremier only. Not yet run on a real frame.
+> bundle has the same toolbar and the same drag code. LivePremier only. On a real frame (Aquilon C
+> mini, 6.2.73, 2026-10-30): full screen filled the surface (480 / 960 sent for a half-width
+> surface), an AWJ write from outside on preview was pulled back, and program was flagged and left
+> alone. Drags were not tried there. **Full screen does nothing for a layer that already fills the
+> canvas**: the vendor sends no write when nothing changes, so there is nothing to reshape.
 
 ## UMD Generator — preview
 

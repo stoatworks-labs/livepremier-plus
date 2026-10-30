@@ -754,7 +754,9 @@ buttons, so with this switched on the app holds its own recalls back itself:
 > the PRW padlock shut for the whole take (from this page or sent straight to the switcher) and
 > opened on landing, a recall from the Memories panel waited and went into the new preview the
 > moment the take landed, and with the T-bar parked half way the recall gave up and wasn't sent.
-> Not yet run on a real frame or a real Midra 4K / Alta 4K.
+> On a real frame (Aquilon C mini, 6.2.73): the PRW padlock shut for a 5 s take and opened when it
+> landed, and a Console recall typed a second into the take was held and sent as it landed, into
+> the new preview. Not yet run on a real Midra 4K / Alta 4K.
 
 ---
 
@@ -806,7 +808,8 @@ bottom of the tab says how many buffers it's drawn on, and says so if it can't f
 > a click through a map selected the layer under it; the map followed the card's zoom, came back
 > after leaving the page and went when its slot was deleted. On 6.1.60, the RS4's firmware, the
 > library and the image routes answer the same and the card is drawn by the same code, but no card
-> was drawn there. Not yet run on a real frame.
+> was drawn there. On a real frame (Aquilon C mini, 6.2.73) the map loaded from the box's library at
+> its own size and was drawn over S1's PRW canvas, taking no clicks.
 
 ---
 
@@ -870,7 +873,12 @@ The surfaces and bindings are kept per switcher by this app and go into the setu
 > layer landed on its surface; a drag past the edge stopped there on the switcher and on the
 > vendor's card; a change from outside the page was pulled back on preview and left alone on
 > program; the Edit page's drag stopped at the edge. 6.1.60's Web RCS has the same buttons and the
-> same drag code. Not yet run on a real frame.
+> same drag code. On a real frame (Aquilon C mini, 6.2.73): full screen filled the surface, a change
+> from outside was pulled back on preview, and program was flagged and left alone.
+>
+> ⚠️ **Full screen can't pull in a layer that already fills the canvas.** The vendor sends nothing
+> when its full screen would change nothing, so a fresh full-canvas layer you've just bound stays
+> where it is, flagged. Make it any other size first, or type its size, and it will be kept in.
 
 ---
 

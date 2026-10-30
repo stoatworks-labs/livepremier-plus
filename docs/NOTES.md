@@ -40,11 +40,11 @@ file. So are the **Barco EC panel** and the **ATEM Micro Panel** (both 2026-10-2
 - **Aquilon RS4** (`NLC_RS4`, 6.1.60, 2026-10-16): read-only pulls of the store, and **one preview
   opacity written by the Layer tab** and put back, both read over AWJ. Hardware is ask-first.
 - **Aquilon C mini** (`NLC_CMINI`, 6.2.73, 2026-10-30): the Layer tab, Memories (save, rename,
-  erase), the Console (a take and raw AWJ lines) and **the timeline's GO** (recall, fade, take),
-  each read back over AWJ and the whole store diffed clean afterwards. "Aquilon C mini" at the end
-  has the rest.
+  erase), the Console (a take, a store and raw AWJ lines), **the timeline's GO** (recall, fade,
+  take), then Preview lock, Layer Groups and Send-to, Surfaces and Pixel Map, each read back over
+  AWJ and the whole store diffed clean afterwards. "Aquilon C mini" at the end has the rest.
 
-Everything else, Pixel Map, Surfaces, the UMD Generator, Dante,
+Everything else, the UMD Generator, Dante,
 both thumbnail previews and the Background Slicer included, has run on simulators only. The
 Pixelhue panel has never met a console; the console suite has only run against its stand-in
 (`LPP_CONSOLE=stand-in`, 31 pass, 3 skip).
@@ -3273,7 +3273,45 @@ fields then held through repaints and the cue arrived as typed.
   everywhere. Hold the repaint the way an operator does: a press on a `<select>` holds it
   (`keep-focus.js`), and a click on a field keeps its place.
 
-**Not run yet on this box:** Preview lock during a take, Layer Groups and Send-to across opposite
-letters, Surfaces, Pixel Map, the UMD Generator and the Background Slicer, Audio Matrix, Pitch,
-OSC input, Variables driving a field. **Can't be run on it:** anything needing an aux, input
-signal or a screen over several outputs (the VPU header's link order), and the 6.1.x arithmetic.
+**The second pass, the same afternoon.** Preview lock, Layer Groups and Surfaces switched on in
+the app's settings first (they're off by default); the store diffed against the same baseline at
+the end.
+
+- **Preview lock:** S1's take times set to 5 s (Console `AWJ` lines), the memory stored from the
+  Console (`Store Screen 1 Memory 990 Preview` — the Console's store defaults to *program*, so say
+  Preview), then `Take Screen 1` and, a second later, `Recall Screen 1 Memory 990`. The PRW
+  padlock on S1's card shut for the take and opened when it landed; the Console said `1/1 write
+  sent (after the take)`, and AWJ had the take start at 12.4 s, the recall's trigger at 17.5 s and
+  `AT_UP` by 17.9 s, with the memory in **A**, the new preview, not B as it faded up.
+- **Layer Groups:** a ganged group of S1 L1 and S2 L1 with S1 at `AT_UP` (program B) and S2 at
+  `AT_DOWN` (program A). A source change in S1's preview (A) followed onto S2's preview (B);
+  a Send-to of IN2 to the group in preview wrote S1 A and S2 B; programs stayed NONE throughout.
+  A program send of IN3 with both PGM padlocks shut stopped at `PGM — ON AIR · PGM is locked on
+  S1, S2` and, cancelled, sent nothing. The Layer tab's source list offered what this box has:
+  LIVE 1–8, STILL 1–24, SCREEN 1–2, COLOR.
+- **Surfaces:** a 960×1080 surface on S1's left half, L1 bound. Binding moved nothing and flagged
+  both buffers, program with *Nothing here moves program*. An AWJ write from outside (sizeH 800 on
+  preview, overhanging the edge) was pulled back to posH 560; the vendor's full screen was
+  reshaped to the surface (480 / 960 sent, the hook's record shows it); program B was left alone.
+  ⚠️ **Full screen does nothing to a layer that already fills the canvas** — the vendor sends no
+  write when nothing changes (the hook recorded none), so a fresh layer bound to a surface stays
+  outside it until it's moved some other way. Probably wants a "pull in now" on binding; not done.
+- **Pixel Map:** library slot 1 picked for S1 and checked from the DOM, not by eye (the library
+  held the owner's own pictures): loaded from `/api/device/images/download/1` at its own 960×540,
+  drawn over S1/PRW, `pointer-events: none`, then set back to None. **That download runs the
+  box's library export** (`stillList/library/export`, `EXPORT_RENAME` into `tmp_disk`, status
+  `FINISH`, the file's name), and those four leaves are all the store diff found at the end. The
+  vendor's own Download button does the same; status words aren't writable, so they were left.
+- **A memory recall sets the take time.** Recalling 990 into S1's preview with S1 at `AT_UP` set
+  `takeDownTime` back to the 10 the memory was stored with — the box did it, mid-load, with no
+  write from this page. A screen memory's TIMING category carries the time for the take into that
+  buffer. It's why a cue must write its fade after its recall, which the timeline does.
+- **Someone else joined.** Partway through, a second Web RCS client connected through the same
+  route (same NAT address, a port that wasn't ours: the REMOTE INIT and `netstat` in the app's
+  container settle which is yours). It sent nothing. Testing stopped there and the box was put
+  back; Audio Matrix, OSC, Variables and the image-upload panels wait for the next pass.
+
+**Not run yet on this box:** the UMD Generator and the Background Slicer, Audio Matrix, OSC input,
+Variables driving a field. **Can't be run on it:** Pitch (every screen is one output, its own
+reference at 1.000, so there is nothing to compute), anything needing an aux, input signal or a
+screen over several outputs (the VPU header's link order), and the 6.1.x arithmetic.
