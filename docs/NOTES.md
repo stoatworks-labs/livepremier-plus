@@ -3964,3 +3964,67 @@ Run from a headless Companion 5.0.7 with its own config folder, against the rack
   Modules > Manage, which doesn't carry it.
 
 Not run: a real frame, a real HyperDeck, a Stream Deck, Companion on another computer.
+
+## Thumbnails over a thin link: the one-second cliff (2026-10-31, Aquilon C mini through a tailnet)
+
+**The report.** Source thumbnails never appeared with the switcher reached over Tailscale, and
+once on a frame on the venue LAN with Tailscale switched on. The C mini has no input signal, so
+inputs 1–8 were each given a test pattern over AWJ (SMPTE, bars, grids;
+`DeviceObject/$input/@items/IN_n/pattern/control/@props/type`, `inhibit` false) to make eight
+real 256 × 144 pictures, input 3 a COLOR whose red was flipped for the timings, and all of it put
+back afterwards.
+
+**Why: the vendor's swap, not the link.** The Web RCS's `SnapshotManager` (6.2.73) asks for every
+input and output once a second, one after another (`MINIMUM_INTERVAL` 40 ms between asks),
+multiviewers and timers in parallel, and each ask points the `<img>` at a new URL
+(`?<epoch-ms>`). A browser handed a new `src` drops the load still in flight. So a thumbnail that
+takes more than a second is never drawn, and once a page's thumbnails together need more than the
+link carries, every load takes more than a second and **none is drawn at all**. Reproduced with a
+local relay holding the switcher's side to 400 KB/s, the app between it and the browser, Screens /
+Aux. open: eight inputs at 147,925 bytes, fifteen seconds, every load cut off at 1000 ms, 0 frames
+drawn, though the link could carry about three a second. On a LAN, or through the same tunnel
+without the cap, every frame arrives in about a round trip (~100 ms here) and it never shows.
+
+The LAN-with-Tailscale case wasn't reproduced. The likely road there is a subnet route: a tailnet
+that advertises the venue's subnet, accepted on the laptop, can carry traffic for the switcher
+through the subnet router instead of across the room. `route -n get <switcher address>` naming a
+`utun` interface would say so.
+
+**The C mini's own numbers** (`Last-Modified` and colour flips, fetched back to back from the
+far end of the tunnel):
+
+- Each fetch costs a round trip; about 30 a second over four connections (~4.4 MB/s).
+- `If-Modified-Since` is ignored (always a whole 200, no `ETag`, `cache-control: max-age=0`).
+- Inputs, outputs and multiviewers are rewritten every **~2.4 s** (gaps 2.2–2.6 s); timers every
+  1 s, as found on 2026-10-30. The vendor's 1 Hz poll therefore asks for each picture about 2.4
+  times, and a hot refresh faster than ~0.4 Hz fetches the same picture again on this box.
+- A test-pattern change reaches the input's thumbnail 2.7–3.8 s after the write; the multiviewer
+  shows it 0.15–2.3 s after, and the input's thumbnail trails the multiviewer by 0.8–1.0 s or
+  ~3.2 s. The pattern generator itself applies changes on the same ~2.4 s cycle.
+- The `MOVING` pattern renders black on an input with no signal, whatever its colour.
+- A multiviewer thumbnail is 110,996 bytes, a timer's 3866.
+
+**The fix: answer inside the second** (`server/snapshot-keeper.js`, always on; the Thumbnail
+relay does the same with its own frames). Each ask starts a fetch, or joins the one in flight,
+and waits up to 300 ms; if the switcher is slower, the page gets the last whole frame and the
+fetch carries on for the next ask. One fetch per source at a time, so the link is asked for what
+it can carry. Stills and library images aren't kept; a failed fetch, a non-picture answer or a
+frame older than 30 s isn't offered. Same page, same 400 KB/s: 15–16 of 16 URLs drawn per input
+in fifteen seconds, loads ~300 ms (the kept frame) or ~1 ms (shared), and a new frame per input
+every 2–8 s, which is the link's round of eight.
+
+**A thin link turns keep-alive into a race.** The switcher closes an idle socket five seconds
+(`Keep-Alive: timeout=5`) after it sent the last byte, which over the slow link reaches this end
+seconds later, so the agent can reuse a socket the switcher has already closed: about one fetch
+in two hundred reset that way (`ECONNRESET` on a reused socket). `fetchFrame` now tries once more
+on a socket of its own. The relay plugin uses the same fetch, and with it the keeper's 20-second
+idle limit in place of its old 3 seconds, which a frame over a thin link can exceed.
+
+**Rig artefact, not the switcher:** the bandwidth relay used here stalled the odd connection for
+20 s. The same probe straight through the tunnel: 480 fetches in 60 s, none failed.
+
+**Not done.** A thin leg between the browser and this app (a tablet over Remote access) is still
+cut at one second per picture: the keeper only makes this app quick. The Thumbnail relay's JPEG,
+a hundredth of the bytes for a flat picture, is the help there. A page-side fix would swap the
+`src` only once the last one has loaded, which means patching the vendor's `SnapshotManager`.
+Not run: the LAN-with-Tailscale case on a frame, a switcher with real input signal, a Pulse.

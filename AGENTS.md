@@ -168,9 +168,11 @@ Do not "simplify" any of these; each is load-bearing and each was verified.
   root-absolute, so path-preserving proxying needs no rewriting. The hashes
   change every firmware; a rewriter would be a permanent maintenance tax on a
   bundle nobody controls.
-- **Only `text/html` is ever buffered.** Everything else streams.
-  `GET /api/stores/device` is over 100 MB — collecting it would be absurd, and
-  it is not a document anyway.
+- **Only `text/html` is ever buffered** — and the source thumbnails the vendor
+  polls, which `server/snapshot-keeper.js` holds whole so it can hand them out
+  again (148 KB on a C mini; anything over 8 MB is passed on, not kept).
+  Everything else streams. `GET /api/stores/device` is over 100 MB —
+  collecting it would be absurd, and it is not a document anyway.
 - **Framing headers must be rewritten together.** The device serves documents
   **chunked**. Re-sending one whole means dropping both `transfer-encoding` and
   `content-encoding` and setting `content-length`; keeping `transfer-encoding`
@@ -2475,6 +2477,19 @@ no benefit. Read `wru` as "the panels".
 
 ## Load-bearing invariants
 
+- **A polled thumbnail is answered inside the vendor's second.** The Web RCS
+  points each source's `<img>` at a new URL about once a second, and a browser
+  drops a load still on its way, so a thumbnail slower than that is never
+  drawn — and once a page's thumbnails together need more than the link
+  carries, none is: an Aquilon C mini behind 400 KB/s drew nothing at all in
+  fifteen seconds (`docs/NOTES.md`, 2026-10-31). That is why thumbnails
+  vanished over Tailscale. `server/snapshot-keeper.js` waits on
+  the switcher for `waitMs` (300 ms) and then answers with the last whole frame
+  while the fetch carries on; the Thumbnail relay does the same with its own.
+  Never make a page wait past that for an input, output, multiviewer or timer
+  thumbnail. Never answer a still or a library image from an older frame (they
+  are drawn once per version), and never offer a frame after a failed fetch:
+  a dead link must not leave thumbnails that look live.
 - **`node --check` does not check ES modules.** It exits 0 on a file with an
   unbalanced argument list if the file also parses as CommonJS-ambiguous. It did
   exactly that here on a real error in the Timeline's panel, which only
@@ -2671,6 +2686,13 @@ UCenter, the routers), on any host, and fails the file with the stack that
 dialled. A pretend device goes on port 0 and its port is passed in; a device
 that is not there goes on port 1. A new test file goes in the script's list,
 after the `--import`.
+
+**Assert order, not a stopwatch.** macOS can hold a background `node --test`
+process's socket wake-ups to its next timer tick, a second late: a pretend
+switcher that answers in 1.5 s read 2.75 s, with the process idle in a CPU
+profile (2026-10-31, `snapshot-keeper.test.js`). Assert that the page was
+answered before the switcher sent, not that it took under so many
+milliseconds.
 
 `LPP_SIM=<host>:<port> npm run test:sim` — the live suite in `test/sim/`, against
 a running LivePremier simulator. It boots the real app (`createProxy`, as

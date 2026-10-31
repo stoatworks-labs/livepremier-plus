@@ -25,15 +25,9 @@ import http from 'node:http';
 import { normalise, ageLimit, SNAPSHOT_PATH, MAX_HOT } from './core.js';
 import { createRelay, createHotSet } from './relay.js';
 import { createEncoder } from './encoder.js';
+import { fetchFrame } from '../../server/snapshot-keeper.js';
 
 export const settings = { normalise };
-
-/* The switcher answers a thumbnail in tens of milliseconds; one that has not
-   in this long is not going to, and the vendor's next poll is due anyway. */
-const FETCH_TIMEOUT_MS = 3000;
-/* Headers from the page that the switcher may care about. Everything else —
-   `if-none-match` above all — is ours to answer, not the device's. */
-const FORWARD = ['cookie', 'authorization', 'user-agent', 'accept-language'];
 
 export default function activate(ctx) {
   /* Keep-alive, and a small pool: the device is a switcher, not a web
@@ -41,22 +35,17 @@ export default function activate(ctx) {
   const agent = new http.Agent({ keepAlive: true, maxSockets: 4 });
   const encoder = createEncoder({ settings: ctx.settings.get, log: ctx.log });
 
+  /* The proxy's own fetch: only the headers the switcher may care about go
+     on (`if-none-match` above all is ours to answer), a link that goes quiet
+     mid-frame is given up on, and a kept-alive socket the switcher closed as
+     it was reused is tried once more. Over a thin link a frame takes seconds,
+     not the tens of milliseconds it takes on a LAN. */
   function fetchFromDevice(path, headers) {
     const device = ctx.device();
     if (!device) return Promise.reject(new Error('no switcher configured'));
     const [host, port] = splitHostPort(device);
-    const out = { host: device };
-    for (const k of FORWARD) if (headers[k]) out[k] = headers[k];
-    return new Promise((resolve, reject) => {
-      const req = http.get({ host, port, path, agent, headers: out, timeout: FETCH_TIMEOUT_MS }, (res) => {
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
-        res.on('error', reject);
-      });
-      req.on('timeout', () => req.destroy(new Error(`no answer from ${device} in ${FETCH_TIMEOUT_MS} ms`)));
-      req.on('error', reject);
-    });
+    return fetchFrame({ target: { host, port }, hostHeader: device, path, headers, agent })
+      .then((r) => ({ status: r.status, headers: { 'content-type': r.type }, body: r.body }));
   }
 
   const hot = createHotSet();

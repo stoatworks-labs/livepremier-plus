@@ -338,6 +338,7 @@ output: where what you'd see is the point, that's said.
 | Lighting desk control | Preview | MagicQ PC and a pretend desk, against the simulator. |
 | grandMA3 | Preview | grandMA3 onPC against the simulator; no wing or desk. |
 | Desk (control surface) | In development | No desk exists yet; a pretend controller only. |
+| Thumbnails over a slow link | Tested | A C mini's test patterns through a 400 KB/s link: every input drawn every few seconds, where none was before. Not yet a frame on a LAN with Tailscale on. |
 | Thumbnail relay | Tested | A C mini: its output pictures went out at a hundredth of the bytes. |
 | Multiviewer thumbnails | Preview | Its test pattern on a C mini's real multiviewer layout; no real capture or stream yet. |
 | Background Slicer | Preview | Written to a C mini once and undone; not looked at on an output. |
@@ -425,6 +426,24 @@ because on a laptop the networks belong to whoever owns the laptop.
 > ⚠️ **Neither network is a login, and this app doesn't have one.** Everyone who can reach the
 > host can drive the switcher, so who can reach it belongs in the tailnet's ACLs or the ZeroTier
 > controller's rules. The README has the full table, and what to do in Docker.
+
+### A switcher at the far end of a slow link
+
+Over Tailscale, a VPN or a venue's uplink, the source thumbnails (about 150 KB each on an Aquilon
+C, every source once a second) can add up to more than the link carries. The Web RCS gives each
+picture a second to arrive before it asks for the next, so on its own it shows none at all. This
+app answers each one within a third of a second with the newest whole picture it has and goes on
+fetching behind it, so the thumbnails keep up as fast as the link allows: every few seconds rather
+than never. On a LAN nothing changes. A picture it can't vouch for (the switcher stopped
+answering, or it's more than 30 seconds old) isn't shown.
+
+That's the leg between this app and the switcher. If the browser is the far end, a tablet coming
+in over Remote access, that leg still carries every picture in full: switch the
+[Thumbnail relay](#thumbnail-relay-preview) on to send them as JPEGs.
+
+If it happens on the venue LAN with Tailscale switched on, Tailscale may be carrying the
+switcher's traffic through another machine on the tailnet: `route -n get <switcher address>`
+naming a `utun` interface says it is.
 
 ### Open it through the proxy, not at the switcher
 
@@ -2210,8 +2229,9 @@ save. A real frame's are tens of times the size.
 > On a real frame (Aquilon C mini, 6.2.73, 2026-10-30): with the Outputs page open, 8.25 MB came
 > from the switcher in 35 seconds and 186 KB went to the page. Each 147,925-byte output picture
 > went as a 1,199-byte JPEG, and the 411-byte placeholders of inputs with no signal went on as
-> they were, since a JPEG of them is bigger. That frame rewrites a thumbnail about once a second,
-> so a hot refresh faster than that just fetches the same picture again. `node tools/snapshot-probe.mjs --device <address>`,
+> they were, since a JPEG of them is bigger. That frame rewrites an input's or output's thumbnail
+> about every 2.4 seconds (a timer's every second), so a hot refresh much faster than that mostly
+> fetches the same picture again. `node tools/snapshot-probe.mjs --device <address>`,
 > run from a checkout of the repo, measures how fast that is, so run it against a moving source before raising **Hot refresh**. The
 > switcher still sends each thumbnail it's asked for in full; the saving is largest for a page on
 > another machine.

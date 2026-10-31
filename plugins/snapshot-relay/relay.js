@@ -40,6 +40,9 @@ import { isPng } from '../../server/image/png.js';
 
 /* A source nobody has asked about for this long is forgotten, frame and all. */
 const FORGET_MS = 60_000;
+/* As `server/snapshot-keeper.js`: well inside the vendor's one-second swap. */
+const WAIT_MS = 300;
+const STALE_MS = 30_000;
 /* Intervals between changes kept per source, for the median. */
 const INTERVALS = 20;
 
@@ -51,14 +54,17 @@ const INTERVALS = 20;
  * @param {() => {maxAgeMs: number}} opts.settings  read per request, for the default share window
  * @param {(path: string) => boolean} [opts.isHot]  only for the stats
  * @param {() => number} [opts.now]
+ * @param {number} [opts.waitMs]   how long a page with a kept frame waits on the switcher
+ * @param {number} [opts.staleMs]  how old a kept frame may be and still answer a slow fetch
  */
-export function createRelay({ fetch, transcode, settings, isHot = () => false, now = Date.now }) {
+export function createRelay({ fetch, transcode, settings, isHot = () => false, now = Date.now, waitMs = WAIT_MS, staleMs = STALE_MS }) {
   const entries = new Map();
   const totals = {
     requests: 0,        /* pages that asked */
     fetches: 0,         /* times the switcher was asked */
     shared: 0,          /* answered from a frame another request fetched */
     idle: 0,            /* answered from an older frame, the source being idle */
+    kept: 0,            /* answered from the last frame, the switcher being slower than waitMs */
     unchanged: 0,       /* fetched, and byte-identical to the frame before */
     encoded: 0,         /* transcodes run */
     encodeMs: 0,
@@ -125,7 +131,7 @@ export function createRelay({ fetch, transcode, settings, isHot = () => false, n
 
   /**
    * A snapshot for a page: `{ status, type, body, etag?, via }`, `via` saying
-   * where it came from — `fresh`, `shared`, `idle`, `unchanged` or
+   * where it came from — `fresh`, `shared`, `idle`, `kept`, `unchanged` or
    * `passthrough`. Throws only when the switcher could not be reached at all.
    *
    * @param {string} path     the vendor's path, no query
@@ -148,22 +154,47 @@ export function createRelay({ fetch, transcode, settings, isHot = () => false, n
       if (idle) totals.idle++; else totals.shared++;
       return answer({ ...e.out, via: idle ? 'idle' : 'shared' });
     }
-    if (e.inflight) {
-      totals.shared++;
-      const r = await e.inflight;
-      return answer({ ...r, via: 'shared' });
+
+    const kept = e.out && t - e.at <= staleMs ? e.out : null;
+    const joined = Boolean(e.inflight);
+    if (!joined) {
+      const before = e.seq;
+      e.inflight = refresh(e, headers)
+        .then((r) => ({ ...r, via: !r.kept ? 'passthrough' : (e.seq === before ? 'unchanged' : 'fresh') }), (err) => {
+          /* A switcher that cannot be reached must not leave a frozen
+             thumbnail that looks live. */
+          totals.errors++;
+          e.out = null;
+          e.raw = null;
+          throw err;
+        })
+        .finally(() => { e.inflight = null; });
+      /* The page may have been answered from the kept frame already. */
+      e.inflight.catch(() => {});
     }
-    const before = e.seq;
-    e.inflight = refresh(e, headers);
+
+    /*
+     * The vendor points a thumbnail at a new URL about once a second and the
+     * browser drops a load still on its way, so a page kept waiting longer
+     * than that never draws anything (see `server/snapshot-keeper.js`). With
+     * a frame in hand, a slow switcher is not waited on past `waitMs`.
+     */
+    const r = kept ? await within(e.inflight, waitMs) : await e.inflight;
+    if (!r) {
+      totals.kept++;
+      return answer({ ...kept, via: 'kept' });
+    }
+    if (joined) totals.shared++;
+    return answer({ ...r, via: joined ? 'shared' : r.via });
+  }
+
+  /** What `p` resolves to, or null if it has not by `ms`. */
+  async function within(p, ms) {
+    let timer;
     try {
-      const r = await e.inflight;
-      const via = !r.kept ? 'passthrough' : (e.seq === before ? 'unchanged' : 'fresh');
-      return answer({ ...r, via });
-    } catch (err) {
-      totals.errors++;
-      throw err;
+      return await Promise.race([p, new Promise((resolve) => { timer = setTimeout(resolve, ms, null); })]);
     } finally {
-      e.inflight = null;
+      clearTimeout(timer);
     }
   }
 

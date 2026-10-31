@@ -45,6 +45,7 @@ import { absentMedia } from './media-host.js';
 import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
 import { loopbackRedirect } from './local-client.js';
+import { createKeeper, keyOf, fetchFrame, KEPT_SNAPSHOT } from './snapshot-keeper.js';
 
 /** Where our own routes live. Namespaced so it cannot collide with a vendor path. */
 export const NS = '/__lpp';
@@ -192,6 +193,14 @@ export async function createProxy({
   catch { version = null; }
 
   const state = { device: target ? `${target.host}:${target.port}` : null, clients: 0, upstreamError: null, version };
+
+  /*
+   * Source thumbnails, answered in time when the switcher is a slow link away
+   * (`server/snapshot-keeper.js`). Its own sockets, as many as a browser would
+   * open: the keeper never has more than one fetch per source on its way.
+   */
+  const keeper = createKeeper();
+  const snapshotAgent = new http.Agent({ keepAlive: true, maxSockets: 6 });
 
   /*
    * The plugin host — see `server/plugin-host.js`.
@@ -499,6 +508,7 @@ export async function createProxy({
            opposite of what each of them promises about a failover. The last
            two are plugins now, and the host keeps them running. */
         hangUpVendorRelays();
+        keeper.clear();
         target = next;
         state.device = `${next.host}:${next.port}`;
         state.upstreamError = null;
@@ -648,7 +658,8 @@ export async function createProxy({
      * Source thumbnails, when a plugin offers to answer them — the `snapshots`
      * service, which the Thumbnail relay provides while it is on. It answers
      * false for anything it will not take, and then the request is relayed
-     * exactly as if it had never been asked; with no provider, it never is.
+     * exactly as if it had never been asked. With no provider, the ones the
+     * vendor polls go through the keeper, and the rest are relayed.
      */
     if (req.method === 'GET' && url.pathname.startsWith('/api/device/snapshots/')) {
       const snapshots = host.use('snapshots');
@@ -658,10 +669,42 @@ export async function createProxy({
           .then((served) => { if (!served && !res.headersSent) proxyHttp(req, res, url); });
         return;
       }
+      if (KEPT_SNAPSHOT.test(url.pathname)) {
+        serveKept(req, res, url);
+        return;
+      }
     }
 
     proxyHttp(req, res, url);
   };
+
+  /*
+   * A polled thumbnail: in time, from the last whole frame when the switcher
+   * is slow. A switcher that cannot be reached goes to `proxyHttp`, which
+   * tries once more and reports it the way it reports everything else.
+   */
+  function serveKept(req, res, url) {
+    const here = target;
+    const device = state.device;
+    keeper.get(keyOf(device, url.pathname, req.headers), () => fetchFrame({
+      target: here, hostHeader: device, path: req.url, headers: req.headers, agent: snapshotAgent
+    })).then((r) => {
+      /* The page may have moved on to the next URL while it waited. */
+      if (res.headersSent || res.destroyed) return;
+      const headers = {
+        'content-type': r.type,
+        'content-length': r.body.length,
+        /* The vendor cache-busts every ask itself. */
+        'cache-control': 'no-store',
+        'x-lpp-snapshot': r.via
+      };
+      if (r.lastModified) headers['last-modified'] = r.lastModified;
+      res.writeHead(r.status, headers);
+      res.end(r.body);
+    }, () => {
+      if (!res.headersSent && !res.destroyed) proxyHttp(req, res, url);
+    });
+  }
   const server = http.createServer(onRequest);
 
   /*
@@ -767,6 +810,8 @@ export async function createProxy({
 
   server.closeRelays = () => {
     hangUpVendorRelays();
+    keeper.clear();
+    snapshotAgent.destroy();
     for (const door of doors) { door.closeAllConnections?.(); door.close(); }
     doors.clear();
 

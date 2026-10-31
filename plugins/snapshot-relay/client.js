@@ -83,6 +83,7 @@ export default function activate(ctx) {
       readout('Saved', `${Math.round(saved * 100)} %`, { tone: saved > 0.5 ? null : 'tertiary' }),
       readout('Shared', String(s.shared)),
       readout('Held (idle)', String(s.idle || 0)),
+      readout('Held (slow switcher)', String(s.kept || 0), { tone: s.kept ? 'warn' : null }),
       readout('Unchanged', String(s.unchanged)),
       readout('Encode', s.encoded ? `${(s.encodeMs / s.encoded).toFixed(1)} ms` : '—'),
       readout('Passed through', String(s.passthrough), { tone: s.passthrough ? 'warn' : null }),
