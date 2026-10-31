@@ -76,6 +76,8 @@ export default function activate(ctx) {
 
   ctx.provide('locks', Object.freeze({
     list: () => lockPanel.list(),
+    /** `['S1/2', …]` locked or unlocked, saved and lined up as the panel's buttons do. */
+    set: (keys, on) => lockPanel.setKeys(keys, on),
     takeOnly: (targets, opts) => engine.takeOnly(targets, opts)
   }));
 

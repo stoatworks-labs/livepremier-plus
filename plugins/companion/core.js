@@ -218,6 +218,9 @@ export const MODULES = {
     product: 'LivePremier Plus',
     label: 'LivePremier Plus',
     what: 'This app — cue stack, timeline, layer groups, matrix routing.',
+    /* Not in Companion's module store, so a Companion that lacks it is told
+       where the package is. It talks to the Control API plugin. */
+    download: 'https://github.com/stoatworks-labs/companion-module-livepremier-plus/releases/latest',
     /* Pointed at us, not at the switcher. `facts.self` is the address this
        process is reachable on, which is not always the one the browser used
        to get here — see `selfAddress` in `server/plugin-host.js`. */

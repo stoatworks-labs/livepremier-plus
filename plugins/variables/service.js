@@ -205,6 +205,17 @@ export function createVariables({ store, load, save, log = {}, now = () => Date.
     resolver: () => evaluator().resolver,
     /** Arithmetic over numbers and variables — `$S1.width/2` — as a field would. */
     evaluate: (text) => evaluate(text, { resolve: evaluator().resolver }),
+    /**
+     * Give `@name` a new definition, adding it when there is none — what the
+     * Control API's `variables.set` does. A sentence when refused, else null.
+     */
+    define(name, value) {
+      const bare = String(name ?? '').trim().replace(/^@/, '');
+      const row = doc.variables.find((v) => v.name.toLowerCase() === bare.toLowerCase());
+      if (row) return update(row.id, { value });
+      const added = add({ name: bare, value });
+      return added.error || null;
+    },
     /** Hear the user's variables change. Answers its own unsubscribe. */
     onChange(fn) {
       listeners.add(fn);

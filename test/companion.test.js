@@ -55,6 +55,7 @@ import {
   request,
   stopRequest,
 } from '../plugins/companion/core.js';
+import { addConnections } from '../plugins/companion/link.js';
 import { NLC, MNG } from '../src/core/dialect.js';
 
 /* ------------------------------------------------------------- the settings */
@@ -367,6 +368,28 @@ test('pickVersion says null for a module that is not installed', () => {
 
 /* ---------------------------------------------------------------- the surface */
 
+
+test('a Companion without our module is told where to download it', async () => {
+  /* Companion's module store does not carry ours, so "not installed" is the
+     usual answer for it and the note has to say where the package is. The
+     store's own modules keep the Modules > Manage wording. */
+  const link = {
+    ws: { open: true },
+    subscribe: (_method, _input, cb) => {
+      queueMicrotask(() => cb({ type: 'init', info: {} }));
+      return () => {};
+    },
+    call: async () => { throw new Error('nothing is installed, so nothing is added'); },
+  };
+  const results = await addConnections(link, planned([]), {}, null, null);
+  const ours = results.find((r) => /livepremier-plus/.test(r.note));
+  assert.ok(ours, 'a note names our module');
+  assert.match(ours.note, /github\.com\/stoatworks-labs\/companion-module-livepremier-plus\/releases\/latest/);
+  assert.match(ours.note, /Import module package/);
+  const awj = results.find((r) => /analogway-awj/.test(r.note));
+  assert.match(awj.note, /Modules > Manage/);
+  assert.ok(results.every((r) => r.ok === false));
+});
 test('a page is walked in reading order, and a location prints stably', () => {
   const grid = pageGrid(1, { rows: 2, columns: 3 });
   assert.equal(grid.length, 6);

@@ -314,6 +314,11 @@ export function createLockPanel({
     load,
     busy: () => view.running,
     list: () => doc.locks,
+    /** Lock or unlock these `S1/2` keys, as the panel's own buttons do. */
+    setKeys(keys, on) {
+      const set = new Set(keys);
+      setLocks(on ? [...doc.locks, ...keys.filter((k) => !doc.locks.includes(k))] : doc.locks.filter((k) => !set.has(k)), 'locked');
+    },
     /** One line of what the engine last did, so the panel shows it working. */
     reportActivity(r) {
       if (!r) return;

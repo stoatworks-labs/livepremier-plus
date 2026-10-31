@@ -3933,3 +3933,34 @@ replayed bytes do the same in `test/sim/grandma3.sim.test.js`.
 
 **Not seen:** a wing (its faders' via 3 and their message rate), a desk, Windows onPC, any other
 grandMA3 version, a real network.
+
+## Control API and the Companion module (2026-10-31, simulator and a headless Companion only)
+
+The new **Control API** plugin (`plugins/control/`, contract in `docs/CONTROL.md`) lets something
+outside a browser run what lives in the page: the Timeline, Timecode chase, Layer Lock, Send to,
+the Console and `@variables`. Its first client is
+[companion-module-livepremier-plus](https://github.com/stoatworks-labs/companion-module-livepremier-plus),
+released as v0.1.0 and then v0.1.1 (the Restore key reads PUT BACK; RESTORE wrapped mid-word on
+a 72-pixel key even at auto size).
+
+Run from a headless Companion 5.0.7 with its own config folder, against the rack simulator and
+`tools/hyperdeck-sim.mjs`, with a Web RCS page open through this app:
+
+- The Companion panel found the module, added the connection and pointed it back here. The
+  released package installed through Companion's import (`installModuleTar`) into a clean
+  Companion and went green.
+- Presets imported and pressed: GO, Back, Skip, Top, fire, chase, lock / unlock, Take only, Send
+  to, Restore all, router crosspoints, HyperDeck play / stop / next. Variables read back over
+  Companion's HTTP API, feedback colours checked on the rendered buttons.
+- **A tab in the background lost the lease.** A browser throttles a hidden tab's timers to about
+  one a minute, so the page's 4-second beat missed its 12-second lease within about fifteen
+  seconds and every key was refused. The lease is now held for as long as the page's `/stream`
+  is open, and handed to the oldest open page the moment the holder's stream closes; the beat is
+  a fallback. Re-run with the tab hidden for 75 seconds: every key still worked.
+- `variables.set` with `gap * 2` (no `@`) was accepted silently, as the Variables panel accepts
+  it. The page now answers with the row as evaluated, `{name, value, error}`, and the module logs
+  the error.
+- A Companion without the module is now told where to download it rather than to look in
+  Modules > Manage, which doesn't carry it.
+
+Not run: a real frame, a real HyperDeck, a Stream Deck, Companion on another computer.

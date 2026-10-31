@@ -73,6 +73,11 @@ export default async function activate(ctx) {
     /** Fire one cue now, wherever the standby is — what a chase does. */
     fire: (id) => { const cue = find(id); if (cue) stack.fire(cue); return Boolean(cue); },
     get standby() { return stack.standby ? { ...stack.standby } : null; },
+    /** A pre-wait or follow is counting down. */
+    get running() { return stack.running; },
+    get name() { return stack.name; },
+    /** Cue ids held until a take lands (Preview lock). */
+    waiting: () => stack.waiting,
     cues: () => stack.cues.map((c) => ({ ...c, actions: c.actions.map((a) => ({ ...a })) })),
     addEventListener: (...a) => stack.addEventListener(...a),
     removeEventListener: (...a) => stack.removeEventListener(...a)

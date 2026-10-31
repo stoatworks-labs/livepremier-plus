@@ -97,7 +97,7 @@ function renders(name, panel) {
 const noStorage = { load: async () => null, save: async () => {} };
 
 /** Page halves that put nothing in the sidebar or on a strip. */
-const DECORATIONS = new Set(['arithmetic', 'layer-names', 'send-to', 'edid-mosaic', 'edid-names', 'edid', 'aux-backgrounds', 'aoi-format', 'image-library', 'test-card']);
+const DECORATIONS = new Set(['arithmetic', 'layer-names', 'send-to', 'edid-mosaic', 'edid-names', 'edid', 'aux-backgrounds', 'aoi-format', 'image-library', 'test-card', 'control']);
 
 for (const [storeName, makeStore] of Object.entries(STORES)) {
   test(`every panel in src/ui renders against ${storeName === 'empty' ? 'an empty store' : 'the simulator’s store'}`, async () => {
@@ -176,8 +176,9 @@ for (const [storeName, makeStore] of Object.entries(STORES)) {
         };
         await activate(ctx);
         /* Field arithmetic and the layer names decorate the vendor's own
-           page, and the names, Mosaic inputs and Plug names are services:
-           none of them registers an entry. */
+           page, the names, Mosaic inputs and Plug names are services, and the
+           Control API's only face is its routes: none of them registers an
+           entry. */
         if (!DECORATIONS.has(id)) assert.ok(registered.length, `${id} registered nothing`);
         for (const entry of registered) renders(`${id}’s ${entry.id || 'entry'}`, entry);
       }

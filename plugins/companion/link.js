@@ -448,9 +448,10 @@ export async function addConnections(link, plan, facts, want, target) {
    *
    * Read before anything is created, because `add` needs a real version
    * string — see `pickVersion`. It also answers the question the schema error
-   * cannot: whether the module is installed at all. Our own module is not on
-   * anybody's Companion yet, so that is the *expected* answer for it, and it
-   * deserves a sentence rather than a validation failure. */
+   * cannot: whether the module is installed at all. Our own module is not in
+   * Companion's module store, so on a Companion nobody has imported it into
+   * that is the *expected* answer for it, and it deserves a sentence that says
+   * where to get it rather than a validation failure. */
   let modules = {};
   let modulesError = null;
   try {
@@ -478,7 +479,9 @@ export async function addConnections(link, plan, facts, want, target) {
         note: modulesError
           ? `could not read Companion's module list: ${modulesError}`
           : `Companion has no “${spec.moduleId}” module installed. Install it in Companion first — `
-            + 'Modules > Manage, or by importing its package.',
+            + (spec.download
+              ? `download it from ${spec.download} and use Import module package under Modules.`
+              : 'Modules > Manage, or by importing its package.'),
       });
       continue;
     }

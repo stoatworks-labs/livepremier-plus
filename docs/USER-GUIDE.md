@@ -64,6 +64,10 @@ than something bolted on.
   a Companion trigger on cues and memory recalls, its own editor on the same address as Web RCS,
   and a panel that knows which switcher you're on and offers to add the connections that belong
   in the show.
+- **Control API** *(preview, off by default)*: Companion, through the LivePremier Plus module,
+  or anything else that speaks HTTP runs the Timeline, Layer Lock, Send to, the Console and your
+  variables, and hears which cue is standing by. GO on a Stream Deck key with the next cue's name
+  written on it. Off until you switch it on.
 - **Dante** *(preview)*: the Dante audio network's routing as a crosspoint grid next to the
   switcher it feeds, with snapshots and Dante Controller presets in and out. Off until you
   switch it on.
@@ -309,7 +313,8 @@ output: where what you'd see is the point, that's said.
 | HyperDecks | Preview | A real Mitti; an emulated HyperDeck, not a real one. |
 | Triggers | Preview | Pretend receivers only. |
 | Dante | Preview | A simulated network only. |
-| Companion | Tested | A running Companion 5.0.5. The LivePremier Plus connection waits on a Companion module. |
+| Companion | Tested | A running Companion 5.0.5; the LivePremier Plus connection added and pointed by the panel in 5.0.7. |
+| Control API and the Companion module | Preview | Companion 5.0.7 against the simulator and an emulated HyperDeck; not yet with a frame or a Stream Deck. |
 | EDID builder | Tested | Saving to the bank and From Formats on a C mini. |
 | Mosaic inputs | Preview | Grouping and the tiles on a C mini; no Mac has bonded its outputs through it yet. |
 | Plug names | Preview | On a C mini, read back; no computer has been plugged in to see the name. |
@@ -1623,13 +1628,75 @@ What it does with them is an **offer, never a sync**:
   and **Add … to the show** creates it and configures it for the switcher you're on. Nothing is
   written until you press it.
 
-> **The LivePremier Plus connection can't be added yet.** It needs a LivePremier Plus module in
-> Companion, and there isn't one yet; the panel says so in those words. The AWJ connection works
-> today.
+> **The LivePremier Plus connection needs its module installed in Companion first**, and the
+> Control API switched on here. Without the module, the panel says so in those words and adds
+> nothing. See *The LivePremier Plus module* below.
 
 **If you opened this app on 127.0.0.1**, that's the address the LivePremier Plus connection would
 be given, and a Companion on another machine can't dial it. The panel warns you. Open this app by
 its network address first if Companion is somewhere else.
+
+### The LivePremier Plus module
+
+The AWJ module drives the switcher. **The LivePremier Plus module** drives what this app adds to
+it: GO on the Timeline with the standby cue written on the key, Layer Lock, Send to a layer
+group, Matrix Routing, HyperDecks, Triggers, the Console and your `@variables`. It never sets a
+source or takes a screen; that's AWJ's job, and two connections that can both do it is a show
+where nobody knows which one last did.
+
+![The LivePremier Plus module's presets on Companion 5.0.7: GO with the standby cue on the key, cue 2 amber as the standby and cue 1 red as the one fired last, screen 1's layer 1 locked, an input sent to a layer, a router crosspoint lit, and a HyperDeck playing with its time left](screenshots/companion-module.png)
+
+**Installing it.** It isn't in Companion's own module list, so it comes as a file:
+
+1. Download `companion-module-livepremier-plus-pkg.tgz` from the module's
+   [latest release](https://github.com/stoatworks-labs/companion-module-livepremier-plus/releases/latest).
+   Don't unpack it.
+2. In Companion (5.0 or newer), open **Modules**, press **Import module package** and pick the
+   file. It's listed as **Stoatworks Labs: LivePremier Plus**.
+3. Here, switch on **Control API** in Preconfig ▸ LivePremier Plus → Plugins. It's off until you
+   do, because it lets anything that can reach this app press GO.
+4. Back in this panel, press **Add both to the show** (or **Only LivePremier Plus**), or **Add it
+   to the show** when the show already has its AWJ connection. It's created, pointed back at this
+   app's address, and goes green once it's talking to it.
+
+You can add it by hand in Companion instead: the address is this computer's (`127.0.0.1` when
+Companion runs on it too) and the port is this app's, 8535 unless you've changed it. **Companion
+on another computer** needs this app started with `--host 0.0.0.0` (or a LAN address), and that
+widens who can reach everything else here too; read *On binding wide* first.
+
+**Keep a page open.** The Timeline, Layer Lock, Send to, the Console and variables live in the
+Web RCS page, because that's where this app keeps the show, so a key for any of them is run by
+an open page. Leave Web RCS open through this app on the show machine. A tab in the background
+is fine. With several open, the first one runs Companion's keys and the others wait; close it and
+the next takes over at once. With none open, the connection goes amber and says why, GO greys
+out on the preset, and a key pressed meanwhile is refused with a line in Companion's log rather
+than quietly doing nothing. Matrix, HyperDeck, Triggers and plugin keys don't need a page.
+
+**What's on it**, in Companion's own lists once the connection is added:
+
+- **Actions:** the Timeline's GO, Back, Skip forward, Back to the top and Stop; a cue made the
+  standby, or fired, by its number; Timecode chase; a Console line; Layer Lock's lock, unlock and
+  Take only; Send a source to a layer or a group; set a variable; a router crosspoint, or a
+  switcher input fed and output sent through the patch; HyperDeck transport; a trigger's lines,
+  and Restore all; any plugin address; a plugin switched on or off.
+- **Feedbacks:** this cue is the standby, this cue fired last, a pre-wait counting down, a cue
+  waiting for a take, chase armed, timecode arriving, a layer or group locked, a crosspoint
+  routed, a deck playing or recording, triggers holding something, a plugin on, a page open.
+  Each is off until this app has said so, so a key never lights on a guess.
+- **Variables:** the standby, next, previous and last cues' numbers and names, the stack's name
+  and size, chase and the timecode, the locks, what Triggers is holding, every `@variable` as
+  `var_<name>`, and each HyperDeck's state, clip and time left.
+- **Presets:** GO with the standby cue on it, the Timeline's other keys, fire and standby keys
+  for cues 1–12, locks and Take only, inputs sent to a layer, the first router's crosspoints,
+  each deck's transport and Restore all. Drag them on and change what you need.
+
+A cue number is the one the Timeline shows (`3`, `3.5`, `12a`); a layer is `S1/2` (screen 1,
+layer 2) or `A1/1` for an aux, or give a layer group's name. When this app refuses something,
+Companion's log says why in the same words you'd see here: "there is no cue 9", "PGM is locked
+on S1".
+
+The HTTP the module speaks is in [docs/CONTROL.md](CONTROL.md), for anything else you'd like to
+drive the Timeline with.
 
 ### Buttons
 

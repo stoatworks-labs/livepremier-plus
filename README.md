@@ -157,6 +157,14 @@ bolted on afterwards:
   port and no CORS. A panel lists the show's actual connections, follows them live, and offers to
   add the AWJ and LivePremier Plus connections pointed at whichever switcher you're on, telling
   you what it'll create before it does.
+- **The LivePremier Plus Companion module** *(preview)*: the
+  [module](https://github.com/stoatworks-labs/companion-module-livepremier-plus) that puts this
+  app on Stream Deck keys: GO with the next cue's name written on it, Back, Stop and fire-a-cue,
+  Layer Lock and Take only, Send to a layer group, matrix crosspoints, HyperDeck transport,
+  Triggers, the Console and your variables, with feedbacks that light only on what this app has
+  actually said. It talks to the **Control API** plugin (off until you switch it on), which hands
+  each press to the open Web RCS page, so the Timeline runs where the show is. The AWJ module
+  still drives the switcher itself; the Companion panel adds both.
 - **Pitch Compensation:** a screen spanning LED walls of different pixel pitches needs H and V
   ratios per output. The device has the fields for them and no help whatsoever filling them in.
   Give this the pitches and it reads everything else off the switcher, then writes the ratios on
@@ -316,6 +324,16 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > memory import and no upload route for one. That's why the preview route exists as well (it's
 > also the only route on Midra 4K and Alta 4K, whose banks have no import at all), and why the
 > directory is a setting rather than a constant.
+>
+> **The Control API and the LivePremier Plus Companion module were driven on 2026-10-31**, from
+> a headless Companion 5.0.7 against the rack simulator and the HyperDeck simulator, with a Web
+> RCS page open through this app. The Companion panel found the module, added the connection and
+> pointed it back here; the released package installed through Companion's own import. Preset
+> keys were pressed and their variables read back: GO, Back, Skip, Top, fire, chase, lock and
+> Take only, Send to, Restore all, router crosspoints and HyperDeck transport, with the feedback
+> colours checked on the rendered buttons. With the page's tab in the background for over a
+> minute, every key still worked, which is why the lease is now held by the page's open stream
+> rather than only by its beat. No frame, no real HyperDeck and no Stream Deck yet.
 >
 > **Companion was driven against a running Companion 5.0.5 and a LivePremier simulator on
 > 2026-09-22.** The mounted Buttons page loaded same-origin with its grid drawn and one socket

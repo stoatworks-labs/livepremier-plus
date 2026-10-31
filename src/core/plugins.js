@@ -72,6 +72,16 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'control',
+    name: 'Control API',
+    where: 'No panel: routes under /__lpp/control, for the LivePremier Plus Companion module',
+    description: 'Companion, or anything that speaks HTTP, runs the Timeline, Layer Lock, Layer Groups, the Console and your variables through the open page, and hears which cue is standing by.',
+    /* Off until it has been used on a show: it lets another machine GO the stack. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'vpu-map',
     name: 'VPU Map',
     where: 'Sidebar, under PLUS',
