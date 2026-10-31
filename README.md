@@ -297,7 +297,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.8.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
+> **Status: field testing, v0.18.9.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
 > user guide says, feature by feature, what has met real hardware and what hasn't. The panels
 > render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
@@ -431,6 +431,16 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.9 (2026-10-31).** Source thumbnails come back over a slow link. The Web RCS gives each
+> thumbnail a second to arrive before it asks for the next, so over Tailscale, a VPN or a venue's
+> uplink, once a page's thumbnails added up to more than the link carried, none was ever drawn.
+> This app now answers each one within 300 ms with the newest whole picture it has and keeps
+> fetching behind it. On an Aquilon C mini behind a 400 KB/s link, eight inputs went from not one
+> frame in fifteen seconds to all of them drawing, each new every few seconds. The Thumbnail relay
+> holds its pictures the same way. Measured on the way: a C mini rewrites its input, output and
+> multiviewer thumbnails every ~2.4 seconds, so asking more often than the vendor already does
+> buys nothing. `docs/NOTES.md` has the runs.
 >
 > **0.18.8 (2026-10-31).** Two new ways in from the rest of the rig, both off by default and
 > previews. The **Control API** lets something outside a browser run the Timeline, Layer Lock,

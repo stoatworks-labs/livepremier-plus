@@ -175,6 +175,12 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.18.9 brings the source thumbnails back over a slow link.** Over Tailscale, a VPN or a
+> venue's uplink they could vanish altogether; now they keep up as fast as the link allows. [A
+> switcher at the far end of a slow link](#a-switcher-at-the-far-end-of-a-slow-link) has the
+> detail. Run on an Aquilon C mini behind a 400 KB/s link; not yet on a frame on a LAN with
+> Tailscale switched on.
+>
 > **0.18.8 adds the Control API and gives the lighting desk more to look at**, all off by default
 > and previews. The **Control API** is how Companion runs the Timeline, Layer Lock, Send to, the
 > Console and your variables: install [the LivePremier Plus module](#the-livepremier-plus-module)
@@ -282,7 +288,7 @@ connection of their own when they act, which is worth knowing, because the switc
 
 ## Feature status
 
-Where each feature stands, as of 0.18.8. Three words, used the same way everywhere:
+Where each feature stands, as of 0.18.9. Three words, used the same way everywhere:
 
 - **Tested**: run on the real hardware it's for (a LivePremier frame, or the panel, network or
   program it talks to), every write read back from the switcher, and it did what this guide
