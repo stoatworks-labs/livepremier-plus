@@ -178,7 +178,7 @@ export class DeskSupervisor extends EventEmitter {
     this.history = [];
     this.counts = {
       artnet: 0, sacn: 0, refused: 0, own: 0, polls: 0, timecode: 0, bursts: 0, written: 0, held: 0, dropped: 0,
-      takes: 0, fired: 0, echoes: 0,
+      takes: 0, fired: 0, echoes: 0, watched: 0,
     };
   }
 
@@ -935,6 +935,7 @@ export class DeskSupervisor extends EventEmitter {
         const take = this.#takeWatch.observe(id, readings.get(id) || null);
         if (take) this.#onTake(take);
       }
+      this.counts.watched++;
     } catch (err) {
       this.#takeWatch.clear();
       this.#error(`watching the switcher for takes: ${err.message}`);

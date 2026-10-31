@@ -919,7 +919,8 @@ test('supervisor: a take from elsewhere fires the rule’s trigger, a desk’s o
     store: [[memoryOf('A'), 7], [memoryOf('B'), 2], [memoryOf('C'), 0]],
   });
   try {
-    await sleep(80);
+    /* The watch’s first reading of a screen is its baseline: a take before it is not seen. */
+    await until(() => b.sup.counts.watched >= 1, 2000, 'the watch’s first reading');
     assert.deepEqual(b.sup.describe().feedback.watching, ['S1']);
     assert.deepEqual(b.sup.describe().feedback.triggers, [{ id: 'vt', name: 'VT state' }]);
 
@@ -945,7 +946,7 @@ test('supervisor: a take from elsewhere fires the rule’s trigger, a desk’s o
     /* And one from elsewhere after it fires again. */
     await sleep(600);
     b.set(NLC.takeStatus('S1', 'transition'), 'AT_DOWN');
-    await sleep(100);
+    await until(() => b.sup.describe().counts.takes === 4, 2000, 'the take back');
     b.set(NLC.takeStatus('S1', 'transition'), 'AT_UP');
     await until(() => fires.length === 2, 2000, 'the trigger again');
   } finally { await b.close(); }
@@ -958,7 +959,7 @@ test('supervisor: the watch runs with no desk listened to, and says so when the 
   });
   try {
     assert.equal(b.sup.bound.artnet, null, 'no desk: no Art-Net port');
-    await sleep(80);
+    await until(() => b.sup.counts.watched >= 1, 2000, 'the watch’s first reading');
     b.set(NLC.takeStatus('S1', 'transition'), 'AT_UP');
     await until(() => b.sup.history.some((e) => /Triggers plugin is off/.test(e.error || '')), 2000, 'the warning');
     await b.sup.apply(normaliseDesk({ deskFeedback: false, deskFeedbackRules: [{ destination: 'S1', trigger: 'vt' }] }));
