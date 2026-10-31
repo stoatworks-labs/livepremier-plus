@@ -175,6 +175,14 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.18.8 adds the Control API and gives the lighting desk more to look at**, all off by default
+> and previews. The **Control API** is how Companion runs the Timeline, Layer Lock, Send to, the
+> Console and your variables: install [the LivePremier Plus module](#the-livepremier-plus-module)
+> and keep a Web RCS page open, in a background tab if you like. **Lighting desk control** now
+> hands the desk the patch as an MVR file, ready-made Titan and grandMA2 fixture files, the
+> switcher as a CITP media server and, in the desktop app, NDI pictures of each screen. Run
+> against the simulator, MagicQ PC and a headless Companion; not yet on a frame.
+>
 > **0.18.7 is a day on a real frame, and what it found.** Almost every panel ran on an Aquilon C
 > mini, preconfig included, and [Feature status](#feature-status) now says, per feature, what has
 > met real hardware. Fixed on the way: the Timeline's new-cue form kept losing what was typed; a
@@ -274,7 +282,7 @@ connection of their own when they act, which is worth knowing, because the switc
 
 ## Feature status
 
-Where each feature stands, as of 0.18.7. Three words, used the same way everywhere:
+Where each feature stands, as of 0.18.8. Three words, used the same way everywhere:
 
 - **Tested**: run on the real hardware it's for (a LivePremier frame, or the panel, network or
   program it talks to), every write read back from the switcher, and it did what this guide

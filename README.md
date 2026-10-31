@@ -297,7 +297,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.7.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
+> **Status: field testing, v0.18.8.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
 > user guide says, feature by feature, what has met real hardware and what hasn't. The panels
 > render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
@@ -431,6 +431,19 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.8 (2026-10-31).** Two new ways in from the rest of the rig, both off by default and
+> previews. The **Control API** lets something outside a browser run the Timeline, Layer Lock,
+> Send to, the Console and your variables in the open Web RCS page, and its first client is the
+> [LivePremier Plus Companion module](https://github.com/stoatworks-labs/companion-module-livepremier-plus):
+> GO with the next cue written on the key, in a page that can sit in a background tab.
+> **Lighting desk control** grows a desk's side of the conversation: the patch as an MVR file,
+> ready-made Titan `.d4` and grandMA2 fixture files, the switcher as a CITP media server (sources
+> with thumbnails, what each layer has in program, input previews) and, in the desktop app, NDI
+> pictures of each screen. MagicQ PC imported the MVR and listed the sources over CITP; its demo
+> lists the NDI feeds but wants a full unlock to show them. A desk connecting while the switcher
+> is being read no longer drops the link. Run against the simulator and a headless Companion 5.0.7;
+> no frame, Stream Deck, Titan or grandMA2 yet. `docs/NOTES.md` has every run.
 >
 > **0.18.7 (2026-10-30).** A day on a real frame. Almost every panel ran on an Aquilon C mini,
 > preconfig included, and the user guide's [Feature status](docs/USER-GUIDE.md#feature-status)
