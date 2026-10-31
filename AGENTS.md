@@ -2490,6 +2490,18 @@ no benefit. Read `wru` as "the panels".
   thumbnail. Never answer a still or a library image from an older frame (they
   are drawn once per version), and never offer a frame after a failed fetch:
   a dead link must not leave thumbnails that look live.
+- **The browser's own leg has the same cliff, and the page holds the URL
+  back.** Slow-link thumbnails (`plugins/thumbnail-hold/hold.js`) wraps
+  `HTMLImageElement.prototype`'s `setAttribute` and `src`: a new URL for a
+  polled thumbnail whose last one is still loading (`!img.complete`) is kept,
+  and the newest goes in on that load's `load` or `error`. ⚠️ Not a
+  MutationObserver: by the time one runs the browser has the URL (Chrome has
+  queued the load, WebKit has sent it), and undoing it leans on each engine's
+  image cache. Only a newer frame of the **same path** waits; every other
+  write goes straight in and drops what was kept, or a held URL lands on a
+  re-pointed card, a still, or Multiviewer thumbnails' `blob:`. A load older
+  than 30 s is given up on at the next URL. 32 inputs behind 400 KB/s went
+  from 0 drawn to 100 loads in 30 s (`docs/NOTES.md`, same day).
 - **`node --check` does not check ES modules.** It exits 0 on a file with an
   unbalanced argument list if the file also parses as CommonJS-ambiguous. It did
   exactly that here on a real error in the Timeline's panel, which only

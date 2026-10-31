@@ -223,6 +223,10 @@ bolted on afterwards:
   and moves the switcher hasn't got, like a wipe across a whole screen), and **Aux backgrounds**
   (a still or an input on an aux's background). Layer Lock's take-only gets its own time and
   effect too. For a simulator or a spare box, not a show.
+- **Slow-link thumbnails**: a source thumbnail keeps its last picture until the next has finished
+  arriving, instead of starting again every second, so a browser on a slow link (a tablet over
+  Remote access) still draws them. On the simulator behind a 400 KB/s link, 32 inputs went from
+  none drawn to every one redrawn every nine or ten seconds. On a LAN nothing changes.
 - **Thumbnail relay** *(preview, off by default)*: the switcher's source thumbnails re-encoded
   as JPEG and shared between pages. That's a twentieth or less of the bytes the vendor's pages
   would otherwise pull, and every Web RCS tab gets it without a change to the vendor's code. On an

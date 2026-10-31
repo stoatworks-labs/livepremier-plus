@@ -463,6 +463,15 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'thumbnail-hold',
+    name: 'Slow-link thumbnails',
+    where: 'Every source thumbnail',
+    description: 'A source thumbnail keeps its last picture until the next has finished arriving, instead of starting again every second, so a page on a slow link (a tablet over Remote access) still draws them. Changes nothing on a LAN.',
+    /* On by default: on a LAN no load is still on its way when the next URL
+       comes, so it holds nothing back, and it never talks to the switcher. */
+    client: 'client.js'
+  },
+  {
     id: 'snapshot-relay',
     name: 'Thumbnail relay',
     where: 'Settings (preview), and every source thumbnail',

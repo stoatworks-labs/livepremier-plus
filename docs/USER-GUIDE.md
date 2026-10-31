@@ -113,6 +113,9 @@ than something bolted on.
   from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a
   Keynote deck becomes a background set per page, or a still per page at any size. Off until you
   switch it on.
+- **Slow-link thumbnails:** a source thumbnail keeps its last picture until the next has finished
+  arriving, so a browser on a slow link (a tablet over Remote access) still draws them. On by
+  default; on a LAN nothing changes.
 - **Thumbnail relay** and **Multiviewer thumbnails** *(the second a preview)*: lighter source thumbnails, or
   live ones cut from a multiviewer. Both are off until you switch them on.
 - **Remote access:** the app served over Tailscale (with a real HTTPS certificate) or ZeroTier,
@@ -345,6 +348,7 @@ output: where what you'd see is the point, that's said.
 | grandMA3 | Preview | grandMA3 onPC against the simulator; no wing or desk. |
 | Desk (control surface) | In development | No desk exists yet; a pretend controller only. |
 | Thumbnails over a slow link | Tested | A C mini's test patterns through a 400 KB/s link: every input drawn every few seconds, where none was before. Not yet a frame on a LAN with Tailscale on. |
+| Slow-link thumbnails | Preview | Chromium against the simulator through a 400 KB/s link to the browser, with stand-in 107 KB pictures: 32 inputs redrawn every nine or ten seconds, where none was before. Not yet an iPad, Safari or a real tailnet. |
 | Thumbnail relay | Tested | A C mini: its output pictures went out at a hundredth of the bytes. |
 | Multiviewer thumbnails | Preview | Its test pattern on a C mini's real multiviewer layout; no real capture or stream yet. |
 | Background Slicer | Preview | Written to a C mini once and undone; not looked at on an output. |
@@ -444,8 +448,16 @@ than never. On a LAN nothing changes. A picture it can't vouch for (the switcher
 answering, or it's more than 30 seconds old) isn't shown.
 
 That's the leg between this app and the switcher. If the browser is the far end, a tablet coming
-in over Remote access, that leg still carries every picture in full: switch the
-[Thumbnail relay](#thumbnail-relay-preview) on to send them as JPEGs.
+in over Remote access, the same second runs out on the browser's own leg, and **Slow-link
+thumbnails** (on by default) takes care of it: each thumbnail keeps its last picture until the
+next one has finished arriving, instead of starting again every second. Each source then
+refreshes as often as the link can carry. On the simulator, with 32 inputs of 107 KB behind a
+400 KB/s link, every input was redrawn every nine or ten seconds where none had been before. On a
+LAN a picture always arrives before the next is asked for, so nothing is held back.
+
+To make each refresh smaller as well, switch the [Thumbnail relay](#thumbnail-relay-preview) on
+to send them as JPEGs: on the same link the two together redrew every input about every
+1.6 seconds.
 
 If it happens on the venue LAN with Tailscale switched on, Tailscale may be carrying the
 switcher's traffic through another machine on the tailnet: `route -n get <switcher address>`

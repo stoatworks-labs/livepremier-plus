@@ -4023,8 +4023,66 @@ idle limit in place of its old 3 seconds, which a frame over a thin link can exc
 **Rig artefact, not the switcher:** the bandwidth relay used here stalled the odd connection for
 20 s. The same probe straight through the tunnel: 480 fetches in 60 s, none failed.
 
-**Not done.** A thin leg between the browser and this app (a tablet over Remote access) is still
-cut at one second per picture: the keeper only makes this app quick. The Thumbnail relay's JPEG,
-a hundredth of the bytes for a flat picture, is the help there. A page-side fix would swap the
-`src` only once the last one has loaded, which means patching the vendor's `SnapshotManager`.
-Not run: the LAN-with-Tailscale case on a frame, a switcher with real input signal, a Pulse.
+**Not done here.** A thin leg between the browser and this app (a tablet over Remote access) was
+still cut at one second per picture: the keeper only makes this app quick. Done the same day as
+the next section, in the page, without touching the vendor's `SnapshotManager`. Not run: the
+LAN-with-Tailscale case on a frame, a switcher with real input signal, a Pulse.
+
+## Thumbnails over a thin link, the browser's end (2026-10-31, simulator and a stand-in)
+
+**The plugin.** Slow-link thumbnails (`plugins/thumbnail-hold/`, page only, on by default): a new
+URL for a polled thumbnail whose last URL is still loading isn't given to the `<img>`; it's kept,
+the last picture stays, and the newest kept URL goes in on that load's `load` or `error`. Every
+image then has one load on its way, every load lands, and a slow leg shows each source as often
+as it can carry.
+
+**How the vendor sets `src`** (6.2.73 bundle): `SnapshotManager` emits per source;
+`useSnapshotURL` → `AwScalableImage` → `AwImage` → Semantic UI `Image` → `<img src>`, React
+17.0.2, which writes `src` with `setAttribute` and never reads the DOM back. The same element
+takes every URL (no `key` per URL), so holding per element works. Pixelspaces' output pictures
+use the same hook in an SVG `<image href>`, which the hold doesn't cover.
+
+**Why the setter and not a MutationObserver** (the Multiviewer thumbnails way): an observer runs
+after the browser has the new URL. Chrome has queued the load in a microtask, WebKit has asked
+for it on the spot, and putting the old URL back relies on each engine's image cache reusing a
+picture served `max-age=0`. `HTMLImageElement.prototype`'s `setAttribute` and `src` are wrapped
+instead, so a held URL never reaches the element. Only a newer frame of the *same* path waits
+(inputs, outputs, multiviewers, timers — the keeper's `KEPT_SNAPSHOT`, a test holds them equal);
+any other write goes straight in and drops what was kept, so a held URL can't land on a card
+re-pointed at another source, on a still, or on Multiviewer thumbnails' `blob:`. A load older
+than 30 s is given up at the next URL.
+
+**The rig.** No forwarded port was used: the one on this Mac at 127.0.0.1:18080 / :10606 looked
+like the rack and answered `isSimulated: false` (a real frame's rig). Ask that before using any.
+Instead: a copy of the local 6.2.73 session (C MAX, its own ports) → a stand-in in front of it
+answering every polled thumbnail with 107 KB of noise under a colour band that changes every
+2.4 s, as a C mini rewrites them (the simulator's own inputs are 411-byte placeholders) → this
+app, on a loopback alias so its AWJ reached nothing → a TCP relay sharing 400 KB/s across every
+connection → the Browser pane. Each page was loaded at full speed and the link then dropped to
+400 KB/s. Screens / Aux., 32 input cards: the vendor moves each to a new URL every 1.28 s (32 ×
+its 40 ms minimum).
+
+| 30 s at 400 KB/s | new URLs | loads finished | cards drawn | each load |
+|---|---|---|---|---|
+| plugin off | 750 | **0** | 0 of 32 | cut at 1280 ms |
+| plugin on | 100 (171 held, 915 superseded) | **100**, 3–4 per input | 32 of 32 | 9.5 s median, none cut |
+| plugin on, link unthrottled (20 s) | 500 | 500 | 32 of 32 | 5 ms median, nothing held |
+| Thumbnail relay on, plugin on | 579 | **579**, 18–19 per input | 32 of 32 | 1.6 s median, 18 KB JPEGs |
+| Thumbnail relay on, plugin off | 750 | **0** | 0 of 32 | cut |
+
+Off, every card kept the frame drawn while the page loaded and never changed; on, zoomed
+screenshots ten seconds apart showed every card's band in a new colour. The relay alone drew
+nothing here because noise is JPEG's worst case: 32 × 18 KB a round is still more than the link
+carries. A real picture shrinks far more (a C mini output, 148 KB to 1.2 KB), so the relay alone
+helps on real pictures and the hold is what stops the cliff.
+
+**A probe trap.** The hold hands over the next URL inside the `load` dispatch, so a `load`
+listener added after it that draws the `<img>` to a canvas reads the next, unfinished load and
+gets nothing. (A listener on `window` doesn't help: an element's `load` never reaches it.) The
+card on screen keeps the landed picture; judge by a screenshot.
+
+**Not run:** Safari or an iPad, a real tailnet, a real frame's pictures on this leg, and
+popped-out panels (each window has its own `HTMLImageElement`; only the Web RCS tab's is held).
+The model in `test/thumbnail-hold.test.js` gives the same shape: eight 148 KB inputs over
+400 KB/s draw none in 30 s without the hold (232 loads cut off), and 9–10 each with it, 78 of the
+~81 pictures the link can carry.
