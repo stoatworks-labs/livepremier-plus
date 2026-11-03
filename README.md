@@ -12,6 +12,8 @@
 
 # LivePremier Plus
 
+The [project page](https://stoatworks-labs.com/software/livepremier-plus/) has the downloads, the [user guide](https://stoatworks-labs.com/software/livepremier-plus/guide/) and the video.
+
 A small local app that adds panels to an Analog Way **LivePremier** Web RCS session. They're
 drawn in Web RCS's own design language, so they look as if they came in the box rather than
 bolted on afterwards:
