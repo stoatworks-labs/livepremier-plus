@@ -178,6 +178,16 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.18.10 puts the panels back on Windows, keeps a U5 mini's key grid up and adds a log.** On
+> Windows every PLUS panel was missing, in every browser and from the desktop app; they're back,
+> checked on Windows 11 and on Ubuntu as well. A U5 mini's key grid dropped every 15 seconds or so;
+> that's fixed against a stand-in that answers as the mini does, not yet on a real one. [Logs, and
+> sending them](#logs-and-sending-them) is new, and says what to send when something goes wrong.
+> **Slow-link thumbnails** keeps each picture until the next has arrived when the browser is the
+> far end of a thin link ([A switcher at the far end of a slow
+> link](#a-switcher-at-the-far-end-of-a-slow-link)). The EDID builder's Simple mode sets a product
+> code and serial number.
+>
 > **0.18.9 brings the source thumbnails back over a slow link.** Over Tailscale, a VPN or a
 > venue's uplink they could vanish altogether; now they keep up as fast as the link allows. [A
 > switcher at the far end of a slow link](#a-switcher-at-the-far-end-of-a-slow-link) has the
@@ -291,7 +301,7 @@ connection of their own when they act, which is worth knowing, because the switc
 
 ## Feature status
 
-Where each feature stands, as of 0.18.9. Three words, used the same way everywhere:
+Where each feature stands, as of 0.18.10. Three words, used the same way everywhere:
 
 - **Tested**: run on the real hardware it's for (a LivePremier frame, or the panel, network or
   program it talks to), every write read back from the switcher, and it did what this guide
@@ -338,10 +348,11 @@ output: where what you'd see is the point, that's said.
 | OSC input | Tested | A C mini. |
 | Field arithmetic and Variables | Tested | 6.2.73 fields on a C mini. 6.1.x only by its web page, not on a frame. |
 | Setup file | Tested | Nothing on the frame to prove; it saves and loads this app's own settings. |
+| Logs | Tested | Nothing on the frame to prove; written, rolled over and exported on macOS, Windows 11 and Ubuntu 24.04. |
 | Remote access | Tested | Real Tailscale and ZeroTier, with a simulator behind. |
 | MIDI Mapping | Preview | No physical controller has been attached yet. |
 | Speed Editor | Preview | A real Speed Editor over USB against the simulator, not yet against a frame. |
-| Pixelhue panel | Preview | PixelFlow's virtual U5 against a C mini; a real U5 mini connected but showed blank keys. |
+| Pixelhue panel | Preview | PixelFlow's virtual U5 against a C mini; a real U5 mini connected but showed blank keys. The mini's key grid dropping every 15 seconds is fixed against a stand-in that answers as its firmware does, not yet on a real mini. |
 | Barco EC panel | Preview | A pretend panel only. |
 | ATEM Micro Panel | Preview | A pretend panel only. |
 | Lighting desk control | Preview | MagicQ PC and a pretend desk, against the simulator. |

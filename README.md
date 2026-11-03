@@ -301,7 +301,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.9.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
+> **Status: field testing, v0.18.10.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
 > user guide says, feature by feature, what has met real hardware and what hasn't. The panels
 > render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
@@ -435,6 +435,22 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.10 (2026-11-03).** Three fixes from the field, and a log to send with the next one. On
+> **Windows** none of the PLUS panels appeared, in any browser or from the desktop app: every one
+> of this app's own files was refused, because Windows had turned the slashes in their path round.
+> They load now, checked in Edge, Chrome and Firefox on Windows 11 and in Chromium and Firefox on
+> Ubuntu 24.04. A **Pixelhue U5 mini's** key grid dropped every 15 seconds or so: the mini ends
+> its reply to a heartbeat with a line break, and the app lost every reply after the first. Fixed
+> against a stand-in that answers as the mini's firmware does; not yet on a real mini. **Slow-link
+> thumbnails** (on by default) keeps each thumbnail's last picture until the next has arrived, for
+> a browser that is itself the far end of a thin link: on the simulator behind 400 KB/s, 32 inputs
+> redrawn every nine or ten seconds where none had been. And the app now keeps a **log**:
+> **Preconfig ▸ LivePremier Plus → Logs** shows it, **Detail** decides how much goes in, and
+> **Export log** saves it as one text file to send with a report, keys and passwords taken out.
+> Also: the EDID builder's Simple mode sets a product code and serial number, so several EDIDs
+> built for one mode can be told apart, and 1080i is named and timed as 1080i. `docs/NOTES.md` has
+> the runs.
 >
 > **0.18.9 (2026-10-31).** Source thumbnails come back over a slow link. The Web RCS gives each
 > thumbnail a second to arrive before it asks for the next, so over Tailscale, a VPN or a venue's
