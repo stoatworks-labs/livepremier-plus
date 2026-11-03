@@ -33,8 +33,21 @@ import {
 const HEARTBEAT_MS = 5000;
 const MISSED_PONGS = 2;
 const RECONNECT_MS = 3000;
+/* A ping goes out on its own: the LCD app answers one only when a recv() starts with it (V1.0.3),
+   so one sent hard behind a draw can land in the same recv() and go unanswered. */
+const QUIET_MS = 150;
 export const TAKEOVERS = 3;
 export const TAKEOVER_WINDOW_MS = 60_000;
+
+/* A `log` that may be a plain function, as tests pass, or the app's levelled one. */
+export function levelled(log) {
+  const info = (msg, data) => log(msg, data);
+  info.info = info;
+  info.debug = typeof log.debug === 'function' ? log.debug : () => {};
+  info.warn = typeof log.warn === 'function' ? log.warn : info;
+  info.error = typeof log.error === 'function' ? log.error : info;
+  return info;
+}
 
 export class GridLink extends EventEmitter {
   #socket = null;
@@ -45,6 +58,11 @@ export class GridLink extends EventEmitter {
   #awaitingPong = 0;
   #closes = [];
   #closing = false;
+  #lastWrite = 0;
+  #deferred = null;
+  /* This connection's life, for the line written when it ends: a report of "it keeps dropping"
+     is answered by how long each one lasted and what was heard on it. */
+  #life = null;
 
   constructor({
     host, port = SURFACE_PORT, log = () => {}, reconnectMs = RECONNECT_MS, heartbeatMs = HEARTBEAT_MS,
@@ -53,13 +71,13 @@ export class GridLink extends EventEmitter {
     super();
     this.host = host;
     this.port = Number(port) || SURFACE_PORT;
-    this.log = log;
+    this.log = levelled(log);
     this.reconnectMs = reconnectMs;
     this.heartbeatMs = heartbeatMs;
     this.takeovers = takeovers;
     this.takeoverWindowMs = takeoverWindowMs;
     this.state = {
-      host, port: this.port, connected: false, lastError: null, drawn: 0, presses: 0,
+      host, port: this.port, connected: false, lastError: null, drawn: 0, presses: 0, pongs: 0,
       /* Closes the console made, in the current window. */
       takenBack: 0,
       /* `{at, count}` once the link has stopped dialling because the console kept closing it. */
@@ -79,6 +97,7 @@ export class GridLink extends EventEmitter {
     this.#stopped = true;
     clearTimeout(this.#retry); this.#retry = null;
     clearInterval(this.#heartbeat); this.#heartbeat = null;
+    clearTimeout(this.#deferred); this.#deferred = null;
     const socket = this.#socket;
     this.#socket = null;
     this.state.connected = false;
@@ -101,6 +120,7 @@ export class GridLink extends EventEmitter {
       socket.write(encodeDraw({ column: k.column, row: k.row, page: k.page, png: k.png }));
       this.state.drawn++;
     }
+    if (keys.length) this.#lastWrite = Date.now();
     return true;
   }
 
@@ -117,8 +137,11 @@ export class GridLink extends EventEmitter {
       this.state.connected = true;
       this.state.lastError = null;
       this.#awaitingPong = 0;
-      this.log(`console grid ${this.host}:${this.port} connected`);
-      socket.write(PING);
+      const now = Date.now();
+      this.#life = { at: now, heard: now, pings: 0, pongs: 0, bytes: 0, drawn: this.state.drawn, pingAt: 0, rtt: [] };
+      this.log(`console grid ${this.host}:${this.port} connected`, { local: `${socket.localAddress}:${socket.localPort}` });
+      /* No ping here: the redraw that 'open' starts would follow it into the console's recv(),
+         and a ping that does not have a recv() to itself is not answered. The first beat sends one. */
       clearInterval(this.#heartbeat);
       this.#heartbeat = setInterval(() => this.#beat(socket), this.heartbeatMs);
       this.#heartbeat.unref?.();
@@ -129,6 +152,7 @@ export class GridLink extends EventEmitter {
     socket.on('end', () => { ended = true; });
     socket.on('error', (err) => {
       this.state.lastError = err.message;
+      this.log.debug(`console grid ${this.host}:${this.port}: ${err.message}`, { code: err.code });
       this.emit('failure', err);
     });
     socket.on('close', () => {
@@ -136,6 +160,9 @@ export class GridLink extends EventEmitter {
       if (this.#socket === socket) this.#socket = null;
       this.state.connected = false;
       clearInterval(this.#heartbeat); this.#heartbeat = null;
+      clearTimeout(this.#deferred); this.#deferred = null;
+      if (was && this.#life) this.#logEnd(ended);
+      this.#life = null;
       if (this.#stopped || this.#closing) return;
       if (was || ended) this.emit('close', { byConsole: ended });
       if (ended && this.#takenBack()) return;
@@ -147,17 +174,45 @@ export class GridLink extends EventEmitter {
     if (socket !== this.#socket || !this.state.connected) return;
     if (this.#awaitingPong >= MISSED_PONGS) {
       this.state.lastError = `no answer to ${MISSED_PONGS} pings`;
+      if (this.#life) this.#life.why = this.state.lastError;
       this.emit('failure', new Error(`the console's grid did not answer ${MISSED_PONGS} pings; reconnecting`));
       socket.destroy();
       return;
     }
+    /* Still drawing: try again once the socket has been quiet, without counting a ping. */
+    if (socket.writableLength > 0 || Date.now() - this.#lastWrite < QUIET_MS) {
+      clearTimeout(this.#deferred);
+      this.#deferred = setTimeout(() => { this.#deferred = null; this.#beat(socket); }, QUIET_MS);
+      this.#deferred.unref?.();
+      return;
+    }
     this.#awaitingPong++;
+    if (this.#life) {
+      this.#life.pings++;
+      this.#life.pingAt = Date.now();
+    }
+    this.log.debug('grid ping', { unanswered: this.#awaitingPong - 1, sinceHeard: this.#life ? Date.now() - this.#life.heard : null });
     socket.write(PING);
   }
 
   #onData(chunk) {
+    /* Anything the console sends shows the link is up — a press as much as a pong. */
+    this.#awaitingPong = 0;
     const { packets, heartbeats } = this.#stream.push(chunk);
-    if (heartbeats.includes('pong')) this.#awaitingPong = 0;
+    const pongs = heartbeats.filter((h) => h === 'pong').length;
+    this.state.pongs += pongs;
+    const life = this.#life;
+    if (life) {
+      life.heard = Date.now();
+      life.bytes += chunk.length;
+      life.pongs += pongs;
+      if (pongs && life.pingAt) {
+        const rtt = life.heard - life.pingAt;
+        life.rtt.push(rtt);
+        life.pingAt = 0;
+        this.log.debug('grid pong', { ms: rtt });
+      }
+    }
     for (const p of packets) {
       let packet;
       try {
@@ -170,6 +225,18 @@ export class GridLink extends EventEmitter {
       this.state.presses++;
       this.emit('press', key);
     }
+  }
+
+  /** The line a connection leaves behind: how long it lasted, and what was heard on it. */
+  #logEnd(byConsole) {
+    const life = this.#life;
+    const now = Date.now();
+    const rtt = life.rtt.length ? Math.max(...life.rtt) : null;
+    const why = life.why || (byConsole ? 'closed by the console' : this.state.lastError || 'dropped');
+    this.log.warn(`console grid ${this.host}:${this.port} closed after ${((now - life.at) / 1000).toFixed(1)} s: ${why}`, {
+      pings: life.pings, pongs: life.pongs, heardMsAgo: now - life.heard, bytesIn: life.bytes,
+      drawn: this.state.drawn - life.drawn, slowestPongMs: rtt,
+    });
   }
 
   /** Count a close the console made; true when that is one too many and the link has let go. */
@@ -188,6 +255,7 @@ export class GridLink extends EventEmitter {
 
   #schedule() {
     if (this.#stopped || this.#retry) return;
+    this.log.debug(`console grid ${this.host}:${this.port}: dialling again in ${this.reconnectMs} ms`);
     this.#retry = setTimeout(() => {
       this.#retry = null;
       this.#open();

@@ -561,6 +561,19 @@ Five things are load-bearing:
   `wsPath` and `clientType`; `test/pixelhue.test.js` pins the mini's URL to
   the firmware. Client type 5 on a mini is unproven (its own LCD app uses 11),
   so an open socket with no key report in 10 s says so on the card.
+- ⚠️ **A mini's key grid (TCP 17100) answers `pong\n`, and only a ping that
+  has a recv() to itself.** Firmware V1.0.3's `liblcdcompanionimpl.so`
+  (`receiveThread` → `processPingMessage`) hands each recv() of up to 65,534
+  bytes to the ping check whole, trims spaces and tabs, wants about ten bytes
+  or fewer starting `ping`, and writes the five bytes `pong\n`. Up to 0.18.9
+  the stream parser kept the `\n`, took it for the start of the next packet
+  and lost every pong after the first, so the link declared the console dead
+  every 15 s (5 s beat, two missed) and redialled 3 s later. The vendored
+  parser now skips blank bytes between frames (pixelhue-bridge dbd3ad9), and
+  `grid-link.js` sends a ping only on a socket quiet for `QUIET_MS`, never at
+  connect, where the first redraw would join it in one recv(). The stand-in
+  (`test/helpers/fake-mini-lcd.js`) answers the same way, so a test that
+  draws hard behind a ping fails as a real mini would.
 
 ### A Barco EC panel (`plugins/barco-ec/`) — **preview**
 
@@ -2591,6 +2604,23 @@ no benefit. Read `wru` as "the panels".
 - **Optimized mode belongs to the whole VPU**, not to the screen that triggered
   it, and it removes the four-link scaling-engine boundary. Drawing that
   boundary on an optimized VPU shows a constraint the device is not applying.
+
+- **Everything the server says goes through the logbook** (`server/logbook.js`).
+  `index.js` makes one, `createProxy` and the plugin host take it, and a
+  plugin's `ctx.log` is `logbook.for(id)`: `ctx.log(msg)` as ever, with
+  `.debug`, `.warn` and `.error` beside it and JSON-able data as a second
+  argument. Not `console.log`: that reaches stdout, which under the desktop
+  app is the launcher's last thirty lines, gone at Stop, and no user can send
+  it. A line is on disk when `write` returns (synchronous on purpose: the last
+  line before a crash is the useful one), at most 200 a second, and a disk
+  that cannot be written costs the file and never the app. Debug lines stay in
+  memory unless Settings → Logs → Detail says Detailed or `--log`/`LPP_LOG`
+  was given (which wins). Every line is scrubbed of Tailscale keys and
+  `password=…` pairs and the export's settings are `redact()`ed, but that is
+  the net, not the plan: don't log a secret in the first place. A connection
+  that can drop logs each drop with how long it lasted and what was heard on
+  it (`grid-link.js`'s `#logEnd`), because "it keeps dropping" is answered by
+  timings, not by the last error.
 
 ## Traps that cost time here
 

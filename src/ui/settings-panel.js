@@ -40,7 +40,7 @@ import { readIdentity } from '../core/identity.js';
 import { detectPlatform, CAPABILITIES, whyNot } from '../core/platform.js';
 import { BUILTINS, status as pluginStatus, isSwitchedOn } from '../core/plugins.js';
 import {
-  AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES
+  AWJ_TRANSPORTS, DEFAULT_SETTINGS, LANGUAGE_CHOICES, LOG_LEVELS
 } from '../core/settings.js';
 import { insecureContextAdvice } from '../core/secure-context.js';
 
@@ -88,7 +88,10 @@ export function createSettingsPanel({
     saveError: null,
     saving: false,
     /* The server's own list of plugins, by id — see `loadPlugins`. */
-    hosted: null
+    hosted: null,
+    /* The log's newest lines and its counts — see `loadLogs`. `show` is the
+       least a line needs to be listed here; it changes nothing on disk. */
+    logs: { entries: [], seq: 0, info: null, error: null, at: 0, loading: false, show: 'info' }
   };
 
   async function loadStatus() {
@@ -120,6 +123,38 @@ export function createSettingsPanel({
       state.hosted = Object.fromEntries((body.plugins || []).map((p) => [p.id, p]));
     } catch { /* the card still draws from the manifests */ }
     onRefresh();
+  }
+
+  /*
+   * The log's newest lines. The page repaints about once a second and this is
+   * asked from `render`, so it goes at most every two seconds and only asks for
+   * what came after the last line it has.
+   */
+  const LOG_LINES = 60;
+  async function loadLogs(force = false) {
+    const logs = state.logs;
+    if (logs.loading || (!force && Date.now() - logs.at < 2000)) return;
+    logs.loading = true;
+    logs.at = Date.now();
+    try {
+      const q = new URLSearchParams({ level: logs.show, limit: String(LOG_LINES), since: String(logs.seq) });
+      const res = await fetch('/__lpp/logs?' + q, { cache: 'no-store' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'HTTP ' + res.status);
+      logs.info = body;
+      logs.error = null;
+      logs.entries = logs.entries.concat(body.entries || []).slice(-LOG_LINES);
+      logs.seq = body.seq;
+    } catch (err) {
+      logs.error = err.message;
+    }
+    logs.loading = false;
+    onRefresh();
+  }
+
+  function showLogs(level) {
+    state.logs = { ...state.logs, show: level, entries: [], seq: 0 };
+    void loadLogs(true);
   }
 
   /**
@@ -426,6 +461,60 @@ export function createSettingsPanel({
       ...notes);
   }
 
+  /* ----------------------------------------------------------------- logs */
+
+  /*
+   * What the app has been doing, and the file to send when it went wrong. The
+   * card shows the newest lines; Export is everything on disk, rotated files
+   * and all, with the version, the machine and the settings (secrets taken out)
+   * at the top — the one thing to ask a user for.
+   */
+  function logsSection() {
+    void loadLogs();
+    const logs = state.logs;
+    const info = logs.info;
+    const counts = info ? info.counts : null;
+    const notes = [];
+    if (logs.error) notes.push(note('warn', `Could not read the log: ${logs.error}`));
+    if (info && info.diskError) notes.push(note('warn', `The log file cannot be written (${info.diskError}); lines are kept in memory until the app stops, and Export still has them.`));
+    if (info && info.fixed) notes.push(note('info', `The server was started with --log ${info.level}, which wins over the choice here.`));
+
+    const rows = h('div', { class: 'aw-flex-row aw-gap-col-extra-large aw-flex-wrap' },
+      readout('Since start', counts ? `${counts.error} errors · ${counts.warn} warnings` : '…',
+        { tone: counts && (counts.error || counts.warn) ? 'warn' : undefined }),
+      readout('Log folder', info ? (info.dir || 'memory only') : '…'),
+      picker('Detail', LOG_LEVELS, state.settings.logLevel || 'info', (v) => put({ logLevel: v })));
+
+    const show = h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-flex-wrap' },
+      h('span', { class: 'aw-font-overline aw-text-tertiary', text: 'Show' }),
+      [['warn', 'Problems'], ['info', 'Normal'], ['debug', 'Everything']].map(([level, label]) =>
+        button(label, { active: logs.show === level, onClick: () => showLogs(level) })),
+      h('span', { style: { flex: '1 1 auto' } }),
+      button('Export log', {
+        title: 'Save every log file as one text file, to send with a report',
+        onClick: () => {
+          const a = h('a', { href: '/__lpp/logs/export', download: '' });
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }
+      }));
+
+    const tone = { error: 'wru-warn', warn: 'wru-warn' };
+    const lines = logs.entries.length
+      ? h('div', {
+        class: 'aw-flex-col', style: { fontFamily: 'ui-monospace, Menlo, Consolas, monospace', fontSize: '11px', lineHeight: '1.45' }
+      }, logs.entries.slice().reverse().map((e) => h('div', {
+        class: [tone[e.level] || (e.level === 'debug' ? 'aw-text-tertiary' : '')],
+        style: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' },
+        text: `${new Date(e.t).toLocaleTimeString([], { hour12: false })}  ${e.level.toUpperCase().padEnd(5)} ${e.source}  ${e.msg}`
+          + (e.data === undefined ? '' : `  ${JSON.stringify(e.data)}`)
+      })))
+      : h('div', { class: 'wru-empty', text: info ? 'Nothing at this level yet.' : 'Reading the log…' });
+
+    return card('Logs', rows, show, lines, ...notes);
+  }
+
   /* -------------------------------------------------------------- planned */
 
   function plannedSection() {
@@ -479,6 +568,7 @@ export function createSettingsPanel({
       pluginCards(),
       proxySection(),
       pluginSection(),
+      logsSection(),
       plannedSection());
     drawn = panel({ toolbar: toolbar(), body });
     return drawn;

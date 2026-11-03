@@ -25,6 +25,14 @@
  *   there reaches nobody here.
  * - **`page` is the row's page.** A draw for another page moves the row; a
  *   press reports the page the row shows (`updateUIWithRow`, `setKeyOperate`).
+ * - **The heartbeat** (`TcpServer::receiveThread`, `processPingMessage`):
+ *   each recv() goes whole to the ping check, which calls it a ping only if
+ *   it starts with `ping` once spaces and tabs are trimmed and is short (it
+ *   gives up past about ten bytes), and answers `pong\n` — five bytes. Any
+ *   other chunk is packet bytes and its `ping` goes unanswered, whether glued
+ *   behind a packet or in front of one; what the real packet path makes of a
+ *   `ping` in front of a packet is not known, so this keeps the packet. A
+ *   Node `data` event stands in for one recv(); `pings` counts the answers.
  * - **Ten columns:** eight bus keys and the row's page keys. On a Companion row
  *   all ten go to the client; on any other row the page keys report 549 / 550
  *   and the area-switch key 595 to the control service, as a user's mini did.
@@ -93,6 +101,9 @@ export class StandInLcd extends EventEmitter {
     this.current = null;
     this.refused = [];
     this.kicked = [];
+    this.pings = 0;
+    /* False plays a console whose LCD app has stopped answering, socket still open. */
+    this.answerPings = true;
     this.sockets = new Set();
     this.extra = [];
     this.builtIn = null;
@@ -148,20 +159,21 @@ export class StandInLcd extends EventEmitter {
     this.current = { address: from, local, socket };
     let buf = Buffer.alloc(0);
     socket.on('data', (chunk) => {
+      if (chunk.length <= 10 && /^[ \t]*ping/.test(chunk.toString('latin1'))) {
+        if (!this.answerPings) return;
+        this.pings++;
+        socket.write('pong\n');
+        return;
+      }
       buf = Buffer.concat([buf, chunk]);
       buf = this.#read(socket, buf);
     });
     this.emit('client', { address: from, local });
   }
 
-  /** Packets and pings out of a client's bytes; what is left over. */
+  /** Packets out of a client's bytes; what is left over. */
   #read(socket, buf) {
     for (;;) {
-      if (buf.length >= 4 && buf.subarray(0, 4).toString('ascii') === 'ping') {
-        socket.write('pong');
-        buf = buf.subarray(4);
-        continue;
-      }
       const at = buf.indexOf(MAGIC);
       if (at < 0) return buf.length > 3 ? buf.subarray(buf.length - 3) : buf;
       if (at > 0) buf = buf.subarray(at);

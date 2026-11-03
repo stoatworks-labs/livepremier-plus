@@ -187,7 +187,8 @@ export async function createPluginHost({
   device = () => null,
   awj = null,
   splitAddress = () => null,
-  log = () => {}
+  log = () => {},
+  logbook = null
 } = {}) {
   /** id -> record, for every plugin with a half of its own — which every built-in has. */
   const plugins = new Map();
@@ -273,7 +274,15 @@ export async function createPluginHost({
     return true;
   }
 
-  const pluginLog = (r) => (msg) => log(`${r.id}: ${msg}`);
+  /* `ctx.log(msg)` as ever, and `ctx.log.warn` / `.error` / `.debug` beside it: with the
+     logbook each lands in the app's log under the plugin's id, at its level. */
+  const pluginLog = (r) => {
+    if (logbook) return logbook.for(r.id);
+    const plain = (msg) => log(`${r.id}: ${msg}`);
+    plain.info = plain.warn = plain.error = plain;
+    plain.debug = () => {};
+    return plain;
+  };
   /* A user plugin's settings are stored raw until its schema is known — it is
      only imported once switched on — so they are normalised here on the way
      out as well. For a built-in that is a second, idempotent pass. */

@@ -4,7 +4,7 @@ Part of `core/` from **pixelhue-bridge**, the Pixelhue U-series console driver.
 Same reasoning as `../surface/` and `../vpu-model.js`: one implementation of
 the console's wire format, copied rather than re-derived.
 
-Upstream commit `d3e38f70ba71016bb624c1e2510d496238ecbf9b`, synced 2026-10-22 — 5 files.
+Upstream commit `dbd3ad9c4f3526753e302146f9f8c7fd6d119660`, synced 2026-11-03 — 5 files.
 
 ⚠️ **pixelhue-bridge is not published yet**, so that commit is local. The
 evidence for every byte of this format lives in its `docs/protocols.md`, and

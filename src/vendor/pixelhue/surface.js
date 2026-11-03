@@ -13,7 +13,10 @@
 //   12      ...   TLV: u16 LE tag (1 = request data, 2 = response data), u16 LE length, JSON
 //
 // A request body is a JSON array (one object per item); a response body is an object.
-// Heartbeat is out-of-band: the raw bytes "ping" from the client, "pong" back, every 5 s.
+// Heartbeat is out-of-band: the raw bytes "ping" from the client, "pong\n" back, every 5 s.
+// The LCD app (V1.0.3, liblcdcompanionimpl.so `processPingMessage`) takes a recv() as a ping
+// only when it starts with "ping" once leading spaces and tabs are trimmed, and answers with
+// send("pong\n"): five bytes, not four.
 //
 // Host → panel:  [{ page, column, row, data: "base64,<PNG 72×72 base64>" }]   draw one key
 // Panel → host:  { page, row, column, type: 0 | 1 }                            0 press, 1 release
@@ -41,6 +44,8 @@ export const TAG_REQUEST = 1;
 export const TAG_RESPONSE = 2;
 export const PING = Buffer.from('ping', 'ascii');
 export const PONG = Buffer.from('pong', 'ascii');
+/* What may sit between heartbeats: the line end after the LCD app's "pong", and the spaces it trims. */
+const BLANK = new Set([0x20, 0x09, 0x0a, 0x0d]);
 export const MDNS_TYPE = 'pixelhue';
 export const KEY_ICON_SIZE = 72;
 export const GRID_ROWS = 4;
@@ -123,6 +128,11 @@ export class SurfaceStream {
     const packets = [];
     const heartbeats = [];
     for (;;) {
+      /* Left in place, the "\n" after one pong would sit in front of the next and hide it, and
+         every pong after the first would be lost: a link that dies of "no pong" every 15 s. */
+      let lead = 0;
+      while (lead < this.#buf.length && BLANK.has(this.#buf[lead])) lead++;
+      if (lead) this.#buf = this.#buf.subarray(lead);
       if (this.#buf.length >= 4) {
         const head4 = this.#buf.subarray(0, 4);
         if (head4.equals(PING) || head4.equals(PONG)) {

@@ -46,6 +46,7 @@ import { oscAddressFor } from '../src/core/contributions.js';
 import { exchange as awjExchange } from './awj.js';
 import { loopbackRedirect } from './local-client.js';
 import { createKeeper, keyOf, fetchFrame, KEPT_SNAPSHOT } from './snapshot-keeper.js';
+import { redact, machineFacts, LEVELS } from './logbook.js';
 
 /** Where our own routes live. Namespaced so it cannot collide with a vendor path. */
 export const NS = '/__lpp';
@@ -106,13 +107,16 @@ export function ownSourceFile(root, rest, path = nodePath) {
  * inline one is guaranteed to execute at the point the parser reaches it,
  * which is before any deferred vendor script. The panels follow as a module,
  * which is deferred by definition and lands after the vendor bundle — exactly
- * where we want it, since it needs the app's DOM.
+ * where we want it, since it needs the app's DOM. The error reporter goes
+ * first of all (`src/hook/report.js`): it has to be listening before the
+ * panels fail to load, which is the failure it is there to tell the log about.
  */
-export function buildInjection(hookSource, extraModules = []) {
+export function buildInjection(hookSource, extraModules = [], reportSource = '') {
   const extra = extraModules
     .map((src) => `\n<script type="module" src="${src}" data-lpp="extra"></script>`)
     .join('');
   return (
+    (reportSource ? `\n<script data-lpp="report">\n${reportSource}\n</script>` : '') +
     `\n<script data-lpp="hook">\n${hookSource}\n</script>` +
     `\n<script type="module" src="${NS}/src/main.js" data-lpp="panels"></script>` +
     /* After the panels, so anything extra can rely on window.__WRU existing —
@@ -144,6 +148,7 @@ function decode(buf, encoding) {
  * @param {Record<string,string>} [opts.extraFiles]  NS-relative path -> file on disk
  * @param {string|null} [opts.pluginDir]  user plugins; defaults to `plugins/` in the data directory
  * @param {(msg:string)=>void} [opts.log]
+ * @param {import('./logbook.js').Logbook|null} [opts.logbook]  the app's log, for its routes and the plugins'
  */
 export async function createProxy({
   device = null, devicePort = 80, root, storage = null,
@@ -170,7 +175,10 @@ export async function createProxy({
   /* Where user plugins are looked for: `plugins/` beside everything else this
      app keeps — `~/.livepremier-plus/plugins`, or `/config/plugins` in Docker.
      Null for none, which is what a caller with no data directory gets. */
-  pluginDir = storage && storage.dir ? join(storage.dir, 'plugins') : null
+  pluginDir = storage && storage.dir ? join(storage.dir, 'plugins') : null,
+  /* The app's log (`server/logbook.js`). Without one — the tests, an embedding —
+     there is nothing to show or export, and the routes say so. */
+  logbook = null
 }) {
   /*
    * The switcher is chosen at runtime, not baked in at startup.
@@ -192,7 +200,8 @@ export async function createProxy({
      than a string in here means the tests and any future front-end load the
      same bytes the browser gets. */
   const hookSource = await readFile(join(root, 'src/hook/ws-hook.js'), 'utf8');
-  const injection = buildInjection(hookSource, extraModules);
+  const reportSource = await readFile(join(root, 'src/hook/report.js'), 'utf8');
+  const injection = buildInjection(hookSource, extraModules, reportSource);
 
   /* Shown until a switcher is chosen. Self-contained on purpose: at this
      point there is no device to borrow a stylesheet from. */
@@ -210,6 +219,8 @@ export async function createProxy({
   catch { version = null; }
 
   const state = { device: target ? `${target.host}:${target.port}` : null, clients: 0, upstreamError: null, version };
+  /* When the page last sent an error to the log: see `/logs/page`. */
+  let pageLines = [];
 
   /*
    * Source thumbnails, answered in time when the switcher is a slow link away
@@ -238,7 +249,8 @@ export async function createProxy({
       ? awjExchange({ host: target.host, messages })
       : Promise.reject(new Error('no switcher configured'))),
     splitAddress: splitDevice,
-    log
+    log,
+    logbook
   });
 
   /*
@@ -280,6 +292,7 @@ export async function createProxy({
     /* A user plugin switched on just now has only now brought its schema:
        fill its defaults in, so the page is sent what the plugin reads. */
     settings = normaliseSettings(settings, host.schemas);
+    if (logbook) logbook.setLevel(settings.logLevel);
     return settings;
   }
 
@@ -313,6 +326,7 @@ export async function createProxy({
      before — so the settings are read through the schemas once more after. */
   await host.sync(settings);
   settings = normaliseSettings(settings, host.schemas);
+  if (logbook) logbook.setLevel(settings.logLevel);
 
   /*
    * Every socket pair we have relayed.
@@ -497,6 +511,60 @@ export async function createProxy({
     }
 
 
+    /*
+     * The app's log (`server/logbook.js`): the lines in memory for the Settings
+     * page, the whole book as one text file to send, and a way in for the page's
+     * own errors, which no server could otherwise see.
+     */
+    if (rest === '/logs' || rest.startsWith('/logs/')) {
+      if (!logbook) return sendJson(res, 404, { error: 'this server keeps no log' });
+      if (rest === '/logs' && req.method === 'GET') {
+        const q = url.searchParams;
+        return sendJson(res, 200, {
+          seq: logbook.seq, counts: logbook.counts, dir: logbook.dir, file: logbook.file,
+          diskError: logbook.diskError, level: logbook.level, fixed: logbook.fixed,
+          entries: logbook.recent({
+            since: Number(q.get('since')) || 0, level: LEVELS[q.get('level')] ? q.get('level') : 'debug',
+            source: q.get('source') || '', limit: Math.min(Number(q.get('limit')) || 200, 2000),
+          }),
+        });
+      }
+      if (rest === '/logs/export' && req.method === 'GET') {
+        const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..*/, '').replace('T', '-');
+        const body = logbook.exportText({
+          'LivePremier Plus': version || appVersion || 'unknown',
+          switcher: state.device || 'none',
+          listening: bind ? `${bind}:${port}` : 'unknown',
+          ...machineFacts(),
+          plugins: Object.fromEntries(host.list().map((p) => [p.id, p.on ? (p.reason ? `on, ${p.reason}` : 'on') : 'off'])),
+          settings: redact(settings),
+        });
+        res.writeHead(200, {
+          'content-type': 'text/plain; charset=utf-8',
+          'content-disposition': `attachment; filename="livepremier-plus-log-${stamp}.txt"`,
+          'cache-control': 'no-store',
+        });
+        return res.end(body);
+      }
+      if (rest === '/logs/page' && req.method === 'POST') {
+        /* Only so many a minute: a page throwing on every frame must not fill the book. */
+        const now = Date.now();
+        pageLines = pageLines.filter((t) => now - t < 60_000);
+        if (pageLines.length >= 60) return sendJson(res, 429, { error: 'enough for this minute' });
+        pageLines.push(now);
+        let parsed = {};
+        try { parsed = JSON.parse((await collect(req, 16 * 1024)).toString('utf8')); } catch { /* an empty line is still a line */ }
+        const level = parsed.level === 'error' ? 'error' : parsed.level === 'info' ? 'info' : 'warn';
+        logbook.write(level, 'page', String(parsed.msg || '(no message)').slice(0, 2000), {
+          url: String(parsed.url || '').slice(0, 300) || undefined,
+          where: parsed.where ? String(parsed.where).slice(0, 2000) : undefined,
+          agent: String(req.headers['user-agent'] || '').slice(0, 300),
+        });
+        return sendJson(res, 200, { ok: true });
+      }
+      return sendJson(res, 405, { error: 'method not allowed' });
+    }
+
     if (rest === '/status') {
       return sendJson(res, 200, {
         ...state, ok: true, configured: !!target,
@@ -554,12 +622,17 @@ export async function createProxy({
       }
     }
 
-    /* Our own module tree; only src/ is reachable (ownSourceFile says why). */
-    const file = ownSourceFile(root, rest);
-    if (!file) {
+    /* Our own module tree; only src/ is reachable (ownSourceFile says why). A
+       miss under src/ is logged: a panel that cannot load is otherwise only in
+       the browser's console, which is how Windows went three months without
+       its panels. */
+    const missing = (why) => {
+      if (rest.startsWith('/src/')) (log.warn || log)(`${NS}${rest} not served: ${why}`);
       res.writeHead(404, { 'content-type': 'text/plain' });
-      return res.end('not found');
-    }
+      res.end('not found');
+    };
+    const file = ownSourceFile(root, rest);
+    if (!file) return missing('outside src/');
     try {
       const body = await readFile(file);
       res.writeHead(200, {
@@ -567,9 +640,8 @@ export async function createProxy({
         'cache-control': 'no-store'
       });
       res.end(body);
-    } catch {
-      res.writeHead(404, { 'content-type': 'text/plain' });
-      res.end('not found');
+    } catch (err) {
+      missing(err.code || err.message);
     }
   }
 

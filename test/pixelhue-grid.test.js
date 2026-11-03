@@ -219,6 +219,60 @@ test('the link draws a key, and the console shows it only on a row switched to C
   }
 });
 
+test('the link outlives many heartbeats against the mini\'s "pong\\n", drawing between them', async () => {
+  /* v0.18.9 on a real mini: "the console's grid did not answer 2 pings; reconnecting" every 15 s.
+     V1.0.3 answers "pong\n"; the line end hid every pong after the first. And a ping only counts
+     when it starts the console's recv(), so one sent hard behind a draw goes unanswered. */
+  const lcd = await new StandInLcd({ port: 0 }).start();
+  const link = new GridLink({ host: '127.0.0.1', port: lcd.port, heartbeatMs: 60, reconnectMs: 50 });
+  const failures = [];
+  link.on('failure', (err) => failures.push(err.message));
+  try {
+    await new Promise((resolve) => { link.once('open', resolve); link.start(); });
+    const png = renderKey({ text: 'LED 1', fill: AMBER });
+    /* A burst of draws every 400 ms: the beat waits out each one, then pings on a quiet socket. */
+    const burst = () => link.draw([0, 1, 2, 3].map((column) => ({ row: 0, column, page: 1, png })));
+    burst();
+    const drawing = setInterval(burst, 400);
+    await new Promise((r) => setTimeout(r, 2000));
+    clearInterval(drawing);
+    assert.deepEqual(failures, [], 'never declared dead');
+    assert.ok(link.state.connected, 'still connected');
+    assert.ok(link.state.pongs >= 4, `pongs kept counting (${link.state.pongs})`);
+    assert.equal(lcd.pings, link.state.pongs, 'every ping the console answered came back as a pong');
+    assert.equal(lcd.kicked.length + lcd.refused.length, 0);
+  } finally {
+    await link.stop();
+    await lcd.stop();
+  }
+});
+
+test('a grid connection that dies says in the log how long it lasted and what it heard', async () => {
+  /* The card keeps one line per cause; a report of "it keeps dropping" needs every drop, timed. */
+  const lcd = await new StandInLcd({ port: 0 }).start();
+  const lines = [];
+  const log = (msg, data) => lines.push({ level: 'info', msg, data });
+  log.warn = (msg, data) => lines.push({ level: 'warn', msg, data });
+  log.debug = (msg, data) => lines.push({ level: 'debug', msg, data });
+  const link = new GridLink({ host: '127.0.0.1', port: lcd.port, heartbeatMs: 40, reconnectMs: 5000, log });
+  try {
+    await new Promise((resolve) => { link.once('open', resolve); link.start(); });
+    assert.ok(await until(() => link.state.pongs >= 2), 'answered while the console answers');
+    lcd.answerPings = false;
+    assert.ok(await until(() => lines.some((l) => /closed after/.test(l.msg))), 'the end of the connection is logged');
+    const end = lines.find((l) => /closed after/.test(l.msg));
+    assert.equal(end.level, 'warn');
+    assert.match(end.msg, /^console grid 127\.0\.0\.1:\d+ closed after \d+\.\d s: no answer to 2 pings$/);
+    assert.ok(end.data.pongs >= 2 && end.data.pings > end.data.pongs, `pings and pongs counted (${JSON.stringify(end.data)})`);
+    assert.ok(end.data.heardMsAgo >= 40, 'and how long since anything was heard');
+    assert.ok(lines.some((l) => l.level === 'debug' && l.msg === 'grid pong' && Number.isFinite(l.data.ms)), 'each pong is timed at debug');
+    assert.ok(lines.some((l) => l.level === 'debug' && /dialling again in 5000 ms/.test(l.msg)));
+  } finally {
+    await link.stop();
+    await lcd.stop();
+  }
+});
+
 test('a press on a Companion row comes back with its row, column and page; elsewhere it never arrives', async () => {
   const lcd = await new StandInLcd({ port: 0 }).start();
   const link = new GridLink({ host: '127.0.0.1', port: lcd.port, ...quick });

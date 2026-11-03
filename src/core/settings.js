@@ -85,6 +85,19 @@ export const OSC_BIND_CHOICES = [
   },
 ];
 
+export const LOG_LEVELS = [
+  {
+    id: 'info',
+    label: 'Normal — connections, drops, errors',
+    what: 'What happened and why, a few lines a minute. Enough for most reports.',
+  },
+  {
+    id: 'debug',
+    label: 'Detailed — every heartbeat and retry as well',
+    what: 'Adds a line per heartbeat, reply and retry. For chasing a link that keeps dropping; switch it back after.',
+  },
+];
+
 export const DEFAULT_SETTINGS = {
   /* Detection, because a console pinned to one language is one an operator has
      to configure before it is useful. */
@@ -92,6 +105,9 @@ export const DEFAULT_SETTINGS = {
   /* The transport that works everywhere and spends no AWJ client slot.
      Someone who wants the wire-truthful one is being deliberate. */
   awjTransport: 'store',
+  /* What reaches the log files. Debug lines are always kept in memory, for the
+     Logs card; this only decides whether they are written to disk too. */
+  logLevel: 'info',
   /* Which features are switched on, and each plugin's own settings, as
      `{ id: { enabled, settings } }`. Empty means every built-in at its
      default, which is on — see `core/plugins.js`. */
@@ -194,6 +210,7 @@ export function normalise(raw, schemas = {}) {
   return {
     consoleLanguage: pick(input.consoleLanguage, LANGUAGE_CHOICES, DEFAULT_SETTINGS.consoleLanguage),
     awjTransport: pick(input.awjTransport, AWJ_TRANSPORTS, DEFAULT_SETTINGS.awjTransport),
+    logLevel: pick(input.logLevel, LOG_LEVELS, DEFAULT_SETTINGS.logLevel),
     plugins,
   };
 }

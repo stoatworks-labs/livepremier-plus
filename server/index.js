@@ -22,6 +22,7 @@ import { createProxy } from './proxy.js';
 import { StackStore } from './storage.js';
 import { createDeviceHost, findDeviceHost } from './device-host.js';
 import { createMediaHost, findMediaHost } from './media-host.js';
+import { Logbook, machineFacts } from './logbook.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -55,6 +56,9 @@ if (args.help || args.h) {
                            when devices/ is installed
   --no-media               do not start the media host (NDI out), even when
                            devices/ is installed
+  --log <level>            what reaches the log file: debug, info (default),
+                           warn or error. Also LPP_LOG. The file is logs/lpp.log
+                           in the data directory; Settings exports it.
 
 Then open http://<host>:<port>/ in any browser.`);
   process.exit(0);
@@ -94,6 +98,22 @@ const dataDir = args.data || process.env.LPP_DATA || join(homedir(), '.livepremi
 const storage = new StackStore(dataDir);
 
 /*
+ * The app's log (`server/logbook.js`), opened before anything else starts so
+ * that whatever goes wrong next is in it. Every line still goes to stdout as
+ * `[lpp] …`, which is what the desktop app shows when the server will not start.
+ */
+const logLevel = args.log || process.env.LPP_LOG;
+const logbook = new Logbook({
+  dir: join(dataDir, 'logs'), level: String(logLevel || 'info').toLowerCase(), fixed: Boolean(logLevel),
+});
+const log = logbook.for('server');
+/* Written down, not handled: the Monitor variants see a fatal error first and
+   leave Node to end the process exactly as it would have. */
+process.on('uncaughtExceptionMonitor', (err, origin) => {
+  log.error(`${origin === 'unhandledRejection' ? 'unhandled rejection' : 'uncaught exception'}: ${err && err.stack ? err.stack : err}`);
+});
+
+/*
  * A device on the command line wins; otherwise fall back to whichever one we
  * were last pointed at, and failing that start unconfigured and let the setup
  * page ask. The launcher takes this last path — it knows about ports and
@@ -119,7 +139,7 @@ const deviceHost = createDeviceHost({
   ...found,
   installed: found.installed && !devicesOff,
   reason: devicesOff ? 'The device host is switched off (--no-devices).' : found.reason,
-  log: (msg) => console.log(`[lpp] ${msg}`)
+  log: logbook.for('devices')
 });
 deviceHost.start();
 
@@ -135,7 +155,7 @@ const mediaHost = createMediaHost({
   ...foundMedia,
   installed: foundMedia.installed && !mediaOff,
   reason: mediaOff ? 'The media host is switched off (--no-media).' : foundMedia.reason,
-  log: (msg) => console.log(`[lpp] ${msg}`)
+  log: logbook.for('media')
 });
 mediaHost.start();
 
@@ -144,7 +164,8 @@ const server = await createProxy({
   root: ROOT,
   storage,
   appVersion,
-  log: (msg) => console.log(`[lpp] ${msg}`),
+  log,
+  logbook,
   loopbackPort: redirectLocal ? port : null,
   bind: host,
   port,
@@ -154,17 +175,17 @@ const server = await createProxy({
 });
 
 server.on('error', (err) => {
-  console.error(`[lpp] ${err.code === 'EADDRINUSE' ? `port ${port} is already in use` : err.message}`);
+  log.error(err.code === 'EADDRINUSE' ? `port ${port} is already in use` : err.message);
   process.exit(1);
 });
 
 server.listen(port, host, () => {
   const dest = server.lppState.device || 'no switcher yet — the page will ask';
-  if (appliance) console.log('[lpp] appliance: Remote access may change this host\'s Tailscale and ZeroTier membership');
-  console.log(`[lpp] LivePremier Plus on http://${host}:${port}/  ->  ${dest}`);
+  if (appliance) log('appliance: Remote access may change this host\'s Tailscale and ZeroTier membership');
+  log(`LivePremier Plus ${appVersion || ''} on http://${host}:${port}/  ->  ${dest}`, { ...machineFacts(), data: dataDir });
   if (WILDCARD.has(host)) {
-    console.log('[lpp] bound to all interfaces — anyone on this network can drive the switcher');
-    console.log(`[lpp] on this machine use http://127.0.0.1:${port}/ — the secure context Web MIDI needs; a local browser arriving by a LAN address is sent there`);
+    log.warn('bound to all interfaces — anyone on this network can drive the switcher');
+    log(`on this machine use http://127.0.0.1:${port}/ — the secure context Web MIDI needs; a local browser arriving by a LAN address is sent there`);
   }
 });
 
@@ -173,16 +194,16 @@ if (local) {
   local.on('error', (err) => {
     /* Not fatal: the LAN listener is up and everything but Web MIDI works
        there. Say so, rather than dying over the convenience door. */
-    console.error(`[lpp] loopback listener: ${err.code === 'EADDRINUSE' ? `127.0.0.1:${port} is already in use` : err.message} — Web MIDI on this machine needs it`);
+    log.error(`loopback listener: ${err.code === 'EADDRINUSE' ? `127.0.0.1:${port} is already in use` : err.message} — Web MIDI on this machine needs it`);
   });
   local.listen(port, '127.0.0.1', () => {
-    console.log(`[lpp] also on http://127.0.0.1:${port}/ for this machine — the secure context Web MIDI needs; local browsers are sent there`);
+    log(`also on http://127.0.0.1:${port}/ for this machine — the secure context Web MIDI needs; local browsers are sent there`);
   });
 }
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
-    console.log('\n[lpp] stopping');
+    log('stopping');
     /* Hang up the relayed sockets first. A Web RCS tab holds its connection
        open indefinitely and close() would otherwise wait on it forever —
        which, under the launcher, reads as a Stop button that does nothing. */

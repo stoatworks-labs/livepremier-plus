@@ -4114,3 +4114,65 @@ from the simulator's input thumbnails, which it never has. The fixed tree on kde
 4.8 s straight from the simulator: the VM was at 100% CPU with `dwm` at 70,000 CPU-seconds. A
 reboot (`virsh reboot win-lab` on lilnasX) cleared it. Look at the box's load before blaming the
 proxy for anything slow there.
+
+## A U5 mini's key grid dropped every 15 s (2026-11-03, the firmware and the stand-in; no mini here)
+
+**The report.** A user's U5 mini, on 0.18.9 against a live Aquilon, from a Mac on Wi-Fi: the keys
+went blank for a couple of seconds every few seconds, and the Pixelhue card said *key grid: the
+console's grid did not answer 2 pings; reconnecting*.
+
+**The cause.** The mini's LCD app answers a heartbeat with `pong\n`. Read from firmware V1.0.3's
+`liblcdcompanionimpl.so` (`receiveThread`, `processPingMessage`): each recv() of up to 65,534
+bytes goes to the ping check whole; it trims spaces and tabs, wants a short chunk (about ten
+bytes) starting `ping`, and sends the five bytes `pong\n`. The vendored `SurfaceStream` matched
+`pong`, kept the `\n`, took it for the start of a packet with a bad magic and waited for more,
+so every pong after the first was swallowed. Two missed beats at 5 s each: dead at 15 s,
+redialled 3 s later. The stand-in had answered `pong` with no line end, so no test saw it.
+
+**Also from the firmware.** A ping that shares a recv() with anything else (a draw sent hard
+behind it, or the connect-time ping coalesced with the first redraw) is not answered at all.
+`grid-link.js` no longer pings at connect and defers a beat until the socket has been quiet for
+150 ms, without counting it as sent.
+
+**The fix.** pixelhue-bridge dbd3ad9 (`core/surface.js` skips blank bytes between frames),
+vendored; the stand-in now answers as the firmware does and ignores a ping that isn't alone; a
+test holds a link through dozens of heartbeats with draws in between. On winlab (Windows 11, the
+app's own Node 22) the branch held the stand-in mini's grid for 6.6 minutes: 80 pings, 80 pongs,
+no drops, slowest pong 9 ms, and `tools/u5-link-log.mjs` beside it logged the same. Never run
+against a real mini: what would show it is a grid that stays up past 15 s with the card's history
+quiet.
+
+**Still possible, unproven.** A ping that reaches the mini behind a backlog of draws still waiting
+in its receive buffer shares a recv() with them and goes unanswered; two of those in a row would
+drop the link. The quiet wait only covers this end's socket. If a log ever shows drops with
+`pongs` well short of `pings` while keys were being redrawn, that is the next thing to look at.
+
+**PixelFlow on Windows.** PixelFlow 2.2.0's installer (`/S` works) also installs UCenter, the
+U5 / U5 Pro control service, as an automatic Windows service (`UCenter`, `ucenter_win.exe
+service`) listening on 0.0.0.0:19999, 19998 and 9098, with UDP 5800 and 9123. It never opens 8088
+or 17100, the mini's ports, so it can't fight this app for a mini. The panel set to a U5 at
+127.0.0.1 drove that UCenter for six minutes on winlab: connected, the model published, 241
+frames, no errors.
+
+## The app's log (2026-11-03)
+
+**Why.** That report came with a screenshot of the card and nothing more, because there was
+nothing more: the server wrote to stdout, which under the desktop app is the launcher's last 30
+lines in memory, and the card shows five entries and names a repeated failure only once. The Windows
+user before it had no log at all.
+
+**What.** `server/logbook.js`: levelled lines from the server, both hosts, every plugin and the
+page (`src/hook/report.js`, inlined before the hook so it is listening when the panels fail to
+load), on disk in `logs/` in the data folder, rolled at 2 MB with ten kept. The Settings page's
+Logs card shows the newest and exports the lot as one text file with the version, machine,
+plugins and redacted settings at the top. A miss under `/__lpp/src/` is logged by the server too,
+so the Windows bug would have been one line in the export. The grid link logs every connection's
+end with its length, pings, pongs, bytes in and how long since the console last spoke; with
+Detail on Detailed, every ping and pong with its round trip.
+
+**For a user who can't update yet**, `tools/u5-link-log.mjs` (with `.command` and `.cmd`
+launchers) watches a running 0.18.x from outside: it polls `/__lpp/status` and
+`/__lpp/pixelhue/state` twice a second for the card's links and history, pings the console every
+2 s (never connecting to it: the grid serves one client), and writes a timed line for every drop
+with a summary a minute, to a text file on the Desktop. It uses the Node inside the installed
+app, so there is nothing to install.

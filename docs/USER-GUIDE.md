@@ -383,11 +383,35 @@ npm start -- --device 192.168.2.142
 | `--data <dir>` | where it keeps everything: settings, the last switcher, cue stacks, every plugin's per-switcher documents, and your own plugins (default `~/.livepremier-plus`) |
 | `--appliance` | this host exists to run the app, so Remote access may join and leave Tailscale and ZeroTier networks for it |
 | `--no-devices` | don't start the device host for USB panels (the Speed Editor) |
+| `--log <level>` | what goes into the log files: `debug`, `info` (the default), `warn` or `error`. Wins over the Settings page's choice. |
 
 Each has an environment variable too, for a service manager or Docker: `LPP_DEVICE`, `LPP_PORT`,
-`LPP_HOST`, `LPP_DATA`, `LPP_APPLIANCE=1` and `LPP_DEVICES=0`.
+`LPP_HOST`, `LPP_DATA`, `LPP_APPLIANCE=1`, `LPP_DEVICES=0` and `LPP_LOG`.
 
 There's a desktop app too: a tray launcher with an interface and port picker.
+
+### Logs, and sending them
+
+Everything the app does worth knowing about goes into a log: the switcher coming and going,
+plugins starting and failing, every connection a panel makes and loses, and any of the page's
+own files that wouldn't load. It lives in `logs/` in the data folder (`~/.livepremier-plus/logs`
+unless you moved it with `--data`), as plain text, one line each, with the time, how much it
+matters and where it came from.
+
+**Preconfig ▸ LivePremier Plus → Logs** shows the newest lines and how many errors and warnings
+there have been since the app started. **Problems**, **Normal** and **Everything** change what's
+listed there, not what's kept. **Export log** saves every log file as one text file, with the
+app's version, the computer, which plugins are on and the settings at the top. That's the file
+to send with a report. Keys, passwords and Tailscale auth keys are taken out of every line and
+every setting before anything is written, so it doesn't need checking first.
+
+**Detail** decides what reaches the files. **Normal** is a few lines a minute. **Detailed** adds
+a line for every heartbeat, reply and retry, which is what it takes to chase a connection that
+keeps dropping. Switch it on, let the thing go wrong a few times, export, and switch it back.
+
+The files never grow past about 20 MB: `lpp.log` rolls over to `lpp.1.log` at 2 MB, and ten are
+kept. If the folder can't be written (a full disk, say) the app carries on, the Logs card says
+so, and the export still has everything since it started.
 
 ### In Docker
 
@@ -2088,7 +2112,11 @@ dot, and **Reset** puts everything back.
 > asks for the mini's own. It then connected with its keys blank, which 0.18.2 answers by drawing
 > them on the mini's key grid; that hasn't met a mini yet. If the panel card says **connected, no
 > key reports**, or **TAKE / CUT: not seen yet** after you've pressed TAKE, that's worth telling me
-> about. Treat the first show with one as a rehearsal. Fade-to-black and freeze are sent on LivePremier, not yet on
+> about. Up to 0.18.9 the key grid dropped every 15 seconds or so (*the console's grid did not
+> answer 2 pings*), because the mini's reply to a heartbeat ends in a line break the app wasn't
+> expecting. That's fixed. If it still drops, set **Logs → Detail** to **Detailed**, let it drop
+> a few times and send the export: each drop is logged with how long the connection lasted and
+> when the console last said anything. Treat the first show with one as a rehearsal. Fade-to-black and freeze are sent on LivePremier, not yet on
 > a Midra 4K. SOURCE BACKUP is LivePremier's only: a Midra 4K or Alta 4K input has no backup, so
 > the key says so instead. docs/PIXELHUE.md lists what each key does, and has a test suite to run the day a
 > console turns up ("Testing it on a console").

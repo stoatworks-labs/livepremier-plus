@@ -38,7 +38,7 @@ import { EventEmitter } from 'node:events';
 import { exchange, AWJ_PORT } from '../../server/awj.js';
 import { ConsoleSwitcher, sentDetail } from '../../server/console-switcher.js';
 import { UCenterLink } from './ucenter.js';
-import { GridLink, letGoNote } from './grid-link.js';
+import { GridLink, letGoNote, levelled } from './grid-link.js';
 import {
   initialView as initialGridView, clampView, turnPage, gridCells, renderKey, pressIntent, pageMatches, wirePage,
   ROW_NAMES, LAYERS as LAYER_ROW, LONG_PRESS_MS,
@@ -75,6 +75,8 @@ const SILENT_KEY_WAIT_MS = 400;
    this old has lapsed (the page was closed). */
 const RUNNER_LEASE_MS = 12000;
 const HISTORY = 40;
+/* The level each kind of history line is logged at; anything carrying an error is a warning. */
+const NOTE_LEVEL = { starting: 'info', connected: 'info', disconnected: 'info', stopped: 'info', silent: 'warn', heard: 'info' };
 /* A held key repeats about every 125 ms. A repeat after a gap this long is
    the start of a new hold. */
 const REPEAT_GAP_MS = 400;
@@ -148,7 +150,7 @@ export class PixelhueSupervisor extends EventEmitter {
        fields (`pixelhueChanged`), so a transport change would never arrive. */
     this.settingsNow = settings;
     this.awjPort = awjPort;
-    this.log = log;
+    this.log = levelled(log);
     this.switcher = new ConsoleSwitcher({
       deviceHost: () => this.deviceHost(),
       awjPort,
@@ -185,6 +187,7 @@ export class PixelhueSupervisor extends EventEmitter {
       && want.wsPath === this.#config.wsPath && want.clientType === this.#config.clientType;
     if (same) { this.#config = want; return this.describe(); }
 
+    const was = Boolean(this.#link);
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     if (this.#grid) { await this.#grid.stop(); this.#grid = null; }
     this.#config = want;
@@ -199,7 +202,8 @@ export class PixelhueSupervisor extends EventEmitter {
     this.#seen = { take: false, cut: false };
     this.#takeCutKeys = new Map();
     this.#takeCutSaid = false;
-    if (!want) { this.#note({ kind: 'stopped' }); return this.describe(); }
+    /* "stopped" at every start of an app with no console is not news; one that was driving one is. */
+    if (!want) { this.#note({ kind: 'stopped', quiet: !was }); return this.describe(); }
 
     const link = new UCenterLink({
       host: want.host, port: want.port, wsPath: want.wsPath, clientType: want.clientType, log: this.log,
@@ -251,7 +255,7 @@ export class PixelhueSupervisor extends EventEmitter {
     }));
     grid.on('failure', (err) => {
       /* Once per cause: a console that is off would otherwise fill the history every 3 s. */
-      if (err.message === this.#gridError) return;
+      if (err.message === this.#gridError) { this.log.debug(`key grid: ${err.message} (again)`); return; }
       this.#gridError = err.message;
       this.#note({ kind: 'error', error: `key grid: ${err.message}` });
     });
@@ -967,7 +971,11 @@ export class PixelhueSupervisor extends EventEmitter {
     const full = { at: Date.now(), ...entry };
     this.history.unshift(full);
     if (this.history.length > HISTORY) this.history.length = HISTORY;
-    if (entry.error) this.log(`panel: ${entry.error}`);
+    /* The card keeps the last few; the log keeps them all, in the card's words. Keys pressed
+       are debug: a show presses hundreds, and what a report needs is when the links came and went. */
+    const words = [entry.command, entry.note || entry.error || entry.kind].filter(Boolean).join(' — ');
+    const level = entry.error ? 'warn' : (!entry.quiet && NOTE_LEVEL[entry.kind]) || 'debug';
+    this.log[level](`panel: ${words}`);
     this.emit('activity', full);
   }
 
