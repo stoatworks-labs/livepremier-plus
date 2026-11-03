@@ -4086,3 +4086,31 @@ popped-out panels (each window has its own `HTMLImageElement`; only the Web RCS 
 The model in `test/thumbnail-hold.test.js` gives the same shape: eight 148 KB inputs over
 400 KB/s draw none in 30 s without the hold (232 loads cut off), and 9–10 each with it, 78 of the
 ~81 pictures the link can carry.
+
+## The Windows app had no panels (2026-11-03, winlab and kde-lab against the rack simulator)
+
+**The report.** A user on Windows saw the plain Web RCS with none of the PLUS parts, in Firefox,
+Brave and Edge, at 127.0.0.1 and from the desktop app's button alike. The same user's Mac was
+fine.
+
+**The cause.** `serveOwn` checked our own module tree with `path.normalize(rest).startsWith('/src/')`.
+On Windows `path.normalize('/src/main.js')` is `\src\main.js`, so the check failed and every file
+under `/__lpp/src/` was a 404, `main.js` first; the vendor page loaded without us. It had been
+like that since the route was written (6c37736, 2026-08-21), so no Windows build has ever shown
+a panel. Plugin files (`/__lpp/plugins/<id>/…`) were fine: `plugin-host.js` joins and then checks
+with `relative()`, which is right on both. The fix, `ownSourceFile`, normalises the URL as the
+POSIX path it is and refuses a backslash outright, because Windows' `join` takes one as a
+separator and `..\` would walk out of `src/`.
+
+**Proved on** v0.18.9's own `x64-setup.exe` installed on winlab (Windows 11 26200), its server run
+as the desktop app runs it (`LPP_PORT`/`LPP_HOST`/`LPP_DEVICE`), the shipped copy on one port and
+a copy with the fixed `proxy.js` on another. Edge 156, Chrome 156 and Firefox 159, headless,
+driven over their debugging ports: shipped, `main.js` 404 and only the vendor's own sidebar;
+fixed, Pixelhue Mapping, Speed Editor and MIDI Mapping present and no request failing apart
+from the simulator's input thumbnails, which it never has. The fixed tree on kde-lab (Ubuntu
+24.04, Node 22) with Chromium 156 and Firefox 159: the same.
+
+**winlab trap.** A 5 KB file through the app took 10 s and the 22 MB vendor bundle 145 s, against
+4.8 s straight from the simulator: the VM was at 100% CPU with `dwm` at 70,000 CPU-seconds. A
+reboot (`virsh reboot win-lab` on lilnasX) cleared it. Look at the box's load before blaming the
+proxy for anything slow there.

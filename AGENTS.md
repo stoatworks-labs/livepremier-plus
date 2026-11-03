@@ -2706,6 +2706,20 @@ profile (2026-10-31, `snapshot-keeper.test.js`). Assert that the page was
 answered before the switcher sent, not that it took under so many
 milliseconds.
 
+⚠️ **Every change is run on Windows and Linux before it lands, not only on a Mac.**
+Every Windows build up to 0.18.9 served the vendor UI with none of the panels:
+`path.normalize` turned `/__lpp/src/main.js` into `\src\main.js` there, the
+`/src/` check refused it, and every one of our files was a 404 (2026-11-03,
+`ownSourceFile` in `server/proxy.js`). Nothing caught it because nothing ran
+there; `npm test` on a Mac could not. Allan's rule since: test LPP work on
+**winlab** (Windows 11, `ssh winlab`, Edge, Chrome and Firefox) and the **kde-lab**
+Linux VM (Ubuntu 24.04, `ssh kdelab`, Chromium and Firefox), both VMs on lilnasX
+(`virsh list` there), as well as the Mac. Run the server the way the desktop app
+does (`LPP_PORT`, `LPP_HOST`, `LPP_DEVICE` against the rack simulator) and load
+it in each browser, through the debugging port and a tunnel when the box is
+headless. A code path that touches the filesystem asks its question with
+`path.win32` in a test too, so a Mac run fails the way Windows would.
+
 `LPP_SIM=<host>:<port> npm run test:sim` — the live suite in `test/sim/`, against
 a running LivePremier simulator. It boots the real app (`createProxy`, as
 `server/index.js` does) on a loopback port with a throwaway data directory and

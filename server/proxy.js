@@ -32,7 +32,7 @@ import http from 'node:http';
 import net from 'node:net';
 import zlib from 'node:zlib';
 import { readFile } from 'node:fs/promises';
-import { join, extname, normalize } from 'node:path';
+import nodePath, { join, extname } from 'node:path';
 
 import {
   normalise as normaliseSettings, DEFAULT_SETTINGS,
@@ -79,6 +79,23 @@ export function splitDevice(device, fallbackPort = 80) {
   const port = m[2] ? Number(m[2]) : fallbackPort;
   if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
   return { host: m[1], port };
+}
+
+/**
+ * The file in our own module tree that `NS + rest` names, or null.
+ *
+ * A URL path is `/`-separated on every platform, so it is normalised as one.
+ * `path.normalize` on Windows turned `/src/main.js` into `\src\main.js`, the
+ * `/src/` check failed, and every one of our files was a 404 there: the vendor
+ * UI loaded with none of the panels. A backslash is refused outright, because
+ * Windows' join takes it as a separator and `..\` would walk out of src/.
+ * `path` is a parameter so the tests can ask Windows' question on any machine.
+ */
+export function ownSourceFile(root, rest, path = nodePath) {
+  let clean;
+  try { clean = nodePath.posix.normalize(decodeURIComponent(rest)); } catch { return null; }
+  if (!clean.startsWith('/src/') || clean.includes('\\')) return null;
+  return path.join(root, clean);
 }
 
 /**
@@ -537,17 +554,16 @@ export async function createProxy({
       }
     }
 
-    /* Our own module tree. Path traversal is stripped before it touches the
-       filesystem; only src/ is reachable regardless. */
-    const clean = normalize(decodeURIComponent(rest)).replace(/^(\.\.[/\\])+/, '');
-    if (!clean.startsWith('/src/')) {
+    /* Our own module tree; only src/ is reachable (ownSourceFile says why). */
+    const file = ownSourceFile(root, rest);
+    if (!file) {
       res.writeHead(404, { 'content-type': 'text/plain' });
       return res.end('not found');
     }
     try {
-      const body = await readFile(join(root, clean));
+      const body = await readFile(file);
       res.writeHead(200, {
-        'content-type': TYPES[extname(clean)] || 'application/octet-stream',
+        'content-type': TYPES[extname(file)] || 'application/octet-stream',
         'cache-control': 'no-store'
       });
       res.end(body);

@@ -18,11 +18,11 @@ import net from 'node:net';
 import dgram from 'node:dgram';
 import zlib from 'node:zlib';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import path, { join, dirname } from 'node:path';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-import { createProxy, injectInto, buildInjection, splitDevice, validHost, NS } from '../server/proxy.js';
+import { createProxy, injectInto, buildInjection, splitDevice, validHost, ownSourceFile, NS } from '../server/proxy.js';
 import { StackStore } from '../server/storage.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -189,11 +189,26 @@ test('our own module tree is served, and cannot escape src/', async () => {
     assert.equal(ok.status, 200);
     assert.ok((await ok.text()).length > 0);
 
-    for (const bad of ['/../package.json', '/../../etc/passwd', '/package.json']) {
+    for (const bad of ['/../package.json', '/../../etc/passwd', '/package.json', '/src/..%5C..%5Cpackage.json']) {
       const res = await fetch(`${base}${NS}${bad}`);
       assert.equal(res.status, 404, `${bad} refused`);
     }
   });
+});
+
+test('our own module tree resolves on Windows too, and still cannot escape src/', () => {
+  /* The Windows app used to serve the vendor UI with none of the panels:
+     path.normalize made `/src/main.js` into `\src\main.js` there, and the check
+     for `/src/` refused it. Asked with Windows' path rules, so a Mac or Linux
+     run catches it. */
+  const root = 'C:\\Users\\lab\\AppData\\Local\\LivePremier Plus\\livepremier-plus-app';
+  assert.equal(ownSourceFile(root, '/src/main.js', path.win32), `${root}\\src\\main.js`);
+  assert.equal(ownSourceFile(root, '/src/core/paths.js', path.win32), `${root}\\src\\core\\paths.js`);
+  for (const bad of ['/../package.json', '/src/../package.json', '/src/..\\..\\package.json',
+    '/src/..%5C..%5Cpackage.json', '/src/%E0%A4%A', '/package.json']) {
+    assert.equal(ownSourceFile(root, bad, path.win32), null, `${bad} refused`);
+    assert.equal(ownSourceFile('/app', bad, path.posix), null, `${bad} refused on POSIX`);
+  }
 });
 
 test('the socket is relayed, and the device sees exactly one client', async () => {
