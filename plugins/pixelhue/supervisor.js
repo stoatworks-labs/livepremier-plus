@@ -134,6 +134,8 @@ export class PixelhueSupervisor extends EventEmitter {
   #seen = { take: false, cut: false };
   #takeCutKeys = new Map();
   #takeCutSaid = false;
+  /* A redraw once a take from the grid has had time to land, for the tally. */
+  #settleTimer = null;
 
   /**
    * @param {object} opts
@@ -271,6 +273,7 @@ export class PixelhueSupervisor extends EventEmitter {
   }
 
   async stop() {
+    clearTimeout(this.#settleTimer); this.#settleTimer = null;
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     if (this.#grid) { await this.#grid.stop(); this.#grid = null; }
     this.#config = null;
@@ -935,6 +938,13 @@ export class PixelhueSupervisor extends EventEmitter {
       this.#note({ kind: 'noted', command: name, note: takeCutNote(this.#config && this.#config.model) });
     }
     void this.#drawGrid();
+    /* A take runs for its transition time, so the input row's PGM / PVW is
+       read again once it has had time to finish, not only mid-way. */
+    if (intent.kind === 'take' || intent.kind === 'cut') {
+      clearTimeout(this.#settleTimer);
+      this.#settleTimer = setTimeout(() => { this.#settleTimer = null; void this.#drawGrid(); }, TAKE_SETTLE_MS);
+      if (this.#settleTimer.unref) this.#settleTimer.unref();
+    }
   }
 
   /* ------------------------------------------------------ a wiped console */
@@ -1029,6 +1039,8 @@ function nameOf(code) {
 
 /* Intents after which the model must be read again, not just re-sent. */
 const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap', 'deletePreset']);
+/* How long after a TAKE or CUT on a mini's grid its tally is read again. */
+const TAKE_SETTLE_MS = 1500;
 /* Intents that only move the panel's selection. */
 const SELECTS = new Set(['select', 'activate', 'unselect', 'selectLayer']);
 

@@ -352,7 +352,7 @@ output: where what you'd see is the point, that's said.
 | Remote access | Tested | Real Tailscale and ZeroTier, with a simulator behind. |
 | MIDI Mapping | Preview | No physical controller has been attached yet. |
 | Speed Editor | Preview | A real Speed Editor over USB against the simulator, not yet against a frame. |
-| Pixelhue panel | Preview | PixelFlow's virtual U5 against a C mini. A real U5 mini on 0.18.10 against an Aquilon drew its key grid and recalled a screen memory on the frame; its keypad, TAKE and CUT did nothing. Inputs past 24 and master memories on the grid are proved against a stand-in and read back from a C mini, not yet on a mini. |
+| Pixelhue panel | Preview | PixelFlow's virtual U5 against a C mini. A real U5 mini on 0.18.10 against an Aquilon drew its key grid and recalled a screen memory on the frame; its keypad, TAKE and CUT did nothing. Inputs past 24, master memories, and TAKE and CUT keys on the grid are proved against a stand-in (inputs also read back from a C mini), not yet on a mini. |
 | Barco EC panel | Preview | A pretend panel only. |
 | ATEM Micro Panel | Preview | A pretend panel only. |
 | Lighting desk control | Preview | MagicQ PC and a pretend desk, against the simulator. |
@@ -2102,9 +2102,13 @@ master memories on a page of their own, in violet. A master recalls to preview; 
 still a job for the Web RCS, so SAVE TO and DEL leave them alone.
 
 The grid edits preview, as a U5's bus keys do, so a source or a memory you pick there lands in
-preview and stays there until something takes it. Nobody knows yet whether a mini sends this app
-TAKE and CUT at all, or its keypad's keys. The card says **TAKE / CUT: not seen yet** until it
-does, and until then, take from the Web RCS.
+preview and stays there until something takes it. That something is the last two keys of the
+screen row, **CUT** and **TAKE**, which sit there on every page of it, so the screens go six to a
+page. They light up red and green once a screen is selected, with the screens they'll act on
+underneath, and stay dark when there's nothing to take. They're there because the mini's own
+TAKE and CUT keys didn't reach this app on the one mini tried so far, and neither did its keypad.
+Nobody knows yet whether they ever will. The card shows **Console TAKE / CUT: not seen yet** until
+the console's own keys turn up.
 
 Everything else is mapped on **Pixelhue Mapping**, in the sidebar under Virtual RC400T, next to
 MIDI Mapping — or at the foot of the PLUS section on a Midra 4K or Alta 4K, which has no Virtual
@@ -2132,10 +2136,11 @@ dot, and **Reset** puts everything back.
 > asks for the mini's own. It then connected with its keys blank, which 0.18.2 answers by drawing
 > them on the mini's key grid. A real mini running 0.18.10 against an Aquilon has since drawn the
 > grid, held it and recalled a screen memory on the frame, but its inputs stopped at 24, its master
-> memories were missing (both fixed since), and its keypad, TAKE and CUT did nothing. If the panel
-> card says **connected, no key reports**, or **TAKE / CUT: not seen yet** after you've pressed
-> TAKE, set **Logs → Detail** to **Detailed**, press each key that does nothing once, and send the
-> export: that's the bit nobody has seen yet. Up to 0.18.9 the key grid dropped every 15 seconds or so (*the console's grid did not
+> memories were missing (both fixed since), and its keypad, TAKE and CUT did nothing, hence the
+> grid's own TAKE and CUT. If the panel card says **connected, no key reports**, or **Console TAKE
+> / CUT: not seen yet** after you've pressed the console's TAKE, set **Logs → Detail** to
+> **Detailed**, press each key that does nothing once, and send the export: that's the bit nobody
+> has seen yet. Up to 0.18.9 the key grid dropped every 15 seconds or so (*the console's grid did not
 > answer 2 pings*), because the mini's reply to a heartbeat ends in a line break the app wasn't
 > expecting. That's fixed. If it still drops, set **Logs → Detail** to **Detailed**, let it drop
 > a few times and send the export: each drop is logged with how long the connection lasted and

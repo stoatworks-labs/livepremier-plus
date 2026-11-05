@@ -18,7 +18,7 @@ import { inflateSync } from 'node:zlib';
 
 import {
   initialView, rowItems, memoryRow, pageCount, clampView, turnPage, pressIntent, pageMatches, wirePage, gridCells, renderKey,
-  SCREENS, LAYERS, INPUTS, MEMORIES, PAGE_BACK, PAGE_ON, LONG_PRESS_MS,
+  SCREENS, LAYERS, INPUTS, MEMORIES, PAGE_BACK, PAGE_ON, LONG_PRESS_MS, CUT_KEY, TAKE_KEY,
 } from '../plugins/pixelhue/grid.js';
 import { GridLink, letGoNote } from '../plugins/pixelhue/grid-link.js';
 import { PixelhueSupervisor } from '../plugins/pixelhue/supervisor.js';
@@ -33,6 +33,16 @@ import { fakeAwj } from './helpers/fake-awj.js';
 import { install as installDom } from './helpers/fake-dom.js';
 
 const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Until the stand-in grid has had no draw for `ms`: the app's redraws have landed. */
+async function quiet(lcd, ms = 250, limit = 3000) {
+  const end = Date.now() + limit;
+  let seen = lcd.draws;
+  let since = Date.now();
+  while (Date.now() < end) {
+    await settle(20);
+    if (lcd.draws !== seen) { seen = lcd.draws; since = Date.now(); } else if (Date.now() - since >= ms) return;
+  }
+}
 async function until(fn, ms = 3000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -177,6 +187,39 @@ test('master memories follow the screen memories on a page of their own, and rec
   assert.equal(gridCells(ctx(eight, { pages: [0, 0, 0, 1], armed: 'save' })).find((c) => c.row === MEMORIES && c.column === 7).face.sub, 'SAVE HERE');
   /* None at all: the row is as it was. */
   assert.deepEqual(rowItems(MEMORIES, ctx({ ...FACTS, masters: [] })).map((i) => i.slot), [1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+test('the screen row ends in CUT and TAKE on every page, so screens page by six', () => {
+  /* A real mini's own TAKE and CUT did nothing on an Aquilon (2026-11-05). */
+  assert.deepEqual([CUT_KEY, TAKE_KEY], [6, 7]);
+  const seven = {
+    ...FACTS,
+    destinations: Array.from({ length: 7 }, (_, i) => ({ id: `S${i + 1}`, kind: 'screen', label: `LED ${i + 1}`, isUsed: true })),
+  };
+  const ctx = (picked = [], view = {}) => {
+    const selection = new Selection();
+    selection.restrict(seven.destinations.map((d) => d.id));
+    for (const id of picked) selection.apply({ kind: 'select', destination: id });
+    return { facts: seven, selection, view: { ...initialView(), ...view }, sourceKind: 'LIVE' };
+  };
+  assert.equal(pageCount(SCREENS, ctx()), 2, 'seven screens, six a page');
+  assert.deepEqual(pressIntent(SCREENS, 5, ctx()), { kind: 'select', destination: 'S6' });
+  assert.deepEqual(pressIntent(SCREENS, 0, ctx([], { pages: [1, 0, 0, 0] })), { kind: 'select', destination: 'S7' }, 'page 2 starts at the seventh');
+  for (const page of [0, 1]) {
+    assert.deepEqual(pressIntent(SCREENS, TAKE_KEY, ctx(['S1'], { pages: [page, 0, 0, 0] })), { kind: 'take' });
+    assert.deepEqual(pressIntent(SCREENS, CUT_KEY, ctx(['S1'], { pages: [page, 0, 0, 0] })), { kind: 'cut' });
+  }
+  assert.deepEqual(pressIntent(INPUTS, TAKE_KEY, ctxWith()), { kind: 'source', input: 8, label: 'CAM 8' }, 'only the screen row gives keys up');
+
+  const faceAt = (c, column) => gridCells(c).find((k) => k.row === SCREENS && k.column === column).face;
+  assert.deepEqual([faceAt(ctx(), TAKE_KEY).text, faceAt(ctx(), TAKE_KEY).sub], ['TAKE', 'NO SCREEN']);
+  assert.deepEqual(faceAt(ctx(), CUT_KEY).fill, GREY, 'dark with nothing to take');
+  const two = ctx(['S1', 'S3']);
+  assert.deepEqual([faceAt(two, TAKE_KEY).sub, faceAt(two, TAKE_KEY).fill], ['S1 S3', GREEN]);
+  assert.deepEqual([faceAt(two, CUT_KEY).text, faceAt(two, CUT_KEY).fill], ['CUT', RED]);
+  assert.equal(faceAt(ctx(['S1', 'S2', 'S3', 'S4']), TAKE_KEY).sub, 'S1 S2 S3 S4', 'four names fit the status line');
+  assert.equal(faceAt(ctx(['S1', 'S2', 'S3', 'S4', 'S5']), TAKE_KEY).sub, '5 SCREENS', 'five do not');
+  assert.equal(faceAt(ctx([], { pages: [1, 0, 0, 0] }), 1).text, '', 'past the seventh screen, nothing');
 });
 
 test('columns 8 and 9 are each row\'s page keys', () => {
@@ -519,6 +562,11 @@ test('the grid pages each row with its own page keys, and refuses a press from a
     await lcd.press(INPUTS, 1);
     assert.ok(await until(() => awj.writes().length));
     assert.equal(awj.writes()[0].value, 'LIVE_10');
+    /* The write relights the row (CAM 10 in preview), and that redraw moves the
+       stand-in's row back to page 2; let it land before faking a stale page, or
+       on a slow machine it lands after and the press is taken (winlab, 2026-11-05). */
+    assert.ok(await until(() => fillOf(lcd.shown(INPUTS, 1).png).join() === GREEN.join()), 'CAM 10 lit as in preview');
+    await quiet(lcd);
 
     /* A press the console reports from page 1 of a row now drawn as page 2. */
     awj.clear();
@@ -589,6 +637,35 @@ test('a master memory on the grid recalls to preview with no screen selected', a
   }
 });
 
+test('TAKE and CUT on the grid take and cut the screens selected there, and say so', async () => {
+  const r = await rig({ functionKeys: 'nothing' });
+  const { lcd, sup, awj } = r;
+  try {
+    await lcd.press(SCREENS, TAKE_KEY);
+    assert.ok(await until(() => r.said(/^no destination selected on the panel$/)), 'nothing selected: nothing sent');
+    assert.deepEqual(awj.writes(), []);
+    await lcd.press(SCREENS, 0);
+    await lcd.press(SCREENS, 1);
+    assert.ok(await until(() => sup.selection.list.join() === 'S1,S2'));
+    assert.ok(await until(() => fillOf(lcd.shown(SCREENS, TAKE_KEY).png).join() === GREEN.join()), 'TAKE lit once a screen is selected');
+    awj.clear();
+    await lcd.press(SCREENS, TAKE_KEY);
+    assert.ok(await until(() => awj.writes().length >= 2));
+    assert.deepEqual(awj.writes(), [
+      { path: toAwj(NLC.takeControl('S1', 'xTake')), value: true },
+      { path: toAwj(NLC.takeControl('S2', 'xTake')), value: true },
+    ]);
+    assert.ok(r.said(/^take S1 S2$/));
+    awj.clear();
+    await lcd.press(SCREENS, CUT_KEY);
+    assert.ok(await until(() => awj.writes().length >= 2));
+    assert.deepEqual(awj.writes().map((w) => w.path), [toAwj(NLC.takeControl('S1', 'xCut')), toAwj(NLC.takeControl('S2', 'xCut'))]);
+    assert.equal(sup.describe().takeCut.take, false, 'the grid\'s TAKE is not the console reporting its own');
+  } finally {
+    await r.close();
+  }
+});
+
 test('a mini that reports TAKE\'s key but no take says so, and sends nothing', async () => {
   const r = await rig({ functionKeys: 'keys' });
   try {
@@ -616,8 +693,9 @@ test('a mini that reports nothing for TAKE leaves the card saying so in plain wo
     const d = r.sup.describe();
     assert.deepEqual([d.takeCut.take, d.takeCut.cut], [false, false]);
     assert.equal(d.takeCut.note, takeCutNote('u5mini'));
-    assert.match(d.takeCut.note, /nobody knows yet whether TAKE and CUT reach this app/);
-    assert.ok(r.said(/nobody knows yet whether TAKE and CUT reach this app/), 'said once in the history, at the first grid selection');
+    assert.match(d.takeCut.note, /nobody knows yet whether the console's own TAKE and CUT keys reach this app/);
+    assert.match(d.takeCut.note, /Use TAKE and CUT at the end of the key grid's screen row/);
+    assert.ok(r.said(/nobody knows yet whether the console's own TAKE and CUT keys reach this app/), 'said once in the history, at the first grid selection');
     assert.equal(r.sup.history.filter((e) => /nobody knows yet/.test(e.note || '')).length, 1);
   } finally {
     await r.close();
@@ -690,9 +768,10 @@ test('the card says the grid is drawn, how to see it, and that TAKE / CUT have n
   const text = await cardText(state, settings);
   assert.match(text, /Key grid/);
   assert.match(text, /drawing on 127\.0\.0\.1:\d+/);
-  assert.match(text, /TAKE \/ CUT/);
+  assert.match(text, /Console TAKE \/ CUT/);
   assert.match(text, /not seen yet/);
-  assert.match(text, /nobody knows yet whether TAKE and CUT reach this app/);
+  assert.match(text, /nobody knows yet whether the console's own TAKE and CUT keys reach this app/);
+  assert.match(text, /with TAKE and CUT at the end of the screen row/);
   assert.match(text, /switched to Companion with its area-switch key/);
   assert.doesNotMatch(text, /labels, lights and pages its own keys/, 'that is a U5\'s story, not a mini\'s');
 

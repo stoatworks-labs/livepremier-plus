@@ -4204,6 +4204,11 @@ reports them to a control-service client is not in the symbols. The user's log a
 way to find out. The source that "only changed in the Web RCS" is most likely preview: the grid
 edits preview, and with no TAKE nothing moves it to program. Unconfirmed.
 
+**TAKE and CUT on the grid** (the same day, Allan's call): the screen row's last two keys, CUT
+and TAKE, on every page of it, so screens page by six. A press is the `take` / `cut` intent a
+U5's TAKE reports, written to every selected screen; the input row's tally is read again 1.5 s
+later. Proved against the stand-in grid and a pretend switcher only.
+
 **Tests.** `npm test` 1641 on the Mac and kde-lab, 0 failing. On winlab 4 fail, and the same 4 fail
 on main 091306b there: LibreOffice's profile URL and the NDI runtime path are spelt POSIX in the
 tests, the media host fork, and the UMD Undo after Update in place. The sim suites now take their

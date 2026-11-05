@@ -125,9 +125,9 @@ export const TAKE_CUT_MODES = Object.freeze({ 154: 'take', 153: 'cut' });
  */
 export function takeCutNote(id) {
   if (!consoleModel(id).grid) return '';
-  return 'On a U5 mini nobody knows yet whether TAKE and CUT reach this app: the console\'s own LCD app runs them '
-    + 'against a Pixelhue switcher it is bound to. When they do, they take the screens selected here. When they '
-    + 'do not, this history shows no take or cut — take from the Web RCS instead.';
+  return 'On a U5 mini nobody knows yet whether the console\'s own TAKE and CUT keys reach this app: its LCD app runs '
+    + 'them against a Pixelhue switcher it is bound to, and on the one mini tried so far they did nothing. Use TAKE '
+    + 'and CUT at the end of the key grid\'s screen row instead: they take or cut the screens selected there.';
 }
 
 /** Unico's `AreaType`. The console's four buses, plus the device area. */

@@ -340,11 +340,11 @@ drawn and what a press means; `grid-link.js`, the link):
 
 | row | shows | a press |
 |---|---|---|
-| 0 | the screens in service | selects; on a selected screen, makes it the **active** one; held 1.5 s, drops it |
+| 0 | the screens in service, six a page, then **CUT** and **TAKE** (columns 6 and 7, on every page) | selects; on a selected screen, makes it the **active** one; held 1.5 s, drops it. CUT and TAKE cut or take every selected screen |
 | 1 | the active screen's layers | selects the layer |
 | 2 | the inputs the Web RCS's source picker offers (or stills or screens, as SIGNAL SOURCE chose) | puts it on the selected layer of every selected screen, in the buffer the panel edits |
 | 3 | screen memories, then master memories from the next page on | a screen memory recalls to preview, or with SAVE TO or DEL armed stores or deletes; a master recalls to preview, and SAVE TO and DEL refuse it |
-| columns 8 / 9 | that row's page, as `INPUT 1/2` | page back / page on, eight at a time |
+| columns 8 / 9 | that row's page, as `INPUT 1/2` | page back / page on, eight at a time (six on the screen row) |
 
 **Switch each row to Companion to see it.** The grid is drawn for all four
 rows as soon as the link opens, and the console keeps it, but a row shows it
@@ -394,17 +394,28 @@ stores to its slot or deletes it, and an empty key past the last memory saves
 to the first free slot as `Memory <n>`. If it does not, the memory row only
 recalls.
 
-**TAKE and CUT: nobody knows yet whether a mini reports them.** If it does,
-531 and 532 take and cut the screens selected on the grid, exactly as on a U5
-— the stand-in proves that much. If it reports TAKE's key but no take, the
-history says *TAKE pressed on the console (key 65), but the console reported
-no take command (531) to this app, so nothing was sent to the switcher*. If it
-reports nothing at all, there is nothing to see, so the card says so up front:
-**TAKE / CUT: not seen yet**, with a note in plain words, said once in the
-history at the first selection on the grid. Take from the Web RCS until the
-card shows them reported. Nothing here guesses at a workaround: the LCD app
-takes against the switcher it is bound to, and nothing in the firmware offers
-a way round that.
+**TAKE and CUT are on the grid**, at the end of the screen row: columns 6 and
+7, CUT then TAKE, the same two keys whichever page that row is on, so the
+screens page by six. They are lit red and green, with the screens they would
+act on under the word (or how many, when the names do not fit), while a
+screen is selected, and dark with **NO SCREEN** when none is. A press is the
+same `take` / `cut` intent a U5's TAKE and CUT report, so it writes `xTake` /
+`xCut` on every selected screen, and the input row's tally is read again
+1.5 s later, once a take has had time to finish. They were added on
+2026-11-05, after a real mini's own TAKE and CUT did nothing against an
+Aquilon.
+
+**The console's own TAKE and CUT: nobody knows yet whether a mini reports
+them.** If it does, 531 and 532 take and cut the screens selected on the
+grid, exactly as on a U5 — the stand-in proves that much. If it reports
+TAKE's key but no take, the history says *TAKE pressed on the console (key
+65), but the console reported no take command (531) to this app, so nothing
+was sent to the switcher*. If it reports nothing at all, there is nothing to
+see, so the card says so, as **Console TAKE / CUT: not seen yet**, with a note
+in plain words pointing at the grid's own keys, said once in the history at the
+first selection on the grid. Nothing here works round the console's keys: the
+LCD app takes against the switcher it is bound to, and nothing in the firmware
+offers a way round that, hence keys of this app's own.
 
 **One client at a time, and who wins.** The LCD app holds one 17100 client
 (`TcpServer::acceptThread`, disassembled):
@@ -628,7 +639,7 @@ worth doing.
 
 ## Known gaps
 
-- **A U5 mini's keypad, TAKE and CUT do nothing yet.** The one real mini to
+- **A U5 mini's own keypad, TAKE and CUT do nothing yet.** The one real mini to
   try this refused the U5's socket path (2026-10-22); on the corrected path it
   connected, and its page and area-switch keys reached this app. On 2026-11-05,
   on 0.18.10 against an Aquilon, its key grid was drawn and held, and a screen
@@ -638,6 +649,7 @@ worth doing.
   them to a control-service client at all (its keypad handlers post to its own
   bound Pixelhue switcher), so the next thing to find out is what that mini's
   log shows, with **Logs → Detail** at **Detailed**, for each of those keys.
+  Meanwhile the grid has TAKE and CUT of its own (stand-in only so far).
   A source chosen on the grid was reported as reaching the Web RCS and not the
   frame: the grid edits preview, as a U5 does, and with no TAKE nothing moves
   it to program. That is the likeliest reading, and unconfirmed

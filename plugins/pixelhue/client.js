@@ -234,8 +234,8 @@ export default function activate(ctx) {
         live.grid ? readout('Key grid', live.grid.letGo ? 'let go'
           : live.grid.connected ? `drawing on ${live.grid.host}:${live.grid.port}` : 'not connected',
         { tone: live.grid.letGo ? 'warn' : live.grid.connected ? null : 'tertiary' }) : null,
-        live.takeCut ? readout('TAKE / CUT', takeCutSeen(live.takeCut),
-          { tone: live.takeCut.take && live.takeCut.cut ? null : 'warn' }) : null)
+        live.takeCut ? readout('Console TAKE / CUT', takeCutSeen(live.takeCut),
+          { tone: live.takeCut.take && live.takeCut.cut ? null : 'tertiary' }) : null)
       : null;
 
     const notes = [];
@@ -243,9 +243,9 @@ export default function activate(ctx) {
     notes.push(note('warn',
       'Preview. This has never worked against a console yet — it was built from the '
       + 'firmware and proved against the vendor’s own control service running with no '
-      + 'hardware. The first U5 mini to try it refused the connection at the wrong address, '
-      + 'since corrected from the mini’s own firmware; nothing past that has been seen on '
-      + 'one. Treat the first show with one as a rehearsal.'));
+      + 'hardware. A real U5 mini has since drawn its key grid against an Aquilon and recalled '
+      + 'a memory from it; its own TAKE, CUT and keypad did nothing there. Treat the first show '
+      + 'with one as a rehearsal.'));
     if (model && !model.overLan) {
       notes.push(note('warn',
         `A ${model.label} serves its control port on loopback only, so this app has to be `
@@ -254,12 +254,13 @@ export default function activate(ctx) {
     if (link && link.lastError) notes.push(note('warn', link.lastError));
     if (link && link.connected && live.silent) notes.push(note('warn', live.silent));
     if (live && live.grid && live.grid.letGo) notes.push(note('warn', live.grid.letGo.note));
-    if (on && live && live.takeCut && !(live.takeCut.take && live.takeCut.cut)) notes.push(note('warn', live.takeCut.note));
+    if (on && live && live.takeCut && !(live.takeCut.take && live.takeCut.cut)) notes.push(note('info', live.takeCut.note));
     if (on && model && model.grid) {
       notes.push(note('info',
         'A U5 mini labels its bus keys from its own LCD app, not from what this app tells it, so '
         + 'this app draws them itself on the console’s key grid: screens, the active screen’s layers, '
-        + 'inputs and memories, a row each, eight keys and that row’s two page keys. A row shows them '
+        + 'inputs and memories, a row each, eight keys and that row’s two page keys, with TAKE and CUT '
+        + 'at the end of the screen row. A row shows them '
         + 'only once it is switched to Companion with its area-switch key, the last key of the row. '
         + 'While this app is connected, the console’s own Companion cannot draw on the grid. '
         + 'Selection lives in this app; docs/PIXELHUE.md has the rest.'));
