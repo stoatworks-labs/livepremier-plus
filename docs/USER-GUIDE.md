@@ -96,6 +96,9 @@ than something bolted on.
   paired with the machine this app runs on, driving the switcher like an ATEM, with no browser
   open. Quit ATEM Software Control first, or it switches your ATEM on every press too. Not yet
   tried on a real panel.
+- **X-keys** *(preview, off by default)*: an X-keys keypad, stick, T-bar or foot pedal, plugged
+  into the machine this app runs on, driving the switcher with no browser open, each key doing
+  the job you give it. Turn it off in Companion first. Not yet tried on a real panel.
 - **Lighting desk control** *(preview, off by default)*: a lighting desk driving the switcher over
   Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity,
   and in the bigger modes its position, size and look. The patch comes as an MVR file, with
@@ -355,6 +358,7 @@ output: where what you'd see is the point, that's said.
 | Pixelhue panel | Preview | PixelFlow's virtual U5 against a C mini; a real U5 mini connected but showed blank keys. The mini's key grid dropping every 15 seconds is fixed against a stand-in that answers as its firmware does, not yet on a real mini. |
 | Barco EC panel | Preview | A pretend panel only. |
 | ATEM Micro Panel | Preview | A pretend panel only. |
+| X-keys | Preview | A pretend panel against the simulator, and a virtual one through the Linux kernel; its reports checked against recordings of real panels. No real panel yet. |
 | Lighting desk control | Preview | MagicQ PC and a pretend desk, against the simulator. |
 | grandMA3 | Preview | grandMA3 onPC against the simulator; no wing or desk. |
 | Desk (control surface) | In development | No desk exists yet; a pretend controller only. |
@@ -2169,6 +2173,27 @@ The key map and the rest are in [ATEM-MICRO-PANEL.md](ATEM-MICRO-PANEL.md).
 
 ---
 
+## X-keys (preview, off by default)
+
+A P.I. Engineering **X-keys**, plugged into the machine this app runs on, driving the switcher
+with no browser open. An X-keys has blank keys, so each one does what you give it on the card:
+take, cut, an input, still or memory to preview, a screen to drive, a layer, fade to black,
+freeze, the take time. A model you haven't laid out runs a suggested layout until you change a
+key, and the XKE-124's T-bar takes by hand.
+
+Switch on **X-keys** in **Preconfig ▸ LivePremier Plus → Plugins**, then tick **Drive an X-keys**
+on its card. Turn the panel off in Companion (and quit MacroWorks) on the same machine first:
+the panel is shared, so they'd hear every press too. Only the first X-keys plugged in is driven.
+On Linux it needs a udev rule, `devices/udev/71-xkeys.rules`.
+
+The jobs, the lamps and the rest are in [XKEYS.md](XKEYS.md).
+
+> ⚠️ **Never run against a real panel.** Its reports are read the way the library Companion uses
+> reads them, checked against that library's recordings of real panels, but here it has only met
+> a pretend panel and a simulator.
+
+---
+
 ## Lighting desk control (preview, off by default)
 
 A lighting desk (grandMA3, MagicQ, Titan, anything that sends **Art-Net** or **sACN**) driving the
@@ -2705,7 +2730,7 @@ a real frame when they arrived, or write to the switcher on their own (several h
 [Feature status](#feature-status) says which): **Preview lock**, **Image Library tools**, **Surfaces**, **Aux follow**, **AoI
 from a custom format**, **Resolume Mapping**, **Aux backgrounds**, **Transitions**, **Experimental
 features**, and the
-**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **Lighting
+**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **X-keys**, **Lighting
 desk control**, **grandMA3**, **Thumbnail relay**, **Multiviewer thumbnails** and **Background Slicer**
 previews.
 

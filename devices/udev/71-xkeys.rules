@@ -1,0 +1,9 @@
+# P.I. Engineering X-keys (vendor 05f3): lets the logged-in user's LivePremier Plus
+# open the panel's hidraw node through hidapi. The kernel's own HID driver keeps the
+# panel; this only lets the user read and write it as well.
+#
+#   sudo cp 71-xkeys.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# then unplug the panel and plug it back in. See docs/XKEYS.md.
+KERNEL=="hidraw*", ATTRS{idVendor}=="05f3", MODE="0660", TAG+="uaccess"

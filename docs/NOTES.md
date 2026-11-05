@@ -4176,3 +4176,30 @@ launchers) watches a running 0.18.x from outside: it polls `/__lpp/status` and
 2 s (never connecting to it: the grid serves one client), and writes a timed line for every drop
 with a summary a minute, to a text file on the Desktop. It uses the Node inside the installed
 app, so there is nothing to install.
+
+## X-keys (2026-11-05)
+
+**Why.** Asked for: X-keys as an input device. They're the commonest programmable keypad in a
+show rack, and most of the ones already in racks are driven by Companion.
+
+**Where the protocol came from.** SuperFly.tv's xkeys library (MIT, 3.3.0, commit
+3016c1bfec96), which Companion uses. Its `products.ts` is the model table (generated into
+`src/core/xkeys-products.js`); its `xkeys.ts` is the report layout and the backlight commands,
+rewritten in `src/core/xkeys.js`. Its recordings of real panels (`packages/node/src/__tests__/
+recordings/`, one JSON per panel: the reports it saw, what it decoded, and the bytes each
+command sent) are kept compact in `test/fixtures/xkeys-recordings.json`. Replaying them is the
+nearest thing to a real panel this has had: 2,284 described events from nineteen panels decode
+to what the library recorded, once the reports are padded to 36 bytes (the XKE-40's timestamp
+sits past the 32 most recordings carry) and the T-bar, jog and shuttle start at zero; and all 192
+recorded commands come out byte for byte, including the all-backlights command sent to panels
+with no backlights at all, which the library sends anyway.
+
+**What a report looks like.** No report id. Byte 0 is the unit id, byte 1 flags (bit 0 the
+program switch, bit 1 "this answers Generate Data"; 214 is the version reply, firmware at byte
+10), then the key bits from byte 2, a column per byte. Key *n* is column × bits-per-column + row
++ 1; 0 is the program switch. Output reports are 36 bytes after a report id of 0.
+
+**Not known.** Whether every panel answers Generate Data (the driver gives up asking after three
+and reads keys as they change), what colours the RGB panels really show, and what macOS, Windows
+or Linux make of a real one. Nothing here has met a panel.
+

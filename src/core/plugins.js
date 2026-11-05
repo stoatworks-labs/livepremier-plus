@@ -437,6 +437,19 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'xkeys',
+    name: 'X-keys',
+    where: 'Settings (preview)',
+    description: 'A P.I. Engineering X-keys keypad, stick, foot pedal or T-bar panel plugged into this machine, each key given a job on the card, driving the switcher with no browser open. Never yet run against a panel.',
+    /* Off until it has been: it writes to a switcher, and Companion or
+       MacroWorks holding the same panel would act on every press too.
+       Nothing in `requires`: it reads and writes through the dialect, as the
+       other consoles do. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'desk-control',
     name: 'Lighting desk control',
     where: 'Settings (preview)',

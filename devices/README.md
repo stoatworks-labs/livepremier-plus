@@ -7,7 +7,8 @@ and supervised by the app, with one **module** per kind of device.
 The first was the DaVinci Resolve Speed Editor; the second is the Barco EC-30 /
 EC-40 / EC-50 desk panel (*preview*, never yet run against a panel —
 `docs/BARCO-EC.md`); the third is the ATEM Micro Panel (*preview*, never yet run
-against a panel — `docs/ATEM-MICRO-PANEL.md`).
+against a panel — `docs/ATEM-MICRO-PANEL.md`); the fourth is P.I. Engineering's
+X-keys (*preview*, never yet run against a panel — `docs/XKEYS.md`).
 
 ## Why a program of its own
 
@@ -64,7 +65,10 @@ A module says which library it needs as `transport`:
   and product id over USB or Bluetooth, silent until a challenge on a feature
   report is answered, and answered again at half the lease it grants. A module
   gives it a model — `{ vendorId, productId, authenticate, battery }` — and
-  nothing else differs.
+  nothing else differs. The X-keys too, with a driver of its own
+  (`modules/xkeys/driver.js`): found by vendor `05f3`, product and interface 0,
+  opened shared, asked for its keys, no handshake. Linux needs
+  `udev/71-xkeys.rules`.
 - **`ftdi`**: `transports/ftdi.js`, an FTDI chip in MPSSE mode. The Barco EC
   panels are an FT232H behind a CPLD. On **macOS and Linux** it goes through
   libusb (the `usb` package, v2 — the libusb binding; v3 is a rewrite on another

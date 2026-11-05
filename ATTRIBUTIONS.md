@@ -26,6 +26,14 @@ Copyright: 2024 Julian Waller
 
 The Speed Editor's key and LED tables in src/vendor/surface/hid/speed-editor.js, and the ATEM Micro Panel's key codes, lamp bits and report ids in src/core/atem-micro-panel.js, follow node-blackmagic-controller, the library Bitfocus Companion drives both panels with.
 
+### xkeys — SuperFly.tv
+
+<https://github.com/SuperFlyTV/xkeys>  
+Licence: MIT  
+Copyright: 2017 SuperFly.tv
+
+The X-keys plugin reads and lights P.I. Engineering's X-keys the way xkeys does, the library Bitfocus Companion drives them with, read at 3.3.0 (commit 3016c1bfec96). src/core/xkeys-products.js is generated from its products.ts by scripts/gen-xkeys-products.mjs; the report layout and the backlight and lamp commands in src/core/xkeys.js are rewritten from its xkeys.ts; and test/fixtures/xkeys-recordings.json carries its recordings of real panels, compacted, which the tests replay. The generated table and the recordings both carry its MIT notice.
+
 ### netaudio (network-audio-controller) — Christopher Ritsen
 
 <https://github.com/chris-ritsen/network-audio-controller>  

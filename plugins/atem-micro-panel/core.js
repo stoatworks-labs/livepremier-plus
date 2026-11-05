@@ -43,6 +43,9 @@
  */
 
 import { KEYS, COLOUR, meterFor } from '../../src/core/atem-micro-panel.js';
+import {
+  destinationsOf, activeOf, layersOf, sourceAt, memoryAt, selectOnly,
+} from '../../src/core/console-intents.js';
 
 /* ------------------------------------------------------------- settings */
 
@@ -122,41 +125,11 @@ export function initialView() {
   return { shift: false, macro: false, busKind: 'LIVE', held: new Set() };
 }
 
-/** The screens the M/E keys walk through: those in service, in order. */
-export function destinationsOf(facts) {
-  return ((facts && facts.destinations) || []).filter((d) => d.isUsed);
-}
-
-/** The active screen: the last one selected, as `Selection` keeps it. */
-export const activeOf = (selection) => {
-  const list = selection.list;
-  return list.length ? list[list.length - 1] : null;
-};
-
-/** The fitted layers of a screen, in number order. */
-export function layersOf(facts, destination) {
-  return ((facts && facts.layers) || [])
-    .filter((l) => l.destination === destination)
-    .map((l) => l.key)
-    .sort((a, b) => a - b);
-}
-
-/** Source n of a kind, if the switcher has it: key n is input n, as on an ATEM. */
-export function sourceAt(facts, kind, number) {
-  return ((facts && facts.sources && facts.sources[kind]) || []).find((s) => s.number === number) || null;
-}
-
-/**
- * Whether a memory slot holds something. A labelled slot does; an unlabelled
- * one does unless the switcher said it is free — the simulator's slot 1 holds a
- * memory with no name (`server/console-switcher.js`).
- */
-export function memoryAt(facts, slot, limit) {
-  const named = ((facts && facts.presets) || []).find((p) => p.slot === slot);
-  if (named) return { slot, label: named.label };
-  if (slot > limit || ((facts && facts.freeSlots) || []).includes(slot)) return null;
-  return facts ? { slot, label: '' } : null;
-}
+/* The switcher as a console sees it — screens in service, the active one,
+   fitted layers, sources and memories — lives in `console-intents.js` with
+   the writes, shared with the X-keys plugin, and is re-exported from here so
+   nothing that imported it from this file had to move. */
+export { destinationsOf, activeOf, layersOf, sourceAt, memoryAt, selectOnly };
 
 const bank = (view, size) => (view.shift ? size : 0);
 
@@ -235,19 +208,6 @@ function sourcesOf(facts, kind) {
 }
 
 const kindWord = (kind) => ({ LIVE: 'input', STILL: 'still', SCREEN: 'screen' }[kind] || 'source');
-
-/**
- * Make one screen the selection, as an M/E key does on an ATEM: the others
- * go, this one stays or arrives. Applied through `Selection` so its rules
- * (only what was published) hold.
- */
-export function selectOnly(selection, destination) {
-  for (const id of selection.list) {
-    if (id !== destination) selection.apply({ kind: 'unselect', destination: id });
-  }
-  selection.apply({ kind: 'select', destination });
-  return selection;
-}
 
 /* ------------------------------------------------------- the panel drawn */
 

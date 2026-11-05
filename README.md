@@ -194,6 +194,12 @@ bolted on afterwards:
   keys pick screens, the preview row puts input *n* in preview, CUT, AUTO and the T-bar take, and
   the program row shows tally (it only cuts to air if you tick that, and the tick isn't saved).
   It hasn't been run against a real panel yet. [docs/ATEM-MICRO-PANEL.md](docs/ATEM-MICRO-PANEL.md)
+- **X-keys** *(preview, off by default)*: a P.I. Engineering X-keys (a stick, an XK-24, an XK-80,
+  the XKE-124 T-bar, a foot pedal, an X-blox module) plugged into the machine this app runs on
+  drives the switcher with no browser open. Every key gets the job you give it on the card (take,
+  cut, an input or memory to preview, a screen, a layer, fade to black, freeze), and a model you
+  haven't laid out runs a suggested layout. It hasn't been run against a real panel yet.
+  [docs/XKEYS.md](docs/XKEYS.md)
 - **Lighting desk control** *(preview, off by default)*: a grandMA3, MagicQ, Titan or anything
   else sending Art-Net or sACN drives the switcher the way it drives a media server. A fixture per
   screen and per layer, GDTF files to import, memories recalled to preview, Take and Cut, each

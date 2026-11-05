@@ -660,6 +660,49 @@ Control, with a LivePremier behind it. Load-bearing:
   painting before it sends the dark report, because a tally read still in flight used to relight
   the panel after it (found by `test/atem-micro-panel.test.js`, 2026-10-20).
 
+### An X-keys panel (`plugins/xkeys/`) — **preview**
+
+A P.I. Engineering X-keys (stick, grid, T-bar, foot pedal, X-blox) plugged into this machine,
+driving the switcher with no browser open, each key doing the job the operator gives it on the
+card. `docs/XKEYS.md` is the operator's page and the proven/not-proven list. **It has never met a
+panel**: the model table and the bytes are SuperFly.tv's xkeys library's (MIT, 3.3.0 at
+3016c1bfec96; what Companion drives X-keys with), and here it has met only
+`test/helpers/fake-xkeys.js` and a simulator. Load-bearing:
+
+- **The model table is generated, never typed**: `src/core/xkeys-products.js` comes from the
+  library's `products.ts` by `scripts/gen-xkeys-products.mjs <checkout> <commit>`, which drops the
+  interface boards. A new panel is a re-run, not an edit.
+- **The bytes are `src/core/xkeys.js`**, no I/O, read by the device host and the plugin alike.
+  `test/xkeys.test.js` replays the library's own recordings of real panels
+  (`test/fixtures/xkeys-recordings.json`): every described key, T-bar, jog and shuttle event
+  decoded to what the library recorded, and every recorded backlight command matched byte for
+  byte. Change a decoder or a builder and that replay says whether it still agrees. **Never edit
+  either from a photo of a panel**; a real panel that disagrees goes in NOTES.md first.
+- **A key's job is the operator's**, kept per model in `xkeysLayouts`, normalised in `core.js`
+  (key ids are indexes, `n` 1–999, screens `S`/`A` and a number). A model with nothing saved runs
+  `suggestedLayout`; a saved `{}` is a saved, blank layout and the suggestion must not come back.
+- **Every source and recall lands in preview.** There is no hot-cut job, on purpose: a blank key
+  is too easy to hit. Keep it that way unless it's asked for, and then make it the ATEM program
+  row's unsaved tick, not a job.
+- **Runs in the server on the ATEM panel's terms**: the supervisor is that one's shape, presses go
+  through `src/core/console-intents.js`, the switcher is read in bursts by `ConsoleSwitcher`.
+  `destinationsOf`, `activeOf`, `layersOf`, `sourceAt`, `memoryAt` and `selectOnly` moved from the
+  ATEM plugin into `console-intents.js` for it (2026-11-05); `plugins/atem-micro-panel/core.js`
+  re-exports them, because a plugin never imports another plugin's folder.
+- **Opened shared (`nonExclusive`)**, as the ATEM panel is, so Companion or MacroWorks on the same
+  machine hear every press too. The card and the doc say to turn the panel off there; nothing here
+  can detect it. Only the first X-keys by path is driven; the card says how many more there are.
+- **A panel that never answers Generate Data is taken as ready after three asks**, its keys read
+  as they change: some firmware may not answer, and a dead card would be worse than a missing
+  first state.
+- **Testing through the kernel without a panel, on Linux:** `test/helpers/uhid-xkeys.py` makes a
+  virtual XKE-124 T-bar with uhid (root; on Ubuntu the module is in
+  `linux-modules-extra-$(uname -r)`), and `test/sim/xkeys-uhid.sim.test.js` drives it through the
+  real forked device host and node-hid on hidraw: the only X-keys test where the bytes cross a
+  kernel. hidapi reports a uhid device's interface as -1, which `findProduct` accepts for that
+  reason. The panel can be unplugged and replugged from its control FIFO. The same trick would
+  serve the other HID panels; nobody has written their uhid twins yet.
+
 ### Lighting desk control (`plugins/desk-control/`) — **preview**
 
 A lighting desk sending Art-Net or sACN drives the switcher the way it drives a media server:
@@ -2173,7 +2216,7 @@ the expected answer until someone writes the module.
 
 ## The device host (`devices/`, `server/device-host.js`)
 
-USB and HID panels — the Speed Editor, the Barco EC panels and the ATEM Micro Panel — are held by a
+USB and HID panels — the Speed Editor, the Barco EC panels, the ATEM Micro Panel and the X-keys — are held by a
 **program of its own**, `devices/host.js`, which the server starts with `fork` and
 supervises (restarts with a backoff, stops on shutdown). `devices/README.md` is the
 design; the load-bearing parts:
@@ -2749,6 +2792,10 @@ does (`LPP_PORT`, `LPP_HOST`, `LPP_DEVICE` against the rack simulator) and load
 it in each browser, through the debugging port and a tunnel when the box is
 headless. A code path that touches the filesystem asks its question with
 `path.win32` in a test too, so a Mac run fails the way Windows would.
+A page in a **hidden** browser (the desktop app's browser pane when it is not shown, a
+background tab) runs no animation frames, so the app's repaint (`throttleFrame` in
+`src/main.js`) waits until it is shown: a card that looks stale there is not a bug until
+a visible or headless browser agrees (found 2026-11-05, chasing the X-keys card).
 
 `LPP_SIM=<host>:<port> npm run test:sim` — the live suite in `test/sim/`, against
 a running LivePremier simulator. It boots the real app (`createProxy`, as
