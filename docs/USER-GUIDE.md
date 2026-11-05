@@ -352,7 +352,7 @@ output: where what you'd see is the point, that's said.
 | Remote access | Tested | Real Tailscale and ZeroTier, with a simulator behind. |
 | MIDI Mapping | Preview | No physical controller has been attached yet. |
 | Speed Editor | Preview | A real Speed Editor over USB against the simulator, not yet against a frame. |
-| Pixelhue panel | Preview | PixelFlow's virtual U5 against a C mini; a real U5 mini connected but showed blank keys. The mini's key grid dropping every 15 seconds is fixed against a stand-in that answers as its firmware does, not yet on a real mini. |
+| Pixelhue panel | Preview | PixelFlow's virtual U5 against a C mini. A real U5 mini on 0.18.10 against an Aquilon drew its key grid and recalled a screen memory on the frame; its keypad, TAKE and CUT did nothing. Inputs past 24 and master memories on the grid are proved against a stand-in and read back from a C mini, not yet on a mini. |
 | Barco EC panel | Preview | A pretend panel only. |
 | ATEM Micro Panel | Preview | A pretend panel only. |
 | Lighting desk control | Preview | MagicQ PC and a pretend desk, against the simulator. |
@@ -2093,9 +2093,18 @@ to talk to Pixelhue switchers, so this app draws them itself on the console's ke
 its built-in Companion uses): screens, the active screen's layers, inputs and memories, a row
 each, eight keys and that row's two page keys. A row only shows them once you've switched it to
 **Companion** with its area-switch key, the last key on the row. While this app is connected the
-grid is its, so the console's own Companion can't draw there. Nobody knows yet whether a mini
-sends this app TAKE and CUT at all. The card says **TAKE / CUT: not seen yet** until it does, and
-until then, take from the Web RCS.
+grid is its, so the console's own Companion can't draw there.
+
+The input row has every input the Web RCS would offer you as a source, in order, wherever it sits
+in the frame. Switch an input off in **Preconfig ▸ Inputs** and it leaves the grid too, as does
+the second input of a DisplayPort 1.2 pair. The memory row has the screen memories, then the
+master memories on a page of their own, in violet. A master recalls to preview; storing one is
+still a job for the Web RCS, so SAVE TO and DEL leave them alone.
+
+The grid edits preview, as a U5's bus keys do, so a source or a memory you pick there lands in
+preview and stays there until something takes it. Nobody knows yet whether a mini sends this app
+TAKE and CUT at all, or its keypad's keys. The card says **TAKE / CUT: not seen yet** until it
+does, and until then, take from the Web RCS.
 
 Everything else is mapped on **Pixelhue Mapping**, in the sidebar under Virtual RC400T, next to
 MIDI Mapping — or at the foot of the PLUS section on a Midra 4K or Alta 4K, which has no Virtual
@@ -2121,9 +2130,12 @@ dot, and **Reset** puts everything back.
 > proved against the vendor's own control service running with no panel attached. The first real
 > one to try it, a U5 mini, refused the connection because it was asked for a U5's address; 0.18.1
 > asks for the mini's own. It then connected with its keys blank, which 0.18.2 answers by drawing
-> them on the mini's key grid; that hasn't met a mini yet. If the panel card says **connected, no
-> key reports**, or **TAKE / CUT: not seen yet** after you've pressed TAKE, that's worth telling me
-> about. Up to 0.18.9 the key grid dropped every 15 seconds or so (*the console's grid did not
+> them on the mini's key grid. A real mini running 0.18.10 against an Aquilon has since drawn the
+> grid, held it and recalled a screen memory on the frame, but its inputs stopped at 24, its master
+> memories were missing (both fixed since), and its keypad, TAKE and CUT did nothing. If the panel
+> card says **connected, no key reports**, or **TAKE / CUT: not seen yet** after you've pressed
+> TAKE, set **Logs → Detail** to **Detailed**, press each key that does nothing once, and send the
+> export: that's the bit nobody has seen yet. Up to 0.18.9 the key grid dropped every 15 seconds or so (*the console's grid did not
 > answer 2 pings*), because the mini's reply to a heartbeat ends in a line break the app wasn't
 > expecting. That's fixed. If it still drops, set **Logs → Detail** to **Detailed**, let it drop
 > a few times and send the export: each drop is logged with how long the connection lasted and

@@ -607,6 +607,26 @@ export const slotValid = (slot, bank = 'presetBank') =>
   ['device', bank, 'bankList', 'items', String(slot), 'status', 'pp', 'isValid'];
 
 /**
+ * The live inputs the switcher offers as sources, in order — the rule the Web
+ * RCS's source picker keeps and `server/console-switcher.js` mirrors: the input
+ * is available and switched on in Preconfig Inputs, and not taken by another
+ * input (a DisplayPort 1.2 pair, a group). An unanswered preconfig state counts
+ * as used, as the console reader treats it. `keep` stops after that many, as a
+ * console's `inputs` limit does.
+ */
+export function offeredInputs(link, keep = Infinity) {
+  const items = link.get(['device', 'inputList', 'items']) || {};
+  const at = (n, ...tail) => link.get(['device', 'inputList', 'items', `IN_${n}`, 'status', 'pp', ...tail]);
+  const global = (n) => link.get(['device', 'preconfig', 'inputs', 'current', 'inputList', 'items', `IN_${n}`, 'status', 'pp', 'global']);
+  return Object.keys(items)
+    .map((k) => Number(/^IN_(\d+)$/.exec(k)?.[1]))
+    .filter((n) => n && at(n, 'isAvailable') === true && at(n, 'isEnabled') === true
+      && (global(n) == null || global(n) === 'USED'))
+    .sort((a, b) => a - b)
+    .slice(0, keep);
+}
+
+/**
  * Put a known source and opacity on layer 1 of a screen's preview, and wait
  * until the switcher holds it — including its second confirmation of the
  * source under `status`, which can trail the first and would otherwise land

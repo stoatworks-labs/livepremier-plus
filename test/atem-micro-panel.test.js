@@ -348,7 +348,8 @@ function lpStore() {
   set(NLC.layerParamPath('S1', 'B', 1, spec), 'LIVE_1');   // on air
   set(NLC.layerParamPath('S1', 'A', 1, spec), 'LIVE_2');   // in preview
   ['CAM 1', 'CAM 2', 'PPT'].forEach((label, i) => {
-    set(['device', 'inputList', 'items', `IN_${i + 1}`, 'mapping', 'pp', 'isValid'], true);
+    set(['device', 'inputList', 'items', `IN_${i + 1}`, 'status', 'pp', 'isAvailable'], true);
+    set(['device', 'inputList', 'items', `IN_${i + 1}`, 'status', 'pp', 'isEnabled'], true);
     set(['device', 'inputList', 'items', `IN_${i + 1}`, 'control', 'pp', 'label'], label);
   });
   set(NLC.label('screen', 1, '').path, 'Opener');

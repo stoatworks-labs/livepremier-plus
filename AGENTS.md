@@ -607,6 +607,15 @@ every key means, every label, every lamp. Load-bearing:
   consoles cannot drift. Pixelhue's console suite was rerun on the 6.2.73 simulator after the move:
   31 pass, 3 skip, as before. The move also fixed `labelPath` on a Midra (it read `split()`'s object
   as a pair and threw).
+- **A console's sources are the ones the Web RCS's source picker offers**, never the first N slots
+  (`sourcesWanted` in `server/console-switcher.js`). On LivePremier an input is offered when it is
+  `status/pp/isAvailable` and `isEnabled` and its `preconfig/inputs/current` global is `USED`
+  (`availableInputAsSourceKeysSelector`, 6.2.73; the rule `NLC.sourceOffered` keeps); stills the same
+  against `stillList`. Every slot of the namespace is asked (`dialect.inputSlots` / `stillSlots`:
+  256 and 192 on nlc) and a console's `inputs` / `stills` limit is how many it keeps. Until 2026-11-05
+  the read stopped at slot 24 and gated on `mapping/pp/isValid`, so a U5 mini on an Aquilon never
+  saw its later cards; on a Midra it read nlc's keys and found nothing (`INPUT_n` and the plug's
+  label now, fixture-only).
 - **The panel takes one program at a time.** While this holds it the Toolset cannot. Turning the
   setting off clears the panel and lets it go. ⚠️ On Windows the panel belongs to FTDI's driver,
   installed by the Toolset; D2XX is its API. **Never suggest Zadig/WinUSB** to reach it through

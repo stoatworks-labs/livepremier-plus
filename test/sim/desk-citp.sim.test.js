@@ -14,7 +14,7 @@ import dgram from 'node:dgram';
 import net from 'node:net';
 import os from 'node:os';
 
-import { SKIP, SIM, startApp, Link, sag, layerPath, sleep } from './harness.js';
+import { SKIP, SIM, startApp, Link, sag, layerPath, sleep, offeredInputs } from './harness.js';
 import {
   msexMessage, buildPNam, parseCitp, readRequest, CitpStream, CitpReader, V12, CITP_PORT, CITP_GROUPS,
 } from '../../src/core/citp.js';
@@ -87,9 +87,7 @@ test('the live library is the simulator’s inputs, by number and name', { skip:
   assert.equal(r.u8(), 1);
   assert.equal(r.u16(), 6, 'Live inputs, Stills, Screens, Backgrounds, Colour, None');
   /* The facts are read every 30 s; wait for the inputs to be in them. */
-  const valid = Object.keys(link.get(['device', 'inputList', 'items']) || {})
-    .map((k) => Number(/^IN_(\d+)$/.exec(k)?.[1]))
-    .filter((n) => n && n <= 48 && link.get(['device', 'inputList', 'items', `IN_${n}`, 'mapping', 'pp', 'isValid']) === true);
+  const valid = offeredInputs(link, 48);
   const top = Math.max(...valid);
   let mein = null;
   for (let i = 3; i < 40 && !mein; i++) {

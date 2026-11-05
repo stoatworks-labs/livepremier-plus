@@ -24,11 +24,17 @@ import { toAwj } from '../src/core/paths.js';
 import { layerSourcePath, readSource } from '../src/core/console-intents.js';
 
 /* How much of a switcher to ask about. Bounded on purpose: these are `get`s in
-   one burst, and a LivePremier has 24 screens, 20-odd inputs and a thousand
-   memory slots, of which a console with an eight-key bus wants the first few
-   pages. A console with longer buses passes its own. */
+   one burst, and a LivePremier has 24 screens and a thousand memory slots, of
+   which a console with an eight-key bus wants the first few pages. A console
+   with longer buses passes its own.
+
+   `inputs` and `stills` are how many a console KEEPS, not how far it reads:
+   every input slot the platform numbers is asked about (`dialect.inputSlots`),
+   because the real ones follow the frame's cards and need not be the first
+   few (`sourcesWanted`, below). 0 reads none. `masters` is how many master
+   memory slots to read, from 1; 0, the default, reads none. */
 export const DEFAULT_LIMITS = Object.freeze({
-  screens: 24, auxes: 0, inputs: 24, memories: 32, layers: 16, stills: 24,
+  screens: 24, auxes: 0, inputs: 24, memories: 32, masters: 0, layers: 16, stills: 24,
 });
 
 /* The order a console walks its input bus through, where they exist. */
@@ -84,10 +90,11 @@ export class ConsoleSwitcher {
   async readFacts() {
     const host = this.deviceHost();
     if (!host) throw new Error('no switcher configured');
-    const { screens, auxes, inputs, memories, layers: layerLimit, stills } = this.limits;
+    const { screens, auxes, inputs, memories, masters = 0, layers: layerLimit, stills } = this.limits;
 
     const dialect = await this.identify(host);
     const isNlc = dialect.id === 'nlc';
+    const wanted = sourcesWanted(dialect, { inputs, stills });
 
     /* Enumerating a collection is not something AWJ does — `@itemKeys` answers
        null even for collections that exist — so the ids come from the
@@ -105,21 +112,22 @@ export class ConsoleSwitcher {
       gets.push({ op: 'get', path: toAwj(dialect.takeStatus(id, 'isUsed')) });
       gets.push({ op: 'get', path: toAwj(labelPath(dialect, id)) });
     }
-    for (let n = 1; n <= inputs; n++) {
-      const key = isNlc ? `IN_${n}` : String(n);
-      gets.push({ op: 'get', path: toAwj(['device', 'inputList', 'items', key, 'mapping', 'pp', 'isValid']) });
-      gets.push({ op: 'get', path: toAwj(['device', 'inputList', 'items', key, 'control', 'pp', 'label']) });
-    }
-    if (isNlc) {
-      for (let n = 1; n <= stills; n++) {
-        gets.push({ op: 'get', path: toAwj(['device', 'stillList', 'items', String(n), 'mapping', 'pp', 'isValid']) });
-        gets.push({ op: 'get', path: toAwj(['device', 'stillList', 'items', String(n), 'control', 'pp', 'label']) });
-      }
+    /* Every slot the platform numbers is asked whether it is there; what the
+       rest of the vendor's rule needs is asked of those that are, in the
+       second burst (`sourcesWanted`). */
+    for (const w of wanted) {
+      for (const slot of w.slots) for (const path of w.first(slot)) gets.push({ op: 'get', path: toAwj(path) });
     }
     for (let slot = 1; slot <= memories; slot++) {
       const built = dialect.label('screen', slot, '');
       if (built) gets.push({ op: 'get', path: toAwj(built.path) });
       const valid = slotValidPath(dialect, slot);
+      if (valid) gets.push({ op: 'get', path: toAwj(valid) });
+    }
+    for (let slot = 1; slot <= masters; slot++) {
+      const built = dialect.label('master', slot, '');
+      if (built) gets.push({ op: 'get', path: toAwj(built.path) });
+      const valid = slotValidPath(dialect, slot, 'master');
       if (valid) gets.push({ op: 'get', path: toAwj(valid) });
     }
 
@@ -133,28 +141,6 @@ export class ConsoleSwitcher {
       label: String(at(labelPath(dialect, id)) || ''),
       isUsed: at(dialect.takeStatus(id, 'isUsed')) === true,
     }));
-
-    /* Everything an input bus can show. A screen in service is a source on a
-       LivePremier (SCREEN_n), as is a still. */
-    const sources = { LIVE: [], STILL: [], SCREEN: [] };
-    for (let n = 1; n <= inputs; n++) {
-      const key = isNlc ? `IN_${n}` : String(n);
-      if (at(['device', 'inputList', 'items', key, 'mapping', 'pp', 'isValid']) !== true) continue;
-      const label = String(at(['device', 'inputList', 'items', key, 'control', 'pp', 'label']) || '');
-      sources.LIVE.push({ number: n, source: isNlc ? `LIVE_${n}` : `INPUT_${n}`, label });
-    }
-    if (isNlc) {
-      for (let n = 1; n <= stills; n++) {
-        if (at(['device', 'stillList', 'items', String(n), 'mapping', 'pp', 'isValid']) !== true) continue;
-        const label = String(at(['device', 'stillList', 'items', String(n), 'control', 'pp', 'label']) || '');
-        sources.STILL.push({ number: n, source: `STILL_${n}`, label: label || `STILL_${n}` });
-      }
-      for (const d of destinations) {
-        const m = /^S(\d+)$/.exec(d.id);
-        if (m && d.isUsed) sources.SCREEN.push({ number: Number(m[1]), source: `SCREEN_${m[1]}`, label: d.label || d.id });
-      }
-    }
-    const sourceKinds = SOURCE_KINDS.filter((k) => sources[k].length);
 
     const presets = [];
     const freeSlots = [];
@@ -174,8 +160,22 @@ export class ConsoleSwitcher {
       presets.push({ slot, label: String(label) });
     }
 
-    /* Second burst, for what is in service only: the fitted layers, and the
-       FTB and freeze lamps. */
+    /* Master memories: any that holds a memory or has a name, as the Web RCS
+       lists them. Recalled only — a console stores and deletes screen
+       memories, and a master memory's filters are the Web RCS's to set. */
+    const masterList = [];
+    for (let slot = 1; slot <= masters; slot++) {
+      const built = dialect.label('master', slot, '');
+      if (!built) continue;
+      const label = String(byPath.get(toAwj(built.path)) || '');
+      const valid = slotValidPath(dialect, slot, 'master');
+      if (!label && !(valid && at(valid) === true)) continue;
+      masterList.push({ slot, label });
+    }
+
+    /* Second burst, for what is there only: the fitted layers, the FTB and
+       freeze lamps, and the rest of the vendor's rule for each source slot
+       that answered "available" in the first. */
     const used = destinations.filter((d) => d.isUsed);
     const more = [];
     const probes = new Map(used.map((d) => [d.id, dialect.layerProbe(d.id, layerLimit)]));
@@ -189,8 +189,13 @@ export class ConsoleSwitcher {
       const ftb = dialect.fadeToBlackPath(d.id);
       if (ftb) more.push({ op: 'get', path: toAwj(ftb) });
     }
+    const present = new Map(wanted.map((w) => [w.kind, w.slots.filter((n) => w.present(at, n))]));
+    for (const w of wanted) {
+      for (const n of present.get(w.kind)) for (const path of w.second(at, n)) more.push({ op: 'get', path: toAwj(path) });
+    }
     const second = more.length ? await this.exchange({ host, port: this.awjPort, messages: more }) : [];
     const got = new Map(second.map((r) => [r.path, r.value]));
+    const again = (path) => got.get(toAwj(path));
     const layers = [];
     for (const d of used) {
       const probe = probes.get(d.id);
@@ -207,8 +212,29 @@ export class ConsoleSwitcher {
       d.frozen = anyFrozen;
     }
 
+    /* Everything an input bus can show, in the platform's own order and only
+       what the vendor's source picker would offer now. A screen in service is
+       a source on a LivePremier (SCREEN_n), as is a still. */
+    const sources = { LIVE: [], STILL: [], SCREEN: [] };
+    for (const w of wanted) {
+      for (const n of present.get(w.kind)) {
+        if (sources[w.kind].length >= w.keep) break;
+        if (!w.offered(at, again, n)) continue;
+        sources[w.kind].push({ number: n, source: w.source(n), label: w.label(at, again, n) });
+      }
+    }
+    if (isNlc) {
+      for (const d of destinations) {
+        const m = /^S(\d+)$/.exec(d.id);
+        if (m && d.isUsed) sources.SCREEN.push({ number: Number(m[1]), source: `SCREEN_${m[1]}`, label: d.label || d.id });
+      }
+    }
+    const sourceKinds = SOURCE_KINDS.filter((k) => sources[k].length);
+
     this.dialect = dialect;
-    this.facts = { dialect, destinations, sources, sourceKinds, presets, layers, freeSlots, deviceId: host };
+    this.facts = {
+      dialect, destinations, sources, sourceKinds, presets, masters: masterList, layers, freeSlots, deviceId: host,
+    };
     return this.facts;
   }
 
@@ -386,10 +412,86 @@ export class ConsoleSwitcher {
 }
 
 /** Where a memory slot says it holds something, beside its label. */
-export function slotValidPath(dialect, slot) {
-  const bank = dialect.bankFor && dialect.bankFor('screen');
+export function slotValidPath(dialect, slot, kind = 'screen') {
+  const bank = dialect.bankFor && dialect.bankFor(kind);
   if (!bank || !dialect.slotList) return null;
   return [...dialect.slotList(bank), 'items', String(slot), 'status', 'pp', 'isValid'];
+}
+
+/**
+ * Which inputs and stills a console reads, and the rule that says one is
+ * offered — `dialect.sourceOffered`'s rule, asked over AWJ by a reader with no
+ * store. One entry per kind of source, each with:
+ *
+ * - `slots`: every number the platform gives that kind (`dialect.inputSlots`,
+ *   `stillSlots`), so a frame whose real inputs are IN_1–IN_8 and IN_17–IN_32
+ *   is read whole. Asking only the first few was the U5 mini's "inputs stop at
+ *   24" (2026-11-05): a frame's logical inputs follow its cards, and a
+ *   DisplayPort card running DP 1.2 takes its even-numbered ports.
+ * - `first(n)`: the paths asked of every slot — whether it is there at all.
+ * - `present(at, n)`: whether it answered that it is.
+ * - `second(at, n)`: what else is asked of those, in the second burst.
+ * - `offered(at, again, n)` and `label(at, again, n)`, from both bursts.
+ * - `keep`: how many the console keeps, in order (`limits.inputs` / `stills`).
+ *
+ * nlc, as the vendor's source picker (6.2.73 bundle,
+ * `availableInputAsSourceKeysSelector`): `status/pp/isAvailable` and
+ * `isEnabled` on the input, and the APPLIED preconfig's `global` is `USED`.
+ * `isEnabled` is the switch the Preconfig page's Inputs tab sets, so an input
+ * the operator has turned off there is off the console too; a grouped or
+ * preempted input is not `USED`. Stills the same, against `stillList` and
+ * `preconfig/stills/current`. mng: `INPUT_<n>`, `status/pp/isAvailable`, and
+ * the label on the active plug (`dialect.sources`) — before 2026-11-05 this
+ * read nlc's `mapping` on a Midra's `1`..`n` keys and found no inputs at all.
+ */
+export function sourcesWanted(dialect, { inputs = 0, stills = 0 } = {}) {
+  const range = (count) => Array.from({ length: count }, (_, i) => i + 1);
+  const D = 'device';
+  if (dialect.id === 'nlc') {
+    const usable = (list, applied) => ({
+      first: (n) => [[D, list, 'items', applied.key(n), 'status', 'pp', 'isAvailable']],
+      present: (at, n) => at([D, list, 'items', applied.key(n), 'status', 'pp', 'isAvailable']) === true,
+      second: (at, n) => [
+        [D, list, 'items', applied.key(n), 'status', 'pp', 'isEnabled'],
+        [D, 'preconfig', applied.tree, 'current', list, 'items', applied.key(n), 'status', 'pp', 'global'],
+        [D, list, 'items', applied.key(n), 'control', 'pp', 'label'],
+      ],
+      offered: (at, again, n) => {
+        if (again([D, list, 'items', applied.key(n), 'status', 'pp', 'isEnabled']) !== true) return false;
+        const global = again([D, 'preconfig', applied.tree, 'current', list, 'items', applied.key(n), 'status', 'pp', 'global']);
+        /* A preconfig that does not answer decides nothing, as in `sourceOffered`. */
+        return global === undefined || global === null || global === 'USED';
+      },
+      label: (at, again, n) => String(again([D, list, 'items', applied.key(n), 'control', 'pp', 'label']) || ''),
+    });
+    const out = [];
+    if (inputs > 0) {
+      out.push({
+        kind: 'LIVE', slots: range(dialect.inputSlots || 0), keep: inputs, source: (n) => `LIVE_${n}`,
+        ...usable('inputList', { key: (n) => `IN_${n}`, tree: 'inputs' }),
+      });
+    }
+    if (stills > 0) {
+      const still = usable('stillList', { key: (n) => String(n), tree: 'stills' });
+      out.push({
+        kind: 'STILL', slots: range(dialect.stillSlots || 0), keep: stills, source: (n) => `STILL_${n}`,
+        ...still,
+        label: (at, again, n) => still.label(at, again, n) || `STILL_${n}`,
+      });
+    }
+    return out;
+  }
+  if (inputs <= 0) return [];
+  const node = (n) => [D, 'inputList', 'items', `INPUT_${n}`];
+  const plugOf = (at, n) => String(at([...node(n), 'status', 'pp', 'plug']) || '1');
+  return [{
+    kind: 'LIVE', slots: range(dialect.inputSlots || 0), keep: inputs, source: (n) => `INPUT_${n}`,
+    first: (n) => [[...node(n), 'status', 'pp', 'isAvailable'], [...node(n), 'status', 'pp', 'plug']],
+    present: (at, n) => at([...node(n), 'status', 'pp', 'isAvailable']) === true,
+    second: (at, n) => [[...node(n), 'plugList', 'items', plugOf(at, n), 'control', 'pp', 'label']],
+    offered: () => true,
+    label: (at, again, n) => String(again([...node(n), 'plugList', 'items', plugOf(at, n), 'control', 'pp', 'label']) || ''),
+  }];
 }
 
 /**

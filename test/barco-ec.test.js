@@ -546,10 +546,12 @@ function lpStore() {
     for (const k of probe.slots) set(probe.path(k), Number(k) <= (id === 'S1' ? 2 : 1) ? 'FULL' : 'OFF');
   }
   ['CAM 1', 'CAM 2', 'PPT'].forEach((label, i) => {
-    set(['device', 'inputList', 'items', `IN_${i + 1}`, 'mapping', 'pp', 'isValid'], true);
+    set(['device', 'inputList', 'items', `IN_${i + 1}`, 'status', 'pp', 'isAvailable'], true);
+    set(['device', 'inputList', 'items', `IN_${i + 1}`, 'status', 'pp', 'isEnabled'], true);
     set(['device', 'inputList', 'items', `IN_${i + 1}`, 'control', 'pp', 'label'], label);
   });
-  set(['device', 'stillList', 'items', '1', 'mapping', 'pp', 'isValid'], true);
+  set(['device', 'stillList', 'items', '1', 'status', 'pp', 'isAvailable'], true);
+  set(['device', 'stillList', 'items', '1', 'status', 'pp', 'isEnabled'], true);
   set(['device', 'stillList', 'items', '1', 'control', 'pp', 'label'], 'Logo');
   [['1', 'Opener'], ['2', 'Walk-in']].forEach(([slot, label]) => {
     set(NLC.label('screen', Number(slot), '').path, label);

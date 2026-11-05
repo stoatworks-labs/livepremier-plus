@@ -236,6 +236,16 @@ test('a recall always lands in preview, whatever the panel is editing', () => {
   assert.match(toAwj(writes[0].path), /\$slot\/@items\/12\//);
 });
 
+test('a master memory recall lands in preview too, and needs no screen selected', () => {
+  const { writes, note } = writesFor({ kind: 'recallMaster', slot: 3, label: 'Walk-in' }, ctx({ selected: [], buffer: 'PROGRAM' }));
+  assert.equal(writes.length, 1);
+  assert.equal(toAwj(writes[0].path), toAwj(NLC.recall('master', 3, { mode: 'PREVIEW' }).path));
+  assert.equal(toAwj(writes[0].path), 'DeviceObject/masterPresetBank/control/load/$slot/@items/3/$preset/@items/PREVIEW/@props/xRequest');
+  assert.equal(writes[0].value, true);
+  assert.equal(note, 'recall master memory 3 "Walk-in" to preview');
+  assert.match(writesFor({ kind: 'recallMaster' }, ctx()).note, /no slot/);
+});
+
 test('a source change goes to the resolved letter, not to PREVIEW', () => {
   const { writes } = writesFor({ kind: 'source', input: 3 }, ctx({ letterFor: () => 'B' }));
   assert.equal(writes.length, 1);

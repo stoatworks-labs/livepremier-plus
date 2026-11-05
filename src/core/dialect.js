@@ -154,6 +154,19 @@ export const NLC = {
   /** The buffers a layer path can address, in the device's own spelling. */
   bufferKeys: ['A', 'B', 'C'],
 
+  /**
+   * How many logical inputs and stills the platform numbers, fitted or not:
+   * the 6.2.73 bundle's `INPUT_LOGIC` and `STILL_LOGIC` orders, and the
+   * store's own `itemKeys` on the Aquilon C mini (2026-11-05: IN_1..IN_256
+   * all answer, 8 of them real; 192 stills, 24 allocated). A reader with no
+   * store (`server/console-switcher.js`) asks this far, because a frame's
+   * inputs are not IN_1..IN_n: they follow its cards, and a DisplayPort card
+   * running DP 1.2 takes its even-numbered ports, so the real ones can have
+   * gaps and sit well past their count.
+   */
+  inputSlots: 256,
+  stillSlots: 192,
+
   /** Auxiliaries and screens are one list for takes, two for memories. */
   listNameFor: (id) => (String(id).startsWith('A') ? 'auxiliaryList' : 'screenList'),
 
@@ -815,6 +828,15 @@ export const MNG = {
   id: 'mng',
   name: 'Midra 4K / Alta 4K',
   bufferKeys: ['UP', 'DOWN'],
+
+  /**
+   * nlc's `inputSlots` here: `INPUT_1`..`INPUT_16` on the 3.2.29 simulator.
+   * Asked to 32 for a bigger frame; a key past the end answers E12, which
+   * reads as not there. No stills: a Midra's still library is not a source
+   * list (`stills`, below).
+   */
+  inputSlots: 32,
+  stillSlots: 0,
 
   /** `S1` -> `['screenList', '1']`; `A1` -> `['auxiliaryScreenList', '1']`. */
   split(id) {

@@ -14,7 +14,7 @@ import dgram from 'node:dgram';
 import os from 'node:os';
 
 import {
-  SKIP, SIM, startApp, Link, sag, settled, take, guardScreen, layerPath, spareSlots, saveFromPreview, deleteSlots, sleep,
+  SKIP, SIM, startApp, Link, sag, settled, take, guardScreen, layerPath, spareSlots, saveFromPreview, deleteSlots, sleep, offeredInputs,
 } from './harness.js';
 import { buildArtDmx, buildArtPoll, parsePollReply, ARTNET_PORT } from '../../src/core/artnet.js';
 import { layout, opacityOf, CENTRE } from '../../src/core/dmx-personality.js';
@@ -48,10 +48,7 @@ const letters = () => {
 };
 const sourceOn = (letter, layer = 1) => link.get(layerPath('S1', letter, layer, 'source', 'pp', 'inputNum'));
 const opacityPath = (letter, layer) => layerPath('S1', letter, layer, 'opacity', 'pp', 'opacity');
-const liveInputs = () => Object.keys(link.get(['device', 'inputList', 'items']) || {})
-  .map((k) => Number(/^IN_(\d+)$/.exec(k)?.[1]))
-  .filter((n) => n && link.get(['device', 'inputList', 'items', `IN_${n}`, 'mapping', 'pp', 'isValid']) === true)
-  .sort((a, b) => a - b);
+const liveInputs = () => offeredInputs(link);
 
 before(async () => {
   if (SKIP) return;

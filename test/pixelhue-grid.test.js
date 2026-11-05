@@ -17,7 +17,7 @@ import net from 'node:net';
 import { inflateSync } from 'node:zlib';
 
 import {
-  initialView, rowItems, pageCount, clampView, turnPage, pressIntent, pageMatches, wirePage, gridCells, renderKey,
+  initialView, rowItems, memoryRow, pageCount, clampView, turnPage, pressIntent, pageMatches, wirePage, gridCells, renderKey,
   SCREENS, LAYERS, INPUTS, MEMORIES, PAGE_BACK, PAGE_ON, LONG_PRESS_MS,
 } from '../plugins/pixelhue/grid.js';
 import { GridLink, letGoNote } from '../plugins/pixelhue/grid-link.js';
@@ -146,6 +146,37 @@ test('SAVE TO and DEL, armed on the console, turn memory keys into a store and a
   assert.deepEqual(pressIntent(MEMORIES, 1, del), { kind: 'deletePreset', slot: 2, label: 'Look 2' });
   assert.equal(pressIntent(MEMORIES, 0, ctxWith(['S1'], { view: { ...initialView(), pages: [0, 0, 0, 1] } })).kind, 'none',
     'an empty key with nothing armed does nothing');
+});
+
+test('master memories follow the screen memories on a page of their own, and recall but never store', () => {
+  /* The U5 mini on an Aquilon could not see its masters (2026-11-05). */
+  const masters = [{ slot: 1, label: 'Walk-in' }, { slot: 4, label: '' }];
+  const seven = { ...FACTS, presets: FACTS.presets.slice(0, 7), masters };
+  const ctx = (facts, view = {}) => ctxWith(['S1'], { facts, view: { ...initialView(), ...view } });
+  /* Seven screen memories: the eighth key is SAVE TO's, the masters start page 2. */
+  assert.equal(memoryRow(ctx(seven)).mastersAt, 8);
+  assert.equal(pageCount(MEMORIES, ctx(seven)), 2, 'no spare key after the masters: they are never stored into');
+  assert.deepEqual(pressIntent(MEMORIES, 7, ctx(seven, { armed: 'save' })), { kind: 'store', slot: null });
+  const p2 = { pages: [0, 0, 0, 1] };
+  assert.deepEqual(pressIntent(MEMORIES, 0, ctx(seven, p2)), { kind: 'recallMaster', slot: 1, label: 'Walk-in' });
+  assert.deepEqual(pressIntent(MEMORIES, 1, ctx(seven, p2)), { kind: 'recallMaster', slot: 4, label: 'Master 4' });
+  assert.equal(pressIntent(MEMORIES, 2, ctx(seven, { ...p2, armed: 'save' })).kind, 'none', 'no SAVE TO past the masters');
+  for (const armed of ['save', 'del']) {
+    const refused = pressIntent(MEMORIES, 0, ctx(seven, { ...p2, armed }));
+    assert.equal(refused.kind, 'none', `${armed} armed on a master`);
+    assert.match(refused.why, /Walk-in is a master memory/);
+  }
+  const faces = gridCells(ctx(seven, { ...p2, armed: 'save' })).filter((c) => c.row === MEMORIES);
+  assert.equal(faces[0].face.sub, 'MASTER 1');
+  assert.equal(faces[1].face.text, 'Master 4');
+  assert.equal(faces[2].face.sub, '', 'no SAVE HERE among the masters');
+  /* Eight screen memories fill page 1, so SAVE TO gets page 2 and the masters page 3. */
+  const eight = { ...FACTS, masters };
+  assert.equal(memoryRow(ctx(eight)).mastersAt, 16);
+  assert.equal(pageCount(MEMORIES, ctx(eight)), 3);
+  assert.equal(gridCells(ctx(eight, { pages: [0, 0, 0, 1], armed: 'save' })).find((c) => c.row === MEMORIES && c.column === 7).face.sub, 'SAVE HERE');
+  /* None at all: the row is as it was. */
+  assert.deepEqual(rowItems(MEMORIES, ctx({ ...FACTS, masters: [] })).map((i) => i.slot), [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
 test('columns 8 and 9 are each row\'s page keys', () => {
@@ -378,7 +409,7 @@ test('a second connection from the address already holding the grid is refused, 
 /* ======================================================== end to end */
 
 /** A LivePremier: two screens (S1 with two layers), ten inputs, two memories. */
-function lpStore() {
+function lpStore({ masters = [] } = {}) {
   const s = new Map();
   const set = (path, v) => s.set(toAwj(path), v);
   s.set('DeviceObject/system/$device/@items/1/@props/dev', 'NLC_RS4');
@@ -395,19 +426,24 @@ function lpStore() {
     for (const k of probe.slots) set(probe.path(k), Number(k) <= (id === 'S1' ? 2 : 1) ? 'FULL' : 'OFF');
   }
   for (let n = 1; n <= 10; n++) {
-    set(['device', 'inputList', 'items', `IN_${n}`, 'mapping', 'pp', 'isValid'], true);
+    set(['device', 'inputList', 'items', `IN_${n}`, 'status', 'pp', 'isAvailable'], true);
+    set(['device', 'inputList', 'items', `IN_${n}`, 'status', 'pp', 'isEnabled'], true);
     set(['device', 'inputList', 'items', `IN_${n}`, 'control', 'pp', 'label'], `CAM ${n}`);
   }
   [['1', 'Opener'], ['2', 'Walk-in']].forEach(([slot, label]) => {
     set(NLC.label('screen', Number(slot), '').path, label);
     set(slotValidPath(NLC, Number(slot)), true);
   });
+  for (const [slot, label] of masters) {
+    set(NLC.label('master', slot, '').path, label);
+    set(slotValidPath(NLC, slot, 'master'), true);
+  }
   return s;
 }
 
 /** The app's panel on a stand-in mini with its grid, and a pretend LivePremier. */
-async function rig({ functionKeys = 'command' } = {}) {
-  const awj = await fakeAwj(lpStore());
+async function rig({ functionKeys = 'command', masters } = {}) {
+  const awj = await fakeAwj(lpStore({ masters }));
   const standIn = await new StandInConsole({ port: 0, grid: true, gridPort: 0, functionKeys }).start();
   const sup = new PixelhueSupervisor({
     deviceHost: () => '127.0.0.1', awjPort: awj.port,
@@ -531,6 +567,23 @@ test('SAVE TO armed on the console stores the active screen into a free slot fro
       [toAwj(NLC.label('screen', 3, 'Memory 3').path), 'Memory 3'],
     ]);
     assert.equal(sup.describe().grid.armed, null, 'disarmed by the store');
+  } finally {
+    await r.close();
+  }
+});
+
+test('a master memory on the grid recalls to preview with no screen selected', async () => {
+  const r = await rig({ masters: [[5, 'Doors']] });
+  const { lcd, awj } = r;
+  try {
+    /* Opener, Walk-in and SAVE TO's empty key on page 1; the master on page 2. */
+    await lcd.press(MEMORIES, PAGE_ON);
+    assert.ok(await until(() => lcd.pages[MEMORIES] === 2), 'the memory row redrawn as page 2');
+    awj.clear();
+    await lcd.press(MEMORIES, 0);
+    assert.ok(await until(() => awj.writes().length));
+    assert.deepEqual(awj.writes(), [{ path: toAwj(NLC.recall('master', 5, { mode: 'PREVIEW' }).path), value: true }]);
+    assert.ok(r.said(/^recall master memory 5 "Doors" to preview$/));
   } finally {
     await r.close();
   }

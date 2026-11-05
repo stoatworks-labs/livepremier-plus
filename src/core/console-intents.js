@@ -72,6 +72,17 @@ export function writesFor(intent, ctx) {
       each((id) => commands.recallScreenPreset(intent.slot, id, 'PREVIEW'));
       out.note = `recall ${intent.slot} to preview on ${selected.join(' ')}`;
       break;
+    case 'recallMaster': {
+      /* A master memory says which screens it covers itself, so it needs no
+         selection, and it goes to PREVIEW for the same reason a screen
+         memory does. */
+      if (!intent.slot) return { ...out, note: 'a master recall with no slot' };
+      const cmd = commands.recallMasterPreset(intent.slot, 'PREVIEW');
+      if (!cmd) return { ...out, note: 'this platform cannot recall a master memory' };
+      out.writes.push(cmd);
+      out.note = `recall master memory ${intent.slot}${intent.label ? ` "${intent.label}"` : ''} to preview`;
+      break;
+    }
     case 'source': {
       if (!intent.input) return { ...out, note: 'a source change with no input' };
       const spec = layerSourcePath(dialect);
