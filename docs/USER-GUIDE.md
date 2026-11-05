@@ -178,6 +178,13 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.18.11 sorts out a U5 mini's input row and gives its grid TAKE and CUT.** The input row
+> stopped at 24; it now has every input the Web RCS would offer you as a source, wherever it sits
+> in the frame, and follows Preconfig ▸ Inputs. Master memories get a page of their own after the
+> screen memories. The mini's own TAKE and CUT did nothing on a real one, so the grid has its own
+> at the end of the screen row ([Pixelhue panel](#pixelhue-panel-preview)). None of it has been
+> pressed on a mini yet.
+>
 > **0.18.10 puts the panels back on Windows, keeps a U5 mini's key grid up and adds a log.** On
 > Windows every PLUS panel was missing, in every browser and from the desktop app; they're back,
 > checked on Windows 11 and on Ubuntu as well. A U5 mini's key grid dropped every 15 seconds or so;
@@ -301,7 +308,7 @@ connection of their own when they act, which is worth knowing, because the switc
 
 ## Feature status
 
-Where each feature stands, as of 0.18.10. Three words, used the same way everywhere:
+Where each feature stands, as of 0.18.11. Three words, used the same way everywhere:
 
 - **Tested**: run on the real hardware it's for (a LivePremier frame, or the panel, network or
   program it talks to), every write read back from the switcher, and it did what this guide

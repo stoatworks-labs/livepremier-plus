@@ -303,7 +303,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.10.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
+> **Status: field testing, v0.18.11.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
 > user guide says, feature by feature, what has met real hardware and what hasn't. The panels
 > render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
@@ -437,6 +437,19 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.18.11 (2026-11-05).** The **Pixelhue U5 mini** again, this time in front of a real Aquilon.
+> Its key grid's input row stopped at 24, because the app only ever asked about the first 24
+> input slots, and a frame numbers its inputs card by card, so anything on a later card never
+> turned up. It now asks about all of them and shows what the Web RCS would offer as a source: an
+> input switched off in Preconfig ▸ Inputs, or the second half of a DisplayPort 1.2 pair, stays
+> off the grid. The Barco EC panel, the ATEM Micro Panel and lighting desk control read their
+> inputs the same way now, and on a Midra 4K or Alta 4K, where they found none at all, they find
+> them (untried on one). **Master memories** follow the screen memories on the memory row, on a
+> page of their own, and recall to preview. And since the mini's own TAKE and CUT did nothing,
+> the grid has its own: the last two keys of the screen row, on every page of it, so screens go
+> six to a page. All of it against a stand-in that answers as the mini does, with the inputs read
+> back from a C mini; no mini has pressed any of it yet. `docs/NOTES.md` has the runs.
 >
 > **0.18.10 (2026-11-03).** Three fixes from the field, and a log to send with the next one. On
 > **Windows** none of the PLUS panels appeared, in any browser or from the desktop app: every one
