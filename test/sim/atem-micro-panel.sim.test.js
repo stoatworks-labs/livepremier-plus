@@ -12,7 +12,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SKIP, startApp, Link, awjGet, sag, settled, guardScreen, layerPath, sleep } from './harness.js';
+import { SKIP, startApp, Link, awjGet, sag, settled, guardScreen, layerPath, sleep, offeredInputs } from './harness.js';
 import { bankLetter } from '../../src/core/properties.js';
 import microModule from '../../devices/modules/atem-micro-panel/module.js';
 import { createDeviceHost } from '../../server/device-host.js';
@@ -55,14 +55,8 @@ after(async () => {
   }
 });
 
-/** The live inputs the switcher has, in order. */
-const liveInputs = () => {
-  const items = link.get(['device', 'inputList', 'items']) || {};
-  return Object.keys(items)
-    .map((k) => Number(/^IN_(\d+)$/.exec(k)?.[1]))
-    .filter((n) => n && link.get(['device', 'inputList', 'items', `IN_${n}`, 'mapping', 'pp', 'isValid']) === true)
-    .sort((a, b) => a - b);
-};
+/** The live inputs the plugin keeps, in order — what the panel pages through. */
+const liveInputs = () => offeredInputs(link, 20);
 
 const state = async () => (await app.api('/atem-micro-panel/state')).json;
 

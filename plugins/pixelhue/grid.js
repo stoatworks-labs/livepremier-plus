@@ -17,17 +17,27 @@
  * The selection lives here, as it does for a Barco EC panel.
  *
  * ```text
- *   row 0  screens                press selects; on a selected screen, makes it the
+ *   row 0  screens, six a page    press selects; on a selected screen, makes it the
  *                                 active one; held 1.5 s, drops it — a U5's screen bus
+ *          then CUT and TAKE      columns 6 and 7 on every page: cut or take every
+ *                                 selected screen, as a U5's own TAKE and CUT do
  *   row 1  the active screen's    press selects the layer
  *          layers
  *   row 2  inputs (the kind       press puts it on the selected layer of every selected
- *          SIGNAL SOURCE chose)   screen, in the buffer the panel edits
- *   row 3  memories               press recalls to PREVIEW; SAVE TO or DEL armed on the
- *                                 console, stores or deletes instead
- *   columns 0–7                   the row's page of eight
+ *          SIGNAL SOURCE chose)   screen, in the buffer the panel edits; every input the
+ *                                 Web RCS's source picker offers, wherever it is numbered
+ *   row 3  screen memories, then  press recalls to PREVIEW; SAVE TO or DEL armed on the
+ *          master memories from   console, stores or deletes a screen memory instead.
+ *          a page of their own    A master memory is recalled only
+ *   columns 0–7                   the row's page of eight (of six on the screen row)
  *   columns 8 / 9                 that row's page back / page on
  * ```
+ *
+ * TAKE and CUT are on the grid because a mini's own keys run them against the
+ * Pixelhue switcher its LCD app is bound to, and nobody has yet seen one
+ * report them to this app (2026-11-05: a real mini on an Aquilon, its TAKE and
+ * CUT did nothing). They sit on the screen row, where the screens they take
+ * are chosen, at the same two keys whichever page that row is on.
  *
  * ⚠️ What the firmware says and what it does not (`docs/PIXELHUE.md`, U5 mini):
  *
@@ -50,12 +60,18 @@
 
 import { encodePng } from '../../src/vendor/pixelhue/png.js';
 import { GRID_ROWS, GRID_COLUMNS, KEY_ICON_SIZE } from '../../src/vendor/pixelhue/surface.js';
-import { paintText } from '../../src/core/ec-font.js';
+import { paintText, textWidth } from '../../src/core/ec-font.js';
 
 export const ROWS = GRID_ROWS;
 export const COLUMNS = GRID_COLUMNS;
 /* Eight bus keys a row, as on the console, which pages its own buses by eight. */
 export const BUS_KEYS = 8;
+/* The screen row gives its last two to CUT and TAKE, on every page. */
+export const SCREEN_KEYS = 6;
+export const CUT_KEY = 6;
+export const TAKE_KEY = 7;
+/** How many of a row's eight bus keys page through its items. */
+export const keysOn = (row) => (row === SCREENS ? SCREEN_KEYS : BUS_KEYS);
 export const PAGE_BACK = 8;
 export const PAGE_ON = 9;
 export const ROW_NAMES = Object.freeze(['screens', 'layers', 'inputs', 'memories']);
@@ -103,20 +119,36 @@ export function rowItems(row, { facts, selection, sourceKind = 'LIVE' }) {
       type: 'source', sourceKind, number: s.number, label: s.label || `${SHORT[sourceKind] || 'IN'} ${s.number}`,
     }));
   }
-  if (row === MEMORIES) {
-    return (facts.presets || []).map((p) => ({ type: 'memory', slot: p.slot, label: p.label || `Memory ${p.slot}` }));
-  }
+  if (row === MEMORIES) return memoryRow({ facts }).items;
   return [];
 }
 
 /**
- * How many pages a row has. The memory row runs one key past its last memory,
- * so that with every key full there is still an empty one to SAVE TO — which
- * is what the console's own preset bus allows.
+ * The memory row laid out: screen memories, then master memories from the top
+ * of a page of their own, so paging to them always lands in the same place.
+ * `items` has `null` for an empty key; `mastersAt` is where the masters start
+ * (Infinity when there are none). An empty key before it is one SAVE
+ * TO can store into, and there is always at least one — with every key full
+ * there is still an empty one to SAVE TO, which is what the console's own
+ * preset bus allows. Master memories are recalled only (`pressIntent`).
  */
+export function memoryRow({ facts }) {
+  const screen = ((facts && facts.presets) || [])
+    .map((p) => ({ type: 'memory', slot: p.slot, label: p.label || `Memory ${p.slot}` }));
+  const masters = ((facts && facts.masters) || [])
+    .map((m) => ({ type: 'master', slot: m.slot, label: m.label || `Master ${m.slot}` }));
+  if (!masters.length) return { items: screen, mastersAt: Infinity };
+  const mastersAt = Math.ceil((screen.length + 1) / BUS_KEYS) * BUS_KEYS;
+  const items = [...screen, ...Array(mastersAt - screen.length).fill(null), ...masters];
+  return { items, mastersAt };
+}
+
+/** How many pages a row has; the memory row's spare key is `memoryRow`'s. */
 export function pageCount(row, ctx) {
-  const n = rowItems(row, ctx).length + (row === MEMORIES ? 1 : 0);
-  return Math.max(1, Math.ceil(n / BUS_KEYS));
+  const items = rowItems(row, ctx);
+  /* With no masters the spare key is one past the end; with them it is in the gap before them. */
+  const spare = row === MEMORIES && memoryRow(ctx).mastersAt === Infinity ? 1 : 0;
+  return Math.max(1, Math.ceil((items.length + spare) / keysOn(row)));
 }
 
 /** The view with every page inside its row — a row can shrink under it. */
@@ -146,7 +178,8 @@ export const pageMatches = (view, row, page) => page === null || page === undefi
 /**
  * What a released key asks for: one of `console-intents.js`'s kinds —
  * `select`, `activate`, `unselect`, `selectLayer`, `source`, `recall`,
- * `store`, `deletePreset` — or this grid's own `page`, or `none` with why.
+ * `recallMaster`, `store`, `deletePreset`, `take`, `cut` — or this grid's own
+ * `page`, or `none` with why.
  * `long` is a press held `LONG_PRESS_MS` or more.
  */
 export function pressIntent(row, column, ctx, { long = false } = {}) {
@@ -154,10 +187,13 @@ export function pressIntent(row, column, ctx, { long = false } = {}) {
   const name = `${ROW_NAMES[row] || `row ${row}`} key ${column + 1}`;
   if (row < 0 || row >= ROWS || column < 0 || column >= COLUMNS) return { kind: 'none', why: `no key at row ${row}, column ${column}` };
   if (column === PAGE_BACK || column === PAGE_ON) return { kind: 'page', row, delta: column === PAGE_ON ? 1 : -1 };
+  if (row === SCREENS && column === TAKE_KEY) return { kind: 'take' };
+  if (row === SCREENS && column === CUT_KEY) return { kind: 'cut' };
 
-  const item = rowItems(row, ctx)[view.pages[row] * BUS_KEYS + column];
+  const index = view.pages[row] * keysOn(row) + column;
+  const item = rowItems(row, ctx)[index];
   if (!item) {
-    if (row === MEMORIES && view.armed === 'save') return { kind: 'store', slot: null };
+    if (row === MEMORIES && view.armed === 'save' && index < memoryRow(ctx).mastersAt) return { kind: 'store', slot: null };
     if (row === LAYERS && !activeOf(ctx.selection)) return { kind: 'none', why: `${name}: select a screen first — the layer row shows the active screen's layers` };
     return { kind: 'none', why: `${name}: nothing on that key` };
   }
@@ -176,6 +212,14 @@ export function pressIntent(row, column, ctx, { long = false } = {}) {
       if (view.armed === 'save') return { kind: 'store', slot: item.slot };
       if (view.armed === 'del') return { kind: 'deletePreset', slot: item.slot, label: item.label };
       return { kind: 'recall', slot: item.slot };
+    case 'master':
+      if (view.armed) {
+        return {
+          kind: 'none',
+          why: `${item.label} is a master memory: the key grid recalls those and does not ${view.armed === 'save' ? 'store' : 'delete'} them — the Web RCS does`,
+        };
+      }
+      return { kind: 'recallMaster', slot: item.slot, label: item.label };
     default: return { kind: 'none', why: `${name}: no meaning yet` };
   }
 }
@@ -191,6 +235,7 @@ const RGB = Object.freeze({
   red: [200, 24, 24],
   green: [20, 150, 50],
   blue: [24, 52, 104],
+  violet: [74, 40, 110],
   white: [255, 255, 255],
 });
 
@@ -205,6 +250,8 @@ const RGB = Object.freeze({
  * - Inputs: red for what is on the selected layer in program, green for what
  *   is in preview, as last read (`tally`, from `ConsoleSwitcher.tallyFor`).
  * - Memories: framed red while SAVE TO or DEL is armed.
+ * - CUT and TAKE: lit red and green, as a U5's are, while a screen is
+ *   selected; dark with nothing to take.
  * - Columns 8 / 9: the row's page, dark when there is only one.
  */
 export function gridCells(ctx) {
@@ -228,10 +275,13 @@ export function gridCells(ctx) {
           fill: more ? RGB.blue : RGB.black,
           ink: more ? RGB.ink : RGB.dim,
         };
+      } else if (row === SCREENS && (column === TAKE_KEY || column === CUT_KEY)) {
+        face = transitionFace(column === TAKE_KEY ? 'TAKE' : 'CUT', selection);
       } else {
-        const item = items[page * BUS_KEYS + column];
+        const index = page * keysOn(row) + column;
+        const item = items[index];
         face = item ? faceOf(item, { selection, active, tally, onAir, view })
-          : row === MEMORIES && view.armed === 'save'
+          : row === MEMORIES && view.armed === 'save' && index < memoryRow(ctx).mastersAt
             ? { text: '+', sub: 'SAVE HERE', fill: RGB.black, ink: RGB.red, frame: RGB.red }
             : { text: '', sub: '', fill: RGB.black, ink: RGB.dim };
       }
@@ -241,6 +291,20 @@ export function gridCells(ctx) {
     }
   }
   return out;
+}
+
+/* TAKE or CUT: what it would act on, under the word, or that there is nothing. */
+function transitionFace(word, selection) {
+  const list = selection ? selection.list : [];
+  if (!list.length) return { text: word, sub: 'NO SCREEN', fill: RGB.key, ink: RGB.dim };
+  const names = list.join(' ');
+  return {
+    text: word,
+    /* The status line is one line at 1× (`renderKey`): the names, if they fit it. */
+    sub: textWidth(names, 1) <= KEY_ICON_SIZE - 6 ? names : `${list.length} SCREENS`,
+    fill: word === 'TAKE' ? RGB.green : RGB.red,
+    ink: RGB.ink,
+  };
 }
 
 function faceOf(item, { selection, active, tally, onAir, view }) {
@@ -272,7 +336,9 @@ function faceOf(item, { selection, active, tally, onAir, view }) {
       frame: pgm && pvw ? RGB.green : null,
     };
   }
-  /* A memory. */
+  /* A master memory: its own colour, and never framed by SAVE TO or DEL, which it does not take. */
+  if (item.type === 'master') return { text: item.label, sub: `MASTER ${item.slot}`, fill: RGB.violet, ink: RGB.ink };
+  /* A screen memory. */
   const armed = view.armed === 'save' ? 'SAVE TO' : view.armed === 'del' ? 'DELETE' : null;
   return {
     text: item.label,

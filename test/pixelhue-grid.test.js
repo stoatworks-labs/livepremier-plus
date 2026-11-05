@@ -17,8 +17,8 @@ import net from 'node:net';
 import { inflateSync } from 'node:zlib';
 
 import {
-  initialView, rowItems, pageCount, clampView, turnPage, pressIntent, pageMatches, wirePage, gridCells, renderKey,
-  SCREENS, LAYERS, INPUTS, MEMORIES, PAGE_BACK, PAGE_ON, LONG_PRESS_MS,
+  initialView, rowItems, memoryRow, pageCount, clampView, turnPage, pressIntent, pageMatches, wirePage, gridCells, renderKey,
+  SCREENS, LAYERS, INPUTS, MEMORIES, PAGE_BACK, PAGE_ON, LONG_PRESS_MS, CUT_KEY, TAKE_KEY,
 } from '../plugins/pixelhue/grid.js';
 import { GridLink, letGoNote } from '../plugins/pixelhue/grid-link.js';
 import { PixelhueSupervisor } from '../plugins/pixelhue/supervisor.js';
@@ -33,6 +33,16 @@ import { fakeAwj } from './helpers/fake-awj.js';
 import { install as installDom } from './helpers/fake-dom.js';
 
 const settle = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Until the stand-in grid has had no draw for `ms`: the app's redraws have landed. */
+async function quiet(lcd, ms = 250, limit = 3000) {
+  const end = Date.now() + limit;
+  let seen = lcd.draws;
+  let since = Date.now();
+  while (Date.now() < end) {
+    await settle(20);
+    if (lcd.draws !== seen) { seen = lcd.draws; since = Date.now(); } else if (Date.now() - since >= ms) return;
+  }
+}
 async function until(fn, ms = 3000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
@@ -146,6 +156,70 @@ test('SAVE TO and DEL, armed on the console, turn memory keys into a store and a
   assert.deepEqual(pressIntent(MEMORIES, 1, del), { kind: 'deletePreset', slot: 2, label: 'Look 2' });
   assert.equal(pressIntent(MEMORIES, 0, ctxWith(['S1'], { view: { ...initialView(), pages: [0, 0, 0, 1] } })).kind, 'none',
     'an empty key with nothing armed does nothing');
+});
+
+test('master memories follow the screen memories on a page of their own, and recall but never store', () => {
+  /* The U5 mini on an Aquilon could not see its masters (2026-11-05). */
+  const masters = [{ slot: 1, label: 'Walk-in' }, { slot: 4, label: '' }];
+  const seven = { ...FACTS, presets: FACTS.presets.slice(0, 7), masters };
+  const ctx = (facts, view = {}) => ctxWith(['S1'], { facts, view: { ...initialView(), ...view } });
+  /* Seven screen memories: the eighth key is SAVE TO's, the masters start page 2. */
+  assert.equal(memoryRow(ctx(seven)).mastersAt, 8);
+  assert.equal(pageCount(MEMORIES, ctx(seven)), 2, 'no spare key after the masters: they are never stored into');
+  assert.deepEqual(pressIntent(MEMORIES, 7, ctx(seven, { armed: 'save' })), { kind: 'store', slot: null });
+  const p2 = { pages: [0, 0, 0, 1] };
+  assert.deepEqual(pressIntent(MEMORIES, 0, ctx(seven, p2)), { kind: 'recallMaster', slot: 1, label: 'Walk-in' });
+  assert.deepEqual(pressIntent(MEMORIES, 1, ctx(seven, p2)), { kind: 'recallMaster', slot: 4, label: 'Master 4' });
+  assert.equal(pressIntent(MEMORIES, 2, ctx(seven, { ...p2, armed: 'save' })).kind, 'none', 'no SAVE TO past the masters');
+  for (const armed of ['save', 'del']) {
+    const refused = pressIntent(MEMORIES, 0, ctx(seven, { ...p2, armed }));
+    assert.equal(refused.kind, 'none', `${armed} armed on a master`);
+    assert.match(refused.why, /Walk-in is a master memory/);
+  }
+  const faces = gridCells(ctx(seven, { ...p2, armed: 'save' })).filter((c) => c.row === MEMORIES);
+  assert.equal(faces[0].face.sub, 'MASTER 1');
+  assert.equal(faces[1].face.text, 'Master 4');
+  assert.equal(faces[2].face.sub, '', 'no SAVE HERE among the masters');
+  /* Eight screen memories fill page 1, so SAVE TO gets page 2 and the masters page 3. */
+  const eight = { ...FACTS, masters };
+  assert.equal(memoryRow(ctx(eight)).mastersAt, 16);
+  assert.equal(pageCount(MEMORIES, ctx(eight)), 3);
+  assert.equal(gridCells(ctx(eight, { pages: [0, 0, 0, 1], armed: 'save' })).find((c) => c.row === MEMORIES && c.column === 7).face.sub, 'SAVE HERE');
+  /* None at all: the row is as it was. */
+  assert.deepEqual(rowItems(MEMORIES, ctx({ ...FACTS, masters: [] })).map((i) => i.slot), [1, 2, 3, 4, 5, 6, 7, 8]);
+});
+
+test('the screen row ends in CUT and TAKE on every page, so screens page by six', () => {
+  /* A real mini's own TAKE and CUT did nothing on an Aquilon (2026-11-05). */
+  assert.deepEqual([CUT_KEY, TAKE_KEY], [6, 7]);
+  const seven = {
+    ...FACTS,
+    destinations: Array.from({ length: 7 }, (_, i) => ({ id: `S${i + 1}`, kind: 'screen', label: `LED ${i + 1}`, isUsed: true })),
+  };
+  const ctx = (picked = [], view = {}) => {
+    const selection = new Selection();
+    selection.restrict(seven.destinations.map((d) => d.id));
+    for (const id of picked) selection.apply({ kind: 'select', destination: id });
+    return { facts: seven, selection, view: { ...initialView(), ...view }, sourceKind: 'LIVE' };
+  };
+  assert.equal(pageCount(SCREENS, ctx()), 2, 'seven screens, six a page');
+  assert.deepEqual(pressIntent(SCREENS, 5, ctx()), { kind: 'select', destination: 'S6' });
+  assert.deepEqual(pressIntent(SCREENS, 0, ctx([], { pages: [1, 0, 0, 0] })), { kind: 'select', destination: 'S7' }, 'page 2 starts at the seventh');
+  for (const page of [0, 1]) {
+    assert.deepEqual(pressIntent(SCREENS, TAKE_KEY, ctx(['S1'], { pages: [page, 0, 0, 0] })), { kind: 'take' });
+    assert.deepEqual(pressIntent(SCREENS, CUT_KEY, ctx(['S1'], { pages: [page, 0, 0, 0] })), { kind: 'cut' });
+  }
+  assert.deepEqual(pressIntent(INPUTS, TAKE_KEY, ctxWith()), { kind: 'source', input: 8, label: 'CAM 8' }, 'only the screen row gives keys up');
+
+  const faceAt = (c, column) => gridCells(c).find((k) => k.row === SCREENS && k.column === column).face;
+  assert.deepEqual([faceAt(ctx(), TAKE_KEY).text, faceAt(ctx(), TAKE_KEY).sub], ['TAKE', 'NO SCREEN']);
+  assert.deepEqual(faceAt(ctx(), CUT_KEY).fill, GREY, 'dark with nothing to take');
+  const two = ctx(['S1', 'S3']);
+  assert.deepEqual([faceAt(two, TAKE_KEY).sub, faceAt(two, TAKE_KEY).fill], ['S1 S3', GREEN]);
+  assert.deepEqual([faceAt(two, CUT_KEY).text, faceAt(two, CUT_KEY).fill], ['CUT', RED]);
+  assert.equal(faceAt(ctx(['S1', 'S2', 'S3', 'S4']), TAKE_KEY).sub, 'S1 S2 S3 S4', 'four names fit the status line');
+  assert.equal(faceAt(ctx(['S1', 'S2', 'S3', 'S4', 'S5']), TAKE_KEY).sub, '5 SCREENS', 'five do not');
+  assert.equal(faceAt(ctx([], { pages: [1, 0, 0, 0] }), 1).text, '', 'past the seventh screen, nothing');
 });
 
 test('columns 8 and 9 are each row\'s page keys', () => {
@@ -378,7 +452,7 @@ test('a second connection from the address already holding the grid is refused, 
 /* ======================================================== end to end */
 
 /** A LivePremier: two screens (S1 with two layers), ten inputs, two memories. */
-function lpStore() {
+function lpStore({ masters = [] } = {}) {
   const s = new Map();
   const set = (path, v) => s.set(toAwj(path), v);
   s.set('DeviceObject/system/$device/@items/1/@props/dev', 'NLC_RS4');
@@ -395,19 +469,24 @@ function lpStore() {
     for (const k of probe.slots) set(probe.path(k), Number(k) <= (id === 'S1' ? 2 : 1) ? 'FULL' : 'OFF');
   }
   for (let n = 1; n <= 10; n++) {
-    set(['device', 'inputList', 'items', `IN_${n}`, 'mapping', 'pp', 'isValid'], true);
+    set(['device', 'inputList', 'items', `IN_${n}`, 'status', 'pp', 'isAvailable'], true);
+    set(['device', 'inputList', 'items', `IN_${n}`, 'status', 'pp', 'isEnabled'], true);
     set(['device', 'inputList', 'items', `IN_${n}`, 'control', 'pp', 'label'], `CAM ${n}`);
   }
   [['1', 'Opener'], ['2', 'Walk-in']].forEach(([slot, label]) => {
     set(NLC.label('screen', Number(slot), '').path, label);
     set(slotValidPath(NLC, Number(slot)), true);
   });
+  for (const [slot, label] of masters) {
+    set(NLC.label('master', slot, '').path, label);
+    set(slotValidPath(NLC, slot, 'master'), true);
+  }
   return s;
 }
 
 /** The app's panel on a stand-in mini with its grid, and a pretend LivePremier. */
-async function rig({ functionKeys = 'command' } = {}) {
-  const awj = await fakeAwj(lpStore());
+async function rig({ functionKeys = 'command', masters } = {}) {
+  const awj = await fakeAwj(lpStore({ masters }));
   const standIn = await new StandInConsole({ port: 0, grid: true, gridPort: 0, functionKeys }).start();
   const sup = new PixelhueSupervisor({
     deviceHost: () => '127.0.0.1', awjPort: awj.port,
@@ -483,6 +562,11 @@ test('the grid pages each row with its own page keys, and refuses a press from a
     await lcd.press(INPUTS, 1);
     assert.ok(await until(() => awj.writes().length));
     assert.equal(awj.writes()[0].value, 'LIVE_10');
+    /* The write relights the row (CAM 10 in preview), and that redraw moves the
+       stand-in's row back to page 2; let it land before faking a stale page, or
+       on a slow machine it lands after and the press is taken (winlab, 2026-11-05). */
+    assert.ok(await until(() => fillOf(lcd.shown(INPUTS, 1).png).join() === GREEN.join()), 'CAM 10 lit as in preview');
+    await quiet(lcd);
 
     /* A press the console reports from page 1 of a row now drawn as page 2. */
     awj.clear();
@@ -536,6 +620,52 @@ test('SAVE TO armed on the console stores the active screen into a free slot fro
   }
 });
 
+test('a master memory on the grid recalls to preview with no screen selected', async () => {
+  const r = await rig({ masters: [[5, 'Doors']] });
+  const { lcd, awj } = r;
+  try {
+    /* Opener, Walk-in and SAVE TO's empty key on page 1; the master on page 2. */
+    await lcd.press(MEMORIES, PAGE_ON);
+    assert.ok(await until(() => lcd.pages[MEMORIES] === 2), 'the memory row redrawn as page 2');
+    awj.clear();
+    await lcd.press(MEMORIES, 0);
+    assert.ok(await until(() => awj.writes().length));
+    assert.deepEqual(awj.writes(), [{ path: toAwj(NLC.recall('master', 5, { mode: 'PREVIEW' }).path), value: true }]);
+    assert.ok(r.said(/^recall master memory 5 "Doors" to preview$/));
+  } finally {
+    await r.close();
+  }
+});
+
+test('TAKE and CUT on the grid take and cut the screens selected there, and say so', async () => {
+  const r = await rig({ functionKeys: 'nothing' });
+  const { lcd, sup, awj } = r;
+  try {
+    await lcd.press(SCREENS, TAKE_KEY);
+    assert.ok(await until(() => r.said(/^no destination selected on the panel$/)), 'nothing selected: nothing sent');
+    assert.deepEqual(awj.writes(), []);
+    await lcd.press(SCREENS, 0);
+    await lcd.press(SCREENS, 1);
+    assert.ok(await until(() => sup.selection.list.join() === 'S1,S2'));
+    assert.ok(await until(() => fillOf(lcd.shown(SCREENS, TAKE_KEY).png).join() === GREEN.join()), 'TAKE lit once a screen is selected');
+    awj.clear();
+    await lcd.press(SCREENS, TAKE_KEY);
+    assert.ok(await until(() => awj.writes().length >= 2));
+    assert.deepEqual(awj.writes(), [
+      { path: toAwj(NLC.takeControl('S1', 'xTake')), value: true },
+      { path: toAwj(NLC.takeControl('S2', 'xTake')), value: true },
+    ]);
+    assert.ok(r.said(/^take S1 S2$/));
+    awj.clear();
+    await lcd.press(SCREENS, CUT_KEY);
+    assert.ok(await until(() => awj.writes().length >= 2));
+    assert.deepEqual(awj.writes().map((w) => w.path), [toAwj(NLC.takeControl('S1', 'xCut')), toAwj(NLC.takeControl('S2', 'xCut'))]);
+    assert.equal(sup.describe().takeCut.take, false, 'the grid\'s TAKE is not the console reporting its own');
+  } finally {
+    await r.close();
+  }
+});
+
 test('a mini that reports TAKE\'s key but no take says so, and sends nothing', async () => {
   const r = await rig({ functionKeys: 'keys' });
   try {
@@ -563,8 +693,9 @@ test('a mini that reports nothing for TAKE leaves the card saying so in plain wo
     const d = r.sup.describe();
     assert.deepEqual([d.takeCut.take, d.takeCut.cut], [false, false]);
     assert.equal(d.takeCut.note, takeCutNote('u5mini'));
-    assert.match(d.takeCut.note, /nobody knows yet whether TAKE and CUT reach this app/);
-    assert.ok(r.said(/nobody knows yet whether TAKE and CUT reach this app/), 'said once in the history, at the first grid selection');
+    assert.match(d.takeCut.note, /nobody knows yet whether the console's own TAKE and CUT keys reach this app/);
+    assert.match(d.takeCut.note, /Use TAKE and CUT at the end of the key grid's screen row/);
+    assert.ok(r.said(/nobody knows yet whether the console's own TAKE and CUT keys reach this app/), 'said once in the history, at the first grid selection');
     assert.equal(r.sup.history.filter((e) => /nobody knows yet/.test(e.note || '')).length, 1);
   } finally {
     await r.close();
@@ -637,9 +768,10 @@ test('the card says the grid is drawn, how to see it, and that TAKE / CUT have n
   const text = await cardText(state, settings);
   assert.match(text, /Key grid/);
   assert.match(text, /drawing on 127\.0\.0\.1:\d+/);
-  assert.match(text, /TAKE \/ CUT/);
+  assert.match(text, /Console TAKE \/ CUT/);
   assert.match(text, /not seen yet/);
-  assert.match(text, /nobody knows yet whether TAKE and CUT reach this app/);
+  assert.match(text, /nobody knows yet whether the console's own TAKE and CUT keys reach this app/);
+  assert.match(text, /with TAKE and CUT at the end of the screen row/);
   assert.match(text, /switched to Companion with its area-switch key/);
   assert.doesNotMatch(text, /labels, lights and pages its own keys/, 'that is a U5\'s story, not a mini\'s');
 

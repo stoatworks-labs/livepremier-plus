@@ -57,14 +57,20 @@ import {
 export { CONSOLE_MODELS };
 
 /* How much of a switcher to ask about. Bounded on purpose: these are `get`s in
-   one burst, and a LivePremier has 24 screens, 20-odd inputs and a thousand
-   memory slots, of which a console with an eight-key bus wants the first few
-   pages. */
+   one burst, and a LivePremier has 24 screens and a thousand memory slots, of
+   which a console with an eight-key bus wants the first few pages.
+
+   Inputs and stills are not bounded that way: every one the vendor's source
+   picker offers is kept, wherever it is numbered (`sourcesWanted` in
+   `server/console-switcher.js` says why). Until 2026-11-05 this read IN_1 to
+   IN_24 and a U5 mini on a bigger frame stopped there. A U5's model still
+   publishes its own first 64 (`core.js`). */
 const SCREENS = 24;
-const INPUTS = 24;
+const INPUTS = 256;
 const MEMORIES = 32;
+const MASTERS = 32;
 const LAYERS = 16;
-const STILLS = 24;
+const STILLS = 192;
 /* A fader or encoder gesture with no move for this long is over; its history
    line is written then, not once per step. */
 const GESTURE_IDLE_MS = 500;
@@ -128,6 +134,8 @@ export class PixelhueSupervisor extends EventEmitter {
   #seen = { take: false, cut: false };
   #takeCutKeys = new Map();
   #takeCutSaid = false;
+  /* A redraw once a take from the grid has had time to land, for the tally. */
+  #settleTimer = null;
 
   /**
    * @param {object} opts
@@ -154,7 +162,7 @@ export class PixelhueSupervisor extends EventEmitter {
     this.switcher = new ConsoleSwitcher({
       deviceHost: () => this.deviceHost(),
       awjPort,
-      limits: { screens: SCREENS, inputs: INPUTS, memories: MEMORIES, layers: LAYERS, stills: STILLS },
+      limits: { screens: SCREENS, inputs: INPUTS, memories: MEMORIES, masters: MASTERS, layers: LAYERS, stills: STILLS },
     });
     this.selection = new Selection();
     this.history = [];
@@ -265,6 +273,7 @@ export class PixelhueSupervisor extends EventEmitter {
   }
 
   async stop() {
+    clearTimeout(this.#settleTimer); this.#settleTimer = null;
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     if (this.#grid) { await this.#grid.stop(); this.#grid = null; }
     this.#config = null;
@@ -283,9 +292,12 @@ export class PixelhueSupervisor extends EventEmitter {
   async readFacts() {
     const facts = await this.switcher.readFacts();
     if (!facts.sourceKinds.includes(this.#sourceKind)) this.#sourceKind = 'LIVE';
-    const { destinations, sources, presets, layers, freeSlots, sourceKinds, deviceId } = facts;
+    const { destinations, sources, presets, masters, layers, freeSlots, sourceKinds, deviceId } = facts;
     this.#dialect = facts.dialect;
-    this.#facts = { destinations, inputs: sources[this.#sourceKind], presets, layers, freeSlots, sourceKinds, deviceId };
+    /* `masters` is drawn on a mini's key grid only; a U5's model has no bus for them. */
+    this.#facts = {
+      destinations, inputs: sources[this.#sourceKind], presets, masters: masters || [], layers, freeSlots, sourceKinds, deviceId,
+    };
     return this.#facts;
   }
 
@@ -926,6 +938,13 @@ export class PixelhueSupervisor extends EventEmitter {
       this.#note({ kind: 'noted', command: name, note: takeCutNote(this.#config && this.#config.model) });
     }
     void this.#drawGrid();
+    /* A take runs for its transition time, so the input row's PGM / PVW is
+       read again once it has had time to finish, not only mid-way. */
+    if (intent.kind === 'take' || intent.kind === 'cut') {
+      clearTimeout(this.#settleTimer);
+      this.#settleTimer = setTimeout(() => { this.#settleTimer = null; void this.#drawGrid(); }, TAKE_SETTLE_MS);
+      if (this.#settleTimer.unref) this.#settleTimer.unref();
+    }
   }
 
   /* ------------------------------------------------------ a wiped console */
@@ -1020,6 +1039,8 @@ function nameOf(code) {
 
 /* Intents after which the model must be read again, not just re-sent. */
 const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap', 'deletePreset']);
+/* How long after a TAKE or CUT on a mini's grid its tally is read again. */
+const TAKE_SETTLE_MS = 1500;
 /* Intents that only move the panel's selection. */
 const SELECTS = new Set(['select', 'activate', 'unselect', 'selectLayer']);
 

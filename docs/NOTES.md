@@ -4177,6 +4177,44 @@ launchers) watches a running 0.18.x from outside: it polls `/__lpp/status` and
 with a summary a minute, to a text file on the Desktop. It uses the Node inside the installed
 app, so there is nothing to install.
 
+## A U5 mini on an Aquilon: inputs past 24, masters (2026-11-05, the stand-in and a C mini read)
+
+**The report.** A U5 mini on 0.18.10, on Windows, against an Aquilon: the grid stayed up and
+drew, a screen memory recalled from it reached the frame, the input row stopped at 24, master
+memories were nowhere, the keypad's function keys did nothing, TAKE and CUT did nothing, and a
+source changed from the grid showed in the Web RCS and not on the frame.
+
+**Inputs.** The console reader asked for `IN_1`..`IN_24` and gated on `mapping/pp/isValid`. The
+6.2.73 bundle's source picker (`availableInputAsSourceKeysSelector`) offers an input when it is
+`status/pp/isAvailable` and `isEnabled` and its `preconfig/inputs/current` global is `USED`
+(not `PREEMPTED` by a DisplayPort 1.2 pair, not `GROUPED`), in input order; stills the same against
+`stillList` and `preconfig/stills/current`. The reader now asks every slot (256 inputs, 192
+stills) and keeps that rule. Read back from the C mini through the tailnet with the new reader,
+gets only: 8 inputs (its one card), 24 stills, no masters, the whole read in 1.5 s.
+
+**Masters.** `masterPresetBank`, label and `isValid` per slot, up to 32, on the mini's memory row
+after the screen memories, on a page of their own; a press recalls to preview with
+`commands.recallMasterPreset`. Proved against the stand-in grid and a pretend switcher only: the
+C mini has no masters saved, and none was saved to check it.
+
+**Not settled.** The keypad and TAKE / CUT: the LCD app's keypad handlers
+(`KeyboardCommandMiniControlFunction` in `liblcdkeyboardproxyimpl.so`) build a key command and post
+it to the switcher it is bound to (`/unico/v1/ucenter/video-station/key/command`); whether it also
+reports them to a control-service client is not in the symbols. The user's log at Detailed is the
+way to find out. The source that "only changed in the Web RCS" is most likely preview: the grid
+edits preview, and with no TAKE nothing moves it to program. Unconfirmed.
+
+**TAKE and CUT on the grid** (the same day, Allan's call): the screen row's last two keys, CUT
+and TAKE, on every page of it, so screens page by six. A press is the `take` / `cut` intent a
+U5's TAKE reports, written to every selected screen; the input row's tally is read again 1.5 s
+later. Proved against the stand-in grid and a pretend switcher only.
+
+**Tests.** `npm test` 1641 on the Mac and kde-lab, 0 failing. On winlab 4 fail, and the same 4 fail
+on main 091306b there: LibreOffice's profile URL and the NDI runtime path are spelt POSIX in the
+tests, the media host fork, and the UMD Undo after Update in place. The sim suites now take their
+expected inputs from the same rule (`offeredInputs` in `test/sim/harness.js`); the rack simulator
+did not answer today, so they have not been rerun.
+
 ## X-keys (2026-11-05)
 
 **Why.** Asked for: X-keys as an input device. They're the commonest programmable keypad in a
