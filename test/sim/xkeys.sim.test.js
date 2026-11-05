@@ -12,7 +12,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SKIP, startApp, Link, awjGet, sag, settled, guardScreen, layerPath, sleep } from './harness.js';
+import { SKIP, startApp, Link, awjGet, sag, settled, guardScreen, layerPath, sleep, offeredInputs } from './harness.js';
 import { bankLetter } from '../../src/core/properties.js';
 import xkeysModule from '../../devices/modules/xkeys/module.js';
 import { createDeviceHost } from '../../server/device-host.js';
@@ -34,14 +34,8 @@ const until = async (fn, ms = 6000) => {
   return false;
 };
 
-/** The live inputs the switcher has, in order. */
-const liveInputs = () => {
-  const items = link.get(['device', 'inputList', 'items']) || {};
-  return Object.keys(items)
-    .map((k) => Number(/^IN_(\d+)$/.exec(k)?.[1]))
-    .filter((n) => n && link.get(['device', 'inputList', 'items', `IN_${n}`, 'mapping', 'pp', 'isValid']) === true)
-    .sort((a, b) => a - b);
-};
+/** The live inputs the plugin keeps, in order — the rule the console reader and the Web RCS picker share. */
+const liveInputs = () => offeredInputs(link, 20);
 
 let inputs = [];
 

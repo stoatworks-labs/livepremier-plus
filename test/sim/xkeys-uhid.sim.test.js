@@ -25,7 +25,7 @@ import { readFileSync, openSync, writeSync, closeSync, constants } from 'node:fs
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SKIP, startApp, Link, awjGet, sag, settled, guardScreen, layerPath, sleep } from './harness.js';
+import { SKIP, startApp, Link, awjGet, sag, settled, guardScreen, layerPath, sleep, offeredInputs } from './harness.js';
 import { bankLetter } from '../../src/core/properties.js';
 import { createDeviceHost, findDeviceHost } from '../../server/device-host.js';
 
@@ -70,13 +70,8 @@ const until = async (fn, ms = 8000) => {
   return false;
 };
 
-const liveInputs = () => {
-  const items = link.get(['device', 'inputList', 'items']) || {};
-  return Object.keys(items)
-    .map((k) => Number(/^IN_(\d+)$/.exec(k)?.[1]))
-    .filter((n) => n && link.get(['device', 'inputList', 'items', `IN_${n}`, 'mapping', 'pp', 'isValid']) === true)
-    .sort((a, b) => a - b);
-};
+/** The live inputs the plugin keeps, in order — the rule the console reader and the Web RCS picker share. */
+const liveInputs = () => offeredInputs(link, 20);
 
 let inputs = [];
 const skip = SKIP || !FIFO || !STATE || process.platform !== 'linux';

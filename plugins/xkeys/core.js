@@ -192,9 +192,11 @@ export function layoutFor(settings, product) {
 }
 
 /**
- * How far along each of the switcher's lists to read, so a key bound to
- * memory 40 or input 30 can be answered. Never less than the consoles'
- * usual, never more than the switcher has.
+ * How much of each of the switcher's lists to keep, so a key bound to
+ * memory 40 or input 30 can be answered. `inputs` and `stills` are how many
+ * `ConsoleSwitcher` keeps in order, not a number: keeping n is enough for
+ * input n, because the ones before it number fewer than n. Never less than
+ * the consoles' usual, never more than the switcher has.
  */
 export function limitsFor(layout) {
   const most = (job, floor, ceiling) => {
