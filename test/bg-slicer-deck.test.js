@@ -317,10 +317,13 @@ test('LibreOffice: found by the override, then PATH; headless with a profile of 
   assert.equal(await findSoffice({ env: { LPP_SOFFICE: bin }, platform: 'linux' }), bin);
   assert.equal(await findSoffice({ env: { LPP_SOFFICE: join(dir, 'nope') }, platform: 'linux' }), null);
   assert.equal(await findSoffice({ env: { PATH: dir }, platform: 'linux' }), bin);
-  const args = sofficeArgs('/tmp/p', '/tmp/o', '/tmp/d.pptx');
+  const args = sofficeArgs('/tmp/p', '/tmp/o', '/tmp/d.pptx', { platform: 'linux' });
   assert.equal(args[0], '-env:UserInstallation=file:///tmp/p');
   assert.deepEqual(args.slice(-5), ['--convert-to', 'pdf', '--outdir', '/tmp/o', '/tmp/d.pptx']);
   assert.ok(args.includes('--headless'));
+  /* On Windows the profile is under %TEMP%: a drive path, its backslashes and spaces made a URL. */
+  const win = 'C:\\Users\\Lab User\\AppData\\Local\\Temp\\lpp-soffice-x\\profile';
+  assert.equal(sofficeArgs(win, 'o', 'd', { platform: 'win32' })[0], '-env:UserInstallation=file:///C:/Users/Lab%20User/AppData/Local/Temp/lpp-soffice-x/profile');
   const runImpl = async (cmd, a) => { await writeFile(join(a[a.length - 2], 'deck.pdf'), '%PDF'); return { stdout: '' }; };
   const src = join(dir, 'x.odp');
   await writeFile(src, 'odp');

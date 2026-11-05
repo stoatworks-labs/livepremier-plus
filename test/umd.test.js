@@ -630,10 +630,19 @@ test('after an Update in place, Undo still takes the UMD down', async () => {
     assert.equal(uploads.length, 2, 'the update uploaded again');
 
     press('Undo');
-    await settle(() => l8() === 'NONE');
+    /*
+     * Undo puts back the layer, then the still, then the library slot, each
+     * after the one before has echoed: wait for all three, not the first.
+     * Waiting for the layer alone passed only while an echo took a
+     * millisecond: on Windows 11 a `setTimeout(1)` took 14.7 ms (1.2 ms on
+     * the Mac, 2026-11-05), and the still was still IMAGE when it was read.
+     */
+    const still = () => at(store, 'stillList', 'items', '48', 'control', 'pp', 'mode');
+    const slot = () => at(store, 'stillList', 'library', 'bankList', 'items', '200', 'status', 'pp', 'isValid');
+    await settle(() => l8() === 'NONE' && still() === 'NONE' && slot() === false);
     assert.equal(l8(), 'NONE', 'the UMD layer is empty again');
-    assert.equal(at(store, 'stillList', 'items', '48', 'control', 'pp', 'mode'), 'NONE', 'the still is given back');
-    assert.equal(at(store, 'stillList', 'library', 'bankList', 'items', '200', 'status', 'pp', 'isValid'), false, 'and the library slot');
+    assert.equal(still(), 'NONE', 'the still is given back');
+    assert.equal(slot(), false, 'and the library slot');
   } finally {
     globalThis.fetch = fetchBefore;
     globalThis.OffscreenCanvas = offscreenBefore;

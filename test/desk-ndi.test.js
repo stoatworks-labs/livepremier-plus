@@ -202,8 +202,14 @@ test('ndi runtime: looked for where NDI Tools and the SDK put it, the app\'s own
   assert.ok(mac.includes('/usr/local/lib/libndi.dylib'));
   assert.ok(mac.includes('/Library/NDI SDK for Apple/lib/macOS/libndi.dylib'));
   assert.equal(candidates({ platform: 'darwin', env: { NDI_RUNTIME_DIR_V6: '/x' } })[0], '/x/libndi.dylib');
-  assert.ok(candidates({ platform: 'win32', env: { NDI_RUNTIME_DIR_V6: 'C:\\NDI' } })[0].endsWith('Processing.NDI.Lib.x64.dll'));
-  assert.ok(candidates({ platform: 'linux', env: {} }).includes('/usr/lib/libndi.so.6'));
+  /* Each platform's paths joined its own way, whichever machine asks. */
+  const win = candidates({ platform: 'win32', env: { NDI_RUNTIME_DIR_V6: 'C:\\NDI' }, execPath: 'C:\\Users\\lab\\AppData\\Local\\LivePremier Plus\\node.exe' });
+  assert.equal(win[0], 'C:\\NDI\\Processing.NDI.Lib.x64.dll');
+  assert.equal(win[1], 'C:\\Users\\lab\\AppData\\Local\\LivePremier Plus\\Processing.NDI.Lib.x64.dll', 'beside the app\'s own node.exe');
+  assert.ok(win.includes('C:\\Program Files\\NDI\\NDI 6 Runtime\\v6\\Processing.NDI.Lib.x64.dll'));
+  const linux = candidates({ platform: 'linux', env: {}, execPath: '/opt/livepremier-plus/node' });
+  assert.equal(linux[0], '/opt/livepremier-plus/libndi.so.6');
+  assert.ok(linux.includes('/usr/lib/libndi.so.6'));
 });
 
 test('ndi runtime: without koffi, or with no runtime found, it says why rather than throwing', async () => {
@@ -358,7 +364,9 @@ test('media host: forked with its pretend runtime, it makes the feeds asked for,
     assert.equal(client.feeds()[0].frames, 0, 'a new host, a new count');
     assert.equal(client.frame('screen-S1', { width: 64, height: 36, background: [9, 9, 9] }), true);
     await until(() => existsSync(out), 3000, 'a frame from the new host');
-    assert.ok(logs.some((t) => /host exited \(SIGKILL\)/.test(t)));
+    /* Windows has no signals: a process ended from outside exits with code 1 and no signal. */
+    const exited = process.platform === 'win32' ? /host exited \(code 1\)/ : /host exited \(SIGKILL\)/;
+    assert.ok(logs.some((t) => exited.test(t)), logs.join('\n'));
   } finally {
     await host.stop();
     if (env === undefined) delete process.env.LPP_TEST_NDI_OUT; else process.env.LPP_TEST_NDI_OUT = env;

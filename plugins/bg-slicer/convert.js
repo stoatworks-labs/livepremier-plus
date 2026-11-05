@@ -490,10 +490,14 @@ export async function findSoffice({ env = process.env, platform = process.platfo
   return null;
 }
 
-/** The arguments of one headless conversion, with a profile of its own — LibreOffice will not share one. */
-export function sofficeArgs(profileDir, outDir, input) {
+/**
+ * The arguments of one headless conversion, with a profile of its own — LibreOffice will not share one.
+ * The profile is named by file URL, spelled for `platform`: `file:///C:/…` for a Windows path. It is
+ * this machine's temporary folder, so only a test asks for another platform's spelling.
+ */
+export function sofficeArgs(profileDir, outDir, input, { platform = process.platform } = {}) {
   return [
-    `-env:UserInstallation=${pathToFileURL(profileDir).href}`,
+    `-env:UserInstallation=${pathToFileURL(profileDir, { windows: platform === 'win32' }).href}`,
     '--headless', '--norestore', '--invisible', '--nolockcheck', '--nodefault', '--nologo',
     '--convert-to', 'pdf', '--outdir', outDir, input
   ];

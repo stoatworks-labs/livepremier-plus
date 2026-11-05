@@ -15,7 +15,7 @@
  */
 
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { posix, win32 } from 'node:path';
 
 /* NDI_LIB_FOURCC('R','G','B','X'): 8-bit RGB with an alpha byte the receiver ignores. */
 const FOURCC_RGBX = 0x52 | (0x47 << 8) | (0x42 << 16) | (0x58 << 24);
@@ -23,9 +23,14 @@ const PROGRESSIVE = 1;
 /* NDIlib_send_timecode_synthesize: the SDK stamps the frame itself. */
 const SYNTHESIZE = 0x7fffffffffffffffn;
 
-/** Where the runtime may be, most specific first. */
+/**
+ * Where the runtime may be, most specific first. Paths are joined the way
+ * `platform` joins them, not the way this machine does, so the answer for
+ * one platform is the same wherever it is asked (the tests ask all three).
+ */
 export function candidates({ platform = process.platform, env = process.env, execPath = process.execPath } = {}) {
   const dir = env.NDI_RUNTIME_DIR_V6 || env.NDI_RUNTIME_DIR_V5;
+  const { join } = platform === 'win32' ? win32 : posix;
   if (platform === 'darwin') {
     return [
       dir && join(dir, 'libndi.dylib'),
