@@ -162,6 +162,27 @@ export default function activate(ctx) {
   if (typeof ctx.onDispose === 'function') ctx.onDispose(() => clearInterval(beating));
   listen();
 
+  /* Bind / Unbind in flight, and what the last one said when it was refused. */
+  let binding = false;
+  let bindError = null;
+
+  async function bindConsole(which) {
+    binding = true;
+    bindError = null;
+    ctx.refresh();
+    try {
+      const res = await fetch(ctx.url(`/switcher/${which}`), {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+      });
+      const out = await res.json();
+      if (!out.ok) bindError = out.error || `${which} failed`;
+    } catch (err) {
+      bindError = err.message;
+    }
+    binding = false;
+    await load();
+  }
+
   async function put(patch) {
     saving = true;
     error = null;
@@ -207,6 +228,31 @@ export default function activate(ctx) {
       }),
       h('span', { class: 'aw-font-body-1', text: 'Drive a Pixelhue console' }));
 
+    /* Console TAKE/CUT (preview): a mini only, the one console whose own TAKE and CUT never reach
+       this app any other way. */
+    const sw = live && live.switcher;
+    const bound = live && live.binding;
+    const switcherToggle = model && model.grid ? h('label', { class: 'aw-flex-row-center-v aw-gap-col-small', style: { cursor: 'pointer' } },
+      h('input', {
+        type: 'checkbox',
+        checked: settings.pixelhueSwitcher ? 'checked' : null,
+        disabled: saving ? 'disabled' : null,
+        onChange: (ev) => put({ pixelhueSwitcher: ev.target.checked })
+      }),
+      h('span', { class: 'aw-font-body-1', text: 'Console TAKE/CUT (preview)' })) : null;
+    const button = (label, which, enabled) => h('button', {
+      class: ['wru-button', 'aw-font-button', 'aw-border-radius', 'aw-flex-row-center', 'wru-button--default'],
+      type: 'button', text: label,
+      disabled: enabled && !binding ? null : 'disabled',
+      onClick: () => bindConsole(which),
+    });
+    const ours = Boolean(bound && bound.ours);
+    const bindRow = on && model && model.grid && (sw || ours || (bound && bound.kept))
+      ? h('div', { class: 'aw-flex-row-center-v aw-gap-col-small aw-flex-wrap' },
+        button('Bind', 'bind', Boolean(sw && sw.address) && !ours),
+        button('Unbind', 'unbind', ours || Boolean(bound && bound.kept)))
+      : null;
+
     const host = h('div', { class: 'aw-flex-col aw-gap-row-mini' },
       h('div', { class: 'aw-font-overline aw-text-tertiary', text: 'Console address' }),
       h('input', {
@@ -234,8 +280,12 @@ export default function activate(ctx) {
         live.grid ? readout('Key grid', live.grid.letGo ? 'let go'
           : live.grid.connected ? `drawing on ${live.grid.host}:${live.grid.port}` : 'not connected',
         { tone: live.grid.letGo ? 'warn' : live.grid.connected ? null : 'tertiary' }) : null,
-        live.takeCut ? readout('Console TAKE / CUT', takeCutSeen(live.takeCut),
-          { tone: live.takeCut.take && live.takeCut.cut ? null : 'tertiary' }) : null)
+        live.takeCut && !sw ? readout('Console TAKE / CUT', takeCutSeen(live.takeCut),
+          { tone: live.takeCut.take && live.takeCut.cut ? null : 'tertiary' }) : null,
+        sw ? readout('As its switcher', switcherLine(sw), { tone: switcherFailed(sw) ? 'warn' : sw.links ? null : 'tertiary' }) : null,
+        sw || ours ? readout('Console bound to', boundLine(bound, sw), { tone: ours ? null : 'tertiary' }) : null,
+        sw && sw.last && sw.last.action ? readout('Last from the console', actionLine(sw.last.action),
+          { tone: sw.last.action.ok ? null : 'warn' }) : null)
       : null;
 
     const notes = [];
@@ -255,6 +305,21 @@ export default function activate(ctx) {
     if (link && link.connected && live.silent) notes.push(note('warn', live.silent));
     if (live && live.grid && live.grid.letGo) notes.push(note('warn', live.grid.letGo.note));
     if (on && live && live.takeCut && !(live.takeCut.take && live.takeCut.cut)) notes.push(note('info', live.takeCut.note));
+    if (bindError) notes.push(note('warn', bindError));
+    if (on && sw) {
+      for (const e of [sw.error, sw.errors && sw.errors.http, sw.errors && sw.errors.udp]) if (e) notes.push(note('warn', e));
+      notes.push(note('info',
+        'Preview. With this on, this app answers the console as a Pixelhue switcher would, so the '
+        + 'console’s own TAKE and CUT keys take the screens selected on its SCREEN keys, on this '
+        + 'switcher. Bind points the console at this app and keeps what it was bound to; Unbind puts '
+        + 'that back. The T-bar, FTB, freeze and the console’s preset keys are not handled yet. It needs '
+        + 'port 19999, which PixelFlow’s UCenter service holds wherever PixelFlow is installed. '
+        + 'Proved against the mini’s own firmware in a VM, never yet against a mini on a desk.'));
+    } else if (on && model && model.grid && ours) {
+      notes.push(note('warn',
+        'The console is still bound to this app, with Console TAKE/CUT off, so its own TAKE and CUT '
+        + 'go nowhere. Unbind puts back what it was bound to.'));
+    }
     if (on && model && model.grid) {
       notes.push(note('info',
         'A U5 mini labels its bus keys from its own LCD app, not from what this app tells it, so '
@@ -318,10 +383,34 @@ export default function activate(ctx) {
         toggle, host,
         picker('Console', CONSOLE_MODELS, settings.pixelhueModel, (v) => put({ pixelhueModel: v }),
           { disabled: saving })),
+      switcherToggle || bindRow ? h('div', { class: 'aw-flex-row-center-v aw-gap-col-extra-large aw-flex-wrap' }, switcherToggle, bindRow) : null,
       transportRow, rows, history, ...notes);
   }
 
   ctx.ui.settingsSection({ id: 'pixelhue', order: 10, render });
+
+  /* This app as the console's switcher, in words. */
+  function switcherFailed(sw) {
+    return Boolean(sw.error || (sw.errors && (sw.errors.http || sw.errors.udp)));
+  }
+  function switcherLine(sw) {
+    if (sw.error) return 'not started';
+    if (sw.errors && sw.errors.http) return 'port 19999 is taken';
+    const at = sw.address ? ` on ${sw.address}` : '';
+    if (sw.links) return `console logged in${at}`;
+    if (sw.last && sw.last.search) return `found by the console${at}, not logged in`;
+    return `listening${at}`;
+  }
+  function boundLine(b, sw) {
+    if (!b) return 'not read yet';
+    if (b.error) return `could not read: ${b.error}`;
+    if (b.ours) return `this app${sw && sw.serial ? ` (${sw.serial})` : ''}`;
+    return b.deviceSn || 'nothing';
+  }
+  function actionLine(a) {
+    const what = `${a.kind.toUpperCase()} ${(a.ids || []).join(' ') || 'no screen'}`;
+    return a.ok ? what : `${what} refused: ${a.error || 'not sent'}`;
+  }
 
   /* Whether this console has ever reported TAKE and CUT, in words. */
   function takeCutSeen(t) {

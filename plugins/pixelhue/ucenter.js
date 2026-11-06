@@ -292,6 +292,44 @@ export class UCenterLink extends EventEmitter {
     }
   }
 
+  /* ------------------------------------- a U5 mini's binding to a switcher */
+
+  /**
+   * Which Pixelhue switcher a U5 mini is bound to: `{list: [{deviceSn,
+   * videoStationSn}]}`, the switcher's serial and the mini's own. An empty
+   * `deviceSn` is a mini bound to nothing. Read from the firmware in a VM, not
+   * from a mini on a bench (`switcher.js`).
+   */
+  async binding() {
+    const res = await this.#send('video-station/binding', null, 'GET');
+    return res && res.data && typeof res.data === 'object' ? res.data : { list: [] };
+  }
+
+  /**
+   * Bind the mini to the switcher with serial `deviceSn`, or to nothing with
+   * ''. Its LCD app follows at once, with no restart. ⚠️ POST, not PUT: the
+   * mini takes a PUT here for a request to pass on, and refuses it.
+   */
+  setBinding(deviceSn, videoStationSn) {
+    return this.#send('video-station/binding', { deviceSn: String(deviceSn), videoStationSn: String(videoStationSn) }, 'POST');
+  }
+
+  /** The addresses the mini searches for switchers at, besides broadcast: `{ips: [...]}`. */
+  async deviceIps() {
+    const res = await this.#send('ucenter/device-ips', null, 'GET');
+    return { ips: Array.isArray(res && res.data && res.data.ips) ? res.data.ips.map(String) : [] };
+  }
+
+  setDeviceIps(ips) {
+    return this.#send('ucenter/device-ips', { ips: ips.map(String) });
+  }
+
+  /** The mini's own serial, from its node, for a mini bound to nothing yet. */
+  async nodeSerial() {
+    const res = await this.#send('node/detail?nodeId=1', null, 'GET');
+    return (res && res.data && res.data.sn) ? String(res.data.sn) : null;
+  }
+
   /** Publish the whole business model. There is no partial update in this API. */
   async publish(model) {
     const res = await this.#send('ucenter/video-station/data-change', model);

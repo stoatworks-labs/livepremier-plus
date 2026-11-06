@@ -10,8 +10,11 @@
  *
  * Routes, under `/__lpp/pixelhue`:
  *
- *     GET  /state    the console link, the selection and recent commands
- *     GET  /stream   server-sent `panel` events as the console reports them
+ *     GET  /state           the console link, the selection and recent commands
+ *     GET  /stream          server-sent `panel` events as the console reports them
+ *     POST /switcher/bind   point a U5 mini at this app as its switcher, keeping
+ *                           what it was bound to (Console TAKE/CUT, preview)
+ *     POST /switcher/unbind put back what Bind replaced
  *
  * ## Present, and active
  *
@@ -23,6 +26,8 @@
 
 import { PixelhueSupervisor } from './supervisor.js';
 import { normalisePixelhue, pixelhueChanged } from './core.js';
+
+const SWITCHER_DOC = 'pixelhue-switcher';
 
 /**
  * The settings schema. `legacy` names where these fields were kept before
@@ -47,6 +52,12 @@ export default async function activate(ctx) {
     log: ctx.log,
     companion: () => ctx.use('companion'),
     settings: () => ctx.settings.get(),
+    /* Who this app is to a U5 mini it plays the switcher for, and the binding Bind replaced, so
+       Unbind can put it back after a restart. One per installation, like the console itself. */
+    store: ctx.storage ? {
+      load: () => ctx.storage.load(SWITCHER_DOC),
+      save: (doc) => ctx.storage.save(SWITCHER_DOC, doc),
+    } : null,
   });
 
   /* Every report from the console, to whichever settings page is open. The
@@ -63,6 +74,11 @@ export default async function activate(ctx) {
     return h.json(200, { runner: panel.claimRunner(body.id) });
   });
   panel.on('page', (payload) => live.send('page', payload));
+
+  /* Console TAKE/CUT (preview): bind the mini to this app, and back. Each answers `{ok, error}`
+     and the card shows the history line it wrote. */
+  ctx.route('POST', '/switcher/bind', async (req, res, h) => h.json(200, await panel.bindConsole()));
+  ctx.route('POST', '/switcher/unbind', async (req, res, h) => h.json(200, await panel.unbindConsole()));
 
   /* Only on a change `pixelhueChanged` cares about — `apply` is diff-based as
      well, but a save of an unrelated setting should not even ask. */

@@ -1074,7 +1074,7 @@ test('the Pixelhue panel is a hosted plugin: its state has a route, and its old 
     const { settings } = await (await fetch(base + '/__lpp/settings')).json();
     assert.deepEqual(settings.plugins.pixelhue.settings, {
       pixelhueEnabled: false, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5',
-      pixelhueTransport: 'cues', pixelhueCompanionPage: 1, pixelhueCompanionRow: 0, pixelhueMap: {},
+      pixelhueTransport: 'cues', pixelhueCompanionPage: 1, pixelhueCompanionRow: 0, pixelhueMap: {}, pixelhueSwitcher: false,
     });
     assert.equal(settings.pixelhueHost, undefined);
 

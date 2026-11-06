@@ -118,16 +118,25 @@ export function silentNote(id, { after, frames = 0, clientType } = {}) {
 export const TAKE_CUT_MODES = Object.freeze({ 154: 'take', 153: 'cut' });
 
 /**
- * What the panel says about TAKE and CUT on a console where nobody knows yet
- * whether they reach this app — a U5 mini, whose LCD app runs both itself
- * against a Pixelhue switcher it is bound to. Plain words, for someone with a
- * console in front of them; empty for a model whose TAKE has been seen.
+ * What the panel says about TAKE and CUT on a U5 mini, whose LCD app runs
+ * both itself against the Pixelhue switcher it is bound to, so they never
+ * reach this app as key reports. Plain words, for someone with a console in
+ * front of them; empty for a model whose TAKE is reported.
+ *
+ * With `switcher`, this app is playing that switcher (`switcher.js`), and the
+ * console's own keys come here that way instead.
  */
-export function takeCutNote(id) {
+export function takeCutNote(id, { switcher = false } = {}) {
   if (!consoleModel(id).grid) return '';
-  return 'On a U5 mini nobody knows yet whether the console\'s own TAKE and CUT keys reach this app: its LCD app runs '
-    + 'them against a Pixelhue switcher it is bound to, and on the one mini tried so far they did nothing. Use TAKE '
-    + 'and CUT at the end of the key grid\'s screen row instead: they take or cut the screens selected there.';
+  if (switcher) {
+    return 'The console\'s own TAKE and CUT come to this app as the switcher it is bound to (preview): they take or cut '
+      + 'the screens selected on the console\'s SCREEN row, a few seconds after the press. TAKE and CUT at the end of the '
+      + 'key grid\'s screen row still take or cut the screens selected there.';
+  }
+  return 'A U5 mini sends its own TAKE and CUT keys to the Pixelhue switcher it is bound to, never to this app, so on '
+    + 'their own they do nothing here. Use TAKE and CUT at the end of the key grid\'s screen row instead: they take or '
+    + 'cut the screens selected there. Or turn on Console TAKE/CUT and bind the console to this app, which then plays '
+    + 'that switcher.';
 }
 
 /** Unico's `AreaType`. The console's four buses, plus the device area. */
@@ -618,6 +627,8 @@ export const DEFAULT_PIXELHUE = {
   pixelhueCompanionRow: 0,
   /* Overrides only — a control not in here does its default. `mapping.js`. */
   pixelhueMap: {},
+  /* A U5 mini only: answer as the Pixelhue switcher it is bound to, so its own TAKE and CUT come here (`switcher.js`). */
+  pixelhueSwitcher: false,
 };
 
 /**
@@ -639,6 +650,7 @@ export function normalisePixelhue(raw) {
     pixelhueCompanionPage: wholeIn(input.pixelhueCompanionPage, 1, 99, DEFAULT_PIXELHUE.pixelhueCompanionPage),
     pixelhueCompanionRow: wholeIn(input.pixelhueCompanionRow, 0, 99, DEFAULT_PIXELHUE.pixelhueCompanionRow),
     pixelhueMap: normaliseMap(input.pixelhueMap),
+    pixelhueSwitcher: input.pixelhueSwitcher === true,
   };
 }
 
@@ -651,4 +663,5 @@ function wholeIn(v, min, max, fallback) {
 export const pixelhueChanged = (a, b) =>
   a.pixelhueEnabled !== b.pixelhueEnabled
   || a.pixelhueHost !== b.pixelhueHost
-  || a.pixelhueModel !== b.pixelhueModel;
+  || a.pixelhueModel !== b.pixelhueModel
+  || a.pixelhueSwitcher !== b.pixelhueSwitcher;

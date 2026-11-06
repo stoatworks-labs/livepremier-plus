@@ -693,10 +693,10 @@ test('a mini that reports nothing for TAKE leaves the card saying so in plain wo
     const d = r.sup.describe();
     assert.deepEqual([d.takeCut.take, d.takeCut.cut], [false, false]);
     assert.equal(d.takeCut.note, takeCutNote('u5mini'));
-    assert.match(d.takeCut.note, /nobody knows yet whether the console's own TAKE and CUT keys reach this app/);
+    assert.match(d.takeCut.note, /sends its own TAKE and CUT keys to the Pixelhue switcher it is bound to, never to this app/);
     assert.match(d.takeCut.note, /Use TAKE and CUT at the end of the key grid's screen row/);
-    assert.ok(r.said(/nobody knows yet whether the console's own TAKE and CUT keys reach this app/), 'said once in the history, at the first grid selection');
-    assert.equal(r.sup.history.filter((e) => /nobody knows yet/.test(e.note || '')).length, 1);
+    assert.ok(r.said(/sends its own TAKE and CUT keys to the Pixelhue switcher it is bound to, never to this app/), 'said once in the history, at the first grid selection');
+    assert.equal(r.sup.history.filter((e) => /never to this app/.test(e.note || '')).length, 1);
   } finally {
     await r.close();
   }
@@ -770,7 +770,7 @@ test('the card says the grid is drawn, how to see it, and that TAKE / CUT have n
   assert.match(text, /drawing on 127\.0\.0\.1:\d+/);
   assert.match(text, /Console TAKE \/ CUT/);
   assert.match(text, /not seen yet/);
-  assert.match(text, /nobody knows yet whether the console's own TAKE and CUT keys reach this app/);
+  assert.match(text, /sends its own TAKE and CUT keys to the Pixelhue switcher it is bound to, never to this app/);
   assert.match(text, /with TAKE and CUT at the end of the screen row/);
   assert.match(text, /switched to Companion with its area-switch key/);
   assert.doesNotMatch(text, /labels, lights and pages its own keys/, 'that is a U5\'s story, not a mini\'s');

@@ -34,11 +34,14 @@
  */
 
 import { EventEmitter } from 'node:events';
+import { lookup } from 'node:dns/promises';
 
 import { exchange, AWJ_PORT } from '../../server/awj.js';
 import { ConsoleSwitcher, sentDetail } from '../../server/console-switcher.js';
 import { UCenterLink } from './ucenter.js';
 import { GridLink, letGoNote, levelled } from './grid-link.js';
+import { SwitcherServer, facingAddress } from './switcher-server.js';
+import { screensFrom, newSerial, newToken } from './switcher.js';
 import {
   initialView as initialGridView, clampView, turnPage, gridCells, renderKey, pressIntent, pageMatches, wirePage,
   ROW_NAMES, LAYERS as LAYER_ROW, LONG_PRESS_MS,
@@ -136,6 +139,18 @@ export class PixelhueSupervisor extends EventEmitter {
   #takeCutSaid = false;
   /* A redraw once a take from the grid has had time to land, for the tally. */
   #settleTimer = null;
+  /* A U5 mini's switcher, when this app plays it (`switcher.js`): the sockets, the host they
+     answer, this app's address on its network, and what the mini's binding said when last read. */
+  #switcher = null;
+  #switcherHost = null;
+  #switcherError = null;
+  #facing = null;
+  #binding = null;
+  /* `{serial, token, previous}`, kept by `store`: who this app is to the console, and the
+     binding Bind replaced, so Unbind can put it back. */
+  #identity = null;
+  #factsAt = 0;
+  #factsReading = null;
 
   /**
    * @param {object} opts
@@ -143,9 +158,13 @@ export class PixelhueSupervisor extends EventEmitter {
    */
   constructor({
     deviceHost = () => null, awjPort = AWJ_PORT, log = () => {}, companion = () => null, settings = null,
-    consolePort = null, grid = {},
+    consolePort = null, grid = {}, switcher = {}, store = null,
   } = {}) {
     super();
+    /* The switcher's socket options, for tests and the rig (`ports`, `bindAddress`, `pingMs`), and
+       where its identity and the replaced binding are kept: `{load(), save(doc)}`, or null for none. */
+    this.switcherOptions = switcher;
+    this.store = store;
     this.deviceHost = deviceHost;
     /* For tests: the console's control port instead of the model's, and the
        key grid's link options (`port`, `reconnectMs`…) — as `awjPort` is. */
@@ -189,11 +208,17 @@ export class PixelhueSupervisor extends EventEmitter {
         ...(this.consolePort ? { port: this.consolePort } : {}),
       }
       : null;
+    const switcherWas = this.#switcher;
+    await this.#applySwitcher(want);
 
     const same = want && this.#config
       && want.host === this.#config.host && want.port === this.#config.port
       && want.wsPath === this.#config.wsPath && want.clientType === this.#config.clientType;
-    if (same) { this.#config = want; return this.describe(); }
+    if (same) {
+      this.#config = want;
+      if (this.#switcher !== switcherWas && consoleModel(want.model).grid) void this.#readBinding();
+      return this.describe();
+    }
 
     const was = Boolean(this.#link);
     if (this.#link) { await this.#link.stop(); this.#link = null; }
@@ -210,6 +235,7 @@ export class PixelhueSupervisor extends EventEmitter {
     this.#seen = { take: false, cut: false };
     this.#takeCutKeys = new Map();
     this.#takeCutSaid = false;
+    this.#binding = null;
     /* "stopped" at every start of an app with no console is not news; one that was driving one is. */
     if (!want) { this.#note({ kind: 'stopped', quiet: !was }); return this.describe(); }
 
@@ -217,7 +243,14 @@ export class PixelhueSupervisor extends EventEmitter {
       host: want.host, port: want.port, wsPath: want.wsPath, clientType: want.clientType, log: this.log,
     });
     this.#link = link;
-    link.on('open', () => { this.#note({ kind: 'connected' }); void this.refresh(); void this.#readKeyMap(); });
+    link.on('open', () => {
+      this.#note({ kind: 'connected' });
+      void this.refresh();
+      void this.#readKeyMap();
+      /* Read on every mini, mode on or off: a mini left bound to this app with the mode off is
+         said on the card, with Unbind. */
+      if (consoleModel(want.model).grid) void this.#readBinding();
+    });
     link.on('close', () => this.#note({ kind: 'disconnected' }));
     /* An open socket that never hears a key: said in the history and the log,
        in words, because on a mini it is the next thing likely to go wrong. */
@@ -274,12 +307,260 @@ export class PixelhueSupervisor extends EventEmitter {
 
   async stop() {
     clearTimeout(this.#settleTimer); this.#settleTimer = null;
+    await this.#stopSwitcher();
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     if (this.#grid) { await this.#grid.stop(); this.#grid = null; }
     this.#config = null;
     this.selection.reset();
     clearTimeout(this.#republishTimer); this.#republishTimer = null;
     this.#endStroke();
+  }
+
+  /* ---------------------------------------- this app as a U5 mini's switcher */
+
+  /**
+   * Start, keep or stop the switcher this app plays for a U5 mini, so the
+   * console's own TAKE and CUT keys come here (`switcher-server.js`). Only for a
+   * mini, and only with `pixelhueSwitcher` on. Keyed by the console's host: the
+   * console is the only peer it serves.
+   */
+  async #applySwitcher(want) {
+    const host = want && consoleModel(want.model).grid && this.#settings.pixelhueSwitcher ? want.host : null;
+    if (host && host === this.#switcherHost && this.#switcher) return;
+    await this.#stopSwitcher();
+    if (!host) return;
+    this.#switcherHost = host;
+    try {
+      this.#identity = await this.#loadIdentity(true);
+      const allowed = new Set(await addressesOf(host));
+      const { facing = null, ports, bindAddress, pingMs } = this.switcherOptions;
+      this.#facing = facing || await facingAddress(host).catch(() => null);
+      const server = new SwitcherServer({
+        allow: (ip) => allowed.has(ip),
+        identity: () => this.#identity,
+        screens: () => this.switcherScreens(),
+        address: () => this.#facing,
+        perform: (kind, ids, unknown) => this.consoleKey(kind, ids, unknown),
+        log: this.log,
+        ...(ports ? { ports } : {}),
+        ...(bindAddress ? { bindAddress } : {}),
+        ...(pingMs ? { pingMs } : {}),
+      });
+      this.#switcher = server;
+      server.on('activity', () => this.emit('activity', null));
+      server.on('login', (l) => {
+        this.#note({ kind: 'connected', note: `the console logged in to this app as its switcher (${l && l.from ? l.from : host})` });
+        void this.#readBinding();
+      });
+      await server.start();
+      const failed = [server.errors.http, server.errors.udp].filter(Boolean);
+      if (failed.length) this.#note({ kind: 'error', error: `console TAKE/CUT: ${failed.join('; ')}` });
+      else {
+        this.#note({
+          kind: 'starting',
+          note: `answering as the console's switcher on ${this.#facing || 'this machine'} (TAKE/CUT, preview) — `
+            + 'Bind on the Pixelhue card points the console at it',
+        });
+      }
+    } catch (err) {
+      this.#switcherError = err.message;
+      this.#note({ kind: 'error', error: `console TAKE/CUT: ${err.message}` });
+    }
+  }
+
+  async #stopSwitcher() {
+    const server = this.#switcher;
+    this.#switcher = null;
+    this.#switcherHost = null;
+    this.#switcherError = null;
+    this.#facing = null;
+    if (server) {
+      server.removeAllListeners();
+      await server.stop();
+    }
+  }
+
+  /**
+   * `{serial, token, previous}`: who this app is to the console, made once and
+   * kept, so a restart does not strand a console holding the old token; and the
+   * binding Bind replaced. Made only when the mode is turned on (`create`).
+   */
+  async #loadIdentity(create) {
+    if (this.#identity) return this.#identity;
+    const kept = this.store ? await this.store.load() : null;
+    if (kept && /^LPP\d{9}$/.test(kept.serial || '') && kept.token) {
+      this.#identity = { serial: kept.serial, token: kept.token, previous: kept.previous || null };
+      return this.#identity;
+    }
+    if (!create) return null;
+    this.#identity = { serial: newSerial(), token: newToken(), previous: null };
+    if (this.store) await this.store.save(this.#identity);
+    return this.#identity;
+  }
+
+  /**
+   * The switcher's screens, as the console is told them. Its reads come
+   * several times a second, so facts this young are reused and two reads at
+   * once share one.
+   */
+  async switcherScreens() {
+    if (!this.#facts || Date.now() - this.#factsAt > SWITCHER_FACTS_MS) {
+      if (!this.#factsReading) this.#factsReading = this.readFacts().finally(() => { this.#factsReading = null; });
+      try { await this.#factsReading; } catch (err) { if (!this.#facts) throw err; }
+    }
+    return screensFrom(this.#facts);
+  }
+
+  /**
+   * The console's own TAKE or CUT, for the screens selected on its SCREEN keys.
+   * Written as a TAKE or CUT from this app's own keys is (`#perform`, with the
+   * lock), but for the console's screens, not this app's selection. What comes
+   * back is what the console is answered: a refusal there shows nothing on the
+   * console (`docs/PIXELHUE.md`), so the history is where it is said.
+   */
+  async consoleKey(kind, ids, unknown = []) {
+    const name = `console ${kind.toUpperCase()}`;
+    if (unknown.length) {
+      this.#note({
+        kind: 'noted', command: name,
+        note: `left out screen ${unknown.join(', ')}: not one this app offered the console`,
+      });
+    }
+    if (!ids.length) {
+      this.#note({ kind: 'noted', command: name, note: 'refused — no screen of this switcher is selected on the console' });
+      return { ok: false, error: 'no screen selected' };
+    }
+    if (!this.#dialect) {
+      try { await this.readFacts(); } catch (err) {
+        this.#note({ kind: 'error', command: name, error: err.message });
+        return { ok: false, error: err.message };
+      }
+    }
+    const result = await this.#perform({ kind }, name, { selected: ids });
+    this.#settleGrid();
+    return result || { ok: false, error: 'not sent' };
+  }
+
+  /**
+   * Point the console at this app: keep what it was bound to, and the
+   * addresses it searched, **before** writing anything, then add this app's
+   * address and bind. A Bind on top of a kept binding keeps the first one, so
+   * Unbind always goes back to what the console had before this app.
+   */
+  async bindConsole() {
+    const say = (error) => { this.#note({ kind: 'error', command: 'Bind', error }); return { ok: false, error }; };
+    if (!this.#link) return say('no console is configured');
+    if (!this.#switcher) return say('turn Console TAKE/CUT on first');
+    if (!this.store) return say('this app has nowhere to keep the binding Bind replaces');
+    const address = this.#facing;
+    if (!address) return say(`no address on this machine faces ${this.#switcherHost}`);
+    try {
+      const identity = await this.#loadIdentity(true);
+      const [bound, searched] = await Promise.all([this.#link.binding(), this.#link.deviceIps()]);
+      const pair = (bound.list || [])[0] || {};
+      const mini = pair.videoStationSn || await this.#link.nodeSerial();
+      if (!mini) return say('the console did not say its own serial');
+      if (!identity.previous) {
+        const ours = pair.deviceSn === identity.serial;
+        this.#identity = {
+          ...identity,
+          previous: {
+            deviceSn: ours ? '' : String(pair.deviceSn || ''),
+            videoStationSn: String(mini),
+            ips: searched.ips.filter((ip) => ip !== address),
+            at: Date.now(),
+          },
+        };
+        await this.store.save(this.#identity);
+      }
+      if (!searched.ips.includes(address)) await this.#link.setDeviceIps([...searched.ips, address]);
+      await this.#link.setBinding(this.#identity.serial, mini);
+      await this.#readBinding();
+      if (!this.#binding || !this.#binding.ours) return say('the console was told, but still names another switcher');
+      const was = this.#identity.previous.deviceSn;
+      this.#note({
+        kind: 'sent', command: 'Bind',
+        note: `the console is bound to this app (${this.#identity.serial}); it was ${was ? `bound to ${was}` : 'bound to nothing'}, `
+          + 'which Unbind puts back',
+      });
+      return { ok: true };
+    } catch (err) {
+      return say(err.message);
+    }
+  }
+
+  /**
+   * Put back what Bind replaced, read it back, and only then forget it. A
+   * console rebound to another switcher since is left as it is. With nothing
+   * kept, a console bound to this app is bound to nothing.
+   */
+  async unbindConsole() {
+    const say = (error) => { this.#note({ kind: 'error', command: 'Unbind', error }); return { ok: false, error }; };
+    if (!this.#link) return say('no console is configured');
+    try {
+      const identity = await this.#loadIdentity(false);
+      const previous = identity && identity.previous;
+      const [bound, searched] = await Promise.all([this.#link.binding(), this.#link.deviceIps()]);
+      const pair = (bound.list || [])[0] || {};
+      const ours = Boolean(identity) && pair.deviceSn === identity.serial;
+      const mini = pair.videoStationSn || (previous && previous.videoStationSn) || await this.#link.nodeSerial();
+      const address = this.#facing;
+
+      if (!ours) {
+        if (!previous) return say('the console is not bound to this app, and no binding is kept to put back');
+        /* Someone bound it elsewhere since: theirs stands, and only this app's address goes. */
+        if (address && searched.ips.includes(address)) await this.#link.setDeviceIps(searched.ips.filter((ip) => ip !== address));
+        await this.#forgetPrevious(identity);
+        await this.#readBinding();
+        this.#note({ kind: 'noted', command: 'Unbind', note: `the console is bound to ${pair.deviceSn || 'nothing'} now, not this app; left as it is` });
+        return { ok: true };
+      }
+
+      const want = previous || { deviceSn: '', videoStationSn: mini, ips: searched.ips.filter((ip) => ip !== address) };
+      await this.#link.setDeviceIps(want.ips);
+      await this.#link.setBinding(want.deviceSn, want.videoStationSn || mini);
+      const [after, ips] = await Promise.all([this.#link.binding(), this.#link.deviceIps()]);
+      const back = (after.list || [])[0] || {};
+      const same = String(back.deviceSn || '') === want.deviceSn && sameIps(ips.ips, want.ips);
+      await this.#readBinding();
+      if (!same) {
+        return say(`the console did not take its old binding back (it names ${back.deviceSn || 'nothing'}); `
+          + 'what it had is still kept — press Unbind again');
+      }
+      if (previous) await this.#forgetPrevious(identity);
+      this.#note({ kind: 'sent', command: 'Unbind', note: `the console is bound to ${want.deviceSn || 'nothing'} again` });
+      return { ok: true };
+    } catch (err) {
+      return say(err.message);
+    }
+  }
+
+  async #forgetPrevious(identity) {
+    this.#identity = { ...identity, previous: null };
+    if (this.store) await this.store.save(this.#identity);
+  }
+
+  /** Which switcher the console names, and whether it is this app. */
+  async #readBinding() {
+    if (!this.#link) return;
+    try {
+      const identity = await this.#loadIdentity(false);
+      const bound = await this.#link.binding();
+      const pair = (bound.list || [])[0] || {};
+      const deviceSn = String(pair.deviceSn || '');
+      this.#binding = { deviceSn, ours: Boolean(identity && deviceSn && deviceSn === identity.serial), at: Date.now() };
+    } catch (err) {
+      this.#binding = { error: err.message, at: Date.now() };
+    }
+    this.emit('activity', null);
+  }
+
+  /** A take runs for its transition time: the grid's PGM / PVW is read again once it has had time to finish. */
+  #settleGrid() {
+    if (!this.#grid) return;
+    clearTimeout(this.#settleTimer);
+    this.#settleTimer = setTimeout(() => { this.#settleTimer = null; void this.#drawGrid(); }, TAKE_SETTLE_MS);
+    if (this.#settleTimer.unref) this.#settleTimer.unref();
   }
 
   /* ------------------------------------------------------------- the switcher */
@@ -291,6 +572,7 @@ export class PixelhueSupervisor extends EventEmitter {
    */
   async readFacts() {
     const facts = await this.switcher.readFacts();
+    this.#factsAt = Date.now();
     if (!facts.sourceKinds.includes(this.#sourceKind)) this.#sourceKind = 'LIVE';
     const { destinations, sources, presets, masters, layers, freeSlots, sourceKinds, deviceId } = facts;
     this.#dialect = facts.dialect;
@@ -408,8 +690,15 @@ export class PixelhueSupervisor extends EventEmitter {
    * Act on one intent. `code` is the command that asked for it, or the name
    * of a key that reports none (MVR, SOURCE BACKUP) — it is only ever used to
    * say, in the history, which key did this.
+   *
+   * `selected` is a selection made somewhere else, used instead of this
+   * app's and left out of it: the console's own SCREEN row, for a TAKE or CUT
+   * that came here as its switcher (`consoleKey`).
+   *
+   * Resolves `{ok, error}` for an intent that writes or is refused, which the
+   * switcher answers the console with; nothing for the rest.
    */
-  async #perform(intent, code) {
+  async #perform(intent, code, { selected = null } = {}) {
     if (intent.kind === 'none') {
       const c = intent.control && controlById(intent.control);
       this.#note({ kind: 'noted', command: nameOf(code), code, note: `${c ? c.label : 'that key'} is mapped to nothing` });
@@ -425,7 +714,7 @@ export class PixelhueSupervisor extends EventEmitter {
     }
     if (this.#locked) {
       this.#note({ kind: 'noted', command: nameOf(code), code, note: 'ignored — the panel is locked' });
-      return;
+      return { ok: false, error: 'ignored — the panel is locked' };
     }
 
     if (intent.kind === 'sourceType') {
@@ -444,7 +733,7 @@ export class PixelhueSupervisor extends EventEmitter {
     if (intent.kind === 'layerStep') { this.#stepLayer(intent.to, code); return; }
     if (intent.kind === 'source' && this.#sourceKind === 'LIVE' && intent.input) this.#lastInput = intent.input;
 
-    if (!this.selection.accepts(intent)) {
+    if (!selected && !this.selection.accepts(intent)) {
       this.#note({
         kind: 'noted',
         command: commandName(code),
@@ -455,8 +744,9 @@ export class PixelhueSupervisor extends EventEmitter {
     }
 
     const before = this.selection.describe();
-    this.selection.apply(intent);
+    if (!selected) this.selection.apply(intent);
     const selectionMoved = JSON.stringify(before) !== JSON.stringify(this.selection.describe());
+    const chosen = selected || this.selection.list;
 
     let action = intent;
     if (intent.kind === 'store' && !intent.slot) {
@@ -476,22 +766,22 @@ export class PixelhueSupervisor extends EventEmitter {
     let times = new Map();
     let copyModes = new Map();
     try {
-      if (intent.kind === 'source') letters = await this.#lettersFor(this.selection.list);
-      if (intent.kind === 'ftb' && this.#dialect) faded = await this.#fadedFor(this.selection.list);
-      if (intent.kind === 'freeze' && this.#dialect) freeze = await this.#freezeFor(this.selection.list);
-      if (intent.kind === 'time' && this.#dialect) times = await this.#readEach(this.selection.list, (id) => this.#dialect.fadeTimePath(id));
+      if (intent.kind === 'source') letters = await this.#lettersFor(chosen);
+      if (intent.kind === 'ftb' && this.#dialect) faded = await this.#fadedFor(chosen);
+      if (intent.kind === 'freeze' && this.#dialect) freeze = await this.#freezeFor(chosen);
+      if (intent.kind === 'time' && this.#dialect) times = await this.#readEach(chosen, (id) => this.#dialect.fadeTimePath(id));
       if (intent.kind === 'swap' && this.#dialect && this.#dialect.copyModePath) {
-        copyModes = await this.#readEach(this.selection.list, (id) => this.#dialect.copyModePath(id));
+        copyModes = await this.#readEach(chosen, (id) => this.#dialect.copyModePath(id));
       }
     } catch (err) {
       this.#note({ kind: 'error', command: nameOf(code), code, error: err.message });
-      return;
+      return { ok: false, error: err.message };
     }
 
     const { writes, note } = writesFor(action, {
       dialect: this.#dialect,
       commands: commandsFor(this.#dialect),
-      selected: this.selection.list,
+      selected: chosen,
       layer: this.selection.layer,
       buffer: this.selection.buffer,
       letterFor: (id) => letters.get(id) || null,
@@ -507,11 +797,15 @@ export class PixelhueSupervisor extends EventEmitter {
         ? `selected ${this.selection.list.join(' ') || 'nothing'}, layer ${this.selection.layer}` : note;
       this.#note({ kind: 'noted', command: nameOf(code), code, note: picked });
       if (selectionMoved) void this.#republish();
-      return;
+      return { ok: false, error: note };
     }
 
     const host = this.deviceHost();
-    if (!host) { this.#note({ kind: 'error', command: nameOf(code), code, error: 'no switcher configured' }); return; }
+    if (!host) {
+      this.#note({ kind: 'error', command: nameOf(code), code, error: 'no switcher configured' });
+      return { ok: false, error: 'no switcher configured' };
+    }
+    let result;
     try {
       await exchange({
         host,
@@ -519,13 +813,16 @@ export class PixelhueSupervisor extends EventEmitter {
         messages: writes.map((w) => ({ op: 'replace', path: toAwj(w.path), value: w.value })),
       });
       this.#note({ kind: 'sent', command: nameOf(code), code, note, writes: writes.length, sent: sentDetail(writes) });
+      result = { ok: true };
     } catch (err) {
       this.#note({ kind: 'error', command: nameOf(code), code, error: err.message });
+      result = { ok: false, error: err.message };
     }
     /* A new memory, or an FTB / freeze lamp, is device state the model has to
        be read again for; a selection change only needs the model re-sent. */
     if (REREAD.has(intent.kind)) void this.refresh();
     else if (selectionMoved) void this.#republish();
+    return result;
   }
 
   /* ------------------------------------------------------------ the T-bar */
@@ -752,6 +1049,8 @@ export class PixelhueSupervisor extends EventEmitter {
     const downAt = this.#keyDownAt.get(key) || Date.now();
     setTimeout(() => {
       if (this.#lastCommandAt >= downAt) return;
+      /* Bound to this app, the key came here as a take or cut (`consoleKey`), which said so. */
+      if (this.#playing()) return;
       this.#note({
         kind: 'noted', command: which, code: which,
         note: `${which.toUpperCase()} pressed on the console (key ${key}), but the console reported no ${which} command `
@@ -935,16 +1234,10 @@ export class PixelhueSupervisor extends EventEmitter {
     }
     if (active && !this.#takeCutSaid && !(this.#seen.take && this.#seen.cut)) {
       this.#takeCutSaid = true;
-      this.#note({ kind: 'noted', command: name, note: takeCutNote(this.#config && this.#config.model) });
+      this.#note({ kind: 'noted', command: name, note: takeCutNote(this.#config && this.#config.model, { switcher: this.#playing() }) });
     }
     void this.#drawGrid();
-    /* A take runs for its transition time, so the input row's PGM / PVW is
-       read again once it has had time to finish, not only mid-way. */
-    if (intent.kind === 'take' || intent.kind === 'cut') {
-      clearTimeout(this.#settleTimer);
-      this.#settleTimer = setTimeout(() => { this.#settleTimer = null; void this.#drawGrid(); }, TAKE_SETTLE_MS);
-      if (this.#settleTimer.unref) this.#settleTimer.unref();
-    }
+    if (intent.kind === 'take' || intent.kind === 'cut') this.#settleGrid();
   }
 
   /* ------------------------------------------------------ a wiped console */
@@ -1026,8 +1319,22 @@ export class PixelhueSupervisor extends EventEmitter {
         pages: this.#gridView.pages.map((p) => p + 1),
         armed: this.#gridView.armed,
       } : null,
-      takeCut: this.#grid ? { ...this.#seen, note: takeCutNote(this.#config && this.#config.model) } : null,
+      takeCut: this.#grid ? { ...this.#seen, note: takeCutNote(this.#config && this.#config.model, { switcher: this.#playing() }) } : null,
+      /* This app as a mini's switcher: off (null) unless the mode is on, but the binding is read
+         on every mini, so a console left bound here with the mode off can be said and undone. */
+      switcher: this.#switcher ? {
+        ...this.#switcher.describe(),
+        address: this.#facing,
+        serial: this.#identity ? this.#identity.serial : null,
+        error: this.#switcherError,
+      } : null,
+      binding: this.#binding ? { ...this.#binding, kept: Boolean(this.#identity && this.#identity.previous) } : null,
     };
+  }
+
+  /** Whether the console's own TAKE and CUT come here: the mode on, and the console bound to this app. */
+  #playing() {
+    return Boolean(this.#switcher && this.#binding && this.#binding.ours);
   }
 
 }
@@ -1041,6 +1348,20 @@ function nameOf(code) {
 const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap', 'deletePreset']);
 /* How long after a TAKE or CUT on a mini's grid its tally is read again. */
 const TAKE_SETTLE_MS = 1500;
+/* The console reads its switcher's screens several times a second; facts this young answer it. */
+const SWITCHER_FACTS_MS = 10000;
+
+/** The IPv4 addresses a host names: the console's, which the switcher serves and nobody else. */
+async function addressesOf(host) {
+  try {
+    const found = await lookup(host, { all: true, family: 4 });
+    return found.length ? found.map((a) => a.address) : [host];
+  } catch {
+    return [host];
+  }
+}
+
+const sameIps = (a, b) => a.length === b.length && [...a].sort().join(',') === [...b].sort().join(',');
 /* Intents that only move the panel's selection. */
 const SELECTS = new Set(['select', 'activate', 'unselect', 'selectLayer']);
 

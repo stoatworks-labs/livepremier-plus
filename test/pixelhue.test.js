@@ -561,13 +561,16 @@ test('the panel’s settings live in its own plugin entry, lifted from where the
   const s = normaliseSettings({ pixelhueEnabled: true, pixelhueHost: '10.0.0.9' }, { pixelhue: schema });
   assert.deepEqual(s.plugins.pixelhue.settings, {
     pixelhueEnabled: true, pixelhueHost: '10.0.0.9', pixelhueModel: 'u5mini',
-    pixelhueTransport: 'cues', pixelhueCompanionPage: 1, pixelhueCompanionRow: 0, pixelhueMap: {},
+    pixelhueTransport: 'cues', pixelhueCompanionPage: 1, pixelhueCompanionRow: 0, pixelhueMap: {}, pixelhueSwitcher: false,
   });
   assert.equal('pixelhueHost' in s, false);
   /* Renaming nothing does not redial a console somebody is holding. */
   const same = normalise({ pixelhueEnabled: true, pixelhueHost: '10.0.0.9' });
   assert.equal(pixelhueChanged(same, { ...same }), false);
   assert.equal(pixelhueChanged(same, { ...same, pixelhueModel: 'u5' }), true);
+  /* Console TAKE/CUT starts and stops a listener, so turning it is a change the panel must see. */
+  assert.equal(pixelhueChanged(same, { ...same, pixelhueSwitcher: true }), true);
+  assert.equal(normalise({ pixelhueSwitcher: 'yes' }).pixelhueSwitcher, false, 'only a real true turns it on');
 });
 
 test('both dialects can ask which layers are fitted without a store', () => {
