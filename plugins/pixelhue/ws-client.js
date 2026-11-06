@@ -44,7 +44,65 @@ const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 /** The `Sec-WebSocket-Accept` a server must answer `key` with. */
 export const acceptFor = (key) => createHash('sha1').update(key + GUID).digest('base64');
 
-const OP = { CONT: 0x0, TEXT: 0x1, BINARY: 0x2, CLOSE: 0x8, PING: 0x9, PONG: 0xa };
+export const OP = Object.freeze({ CONT: 0x0, TEXT: 0x1, BINARY: 0x2, CLOSE: 0x8, PING: 0x9, PONG: 0xa });
+
+/**
+ * One frame, whole. A client's frames are masked, as the RFC requires; a
+ * server's are not (`switcher-server.js`, where this app is the server).
+ */
+export function wsFrame(opcode, payload, { mask = true } = {}) {
+  const len = payload.length;
+  const head = len < 126 ? 2 : len < 65536 ? 4 : 10;
+  const keyLen = mask ? 4 : 0;
+  const frame = Buffer.allocUnsafe(head + keyLen + len);
+  frame[0] = 0x80 | opcode;
+  const bit = mask ? 0x80 : 0;
+  if (len < 126) frame[1] = bit | len;
+  else if (len < 65536) { frame[1] = bit | 126; frame.writeUInt16BE(len, 2); }
+  else { frame[1] = bit | 127; frame.writeBigUInt64BE(BigInt(len), 2); }
+  if (!mask) { payload.copy(frame, head); return frame; }
+  const key = randomBytes(4);
+  key.copy(frame, head);
+  for (let i = 0; i < len; i++) frame[head + 4 + i] = payload[i] ^ key[i & 3];
+  return frame;
+}
+
+/**
+ * Read one whole frame off the front of `buf`: `{fin, opcode, masked,
+ * payload, size}`, where `size` is how many bytes it took, or null when more
+ * must arrive first. Throws on a length nothing could address. Whether a
+ * frame SHOULD be masked is the caller's business.
+ */
+export function readWsFrame(buf) {
+  if (buf.length < 2) return null;
+
+  const fin = (buf[0] & 0x80) !== 0;
+  const opcode = buf[0] & 0x0f;
+  const masked = (buf[1] & 0x80) !== 0;
+  let len = buf[1] & 0x7f;
+  let at = 2;
+
+  if (len === 126) {
+    if (buf.length < at + 2) return null;
+    len = buf.readUInt16BE(at); at += 2;
+  } else if (len === 127) {
+    if (buf.length < at + 8) return null;
+    const big = buf.readBigUInt64BE(at); at += 8;
+    if (big > BigInt(Number.MAX_SAFE_INTEGER)) throw new RangeError('frame longer than this can address');
+    len = Number(big);
+  }
+
+  let mask = null;
+  if (masked) {
+    if (buf.length < at + 4) return null;
+    mask = buf.subarray(at, at + 4); at += 4;
+  }
+  if (buf.length < at + len) return null;
+
+  const payload = Buffer.from(buf.subarray(at, at + len));
+  if (mask) for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i & 3];
+  return { fin, opcode, masked, payload, size: at + len };
+}
 
 /**
  * @fires open
@@ -158,40 +216,17 @@ export class WsClient extends EventEmitter {
    * treating it as a short read would hang rather than say so.
    */
   #readFrame() {
-    const buf = this.#buffer;
-    if (buf.length < 2) return null;
-
-    const fin = (buf[0] & 0x80) !== 0;
-    const opcode = buf[0] & 0x0f;
-    const masked = (buf[1] & 0x80) !== 0;
-    let len = buf[1] & 0x7f;
-    let at = 2;
-
-    if (len === 126) {
-      if (buf.length < at + 2) return null;
-      len = buf.readUInt16BE(at); at += 2;
-    } else if (len === 127) {
-      if (buf.length < at + 8) return null;
-      const big = buf.readBigUInt64BE(at); at += 8;
-      if (big > BigInt(Number.MAX_SAFE_INTEGER)) {
-        this.emit('error', new Error('frame longer than this can address'));
-        this.close(1009, 'too big');
-        return null;
-      }
-      len = Number(big);
+    let frame;
+    try {
+      frame = readWsFrame(this.#buffer);
+    } catch (err) {
+      this.emit('error', new Error(err.message));
+      this.close(1009, 'too big');
+      return null;
     }
-
-    let mask = null;
-    if (masked) {
-      if (buf.length < at + 4) return null;
-      mask = buf.subarray(at, at + 4); at += 4;
-    }
-    if (buf.length < at + len) return null;
-
-    const payload = Buffer.from(buf.subarray(at, at + len));
-    if (mask) for (let i = 0; i < payload.length; i++) payload[i] ^= mask[i & 3];
-    this.#buffer = buf.subarray(at + len);
-    return { fin, opcode, payload };
+    if (!frame) return null;
+    this.#buffer = this.#buffer.subarray(frame.size);
+    return frame;
   }
 
   #dispatch({ fin, opcode, payload }) {
@@ -239,18 +274,7 @@ export class WsClient extends EventEmitter {
 
   #send(opcode, payload) {
     if (!this.#socket || !this.#open) return;
-    const len = payload.length;
-    const head = len < 126 ? 2 : len < 65536 ? 4 : 10;
-    const frame = Buffer.allocUnsafe(head + 4 + len);
-    frame[0] = 0x80 | opcode;
-    if (len < 126) frame[1] = 0x80 | len;
-    else if (len < 65536) { frame[1] = 0x80 | 126; frame.writeUInt16BE(len, 2); }
-    else { frame[1] = 0x80 | 127; frame.writeBigUInt64BE(BigInt(len), 2); }
-
-    const mask = randomBytes(4);
-    mask.copy(frame, head);
-    for (let i = 0; i < len; i++) frame[head + 4 + i] = payload[i] ^ mask[i & 3];
-    try { this.#socket.write(frame); } catch (err) { this.emit('error', err); }
+    try { this.#socket.write(wsFrame(opcode, payload)); } catch (err) { this.emit('error', err); }
   }
 
   close(code = 1000, reason = '') {
