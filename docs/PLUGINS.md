@@ -336,7 +336,11 @@ Also `bind` and `port` — where the app listens — `appliance`, true when it w
 `--appliance`, and `listen(address)`: the same server answering on one more address of this host at
 the app's own port, resolving `{ address, port, close() }`. It is the one way to a listener, and the
 app closes any door still open when it stops; close yours in `onDispose` when your plugin does.
-Remote access opens one per ZeroTier or tailnet address.
+Remote access opens one per ZeroTier or tailnet address. A protocol on a port of its own is the
+plugin's own socket, not a door into the app: desk-control's CITP, and the Pixelhue panel's
+Console TAKE/CUT, which answers a U5 mini on UDP 5600 and TCP 19999 because its firmware asks there.
+Such a plugin opens the port itself, serves only the peer it is for, says in words when the port is
+taken, and closes it in `onDispose`.
 **`devices`** — the device host (`devices/README.md`), the process that holds USB and HID panels.
 `status()` is `{ installed, running, available, reason, restarts, modules }`, and `onStatus(fn)`
 hears it change. `module(id)` is a handle on one device module that outlives the host restarting:

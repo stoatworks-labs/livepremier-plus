@@ -78,6 +78,38 @@ SOURCE BACKUP is refused on Midra and Alta with the reason: their inputs have no
 `backup` node in either bundle's input object; the card's ⋮ is plug, Setup, Freeze, Capture).
 Neither key has been pressed on a console.
 
+## A U5 mini's own TAKE and CUT: this app as its switcher (2026-11-06, unreleased)
+
+A mini sends TAKE, CUT, the T-bar and its function keys only to the Pixelhue switcher it is bound
+to, so **Console TAKE/CUT (preview)** has this app play that switcher: discovery on UDP 5600,
+HTTP and a WebSocket on 19999 (`plugins/pixelhue/switcher.js`, `switcher-server.js`), and Bind /
+Unbind on the card, which keep the console's old binding and search list and put them back.
+TAKE and CUT only, mini only, off by default. `docs/PIXELHUE.md` ("A U5 mini's own TAKE and CUT")
+has the user's side; the protocol stays in the private reverse-engineering notes.
+
+**Proved against the mini's own firmware (V1.0.3) in a VM, never a mini on a desk.** Bind, a
+restart, then CUT, TAKE and TAKE on one screen reached a stand-in LivePremier as `xCut` / `xTake`,
+and Unbind put the original binding back. Four things bit on the way, each now in the code:
+
+- **A mini bound while it runs keeps its SCREEN row empty until it restarts.** Its LCD app
+  looks the new switcher up before it has logged in, finds nothing and gives up; only the
+  start-up path tries again. Re-sending the binding did not help. So Bind says to restart the
+  console, and the card's **Console screens** says whether it has read this app's screens since.
+- **Holding the 17100 key grid while the LCD app starts leaves the SCREEN row empty too.** So the
+  grid is let go when the console drops it while bound, and taken back once the console has read
+  the screens (or after 30 s of it talking without, with a word). Taking it after is harmless.
+- **This app's model would overwrite the LCD app's own.** Bound, the LCD app publishes its own
+  from the switcher's screens; the wipe watcher would have republished on top. So nothing is
+  published while bound. Its effect on its own was never isolated from the grid's: a precaution.
+- **Two screens selected stop the LCD app after the first TAKE or CUT.** It logs the next task as
+  submitted and never runs it. Bound to the rig's fake switcher it did no better, so it is the
+  LCD app (or the VM) rather than this app. One screen at a time works; the card says so.
+
+The VM's TAKE took about 4.1 s from key to write and CUT about 2.1–2.4 s, with the console's
+processor emulated. PixelFlow's UCenter holds 19999 on this Mac and on winlab, so the rig run was
+relayed to other ports; the real-port listener ran on kde-lab. Full suite on the Mac, winlab and
+kde-lab: 1692 tests, none failing.
+
 ## The desk's software: keypad, wheels and strip screen (2026-10-30)
 
 The LivePremier Plus desk (`stoatworks-labs/lpp-control-surface`, prototype one) has been drawn,

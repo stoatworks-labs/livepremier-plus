@@ -575,6 +575,61 @@ Five things are load-bearing:
   (`test/helpers/fake-mini-lcd.js`) answers the same way, so a test that
   draws hard behind a ping fails as a real mini would.
 
+**Console TAKE/CUT: this app as a mini's switcher** (`switcher.js`, `switcher-server.js`; the
+setting `pixelhueSwitcher`, u5mini only, off by default, marked preview). A mini sends its own
+TAKE and CUT only to the Pixelhue switcher it is bound to, never to a control-service client, so
+with this on the app plays that switcher. Proved against the mini's own firmware (V1.0.3) in the
+private pixelhue-re rig, never a mini on a desk. The protocol research stays in pixelhue-re; this
+repo describes behaviour.
+
+- ⚠️ **The ports are the firmware's, not ours**: discovery on UDP 5600, HTTP and the WebSocket on
+  TCP 19999, which the LCD app has hard-coded. On a Mac or a Windows PC with PixelFlow installed,
+  its UCenter service holds 19999 (macOS refuses every other bind on it; winlab's `ucenter_win`
+  holds `0.0.0.0:19999`), and the card says so in words, not as an errno.
+- **Ping the WebSocket at least every 4 s**, with WebSocket ping frames; NOVA keep-alives do not
+  count. This app pings every second.
+- **What a take needs**: `screen/list-thumb` (without it the LCD logs "Can not take"), `tbar` as a
+  list (an object fails the whole decode), `node/detail` with work mode 0, a non-empty
+  `node/ethernet`, and an empty `ucenter/device-list` (listing this app there stopped the rig's
+  takes). The LCD takes only the screens selected on its own SCREEN row.
+- **A refused take shows nothing on the console**: the reply is logged and dropped, with no retry.
+  The history and the card are where a refusal (the lock, nothing selected) is said.
+- **Bind keeps before it writes.** The binding and the search list (`ucenter/device-ips`) go to
+  storage (`pixelhue-switcher`) before anything is written to the console; a second Bind keeps the
+  first; Unbind forgets them only once both read back. The search list is kept exactly as read:
+  until the rig run of 2026-11-06 it was kept without this app's own address, and a console that
+  already searched that address lost it at Unbind.
+- **The serial and token are made once and kept**, so a restart never strands a console that is
+  holding the old token.
+- ⚠️ **Never send the search port anything but a whole discovery frame.** On 2026-11-06 the rig
+  mini's discovery listener panicked on a 19-byte reply (`slice bounds out of range [40:19]`),
+  stopped searching until it was restarted, and spun writing its log until its 2 GB tmpfs was
+  full. `discoveryProbe` ignores anything that is not a search, and the switcher sends nothing
+  else.
+- **Only the console is served**: its address, resolved from `pixelhueHost`. Both sockets bind all
+  addresses, because the search is broadcast.
+- ⚠️ **A binding made while the console runs needs a restart.** On the binding change the LCD
+  app's ScreenKeyBiz and LayerKeyListBiz look the new switcher's serial up in its own
+  `ucenter/device-list` before the LCD has a token, find nothing and give up, and the SCREEN row
+  stays empty until the LCD app restarts (its start-up path does no lookup). Re-sending the
+  binding did not cure it. Bind says to restart; don't remove that for a cleverer binding.
+- **The LCD app's own read of `screen/list-thumb` is the sign it has picked the screens up.**
+  nvcontroller reads it too, at every login, so `switcher-server.js` tells them apart by
+  User-Agent: the LCD app sends none, nvcontroller sends Go's. `last.screens` and the card's
+  **Console screens** count the LCD app's reads only, and only one after Bind (`boundAt`) counts.
+  The LCD app logs in again about every 2 s, so a login is no sign of anything.
+- ⚠️ **Never hold the 17100 key grid while the console starts.** Held then, `list-detail` is
+  handled only by InputKeyBiz and CustomKeyBiz and the SCREEN row stays empty. Bound, a grid
+  close (`#holdGrid`) and Bind let it go until the LCD app has read the screens, plus
+  `GRID_AFTER_SCREENS_MS`, or `GRID_HOLD_MS` of it talking without, said in the history. Taking it
+  after the pickup is harmless. Unbind and turning the mode off take it straight back.
+- **Bound, no model is published** (`#playing()` in `refresh`, `#republish` and `#watchForWipe`).
+  The LCD app publishes its own from this app's screens, and the wipe watcher would republish
+  over it. Its effect apart from the grid's was never isolated: a precaution, kept cheap.
+- **Two screens selected stop the LCD app after the first TAKE or CUT** in the rig ("task
+  submitted to thread pool", never "task executing"); bound to the rig's fake it did no better,
+  so it is not this app. One screen works every time. Say so; don't paper over it.
+
 ### A Barco EC panel (`plugins/barco-ec/`) — **preview**
 
 An EC-30, EC-40 or EC-50 plugged into this machine, driving the switcher with no browser open.

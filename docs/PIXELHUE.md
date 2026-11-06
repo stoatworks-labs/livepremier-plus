@@ -15,8 +15,11 @@
 > TIME, SAVE TO and DEL each reached the frame. On 2026-11-05 a real U5 mini on
 > 0.18.10, on Windows, against an Aquilon, showed its key grid and recalled a
 > screen memory on the frame; its keypad, TAKE and CUT did nothing
-> ([A U5 mini's key grid](#a-u5-minis-key-grid)). Turn it on in rehearsal, not
-> in a show.
+> ([A U5 mini's key grid](#a-u5-minis-key-grid)). On 2026-11-06 the mini's own
+> firmware, in a VM, was bound to this app as its switcher, and its own TAKE and
+> CUT reached a stand-in LivePremier — the VM only, never a mini on a desk
+> ([A U5 mini's own TAKE and CUT](#a-u5-minis-own-take-and-cut-preview)). Turn it
+> on in rehearsal, not in a show.
 
 A Pixelhue U5, U5 Pro or U5 mini is an **event controller**: a console built
 for Pixelhue's own switchers. This makes one drive an Analog Way LivePremier
@@ -405,17 +408,19 @@ same `take` / `cut` intent a U5's TAKE and CUT report, so it writes `xTake` /
 2026-11-05, after a real mini's own TAKE and CUT did nothing against an
 Aquilon.
 
-**The console's own TAKE and CUT: nobody knows yet whether a mini reports
-them.** If it does, 531 and 532 take and cut the screens selected on the
-grid, exactly as on a U5 — the stand-in proves that much. If it reports
-TAKE's key but no take, the history says *TAKE pressed on the console (key
-65), but the console reported no take command (531) to this app, so nothing
-was sent to the switcher*. If it reports nothing at all, there is nothing to
-see, so the card says so, as **Console TAKE / CUT: not seen yet**, with a note
-in plain words pointing at the grid's own keys, said once in the history at the
-first selection on the grid. Nothing here works round the console's keys: the
-LCD app takes against the switcher it is bound to, and nothing in the firmware
-offers a way round that, hence keys of this app's own.
+**The console's own TAKE and CUT go to the switcher it is bound to, and
+nowhere else.** The mini's own firmware, run in a VM (2026-11-06), sent them
+to its bound switcher as `PUT /unico/v1/screen/take` and `/screen/cut`, one
+entry per screen selected on its SCREEN keys, and reported nothing to this
+app. With **Console TAKE/CUT (preview)** off, the card keeps saying so, as
+**Console TAKE / CUT: not seen yet**, with a note in plain words pointing at
+the grid's own keys, said once in the history at the first selection on the
+grid; should a mini ever report 531 and 532 after all, they take and cut the
+screens selected on the grid, exactly as on a U5, and if it reports TAKE's key
+but no take, the history says *TAKE pressed on the console (key 65), but the
+console reported no take command (531) to this app, so nothing was sent to the
+switcher*. The way round is to be that switcher:
+[A U5 mini's own TAKE and CUT](#a-u5-minis-own-take-and-cut-preview).
 
 **One client at a time, and who wins.** The LCD app holds one 17100 client
 (`TcpServer::acceptThread`, disassembled):
@@ -449,11 +454,102 @@ shows the drawing only in Companion; that columns 8 and 9 are each row's page
 keys (inferred from the key map, not followed through the code — whichever key
 they are, the page is drawn there and turned there); that a press reports the
 page its row shows, which is how a press made while a row was being redrawn is
-refused rather than acted on; the client rules above. Not known at all:
-TAKE and CUT, what 595 carries, and how long a mini takes to notice a dead
-connection. The 72 × 72 labels are drawn with the EC panel's 5 × 8 font, at
+refused rather than acted on; the client rules above. Not known at all: what
+595 carries, and how long a mini takes to notice a dead connection. TAKE and
+CUT are known from the firmware run in a VM, not from a mini on a desk. The 72 × 72 labels are drawn with the EC panel's 5 × 8 font, at
 1.5× or 2× where a name fits; how they read on the mini's LCD is for the first
 person with one to say.
+
+## A U5 mini's own TAKE and CUT (preview)
+
+**Console TAKE/CUT (preview)**, on the Pixelhue card when the model is
+**U5 mini** and off until it is switched on, has this app answer the console
+as a Pixelhue switcher would. The console is then bound to this app, and its
+own TAKE and CUT keys take and cut the screens selected on its own SCREEN keys,
+on the LivePremier this app drives. It has been run against the mini's own
+firmware in a VM and never against a mini on a desk.
+
+**Setting it up:**
+
+1. Switch on **Drive a Pixelhue console**, model **U5 mini**, then **Console
+   TAKE/CUT (preview)**. **As its switcher** reads *listening on* the address
+   that faces the console, *found by the console* once it has searched, and
+   *console logged in* once it has.
+2. Press **Bind**. This app reads what the console is bound to and the list of
+   addresses it searches, keeps both, and only then adds its own address to the
+   list and binds the console to itself. **Console bound to** reads *this app*.
+   A second Bind keeps the first one's copy, so Unbind still goes all the way
+   back.
+3. **Restart the console** — switch it off and on. A mini bound while it is
+   running keeps its SCREEN row empty, so its TAKE and CUT do nothing, until it
+   restarts: its LCD app looks for the new switcher before it has logged in to
+   it, finds nothing and gives up, and only its start-up path tries again. The
+   card says so in a warning, and **Console screens** reads *not read yet —
+   restart the console* until the console has read this app's screens, then
+   *2 read by the console*, or however many there are.
+4. Select a screen on the console's SCREEN keys and press TAKE or CUT. The
+   history notes each one, and **Last from the console** shows the last, with
+   its screens.
+5. **Unbind** puts back what the console was bound to and the addresses it
+   searched, and drops the kept copy only once both have been read back.
+
+**What changes while it is bound here:**
+
+- **This app publishes no model.** The console's LCD app builds and publishes
+  its own from this app's screens; a model from this app on top would replace
+  it. The history says so once, and Unbind gives the console this app's model
+  back.
+- **The key grid is let go while the console starts.** Holding it while the LCD
+  app starts up leaves the SCREEN row empty, so when the console drops the grid
+  connection — as it does when it restarts — this app waits until the console
+  has read its screens, and 1.5 s more, before taking the grid back. If the
+  console talks for 30 s without reading them, the grid is taken back anyway,
+  with a note in the history saying to restart the console if its SCREEN row is
+  empty. Bind lets it go too, ready for the restart; Unbind takes it back at
+  once.
+- **TAKE and CUT act on the console's selection, not this app's.** The screens
+  come from the console's SCREEN keys, so this app's own selection is left
+  alone. **LOCK PANEL** still refuses them. A refused or failed take is answered
+  as a refusal, and the console shows nothing and does not retry, so the only
+  place it is said is this app's history and **Last from the console**.
+- The grid's own TAKE and CUT keys still work, on the grid's selection.
+
+**Select one screen at a time, for now.** In the VM, with two screens
+selected, the LCD app sent the first TAKE or CUT, with both screens, and then
+nothing more until it was restarted; it did the same bound to the
+reverse-engineering notes' fake switcher, so it is the LCD app, not this one.
+One screen at a time, TAKE and CUT worked every time. Whether a mini on a desk
+does the same is for the first person with one to say.
+
+**What is not handled yet:** the T-bar, FTB, freeze, and the console's
+preset and layer keys. Each is answered with a bare success, so the console
+carries on, and said once in the log at warn when it first arrives.
+
+**The ports.** The console looks for its switcher on UDP 5600 and talks to it
+over HTTP and a WebSocket on **port 19999**, which it does not let a switcher
+choose. PixelFlow's UCenter service holds 19999 wherever PixelFlow is installed
+(on a Mac and on Windows), so on such a machine **As its switcher** reads
+*port 19999 is taken* and the history says to stop UCenter; nothing else is
+affected, and discovery still answers. Only the console this app drives is
+served: anything else is refused at the door, and said once per address. Its
+login gets a token of its own, which never reaches the log.
+
+**Switching the mode off does not unbind the console.** The card then warns
+that the console is still bound to this app, with its TAKE and CUT going
+nowhere, and offers **Unbind**.
+
+**What was verified, and where** (2026-11-06): against the mini's own firmware
+(V1.0.3) in a VM, with a stand-in LivePremier: Bind, a restart, the screens
+read 4.2 s after it, then CUT, TAKE and TAKE on one screen, each reaching the
+stand-in as `xCut` / `xTake`, and Unbind back to the original binding and search
+list. From a key press to the write took about 4.1 s for TAKE and 2.1–2.4 s
+for CUT in the VM, which runs the console's processor emulated; a mini on a
+desk should be quicker, and nobody has timed one. That run was on a Mac
+whose PixelFlow UCenter holds 19999, so the VM's 19999 and 5600 were relayed
+to other ports on it. The listener on the real ports, logged in to, taken and
+cut by a stand-in console, was run on Linux; on the Windows lab machine
+PixelFlow's UCenter held 19999 and gave the message above, with discovery still
+answering. Never against a mini on a desk, and never against an Aquilon.
 
 ---
 
@@ -639,17 +735,19 @@ worth doing.
 
 ## Known gaps
 
-- **A U5 mini's own keypad, TAKE and CUT do nothing yet.** The one real mini to
-  try this refused the U5's socket path (2026-10-22); on the corrected path it
-  connected, and its page and area-switch keys reached this app. On 2026-11-05,
-  on 0.18.10 against an Aquilon, its key grid was drawn and held, and a screen
-  memory recalled from it reached the frame; the inputs stopped at 24 and the
-  masters were missing, both since fixed. Its keypad's function keys, TAKE and
-  CUT did nothing. The firmware does not settle whether the LCD app reports
-  them to a control-service client at all (its keypad handlers post to its own
-  bound Pixelhue switcher), so the next thing to find out is what that mini's
-  log shows, with **Logs → Detail** at **Detailed**, for each of those keys.
-  Meanwhile the grid has TAKE and CUT of its own (stand-in only so far).
+- **A U5 mini's own keypad, TAKE and CUT do nothing on their own.** The one
+  real mini to try this refused the U5's socket path (2026-10-22); on the
+  corrected path it connected, and its page and area-switch keys reached this
+  app. On 2026-11-05, on 0.18.10 against an Aquilon, its key grid was drawn and
+  held, and a screen memory recalled from it reached the frame; the inputs
+  stopped at 24 and the masters were missing, both since fixed. Its keypad's
+  function keys, TAKE and CUT did nothing: the mini's own firmware, run in a VM
+  since, sends them only to the Pixelhue switcher it is bound to. The grid has
+  TAKE and CUT of its own (stand-in only so far), and **Console TAKE/CUT
+  (preview)** makes this app that switcher, for TAKE and CUT only, proved in
+  the VM and never on a desk, one screen at a time
+  ([A U5 mini's own TAKE and CUT](#a-u5-minis-own-take-and-cut-preview)). The
+  T-bar, FTB, freeze, preset and layer keys still go nowhere.
   A source chosen on the grid was reported as reaching the Web RCS and not the
   frame: the grid edits preview, as a U5 does, and with no TAKE nothing moves
   it to program. That is the likeliest reading, and unconfirmed
