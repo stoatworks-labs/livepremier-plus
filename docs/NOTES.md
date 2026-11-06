@@ -91,10 +91,16 @@ has the user's side; the protocol stays in the private reverse-engineering notes
 restart, then CUT, TAKE and TAKE on one screen reached a stand-in LivePremier as `xCut` / `xTake`,
 and Unbind put the original binding back. Four things bit on the way, each now in the code:
 
-- **A mini bound while it runs keeps its SCREEN row empty until it restarts.** Its LCD app
-  looks the new switcher up before it has logged in, finds nothing and gives up; only the
+- **A mini bound while it runs usually keeps its SCREEN row empty until it restarts.** Its LCD
+  app looks the new switcher up before it has logged in, finds nothing and gives up; only the
   start-up path tries again. Re-sending the binding did not help. So Bind says to restart the
   console, and the card's **Console screens** says whether it has read this app's screens since.
+  - **Later the same day, in the VM,** a live Bind picked the screens up without a restart
+    twice, through the same race that brings them in at start-up.
+  - **It worked once more** with this app listed in its own device list and the binding sent
+    again.
+  - **Neither could be repeated reliably,** because the VM had grown unreliable too, so the
+    restart stays.
 - **Holding the 17100 key grid while the LCD app starts leaves the SCREEN row empty too.** So the
   grid is let go when the console drops it while bound, and taken back once the console has read
   the screens (or after 30 s of it talking without, with a word). Taking it after is harmless.

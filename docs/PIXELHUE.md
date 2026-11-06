@@ -481,12 +481,16 @@ firmware in a VM and never against a mini on a desk.
    A second Bind keeps the first one's copy, so Unbind still goes all the way
    back.
 3. **Restart the console** — switch it off and on. A mini bound while it is
-   running keeps its SCREEN row empty, so its TAKE and CUT do nothing, until it
-   restarts: its LCD app looks for the new switcher before it has logged in to
-   it, finds nothing and gives up, and only its start-up path tries again. The
-   card says so in a warning, and **Console screens** reads *not read yet —
-   restart the console* until the console has read this app's screens, then
-   *2 read by the console*, or however many there are.
+   running usually keeps its SCREEN row empty, so its TAKE and CUT do nothing,
+   until it restarts. Its LCD app looks for the new switcher before it has
+   logged in to it, finds nothing and gives up, and only its start-up path
+   tries again.
+   - **The card says so** in a warning.
+   - **Console screens** reads *not read yet — restart the console* until the
+     console has read this app's screens, then *2 read by the console*, or
+     however many there are.
+   - **Now and then, in the VM, it read them without a restart.** Console
+     screens shows it when it does.
 4. Select a screen on the console's SCREEN keys and press TAKE or CUT. The
    history notes each one, and **Last from the console** shows the last, with
    its screens.

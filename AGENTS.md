@@ -611,8 +611,15 @@ repo describes behaviour.
 - ⚠️ **A binding made while the console runs needs a restart.** On the binding change the LCD
   app's ScreenKeyBiz and LayerKeyListBiz look the new switcher's serial up in its own
   `ucenter/device-list` before the LCD has a token, find nothing and give up, and the SCREEN row
-  stays empty until the LCD app restarts (its start-up path does no lookup). Re-sending the
-  binding did not cure it. Bind says to restart; don't remove that for a cleverer binding.
+  usually stays empty until the LCD app restarts (its start-up path does no lookup).
+  - **Sometimes it works anyway.** In the VM a live Bind now and then picked the screens up
+    through the same login loop that brings them in at start-up. That is a race; never count
+    on it.
+  - **Re-sending the binding alone did not cure it.**
+  - **With this app listed in its own `device-list` as well,** it worked once and could not be
+    repeated, so it is not built. The patch is in pixelhue-re's rig notes, fifth pass.
+  - Bind says to restart. Don't remove that for a cleverer binding until a mini on a desk shows
+    the restart is not needed.
 - **The LCD app's own read of `screen/list-thumb` is the sign it has picked the screens up.**
   nvcontroller reads it too, at every login, so `switcher-server.js` tells them apart by
   User-Agent: the LCD app sends none, nvcontroller sends Go's. `last.screens` and the card's
