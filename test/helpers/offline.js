@@ -56,7 +56,8 @@ export const KIT_UDP_PORTS = new Map([
   [5568, 'sACN'],
   [10023, 'an X32 or M32'],
   [2223, 'a Wing'],
-  [53000, 'QLab']
+  [53000, 'QLab'],
+  [5600, 'Pixelhue discovery: a U5 mini, or a Pixelhue switcher']
 ]);
 
 /** sACN's multicast groups, 239.255.x.x: every receiver on the LAN hears them. */
