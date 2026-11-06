@@ -48,6 +48,10 @@ const PING_MS = 1000;
 const BODY_LIMIT = 64 * 1024;
 const WS_PATH = '/unico/v1/ws';
 const LOGIN_PATH = '/unico/v1/system/auth/login';
+/* The screen brief list. The LCD app reading it is the sign its SCREEN row has this app's screens. */
+const THUMB_PATH = '/unico/v1/screen/list-thumb';
+/* nvcontroller is a Go client and says so; the LCD app sends no user agent. */
+const agentOf = (req) => (req.headers['user-agent'] ? 'nvcontroller' : 'LCD app');
 
 /** What a refused bind says, in words for someone with a console in front of them. */
 export function bindNote(what, port, err) {
@@ -109,7 +113,7 @@ export class SwitcherServer extends EventEmitter {
     this.bound = { http: null, udp: null };
     this.errors = { http: null, udp: null };
     this.counts = { searches: 0, logins: 0, requests: 0, refused: 0, takes: 0, cuts: 0 };
-    this.last = { search: null, login: null, action: null };
+    this.last = { search: null, login: null, action: null, screens: null, lcdAt: null };
   }
 
   /* ------------------------------------------------------------ lifecycle */
@@ -226,6 +230,9 @@ export class SwitcherServer extends EventEmitter {
       return;
     }
 
+    /* When the LCD app last said anything: how long it has been up without reading the screens. */
+    if (agentOf(req) === 'LCD app') this.last.lcdAt = Date.now();
+
     let screens = [];
     try { screens = await this.screens(); } catch (err) { this.log.debug(`pixelhue switcher: screens: ${err.message}`); }
     const answer = respond({ method: req.method, path, body }, { screens, serial, token, address: this.address() });
@@ -234,8 +241,20 @@ export class SwitcherServer extends EventEmitter {
       this.counts.logins++;
       /* Two clients log in, nvcontroller and the LCD app; only the first after a quiet spell is news. */
       const news = !this.last.login || Date.now() - this.last.login.at > 60_000;
-      this.last.login = { at: Date.now(), from: ip, agent: req.headers['user-agent'] ? 'nvcontroller' : 'LCD app' };
+      this.last.login = { at: Date.now(), from: ip, agent: agentOf(req) };
       if (news) this.emit('login', this.last.login);
+      this.emit('activity');
+    }
+
+    /*
+     * ⚠️ A console bound while its LCD app runs logs in and polls, but never reads this list,
+     * and its SCREEN row stays empty until it restarts (rig, 2026-11-06). nvcontroller reads it
+     * at every login either way, so only the LCD app's read counts.
+     */
+    if (path === THUMB_PATH && agentOf(req) === 'LCD app') {
+      const news = !this.last.screens || Date.now() - this.last.screens.at > 60_000;
+      this.last.screens = { at: Date.now(), from: ip, count: screens.length };
+      if (news) this.emit('screens', this.last.screens);
       this.emit('activity');
     }
 

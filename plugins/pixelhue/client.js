@@ -284,6 +284,8 @@ export default function activate(ctx) {
           { tone: live.takeCut.take && live.takeCut.cut ? null : 'tertiary' }) : null,
         sw ? readout('As its switcher', switcherLine(sw), { tone: switcherFailed(sw) ? 'warn' : sw.links ? null : 'tertiary' }) : null,
         sw || ours ? readout('Console bound to', boundLine(bound, sw), { tone: ours ? null : 'tertiary' }) : null,
+        sw && ours ? readout('Console screens', screensLine(sw),
+          { tone: screensRead(sw) ? null : sw.boundAt ? 'warn' : 'tertiary' }) : null,
         sw && sw.last && sw.last.action ? readout('Last from the console', actionLine(sw.last.action),
           { tone: sw.last.action.ok ? null : 'warn' }) : null)
       : null;
@@ -308,13 +310,22 @@ export default function activate(ctx) {
     if (bindError) notes.push(note('warn', bindError));
     if (on && sw) {
       for (const e of [sw.error, sw.errors && sw.errors.http, sw.errors && sw.errors.udp]) if (e) notes.push(note('warn', e));
+      if (ours && sw.boundAt && !screensRead(sw)) {
+        notes.push(note('warn',
+          'Restart the console now: switch it off and on. A U5 mini bound while it is running keeps its '
+          + 'SCREEN row empty, so its TAKE and CUT do nothing, until it restarts. Once it has, it reads '
+          + 'this app’s screens and Console screens says so.'));
+      }
       notes.push(note('info',
         'Preview. With this on, this app answers the console as a Pixelhue switcher would, so the '
         + 'console’s own TAKE and CUT keys take the screens selected on its SCREEN keys, on this '
         + 'switcher. Bind points the console at this app and keeps what it was bound to; Unbind puts '
-        + 'that back. The T-bar, FTB, freeze and the console’s preset keys are not handled yet. It needs '
+        + 'that back. While it is bound here, this app hands the console no model of its own: its LCD app '
+        + 'builds one from this app’s screens. The T-bar, FTB, freeze and the console’s preset keys are not handled yet. It needs '
         + 'port 19999, which PixelFlow’s UCenter service holds wherever PixelFlow is installed. '
-        + 'Proved against the mini’s own firmware in a VM, never yet against a mini on a desk.'));
+        + 'Proved against the mini’s own firmware in a VM, never yet against a mini on a desk, and '
+        + 'there with one screen selected at a time: with two, the console’s LCD app sent the first '
+        + 'TAKE or CUT and then nothing more until it restarted.'));
     } else if (on && model && model.grid && ours) {
       notes.push(note('warn',
         'The console is still bound to this app, with Console TAKE/CUT off, so its own TAKE and CUT '
@@ -406,6 +417,16 @@ export default function activate(ctx) {
     if (b.error) return `could not read: ${b.error}`;
     if (b.ours) return `this app${sw && sw.serial ? ` (${sw.serial})` : ''}`;
     return b.deviceSn || 'nothing';
+  }
+  /* Whether the console's LCD app has read this app's screens since Bind. One bound while it
+     runs never does until it restarts, and until then its SCREEN row selects nothing. */
+  function screensRead(sw) {
+    const s = sw.last && sw.last.screens;
+    return Boolean(s && (!sw.boundAt || s.at >= sw.boundAt));
+  }
+  function screensLine(sw) {
+    if (screensRead(sw)) return `${sw.last.screens.count} read by the console`;
+    return sw.boundAt ? 'not read yet — restart the console' : 'not read since this app started';
   }
   function actionLine(a) {
     const what = `${a.kind.toUpperCase()} ${(a.ids || []).join(' ') || 'no screen'}`;

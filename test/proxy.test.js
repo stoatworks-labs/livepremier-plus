@@ -1078,6 +1078,15 @@ test('the Pixelhue panel is a hosted plugin: its state has a route, and its old 
     });
     assert.equal(settings.pixelhueHost, undefined);
 
+    /* Console TAKE/CUT's Bind and Unbind are routes too, and with no console they say so. */
+    for (const which of ['bind', 'unbind']) {
+      const res = await fetch(base + `/__lpp/pixelhue/switcher/${which}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      });
+      assert.equal(res.status, 200);
+      assert.deepEqual(await res.json(), { ok: false, error: 'no console is configured' });
+    }
+
     /* Switched off, it is gone; its settings are not. */
     await fetch(base + '/__lpp/settings', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },

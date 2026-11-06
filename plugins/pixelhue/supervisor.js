@@ -107,6 +107,13 @@ export class PixelhueSupervisor extends EventEmitter {
   #names = new Set();
   #lastRepublish = 0;
   #republishTimer = null;
+  /* Whether the model was last held back, for a mini bound to this app as its switcher (`refresh`). */
+  #modelHeld = false;
+  /* When Bind last bound the console to this app, this run: until its LCD app has read this
+     app's screens since, the card asks for a restart. */
+  #boundAt = null;
+  /* The key grid let go while a console bound here starts (`#holdGrid`): {since, lcdFrom, timer}. */
+  #gridHold = null;
   #stroke = null;
   #sourceKind = 'LIVE';
   #locked = false;
@@ -222,6 +229,7 @@ export class PixelhueSupervisor extends EventEmitter {
 
     const was = Boolean(this.#link);
     if (this.#link) { await this.#link.stop(); this.#link = null; }
+    this.#releaseGrid({ start: false });
     if (this.#grid) { await this.#grid.stop(); this.#grid = null; }
     this.#config = want;
     this.selection.reset();
@@ -236,6 +244,7 @@ export class PixelhueSupervisor extends EventEmitter {
     this.#takeCutKeys = new Map();
     this.#takeCutSaid = false;
     this.#binding = null;
+    this.#modelHeld = false;
     /* "stopped" at every start of an app with no console is not news; one that was driving one is. */
     if (!want) { this.#note({ kind: 'stopped', quiet: !was }); return this.describe(); }
 
@@ -245,11 +254,14 @@ export class PixelhueSupervisor extends EventEmitter {
     this.#link = link;
     link.on('open', () => {
       this.#note({ kind: 'connected' });
-      void this.refresh();
       void this.#readKeyMap();
-      /* Read on every mini, mode on or off: a mini left bound to this app with the mode off is
-         said on the card, with Unbind. */
-      if (consoleModel(want.model).grid) void this.#readBinding();
+      /* The binding is read on every mini, mode on or off: a mini left bound to this app with the
+         mode off is said on the card, with Unbind. And it is read BEFORE the first publish: a mini
+         bound to this app as its switcher is handed no model (`refresh`). */
+      void (async () => {
+        if (consoleModel(want.model).grid) await this.#readBinding();
+        await this.refresh();
+      })();
     });
     link.on('close', () => this.#note({ kind: 'disconnected' }));
     /* An open socket that never hears a key: said in the history and the log,
@@ -290,10 +302,14 @@ export class PixelhueSupervisor extends EventEmitter {
       });
       void this.#drawGrid();
     });
-    grid.on('close', ({ byConsole }) => this.#note({
-      kind: 'disconnected',
-      note: byConsole ? 'the console closed the key grid connection' : 'the key grid connection dropped',
-    }));
+    grid.on('close', ({ byConsole }) => {
+      this.#note({
+        kind: 'disconnected',
+        note: byConsole ? 'the console closed the key grid connection' : 'the key grid connection dropped',
+      });
+      /* Most likely the console restarting: it must find its switcher's screens before the grid is taken again. */
+      if (this.#playing()) this.#holdGrid();
+    });
     grid.on('failure', (err) => {
       /* Once per cause: a console that is off would otherwise fill the history every 3 s. */
       if (err.message === this.#gridError) { this.log.debug(`key grid: ${err.message} (again)`); return; }
@@ -305,8 +321,64 @@ export class PixelhueSupervisor extends EventEmitter {
     grid.start();
   }
 
+  /*
+   * ⚠️ **The key grid waits while a console bound here as its switcher starts.** With this app
+   * connected to its 17100 grid as it starts, a mini's LCD app never picks up its switcher's
+   * screens: it logs in to this app and polls, but never reads `screen/list-thumb`, its SCREEN
+   * row stays empty and its TAKE goes nowhere. With the grid let go it reads them within 5 s,
+   * and taking the grid afterwards does no harm (rig, 2026-11-06). So once the console is bound
+   * here, a dropped grid (a console restarting, most likely) is let go until its LCD app has
+   * read this app's screens. A console that only dropped the connection never reads them again,
+   * so after GRID_HOLD_MS of its LCD app talking without reading them the grid is taken anyway.
+   */
+  #holdGrid() {
+    if (this.#gridHold) return;
+    const grid = this.#grid;
+    this.#grid = null;
+    if (grid) void grid.stop();
+    const { gridHoldCheckMs = GRID_HOLD_CHECK_MS } = this.switcherOptions;
+    this.#gridHold = { since: Date.now(), lcdFrom: null, timer: setInterval(() => this.#checkGridHold(), gridHoldCheckMs) };
+    if (this.#gridHold.timer.unref) this.#gridHold.timer.unref();
+    this.#note({
+      kind: 'noted',
+      note: 'key grid let go until the console has read this app’s screens: holding it while the console starts '
+        + 'leaves its SCREEN row empty',
+    });
+    this.emit('activity', null);
+  }
+
+  #checkGridHold() {
+    const hold = this.#gridHold;
+    if (!hold) return;
+    const { gridHoldMs = GRID_HOLD_MS, gridAfterScreensMs = GRID_AFTER_SCREENS_MS } = this.switcherOptions;
+    const last = this.#switcher ? this.#switcher.last : null;
+    const read = last && last.screens && last.screens.at >= hold.since ? last.screens : null;
+    if (last && last.lcdAt && last.lcdAt >= hold.since && !hold.lcdFrom) hold.lcdFrom = last.lcdAt;
+    if (read && Date.now() - read.at < gridAfterScreensMs) return;
+    if (read || !this.#playing()) { this.#releaseGrid(); return; }
+    if (hold.lcdFrom && Date.now() - hold.lcdFrom >= gridHoldMs) {
+      this.#note({
+        kind: 'noted',
+        note: `the console has not read this app’s screens in ${Math.round(gridHoldMs / 1000)} s; taking the key grid back. `
+          + 'If its SCREEN row is empty, restart the console',
+      });
+      this.#releaseGrid();
+    }
+  }
+
+  /** End a hold, and take the grid again if this is still a mini's panel. */
+  #releaseGrid({ start = true } = {}) {
+    const hold = this.#gridHold;
+    if (!hold) return;
+    clearInterval(hold.timer);
+    this.#gridHold = null;
+    if (start && !this.#grid && this.#config && consoleModel(this.#config.model).grid) this.#startGrid(this.#config.host);
+    this.emit('activity', null);
+  }
+
   async stop() {
     clearTimeout(this.#settleTimer); this.#settleTimer = null;
+    this.#releaseGrid({ start: false });
     await this.#stopSwitcher();
     if (this.#link) { await this.#link.stop(); this.#link = null; }
     if (this.#grid) { await this.#grid.stop(); this.#grid = null; }
@@ -352,6 +424,10 @@ export class PixelhueSupervisor extends EventEmitter {
         this.#note({ kind: 'connected', note: `the console logged in to this app as its switcher (${l && l.from ? l.from : host})` });
         void this.#readBinding();
       });
+      server.on('screens', (r) => this.#note({
+        kind: 'noted',
+        note: `the console's LCD app read this app's ${r.count} screen${r.count === 1 ? '' : 's'}: its SCREEN keys select them now`,
+      }));
       await server.start();
       const failed = [server.errors.http, server.errors.udp].filter(Boolean);
       if (failed.length) this.#note({ kind: 'error', error: `console TAKE/CUT: ${failed.join('; ')}` });
@@ -446,6 +522,10 @@ export class PixelhueSupervisor extends EventEmitter {
    * addresses it searched, **before** writing anything, then add this app's
    * address and bind. A Bind on top of a kept binding keeps the first one, so
    * Unbind always goes back to what the console had before this app.
+   *
+   * The addresses are kept exactly as read. Until the rig run on 2026-11-06
+   * they were kept without this app's own, and a console that already
+   * searched it (the rig's did) lost it at Unbind.
    */
   async bindConsole() {
     const say = (error) => { this.#note({ kind: 'error', command: 'Bind', error }); return { ok: false, error }; };
@@ -467,7 +547,7 @@ export class PixelhueSupervisor extends EventEmitter {
           previous: {
             deviceSn: ours ? '' : String(pair.deviceSn || ''),
             videoStationSn: String(mini),
-            ips: searched.ips.filter((ip) => ip !== address),
+            ips: [...searched.ips],
             at: Date.now(),
           },
         };
@@ -478,10 +558,14 @@ export class PixelhueSupervisor extends EventEmitter {
       await this.#readBinding();
       if (!this.#binding || !this.#binding.ours) return say('the console was told, but still names another switcher');
       const was = this.#identity.previous.deviceSn;
+      this.#boundAt = Date.now();
+      /* It has to restart now, and must not find the grid held when it does. */
+      this.#holdGrid();
       this.#note({
         kind: 'sent', command: 'Bind',
         note: `the console is bound to this app (${this.#identity.serial}); it was ${was ? `bound to ${was}` : 'bound to nothing'}, `
-          + 'which Unbind puts back',
+          + 'which Unbind puts back. Restart the console (switch it off and on): one bound while it runs keeps '
+          + 'its SCREEN row empty until it restarts',
       });
       return { ok: true };
     } catch (err) {
@@ -508,15 +592,19 @@ export class PixelhueSupervisor extends EventEmitter {
 
       if (!ours) {
         if (!previous) return say('the console is not bound to this app, and no binding is kept to put back');
-        /* Someone bound it elsewhere since: theirs stands, and only this app's address goes. */
-        if (address && searched.ips.includes(address)) await this.#link.setDeviceIps(searched.ips.filter((ip) => ip !== address));
+        /* Someone bound it elsewhere since: theirs stands, and only an address Bind added goes. */
+        if (address && searched.ips.includes(address) && !previous.ips.includes(address)) {
+          await this.#link.setDeviceIps(searched.ips.filter((ip) => ip !== address));
+        }
         await this.#forgetPrevious(identity);
         await this.#readBinding();
         this.#note({ kind: 'noted', command: 'Unbind', note: `the console is bound to ${pair.deviceSn || 'nothing'} now, not this app; left as it is` });
         return { ok: true };
       }
 
-      const want = previous || { deviceSn: '', videoStationSn: mini, ips: searched.ips.filter((ip) => ip !== address) };
+      /* With nothing kept, nobody knows whether this app's address was the console's own, so the
+         addresses are left as they are and only the binding goes. */
+      const want = previous || { deviceSn: '', videoStationSn: mini, ips: [...searched.ips] };
       await this.#link.setDeviceIps(want.ips);
       await this.#link.setBinding(want.deviceSn, want.videoStationSn || mini);
       const [after, ips] = await Promise.all([this.#link.binding(), this.#link.deviceIps()]);
@@ -528,7 +616,11 @@ export class PixelhueSupervisor extends EventEmitter {
           + 'what it had is still kept — press Unbind again');
       }
       if (previous) await this.#forgetPrevious(identity);
+      this.#boundAt = null;
+      this.#releaseGrid();
       this.#note({ kind: 'sent', command: 'Unbind', note: `the console is bound to ${want.deviceSn || 'nothing'} again` });
+      /* No longer its switcher: the console gets this app's model again. */
+      void this.refresh();
       return { ok: true };
     } catch (err) {
       return say(err.message);
@@ -604,6 +696,19 @@ export class PixelhueSupervisor extends EventEmitter {
       this.selection.restrict(model.screens.map((s) => s.uid));
       /* The grid does not wait on the publish: a mini draws from it, not from the model. */
       void this.#drawGrid();
+      /*
+       * ⚠️ A mini bound to this app as its switcher is handed no model. Its LCD app publishes
+       * one itself, built from this app's screen list, and this app's would overwrite it: the
+       * console's SCREEN row then selects nothing and its TAKE goes nowhere (rig, 2026-11-06).
+       */
+      if (this.#playing()) {
+        if (!this.#modelHeld) {
+          this.#modelHeld = true;
+          this.#note({ kind: 'noted', note: 'not publishing a model: the console is bound to this app as its switcher, and its own LCD app publishes this app’s screens' });
+        }
+        return model;
+      }
+      this.#modelHeld = false;
       await this.#link.publish(model);
       this.#remember(model);
       await this.#bindControls();
@@ -1251,6 +1356,9 @@ export class PixelhueSupervisor extends EventEmitter {
    * otherwise take turns forever.
    */
   #watchForWipe(items) {
+    /* Bound to this app as its switcher, the console's own LCD app publishes, and a redraw of its
+       model carries none of our labels by design: publishing again would fight it. */
+    if (this.#playing()) return;
     if (!Array.isArray(items) || items.length < FULL_REDRAW_KEYS || !this.#names.size) return;
     if (items.some((k) => k && this.#names.has(k.text))) return;
     if (this.#republishTimer) return;
@@ -1266,7 +1374,7 @@ export class PixelhueSupervisor extends EventEmitter {
 
   /** Re-send the model so the panel's lamps agree with the selection we hold. */
   async #republish() {
-    if (!this.#link || !this.#facts) return;
+    if (!this.#link || !this.#facts || this.#playing()) return;
     void this.#drawGrid();
     try {
       const model = this.#modelFrom(this.#facts);
@@ -1318,8 +1426,8 @@ export class PixelhueSupervisor extends EventEmitter {
         letGo: this.#grid.state.letGo ? { ...this.#grid.state.letGo, note: letGoNote(this.#grid.state.letGo) } : null,
         pages: this.#gridView.pages.map((p) => p + 1),
         armed: this.#gridView.armed,
-      } : null,
-      takeCut: this.#grid ? { ...this.#seen, note: takeCutNote(this.#config && this.#config.model, { switcher: this.#playing() }) } : null,
+      } : this.#gridHold ? { connected: false, held: true, since: this.#gridHold.since } : null,
+      takeCut: this.#grid || this.#gridHold ? { ...this.#seen, note: takeCutNote(this.#config && this.#config.model, { switcher: this.#playing() }) } : null,
       /* This app as a mini's switcher: off (null) unless the mode is on, but the binding is read
          on every mini, so a console left bound here with the mode off can be said and undone. */
       switcher: this.#switcher ? {
@@ -1327,6 +1435,8 @@ export class PixelhueSupervisor extends EventEmitter {
         address: this.#facing,
         serial: this.#identity ? this.#identity.serial : null,
         error: this.#switcherError,
+        boundAt: this.#boundAt,
+        modelHeld: this.#modelHeld,
       } : null,
       binding: this.#binding ? { ...this.#binding, kept: Boolean(this.#identity && this.#identity.previous) } : null,
     };
@@ -1350,6 +1460,12 @@ const REREAD = new Set(['store', 'ftb', 'freeze', 'time', 'swap', 'deletePreset'
 const TAKE_SETTLE_MS = 1500;
 /* The console reads its switcher's screens several times a second; facts this young answer it. */
 const SWITCHER_FACTS_MS = 10000;
+/* The key grid held while a console bound here starts (`#holdGrid`): checked this often, taken
+   again this long after its LCD app has read the screens, and taken anyway once its LCD app has
+   talked this long without reading them (it reads them within 5 s of starting, in the rig). */
+const GRID_HOLD_CHECK_MS = 1000;
+const GRID_AFTER_SCREENS_MS = 1500;
+const GRID_HOLD_MS = 30000;
 
 /** The IPv4 addresses a host names: the console's, which the switcher serves and nobody else. */
 async function addressesOf(host) {

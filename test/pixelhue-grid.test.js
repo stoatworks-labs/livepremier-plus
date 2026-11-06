@@ -14,6 +14,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
+import http from 'node:http';
 import { inflateSync } from 'node:zlib';
 
 import {
@@ -485,14 +486,16 @@ function lpStore({ masters = [] } = {}) {
 }
 
 /** The app's panel on a stand-in mini with its grid, and a pretend LivePremier. */
-async function rig({ functionKeys = 'command', masters } = {}) {
+async function rig({ functionKeys = 'command', masters, switcher = false, store = null, console: consoleOpts = {}, hold = {} } = {}) {
   const awj = await fakeAwj(lpStore({ masters }));
-  const standIn = await new StandInConsole({ port: 0, grid: true, gridPort: 0, functionKeys }).start();
+  const standIn = await new StandInConsole({ port: 0, grid: true, gridPort: 0, functionKeys, ...consoleOpts }).start();
   const sup = new PixelhueSupervisor({
     deviceHost: () => '127.0.0.1', awjPort: awj.port,
     consolePort: standIn.port, grid: { port: standIn.lcd.port, ...quick },
+    /* Console TAKE/CUT on any free port, on loopback, where the stand-in console is. */
+    store, switcher: { ports: { http: 0, udp: 0 }, bindAddress: '127.0.0.1', facing: '127.0.0.1', pingMs: 100, gridHoldCheckMs: 20, ...hold },
   });
-  await sup.apply(normalisePixelhue({ pixelhueEnabled: true, pixelhueHost: '127.0.0.1', pixelhueModel: 'u5mini' }));
+  await sup.apply(normalisePixelhue({ pixelhueEnabled: true, pixelhueHost: '127.0.0.1', pixelhueModel: 'u5mini', pixelhueSwitcher: switcher }));
   const lcd = standIn.lcd;
   assert.ok(await until(() => lcd.draws >= 40, 5000), `the whole grid drawn (${lcd.draws})`);
   for (let row = 0; row < 4; row++) lcd.toCompanion(row);
@@ -781,3 +784,388 @@ test('the card says the grid is drawn, how to see it, and that TAKE / CUT have n
   assert.match(after, /closed this app's connection to its key grid 3 times in 60 s/);
 });
 
+/* ============================================= the console's own TAKE and CUT */
+
+/** Where the supervisor keeps its identity and the binding Bind replaced; every save is logged. */
+function memoryStore(log = []) {
+  let doc = null;
+  return {
+    log,
+    get doc() { return doc; },
+    async load() { return doc && structuredClone(doc); },
+    async save(d) { doc = structuredClone(d); log.push({ save: structuredClone(d) }); },
+  };
+}
+
+/** One request to the switcher this app plays, as the mini's clients send them. */
+function call(port, method, path, { body, token } = {}) {
+  return new Promise((resolve, reject) => {
+    const data = body === undefined ? null : Buffer.from(JSON.stringify(body));
+    const req = http.request({
+      host: '127.0.0.1', port, method, path,
+      headers: {
+        'content-type': 'application/json',
+        ...(token ? { authorization: token } : {}),
+        ...(data ? { 'content-length': data.length } : {}),
+      },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(Buffer.concat(chunks).toString('utf8')) }));
+    });
+    req.on('error', reject);
+    req.end(data);
+  });
+}
+
+async function loginTo(sup) {
+  const port = sup.describe().switcher.listening.http;
+  const login = await call(port, 'POST', '/unico/v1/system/auth/login', { body: { username: 'admin', password: 'MTIzNDU2' } });
+  return { port, token: login.body.data.token };
+}
+
+const kept = (p) => p && { deviceSn: p.deviceSn, videoStationSn: p.videoStationSn, ips: p.ips };
+
+test('the console\'s own TAKE and CUT, sent here as to its switcher, take the screens it names', async () => {
+  const r = await rig({ switcher: true, store: memoryStore() });
+  try {
+    const sw = r.sup.describe().switcher;
+    assert.ok(sw.listening.http > 0, 'listening');
+    assert.equal(sw.address, '127.0.0.1');
+    assert.match(sw.serial, /^LPP\d{9}$/);
+    const { port, token } = await loginTo(r.sup);
+    assert.ok(r.said(/logged in to this app as its switcher/));
+
+    const thumb = await call(port, 'GET', '/unico/v1/screen/list-thumb', { token });
+    assert.deepEqual(thumb.body.data.list.map((s) => [s.screenId, s.general.name]), [[1, 'LED 1'], [2, 'LED 2']], 'the switcher\'s screens');
+
+    r.awj.clear();
+    const take = await call(port, 'PUT', '/unico/v1/screen/take', { token, body: [{ screenId: 1 }, { screenId: 2 }] });
+    assert.equal(take.body.code, 0);
+    assert.ok(await until(() => r.awj.writes().length === 2));
+    assert.deepEqual(r.awj.writes(), [
+      { path: toAwj(NLC.takeControl('S1', 'xTake')), value: true },
+      { path: toAwj(NLC.takeControl('S2', 'xTake')), value: true },
+    ]);
+    assert.ok(r.said(/^take S1 S2$/));
+    assert.deepEqual(r.sup.selection.list, [], 'the console chose those screens: this app\'s own selection is untouched');
+
+    r.awj.clear();
+    const cut = await call(port, 'PUT', '/unico/v1/screen/cut', { token, body: [{ screenId: 2 }, { screenId: 7 }] });
+    assert.equal(cut.body.code, 0);
+    assert.ok(await until(() => r.awj.writes().length === 1));
+    assert.deepEqual(r.awj.writes(), [{ path: toAwj(NLC.takeControl('S2', 'xCut')), value: true }]);
+    assert.ok(r.said(/left out screen 7: not one this app offered the console/));
+
+    r.awj.clear();
+    const none = await call(port, 'PUT', '/unico/v1/screen/take', { token, body: [{ screenId: 7 }] });
+    assert.notEqual(none.body.code, 0, 'nothing to take is refused, not answered as done');
+    await settle(200);
+    assert.deepEqual(r.awj.writes(), []);
+    assert.equal(r.sup.describe().switcher.last.action.ok, false);
+  } finally {
+    await r.close();
+  }
+});
+
+test('a locked panel refuses the console\'s TAKE as well, and says why', async () => {
+  const r = await rig({ switcher: true, store: memoryStore() });
+  try {
+    const { port, token } = await loginTo(r.sup);
+    r.standIn.report(523);
+    assert.ok(await until(() => r.said(/^panel locked$/)));
+    r.awj.clear();
+    const take = await call(port, 'PUT', '/unico/v1/screen/take', { token, body: [{ screenId: 1 }] });
+    assert.notEqual(take.body.code, 0);
+    assert.equal(take.body.message, 'ignored — the panel is locked');
+    await settle(200);
+    assert.deepEqual(r.awj.writes(), []);
+  } finally {
+    await r.close();
+  }
+});
+
+test('Bind keeps what the console had before writing anything, a second Bind keeps the first, and Unbind puts it back', async () => {
+  const log = [];
+  const store = memoryStore(log);
+  const r = await rig({ switcher: true, store, console: { boundTo: 'PX0000000042', deviceIps: ['192.168.5.5'], bindingLog: log } });
+  try {
+    assert.ok(await until(() => r.sup.describe().binding), 'the binding is read when the link opens');
+    assert.equal(r.sup.describe().binding.ours, false);
+    assert.equal(r.sup.describe().binding.deviceSn, 'PX0000000042');
+    const { serial } = r.sup.describe().switcher;
+    log.length = 0;
+
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    assert.equal(r.standIn.boundTo, serial);
+    assert.deepEqual(r.standIn.deviceIps, ['192.168.5.5', '127.0.0.1']);
+    assert.ok(log[0].save, 'kept before the console was touched');
+    assert.deepEqual(kept(log[0].save.previous), { deviceSn: 'PX0000000042', videoStationSn: '123123123123', ips: ['192.168.5.5'] });
+    assert.deepEqual(log.slice(1).map((e) => e.write), ['device-ips', 'binding']);
+    let d = r.sup.describe();
+    assert.equal(d.binding.ours, true);
+    assert.equal(d.binding.kept, true);
+    assert.match(d.takeCut.note, /come to this app as the switcher it is bound to/);
+    assert.ok(r.said(/it was bound to PX0000000042, which Unbind puts back/));
+
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    assert.deepEqual(kept(store.doc.previous), { deviceSn: 'PX0000000042', videoStationSn: '123123123123', ips: ['192.168.5.5'] },
+      'a Bind on top of a Bind keeps what the console had first');
+    assert.deepEqual(r.standIn.deviceIps, ['192.168.5.5', '127.0.0.1'], 'and adds this app once');
+
+    assert.deepEqual(await r.sup.unbindConsole(), { ok: true });
+    assert.equal(r.standIn.boundTo, 'PX0000000042');
+    assert.deepEqual(r.standIn.deviceIps, ['192.168.5.5']);
+    assert.equal(store.doc.previous, null, 'forgotten once both read back');
+    assert.equal(store.doc.serial, serial, 'the identity outlives the binding');
+    d = r.sup.describe();
+    assert.equal(d.binding.ours, false);
+    assert.equal(d.binding.kept, false);
+
+    const again = await r.sup.unbindConsole();
+    assert.equal(again.ok, false);
+    assert.match(again.error, /not bound to this app, and no binding is kept/);
+    assert.equal(r.standIn.boundTo, 'PX0000000042', 'and nothing was written');
+  } finally {
+    await r.close();
+  }
+});
+
+test('a console bound here as its switcher is handed no model, and gets this app\'s back after Unbind', async () => {
+  const r = await rig({ switcher: true, store: memoryStore(), console: { boundTo: 'PX0000000042' } });
+  try {
+    assert.ok(await until(() => r.standIn.published >= 1), 'bound elsewhere, the console gets the model as ever');
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    const before = r.standIn.published;
+    assert.ok(await r.sup.refresh(), 'the switcher is still read');
+    assert.equal(r.standIn.published, before, 'but its LCD app publishes the model now, so this app does not');
+    assert.ok(r.said(/not publishing a model: the console is bound to this app as its switcher/));
+    assert.equal(r.sup.describe().switcher.modelHeld, true);
+    assert.ok(r.said(/Restart the console \(switch it off and on\)/));
+
+    assert.deepEqual(await r.sup.unbindConsole(), { ok: true });
+    assert.ok(await until(() => r.standIn.published > before), 'unbound, the console gets this app\'s model again');
+    assert.equal(r.sup.describe().switcher.modelHeld, false);
+  } finally {
+    await r.close();
+  }
+});
+
+test('bound here as its switcher, the key grid is let go until the console has read this app\'s screens', async () => {
+  const r = await rig({ switcher: true, store: memoryStore(), hold: { gridAfterScreensMs: 0, gridHoldMs: 60000 } });
+  try {
+    assert.equal(r.sup.describe().grid.connected, true);
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    assert.equal(r.sup.describe().grid.held, true, 'let go at Bind: the console has to restart, and must not find it held');
+    assert.ok(await until(() => !r.lcd.current), 'and the grid is free');
+    assert.ok(r.said(/key grid let go until the console has read this app’s screens/));
+
+    const { port, token } = await loginTo(r.sup);
+    await call(port, 'GET', '/unico/v1/screen/tbar', { token });
+    await settle(100);
+    assert.equal(r.sup.describe().grid.held, true, 'talking is not reading the screens');
+    await call(port, 'GET', '/unico/v1/screen/list-thumb', { token });
+    assert.ok(await until(() => r.sup.describe().grid.connected), 'taken again once its LCD app has read them');
+    assert.ok(await until(() => r.lcd.current), 'and held by this app');
+
+    /* A console restarting drops the grid: let go again, until it has read them again. */
+    r.lcd.current.socket.destroy();
+    assert.ok(await until(() => r.sup.describe().grid && r.sup.describe().grid.held), 'let go when the console drops it');
+    await settle(100);
+    assert.equal(r.lcd.current, null, 'and not dialled again meanwhile');
+    await call(port, 'GET', '/unico/v1/screen/list-thumb', { token });
+    assert.ok(await until(() => r.sup.describe().grid.connected), 'taken again after the second read');
+  } finally {
+    await r.close();
+  }
+});
+
+test('a console that never reads the screens gets the key grid back, with a word, and Unbind gives it back at once', async () => {
+  const r = await rig({ switcher: true, store: memoryStore(), hold: { gridHoldMs: 200 } });
+  try {
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    assert.equal(r.sup.describe().grid.held, true);
+    const { port, token } = await loginTo(r.sup);
+    const talking = setInterval(() => { void call(port, 'GET', '/unico/v1/screen/tbar', { token }).catch(() => {}); }, 30);
+    try {
+      assert.ok(await until(() => r.sup.describe().grid.connected), 'taken back after its LCD app has talked long enough without reading them');
+    } finally {
+      clearInterval(talking);
+    }
+    assert.ok(r.said(/has not read this app’s screens in 0 s; taking the key grid back\. If its SCREEN row is empty, restart the console/));
+
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    assert.equal(r.sup.describe().grid.held, true);
+    assert.deepEqual(await r.sup.unbindConsole(), { ok: true });
+    assert.ok(await until(() => r.sup.describe().grid.connected), 'unbound, the grid is taken at once');
+    r.lcd.current.socket.destroy();
+    await settle(150);
+    assert.notEqual(r.sup.describe().grid.held, true, 'and a drop is only a drop again');
+  } finally {
+    await r.close();
+  }
+});
+
+test('a console already bound here when the link opens is never handed a model', async () => {
+  const store = memoryStore();
+  const first = await rig({ switcher: true, store });
+  const serial = first.sup.describe().switcher.serial;
+  await first.close();
+  const r = await rig({ switcher: true, store, console: { boundTo: serial } });
+  try {
+    assert.ok(await until(() => r.sup.describe().binding && r.sup.describe().binding.ours));
+    assert.ok(await until(() => r.said(/not publishing a model/)), 'the binding is read before the first publish');
+    await settle(200);
+    assert.equal(r.standIn.published, 0);
+  } finally {
+    await r.close();
+  }
+});
+
+test('a console that already searched this app\'s address keeps it after Unbind', async () => {
+  const store = memoryStore();
+  const r = await rig({ switcher: true, store, console: { boundTo: 'PX0000000042', deviceIps: ['127.0.0.1'] } });
+  try {
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    assert.deepEqual(r.standIn.deviceIps, ['127.0.0.1'], 'not added twice');
+    assert.deepEqual(kept(store.doc.previous).ips, ['127.0.0.1'], 'kept as read');
+    assert.deepEqual(await r.sup.unbindConsole(), { ok: true });
+    assert.deepEqual(r.standIn.deviceIps, ['127.0.0.1'], 'it was the console\'s before Bind, so it stays');
+    assert.equal(r.standIn.boundTo, 'PX0000000042');
+  } finally {
+    await r.close();
+  }
+});
+
+test('a console bound to another switcher since Bind is left as it is by Unbind', async () => {
+  const store = memoryStore();
+  const r = await rig({ switcher: true, store, console: { boundTo: '', deviceIps: [] } });
+  try {
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    r.standIn.boundTo = 'PX0000000099';
+    assert.deepEqual(await r.sup.unbindConsole(), { ok: true });
+    assert.equal(r.standIn.boundTo, 'PX0000000099', 'theirs stands');
+    assert.deepEqual(r.standIn.deviceIps, [], 'only this app\'s address goes');
+    assert.equal(store.doc.previous, null);
+    assert.ok(r.said(/bound to PX0000000099 now, not this app; left as it is/));
+  } finally {
+    await r.close();
+  }
+});
+
+test('the serial and token outlive a restart, so a console holding them is not stranded', async () => {
+  const store = memoryStore();
+  const first = await rig({ switcher: true, store });
+  const serial = first.sup.describe().switcher.serial;
+  const { token } = await loginTo(first.sup);
+  await first.close();
+  const second = await rig({ switcher: true, store });
+  try {
+    assert.equal(second.sup.describe().switcher.serial, serial);
+    assert.equal((await loginTo(second.sup)).token, token);
+  } finally {
+    await second.close();
+  }
+});
+
+test('with Console TAKE/CUT off there is no switcher and no Bind, but a console still bound here can be unbound', async () => {
+  const store = memoryStore();
+  const r = await rig({ switcher: true, store, console: { boundTo: 'PX0000000042', deviceIps: [] } });
+  const settings = { pixelhueEnabled: true, pixelhueHost: '127.0.0.1', pixelhueModel: 'u5mini' };
+  try {
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    await r.sup.apply(normalisePixelhue({ ...settings, pixelhueSwitcher: false }));
+    assert.equal(r.sup.describe().switcher, null);
+    assert.ok(await until(() => r.sup.describe().binding && r.sup.describe().binding.ours), 'still bound here, and said so');
+    assert.match(r.sup.describe().takeCut.note, /never to this app/, 'off, the console\'s keys are not this app\'s');
+
+    const refused = await r.sup.bindConsole();
+    assert.equal(refused.ok, false);
+    assert.match(refused.error, /turn Console TAKE\/CUT on first/);
+
+    assert.deepEqual(await r.sup.unbindConsole(), { ok: true });
+    assert.equal(r.standIn.boundTo, 'PX0000000042');
+  } finally {
+    await r.close();
+  }
+});
+
+test('a mini that only lights TAKE\'s key is not told nothing was sent when it is bound here', async () => {
+  const r = await rig({ functionKeys: 'keys', switcher: true, store: memoryStore() });
+  try {
+    await r.lcd.press(SCREENS, 0);
+    assert.ok(await until(() => r.sup.selection.list.length === 1));
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    await r.standIn.pressFunction(65);
+    await settle(600);
+    assert.equal(r.said(/^TAKE pressed on the console/), false, 'the press went to this app as a take, which says so itself');
+  } finally {
+    await r.close();
+  }
+});
+
+test('a port something else holds is said, and the panel still runs', async () => {
+  const holder = net.createServer();
+  await new Promise((res) => holder.listen(0, '127.0.0.1', res));
+  const taken = holder.address().port;
+  const awj = await fakeAwj(lpStore());
+  const standIn = await new StandInConsole({ port: 0, grid: true, gridPort: 0 }).start();
+  const sup = new PixelhueSupervisor({
+    deviceHost: () => '127.0.0.1', awjPort: awj.port, consolePort: standIn.port, grid: { port: standIn.lcd.port, ...quick },
+    store: memoryStore(), switcher: { ports: { http: taken, udp: 0 }, bindAddress: '127.0.0.1', facing: '127.0.0.1' },
+  });
+  try {
+    await sup.apply(normalisePixelhue({ pixelhueEnabled: true, pixelhueHost: '127.0.0.1', pixelhueModel: 'u5mini', pixelhueSwitcher: true }));
+    const d = sup.describe();
+    assert.match(d.switcher.errors.http, new RegExp(`Port ${taken}`));
+    assert.ok(sup.history.some((e) => /console TAKE\/CUT: .*Port/.test(e.error || '')));
+    assert.ok(await until(() => sup.describe().grid.connected), 'the key grid does not care');
+  } finally {
+    await sup.stop();
+    await standIn.stop();
+    await awj.close();
+    await new Promise((res) => holder.close(res));
+  }
+});
+
+test('the card says where the console\'s TAKE / CUT go, with Bind and Unbind, and a console left bound with the mode off', async () => {
+  const r = await rig({ switcher: true, store: memoryStore() });
+  let on;
+  let off;
+  try {
+    assert.deepEqual(await r.sup.bindConsole(), { ok: true });
+    on = r.sup.describe();
+    await r.sup.apply(normalisePixelhue({ pixelhueEnabled: true, pixelhueHost: '127.0.0.1', pixelhueModel: 'u5mini', pixelhueSwitcher: false }));
+    assert.ok(await until(() => r.sup.describe().binding && r.sup.describe().binding.ours));
+    off = r.sup.describe();
+  } finally {
+    await r.close();
+  }
+  const settings = normalisePixelhue({ pixelhueEnabled: true, pixelhueHost: '127.0.0.1', pixelhueModel: 'u5mini', pixelhueSwitcher: true });
+  const text = await cardText(on, settings);
+  assert.match(text, /Console TAKE\/CUT \(preview\)/);
+  assert.match(text, /As its switcher/);
+  assert.match(text, /listening on 127\.0\.0\.1/);
+  assert.match(text, new RegExp(`Console bound tothis app \\(${on.switcher.serial}\\)`));
+  assert.match(text, /BindUnbind/);
+  assert.match(text, /PixelFlow’s UCenter service holds/);
+  assert.doesNotMatch(text, /not seen yet/, 'the "never reported" readout is for a console not bound here');
+
+  const taken = { ...on, switcher: { ...on.switcher, errors: { http: 'Port 19999 is in use, usually by PixelFlow’s UCenter.', udp: null } } };
+  const held = await cardText(taken, settings);
+  assert.match(held, /port 19999 is taken/);
+  assert.match(held, /Port 19999 is in use/);
+
+  assert.match(text, /Console screensnot read yet — restart the console/);
+  assert.match(text, /Restart the console now: switch it off and on/);
+  const read = { ...on, switcher: { ...on.switcher, last: { ...on.switcher.last, screens: { at: on.switcher.boundAt + 1, from: '127.0.0.1', count: 2 } } } };
+  const picked = await cardText(read, settings);
+  assert.match(picked, /Console screens2 read by the console/);
+  assert.doesNotMatch(picked, /Restart the console now/);
+  const stale = { ...on, switcher: { ...on.switcher, last: { ...on.switcher.last, screens: { at: on.switcher.boundAt - 1, from: '127.0.0.1', count: 2 } } } };
+  assert.match(await cardText(stale, settings), /Restart the console now/, 'a read from before Bind does not count');
+
+  const left = await cardText(off, { ...settings, pixelhueSwitcher: false });
+  assert.match(left, /still bound to this app, with Console TAKE\/CUT off/);
+  assert.match(left, /Unbind/);
+});

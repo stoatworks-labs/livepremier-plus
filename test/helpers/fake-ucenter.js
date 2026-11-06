@@ -22,6 +22,15 @@
  *   PUT  …/video-station/key/action    a press: a raw key state, then a command
  *   WS   /unico/v1/ws                  NOVA frames to every client
  *
+ * and a mini's binding to its switcher, as its own firmware answered in the
+ * pixelhue-re rig (V1.0.3, 2026-11-06):
+ *
+ *   GET  /unico/v1/video-station/binding   `{list: [{deviceSn, videoStationSn}]}`
+ *   POST /unico/v1/video-station/binding   bind, or unbind with an empty deviceSn (a PUT is refused)
+ *   GET  /unico/v1/ucenter/device-ips      `{ips}`, the addresses it searches
+ *   PUT  /unico/v1/ucenter/device-ips      replaces them
+ *   GET  /unico/v1/node/detail?nodeId=1    its own serial, as `sn`
+ *
  * ⚠️ **The socket is at the mini's path, and only there.** Until 2026-10-22
  * this served the U5's `/unico/v1/ucenter/ws`, the app dialled the same, every
  * dry run passed, and the first real mini answered that path with an ordinary
@@ -89,7 +98,14 @@ export class StandInConsole {
   constructor({
     keyMap = MINI_KEYS, port = 8088, host = '127.0.0.1', wsPath = MINI_WS_PATH,
     grid = false, gridPort = 17100, functionKeys = 'command',
+    serial = '123123123123', boundTo = '', deviceIps = [], bindingLog = [],
   } = {}) {
+    /* The mini's binding: its serial, the switcher it names, and the addresses it searches.
+       Every write to them is pushed to `bindingLog`, so a test can order them against its own. */
+    this.serial = serial;
+    this.boundTo = boundTo;
+    this.deviceIps = [...deviceIps];
+    this.bindingLog = bindingLog;
     this.keyMap = keyMap;
     this.port = port;
     this.host = host;
@@ -183,6 +199,27 @@ export class StandInConsole {
       return ok();
     }
     if (req.method === 'PUT' && path === `${BASE}/video-station/key/response-state`) return ok();
+
+    if (path === '/unico/v1/video-station/binding') {
+      if (req.method === 'GET') return ok({ list: [{ deviceSn: this.boundTo, videoStationSn: this.serial }] });
+      if (req.method === 'POST') {
+        if (!body || Array.isArray(body) || body.videoStationSn !== this.serial) return reply({ code: 1, message: 'invalid param' });
+        this.boundTo = String(body.deviceSn || '');
+        this.bindingLog.push({ write: 'binding', deviceSn: this.boundTo });
+        return ok();
+      }
+      return reply({ code: 1, message: 'proxied request refused' });
+    }
+    if (path === `${BASE}/device-ips`) {
+      if (req.method === 'GET') return ok({ ips: [...this.deviceIps] });
+      if (req.method === 'PUT' && body && Array.isArray(body.ips)) {
+        this.deviceIps = body.ips.map(String);
+        this.bindingLog.push({ write: 'device-ips', ips: [...this.deviceIps] });
+        return ok({ ips: [...this.deviceIps] });
+      }
+      return reply({ code: 1, message: 'invalid param' });
+    }
+    if (req.method === 'GET' && path === '/unico/v1/node/detail') return ok({ nodeId: 1, modelId: 29711, sn: this.serial, version: 'V1.0.3' });
     res.statusCode = 404;
     reply({ code: 404, message: 'not found' });
   }
@@ -351,6 +388,11 @@ export class StandInConsole {
       });
       await new Promise((r) => setTimeout(r, ms));
     }
+  }
+
+  /** A command on this app's socket, as the console reports one: LOCK PANEL (523) and the rest. */
+  report(command, payload = {}) {
+    this.#command(command, payload);
   }
 
   /** Press and release a key from inside, as a thumb would; `hold` in ms. */

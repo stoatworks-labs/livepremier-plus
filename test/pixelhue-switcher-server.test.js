@@ -40,8 +40,8 @@ async function standUp(over = {}) {
   return { server, performed, port: server.bound.http, udp: server.bound.udp };
 }
 
-/** One HTTP request as the mini's clients send them. */
-function call(port, method, path, { body, token } = {}) {
+/** One HTTP request as the mini's clients send them: the LCD app with no user agent, nvcontroller with Go's. */
+function call(port, method, path, { body, token, agent } = {}) {
   return new Promise((resolve, reject) => {
     const data = body === undefined ? null : Buffer.from(JSON.stringify(body));
     const req = http.request({
@@ -49,6 +49,7 @@ function call(port, method, path, { body, token } = {}) {
       headers: {
         'content-type': 'application/json',
         ...(token ? { authorization: token } : {}),
+        ...(agent ? { 'user-agent': agent } : {}),
         ...(data ? { 'content-length': data.length } : {}),
       },
     }, (res) => {
@@ -125,6 +126,23 @@ test('login hands out the kept token; without it every other request is refused'
   const thumb = await call(port, 'GET', '/unico/v1/screen/list-thumb', { token: 'kept-token' });
   assert.equal(thumb.status, 200);
   assert.deepEqual(thumb.body.data.list.map((s) => [s.screenId, s.general.name]), [[1, 'Main'], [2, 'Wide']]);
+});
+
+test('the LCD app reading the screen list is told from nvcontroller reading it, and said once', async (t) => {
+  const { server, port } = await standUp();
+  t.after(() => server.stop());
+  const read = [];
+  server.on('screens', (r) => read.push(r));
+  await call(port, 'POST', '/unico/v1/system/auth/login', { body: { username: 'admin', password: 'MTIzNDU2' } });
+  await call(port, 'GET', '/unico/v1/screen/list-thumb', { token: 'kept-token', agent: 'Go-http-client/1.1' });
+  assert.equal(server.describe().last.screens, null, 'nvcontroller reads it at every login, whatever the SCREEN row shows');
+  assert.equal(read.length, 0);
+  await call(port, 'GET', '/unico/v1/screen/list-thumb', { token: 'kept-token' });
+  await call(port, 'GET', '/unico/v1/screen/list-thumb', { token: 'kept-token' });
+  assert.equal(read.length, 1, 'said once, not at every read');
+  assert.equal(read[0].count, 2);
+  assert.equal(read[0].from, '127.0.0.1');
+  assert.equal(server.describe().last.screens.count, 2);
 });
 
 test('TAKE and CUT from the console are performed for the screens it names', async (t) => {
