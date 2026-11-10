@@ -16,8 +16,8 @@ import activate, { settings as schema } from '../plugins/remote-access/server.js
 /* Trimmed from `tailscale status --json` on 1.102.4. */
 const TS_STATUS = JSON.stringify({
   BackendState: 'Running',
-  Self: { DNSName: 'venue-lpp.tail745ddc.ts.net.', HostName: 'venue-lpp', TailscaleIPs: ['100.111.187.92', 'fd7a:115c:a1e0::5601:bb89'] },
-  CertDomains: ['venue-lpp.tail745ddc.ts.net'],
+  Self: { DNSName: 'venue-lpp.tail1234.ts.net.', HostName: 'venue-lpp', TailscaleIPs: ['100.64.0.5', 'fd7a:115c:a1e0::5'] },
+  CertDomains: ['venue-lpp.tail1234.ts.net'],
   CurrentTailnet: { Name: 'example.org' }
 });
 
@@ -30,9 +30,9 @@ const ZT_NETS = JSON.stringify([
 test('tailscale status: name without the trailing dot, addresses, HTTPS names', () => {
   const s = parseTailscaleStatus(TS_STATUS);
   assert.equal(s.state, 'Running');
-  assert.equal(s.name, 'venue-lpp.tail745ddc.ts.net');
-  assert.deepEqual(s.addresses, ['100.111.187.92', 'fd7a:115c:a1e0::5601:bb89']);
-  assert.deepEqual(s.httpsNames, ['venue-lpp.tail745ddc.ts.net']);
+  assert.equal(s.name, 'venue-lpp.tail1234.ts.net');
+  assert.deepEqual(s.addresses, ['100.64.0.5', 'fd7a:115c:a1e0::5']);
+  assert.deepEqual(s.httpsNames, ['venue-lpp.tail1234.ts.net']);
   assert.equal(parseTailscaleStatus('not json').state, '');
 });
 
@@ -179,7 +179,7 @@ test('Tailscale serve: on, moved to another port, then off — and only ever our
   await hs.start();
   assert.equal(hs.serve(), 'http://127.0.0.1:8535');
   let st = await hs.call('GET', '/state');
-  assert.equal(st.body.tailscale.url, 'https://venue-lpp.tail745ddc.ts.net/');
+  assert.equal(st.body.tailscale.url, 'https://venue-lpp.tail1234.ts.net/');
   await hs.set({ httpsPort: 8443 });
   assert.deepEqual(hs.calls, [['serve', 443], ['unserve', 443], ['serve', 8443]]);
   await hs.set({ tailscale: 'off' });
@@ -201,7 +201,7 @@ test('Tailscale serve without HTTPS certificates says where to switch them on', 
 test('Tailscale bind: doors on the tailnet addresses; a wildcard bind needs none', async () => {
   const hs = harness({ initial: { tailscale: 'bind' } });
   await hs.start();
-  assert.deepEqual([...hs.open].sort(), ['100.111.187.92', 'fd7a:115c:a1e0::5601:bb89']);
+  assert.deepEqual([...hs.open].sort(), ['100.64.0.5', 'fd7a:115c:a1e0::5']);
   await hs.stop();
   assert.equal(hs.open.size, 0);
 
