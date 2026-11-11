@@ -258,7 +258,7 @@ export class TabHost {
 
     const bounds = this._bounds(strip);
     const fits = () => {
-      const r = strip.getBoundingClientRect();
+      const r = this._extent(strip);
       return r.left >= bounds.left - 0.5 && r.right <= bounds.right + 0.5;
     };
 
@@ -272,6 +272,31 @@ export class TabHost {
       if (fits()) break;
     }
     this.mode = 'more';
+  }
+
+  /**
+   * Where the strip's tabs actually are, in viewport pixels.
+   *
+   * On LivePremier the strip shrink-wraps its tabs, so its own box is the
+   * answer. On Midra 4K and Alta 4K it is an ordinary flex row as wide as the
+   * panel, `nowrap`, and the tabs overflow it without the box growing — so
+   * the box always "fitted", every tab stayed at full width, and the last
+   * ones ran out of the 300px panel and over the Quick Preset column beside
+   * it (seen on a Pulse 4K, 2026-11-11). The union of the box and every
+   * shown tab is right on both.
+   */
+  _extent(strip) {
+    const r = strip.getBoundingClientRect();
+    let left = r.left;
+    let right = r.right;
+    for (const a of strip.querySelectorAll('a')) {
+      if (a.style.display === 'none') continue;
+      const t = a.getBoundingClientRect();
+      if (!t.width) continue;
+      left = Math.min(left, t.left);
+      right = Math.max(right, t.right);
+    }
+    return { left, right };
   }
 
   /**

@@ -94,6 +94,17 @@ function stubDom() {
        with the strip's row, and nothing for the rest. */
     getBoundingClientRect() {
       if (this._rect) return this._rect();
+      /* A tab in a strip that lays its tabs out in a row from its own left
+         edge (`_flow`, Midra's shape), one after another, 1px apart. */
+      const p = this.parentElement;
+      if (this.tagName === 'A' && p && p._flow) {
+        let x = p.getBoundingClientRect().left;
+        for (const c of p.children) {
+          if (c === this) break;
+          if (c.tagName === 'A' && c.style.display !== 'none') x += c.offsetWidth + 1;
+        }
+        return { left: x, right: x + this.offsetWidth, top: 8, bottom: 48, width: this.offsetWidth, height: 40 };
+      }
       if (this.tagName === 'A') return { left: 0, right: this.offsetWidth, top: 8, bottom: 48, width: this.offsetWidth, height: 40 };
       return { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 };
     }
@@ -570,10 +581,16 @@ const labelsOf = (strip) =>
     };
   });
 
-async function fitAt(room, { tabs = fitTabs, collapse = false, then } = {}) {
+async function fitAt(room, { tabs = fitTabs, collapse = false, flow = false, then } = {}) {
   return withDom(async (stub) => {
     stub.container.clientWidth = room;
     if (collapse) addCollapse(stub);
+    if (flow) {
+      /* Midra 4K's shape: the strip is a plain flex row as wide as its
+         panel, and its tabs run on past the edge without the box growing. */
+      stub.strip._rect = () => ({ left: 0, right: room, top: 0, bottom: 48, width: room, height: 48 });
+      stub.strip._flow = true;
+    }
     const { TabHost } = await import('../src/ui/tabs.js');
     const host = new TabHost({ tabs: tabs(stub.doc) });
     host._mount();
@@ -590,6 +607,25 @@ test('a wide panel keeps the full labels and the icons', async () => {
     { text: 'Console', icon: true },
     { text: 'Timeline', icon: true }
   ]);
+});
+
+/*
+ * On Midra 4K the strip's box never grows past the panel, so measuring the
+ * box alone said every rung fitted and the tabs stayed full width, running
+ * over the Quick Preset column (Pulse 4K, 2026-11-11). Measured by where the
+ * tabs are, it steps down like LivePremier does.
+ */
+test('a strip as wide as its panel still steps down when its tabs overflow it', async () => {
+  const { host, strip } = await fitAt(380, { flow: true });
+  assert.notEqual(host.mode, 'full');
+  const shown = strip.querySelectorAll('a').filter((a) => a.style.display !== 'none');
+  const right = Math.max(...shown.map((a) => a.getBoundingClientRect().right));
+  assert.ok(right <= 380, 'every shown tab inside the panel: ' + right);
+});
+
+test('a strip as wide as its panel keeps full labels when they do fit', async () => {
+  const { host } = await fitAt(600, { flow: true });
+  assert.equal(host.mode, 'full');
 });
 
 /* The icon is the first thing to go: a word is worth more than a glyph in a
