@@ -186,6 +186,45 @@ test('a timer already running when first seen is unknown until stopped', () => {
   assert.equal(t.elapsed('TIMER_2', 12500), 2.5, 'the front panel’s Start, seen only as a state');
 });
 
+test('a real Pulse 4K’s messages: pause, resume, stop and start of a 10-minute countdown', () => {
+  /* Logged off a Pulse 4K 3.3.10's WebSocket on 2026-11-11 while the
+     operator pressed the vendor's buttons; ms from the moment the page first
+     saw Timer 1, already RUNNING. Each pulse's echo comes first, the state
+     2–9 ms after; the flags stay latched true. */
+  const PULSE = [
+    [50371, 'xPause', true], [50372, 'xPause', true], [50374, 'state', 'PAUSED'],
+    [51487, 'xStart', false], [51491, 'xStart', true], [51491, 'xStart', false], [51492, 'xStart', true], [51492, 'state', 'RUNNING'],
+    [52994, 'xStop', true], [52996, 'xStop', true], [52998, 'state', 'IDLE'],
+    [54669, 'xStart', false], [54670, 'xStart', true], [54672, 'xStart', false], [54676, 'xStart', true], [54678, 'state', 'RUNNING']
+  ];
+  const store = midra();
+  store.set(TIMER('TIMER_1', 'control', 'pp', 'type'), 'COUNTDOWN');
+  store.set(TIMER('TIMER_1', 'control', 'pp', 'countdownDuration'), 600);
+  const timer = readTimer(store, 'TIMER_1');
+  const t = createTracker();
+  t.seen('TIMER_1', 'RUNNING', 0);
+  const phases = [];
+  for (const [at, prop, value] of PULSE) {
+    const path = prop === 'state' ? TIMER('TIMER_1', 'status', 'pp', 'state') : TIMER('TIMER_1', 'control', 'pp', prop);
+    const e = timerEvent(path);
+    t.event(e.key, e.kind, at, value);
+    phases.push(t.phase('TIMER_1'));
+  }
+  assert.deepEqual(phases.slice(0, 8), Array(8).fill('unknown'), 'a pause and resume of a countdown never seen starting say nothing');
+  assert.deepEqual(phases.slice(8, 11), ['idle', 'idle', 'idle'], 'Stop makes it knowable');
+  assert.deepEqual(phases.slice(11), ['idle', 'running', 'running', 'running', 'running'], 'timed from the first rising xStart');
+  assert.equal(switcherView(timer, t, 54670 + 51200).text, '00:09:09', '51.2 s in, as the replay read it');
+  /* The Pulse said ELAPSED 600.103 s after that rising xStart (11:10:47.732
+     against 11:00:47.629): its clock and ours agree to a tenth of a second. */
+  const ELAPSED_AT = 54670 + 600103;
+  assert.equal(switcherView(timer, t, ELAPSED_AT - 1000).text, '00:00:01', 'counting the last second');
+  assert.equal(switcherView(timer, t, ELAPSED_AT - 1).text, '00:00:00', 'ours reached zero 0.103 s before the Pulse said so');
+  t.event('TIMER_1', 'state', ELAPSED_AT, 'ELAPSED');
+  assert.equal(t.phase('TIMER_1'), 'elapsed');
+  assert.ok(Math.abs(t.elapsed('TIMER_1', ELAPSED_AT + 60000) - 600.103) < 1e-9, 'elapsed stops at the Pulse’s word');
+  assert.equal(switcherView(timer, t, ELAPSED_AT + 60000).text, '00:00:00');
+});
+
 test('only timer pulses and states are timer events', () => {
   assert.deepEqual(timerEvent(TIMER('TIMER_3', 'control', 'pp', 'xPause')), { key: 'TIMER_3', kind: 'pause' });
   assert.deepEqual(timerEvent(TIMER('TIMER_1', 'status', 'pp', 'state')), { key: 'TIMER_1', kind: 'state' });
@@ -240,7 +279,7 @@ test('a Stagetimer countdown is finish minus now while running, finish minus pau
   assert.equal(stagetimerView(snap, 1_580_000).phase, 'red');
   const over = stagetimerView(snap, 1_662_000);
   assert.equal(over.phase, 'over');
-  assert.equal(stagetimerText(over).text, '-1:02');
+  assert.equal(stagetimerText(over).text, '+1:02', 'over, with a room’s default plus, as a real room drew it');
   const paused = stagetimerView({ ...snap, status: { ...base, running: false, pause: 1_300_000 } }, 1_550_000);
   assert.equal(stagetimerText(paused).text, '5:00');
   assert.equal(paused.running, false);

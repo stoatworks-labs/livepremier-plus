@@ -21,8 +21,9 @@
  *   already running or paused when this page first sees it **cannot be
  *   known** — when it started was never published — and reads as unknown
  *   until it is stopped. The simulator echoes the pulses and never changes
- *   a timer's state, so the state half is unproven: written to the
- *   vendor's enum, never seen move.
+ *   a timer's state; a real Pulse 4K (3.3.10, 2026-11-11) sends the pulse's
+ *   echo and then the state a few ms later, and nothing at all while a
+ *   countdown runs (AGENTS.md, Timer Image).
  *   A time-of-day timer is this machine's clock plus the timer's
  *   `timeOffset`, not the switcher's own clock, which no store path carries.
  * - **Stagetimer.io**, a room's current timer, through the server half
@@ -231,9 +232,12 @@ export function timerEvent(path) {
  *   tracker.phase(key)               idle | running | paused | elapsed | unknown
  *
  * Every transition is idempotent, because each arrives twice: the simulator
- * echoes both edges of a pulse twice, and on a real unit a pulse is followed
- * by the state it caused. A Start while paused resumes — an assumption: the
- * vendor's page has one Start button for both, and nothing has shown which.
+ * echoes both edges of a pulse twice, and on a real unit (Pulse 4K 3.3.10)
+ * the echo is followed by the state it caused, 2–9 ms later. A unit leaves
+ * `xStart`/`xPause`/`xStop` latched true, so a repeat press has no rising
+ * edge and only the state says what happened. A Start while paused resumes
+ * — an assumption: the vendor's page has one Start button for both, and
+ * the state reads RUNNING either way.
  */
 export function createTracker() {
   const timers = new Map();
@@ -375,14 +379,21 @@ export function timerLength(t) {
   return (Number(t.hours) || 0) * 3600 + (Number(t.minutes) || 0) * 60 + (Number(t.seconds) || 0);
 }
 
-/** Stagetimer's own countdown text: rounded up while time is left, minus once over. */
+/**
+ * Stagetimer's own countdown text: rounded up while time is left, then the
+ * time over, floored, after a plus — a room's default (Room Settings ▸
+ * Overtime ▸ Prefix), and what a real room drew beside this on 2026-11-11.
+ * A room can be set to minus, or to stop or hide at 0:00, and to other
+ * countdown formats, but none of that is in the API (the real `room` event
+ * carried exactly the ten documented fields), so this cannot follow it.
+ */
 export function stagetimerCountdown(ms, precision = 'seconds') {
   if (ms > 0) {
     const secs = precision === 'minutes' ? Math.ceil(ms / 60000) * 60 : Math.ceil(ms / 1000);
     return hms(secs, precision);
   }
   const over = precision === 'minutes' ? Math.floor(-ms / 60000) * 60 : Math.floor(-ms / 1000);
-  return over === 0 ? hms(0, precision) : `-${hms(over, precision)}`;
+  return over === 0 ? hms(0, precision) : `+${hms(over, precision)}`;
 }
 
 /** Stagetimer's count-up text: rounded down. */

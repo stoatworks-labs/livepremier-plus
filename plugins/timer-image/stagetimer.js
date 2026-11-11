@@ -4,8 +4,10 @@
  * A port of bdstage's client (birddog-play-patcher/stagetimer, Go:
  * stagetimer.go, socketio.go, feed.go), which follows Stagetimer's Web API v1
  * docs (https://stagetimer.io/docs/api-v1/) and what api.stagetimer.io
- * answered on 2026-11-10 to a made-up room. **No real room's events have been
- * seen** — the payloads are the documented ones.
+ * answered on 2026-11-10 to a made-up room. A real room, on 2026-11-11, sent
+ * exactly the documented fields — `room`, `playback_status`, `current_timer`,
+ * `next_timer` (null when nothing is next) — and nothing about its display
+ * settings (AGENTS.md, Timer Image).
  *
  * - **The feed is Socket.IO v4** (Engine.IO 4) at `/v1/socket.io/`, opened
  *   straight onto the WebSocket transport, which Engine.IO allows and which

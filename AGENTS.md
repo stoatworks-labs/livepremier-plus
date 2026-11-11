@@ -1155,9 +1155,25 @@ writes, `stagetimer.js` + `server.js` the server half, `panel.js` the page.
   the page *sees come back* (`frame` events `dir: 'in'`), whoever sent them.
   A timer already RUNNING or PAUSED when a page first sees it is `unknown`
   until it is stopped or started — said on the panel, never guessed. The
-  Midra simulator echoes each pulse's edges twice and never changes `state`,
-  so every transition is idempotent; how a real unit reports one is unseen.
-  Start while paused resumes: an assumption, the vendor has one Start button.
+  Midra simulator echoes each pulse's edges twice and never changes `state`.
+  **A real Pulse 4K (3.3.10, 2026-11-11, watched passively while the
+  operator pressed the buttons in the vendor's page)** sends the pulse's
+  echo and then the state 2–9 ms later: Pause → `xPause` true ×2, `PAUSED`;
+  Start → `xStart` false, true, false, true, `RUNNING`; Stop → `xStop` true
+  ×2, `IDLE`. The `x…` flags stay latched true afterwards (the store showed
+  `xStart: true` on a running timer), so a later press of the same button
+  shows no rising edge; that is why the tracker takes the `state` messages
+  as well as the pulses, and every transition is idempotent. While a
+  countdown runs nothing is sent at all — not a frame in 20 s — and the
+  timer's status has no field but `state` in 3.3.10's own attribute table.
+  The page saw `RUNNING` at load, stayed `unknown` through a pause and
+  resume, went idle at Stop and timed the next Start: replaying the logged
+  frames through `createTracker` gave the right reading. At zero the Pulse
+  sends `ELAPSED` by itself, and it came 600.103 s after the rising
+  `xStart` of a 10-minute countdown: its clock and ours agree to a tenth
+  of a second over ten minutes.
+  Start while paused resumes: still an assumption, the vendor has one Start
+  button and the state reads `RUNNING` either way.
 - **Two slots, ping-pong, never an empty frame.** The upload lands in the
   lowest empty slot (`AUTO_SLOT_WITH_DOWNSCALE`, above), so `planPush`
   predicts it and refuses when another frame points there, the library is
@@ -1184,8 +1200,20 @@ writes, `stagetimer.js` + `server.js` the server half, `panel.js` the page.
   room and key live in `timer-image-stagetimer` storage (not per device) and
   **the key never leaves the server**: no GET returns it, `describe()` omits
   it, and an empty key on PUT keeps the stored one. `LPP_STAGETIMER_BASE`
-  points it at `test/helpers/fake-stagetimer.js` in tests. No real room's
-  events have been seen; the payloads are the documented ones.
+  points it at `test/helpers/fake-stagetimer.js` in tests.
+  **Met a real room on 2026-11-11** (a test room, through the app against
+  the Midra simulator): the feed joined first time, and `room`,
+  `playback_status`, `current_timer` and `next_timer` (null with nothing
+  next) came with exactly the documented fields, no more. A countdown
+  through its yellow and red, a pause and resume, a +1m, a switch to a
+  count-up timer and the time over all read as the room's own display did;
+  the `server_time` offset came out at 1–32 ms.
+  ⚠️ **A room's display settings are not in the API.** Room Settings ▸
+  Time Formatting (time of day, countdown format) and ▸ Overtime (keep
+  counting, stop or hide at 0:00; a + or − prefix) never reach the feed, so
+  the picture is always the defaults: h:mm:ss, and the time over floored
+  after a `+`. The bdstage port drew a minus there; the real room drew a
+  plus, which is the default.
 
 Proved on the Midra 4K simulator 3.2.29 through the app (2026-11-11), the
 live Pulse never touched: a 5-minute countdown on TIMER_1 pushed every second
@@ -1218,10 +1246,22 @@ aspect) read back the exact time pushed, so it is a usable proof that a
 frame holds a picture — not that an output shows it. ⚠️ **An emptied slot
 keeps its last file's `fileName`, `width`, `height`, `fileSize` and
 `hashName`** with `isValid` false: read `isValid`, never a name, to tell a
-free slot (`readLibrary` does). Still unproven: what an output shows (no
-camera on it, and it never went on air), a real unit's timer frames (the
-three timers stayed IDLE), a Foreground Image's alpha, flash wear over a
-long show, the plugin's page itself on hardware, and a real Stagetimer room.
+free slot (`readLibrary` does). **A Foreground Image keeps a PNG's
+transparency** (Allan, from the show, 2026-11-11), so a transparent box
+works. Timers on that unit: see the tracker bullet above.
+
+The multiviewer is the only place a Pulse draws a running timer: a widget
+whose `source` is `TIMER_1..3` (offered in `multiviewer/status/pp/
+sourceValidity`). `/api/device/snapshots/multiviewer/1` is a real 512 × 288
+picture of the multiviewer output on hardware (not a placeholder, as on the
+simulator), so reading digits off it is a possible second source for a
+timer that started before any page saw it — untried, and on that show no
+widget carried a timer.
+
+Still unproven: what an output shows (no camera on it, and it never went on
+air), flash wear over a long show, and the plugin's page itself on
+hardware. A real Stagetimer room has been followed, on the simulator (the
+Stagetimer bullet above).
 
 ### `docs/OSC.md` is generated — `npm run gen:osc-docs`
 

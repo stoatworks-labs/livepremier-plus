@@ -1499,7 +1499,10 @@ and empties its slots.
   `--:--` until you stop it and start it again; it won't guess.
 - **Stagetimer**: a room ID and an API key from stagetimer.io, and it follows that room's current
   timer, live over Stagetimer's socket and polled when the socket drops. The key stays on the
-  machine LivePremier Plus runs on: the page, the setup file and the logs never see it.
+  machine LivePremier Plus runs on: the page, the setup file and the logs never see it. It
+  draws Stagetimer's default look (h:mm:ss, and `+0:12` once a countdown is over): a room's own
+  Time Formatting and Overtime settings aren't in Stagetimer's API, so a room set to a minus, or
+  to stop or hide at 0:00, still shows the default here.
 
 The loop is run by this app's server, one tick a second, so a page in a hidden tab keeps the
 picture moving; with several pages open, one does the pushing and the others watch. Every push is
@@ -1511,9 +1514,12 @@ timed, and the panel shows the median and the slowest, split into upload, repoin
 > on program) the same upload-repoint-delete cycle, run from `tools/timer-image-bench.mjs`, took
 > **about 140 ms a push** (upload 50–160 ms, then the Foreground Image's own thumbnail showed the
 > new time 13–37 ms after the repoint), and a push every second for a minute never fell behind.
-> Not yet seen: the picture on an actual output, how a real unit reports its timers, whether a
-> Foreground Image keeps a PNG's transparency, what a write a second does to its flash over a long
-> show, and a real Stagetimer room.
+> On the same unit a Foreground Image kept a PNG's transparency, and the page's timer logic, fed
+> the real messages the Pulse sent while Timer 1 was paused, resumed, stopped and started, read the
+> countdown correctly, and agreed with the Pulse to a tenth of a second over ten minutes. A real
+> Stagetimer room was followed through the page on the simulator: countdown, warning colours,
+> pause and resume, +1m, the time over and a switch to a count-up timer. Not yet seen: the picture
+> on an actual output, and what a write a second does to its flash over a long show.
 
 ## Pixelhue panel — preview
 
