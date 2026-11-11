@@ -1192,10 +1192,36 @@ live Pulse never touched: a 5-minute countdown on TIMER_1 pushed every second
 for minutes, median 18–25 ms a push (upload ~13–18, repoint ~1–2, empty ~4–5),
 one slot held in steady state, the downloaded PNG reading the time; Pause and
 resume tracked; Show on preview wrote `UP` top `frame: '4'` at the corner and
-left `DOWN` alone; Remove left FRG4 NONE and the library empty. Unproven: how
-long a real Pulse takes from upload to picture (the panel's timings are that
-measurement), a real unit's timer frames, a Foreground Image's alpha, flash
-wear from a write a second, and a real Stagetimer room.
+left `DOWN` alone; Remove left FRG4 NONE and the library empty.
+
+**On a real Pulse 4K (3.3.10), 2026-11-11, during a live event** —
+`tools/timer-image-bench.mjs`, not the plugin's page: the same three writes
+(upload, repoint, empty) from a script with show-safe gates, on S2 FRG4
+(nothing on either S2 buffer's top layer), slots 3 and 4, with the
+operator's go-ahead for S2 and slots 3+ and never program. 69 pushes, none
+failed, library and frames left exactly as found:
+
+| | median | 90% | max |
+|---|---|---|---|
+| upload, POST to `FINISH` | 66 ms | 144 ms | 163 ms |
+| slot `isValid` seen on the WS (from POST) | 55 ms | 128 ms | 160 ms |
+| frame repoint echoed | 3 ms | 6 ms | 10 ms |
+| frame's own thumbnail shows the new time (from repoint) | 19 ms | 34 ms | 37 ms |
+| whole push, upload to old slot emptied | 140 ms | 167 ms | 179 ms |
+
+Upload to picture-in-frame is ~70–140 ms, so a push a second has seven
+times headroom: 61 seconds of the once-a-second loop never fell behind. The
+uploads are bimodal (~55 ms or ~130 ms, about a third slow), as is the
+delete echo (~12 ms or ~65 ms). The thumbnail
+(`/api/device/snapshots/screens/<n>/top/<k>`, 256 px wide at the picture's
+aspect) read back the exact time pushed, so it is a usable proof that a
+frame holds a picture — not that an output shows it. ⚠️ **An emptied slot
+keeps its last file's `fileName`, `width`, `height`, `fileSize` and
+`hashName`** with `isValid` false: read `isValid`, never a name, to tell a
+free slot (`readLibrary` does). Still unproven: what an output shows (no
+camera on it, and it never went on air), a real unit's timer frames (the
+three timers stayed IDLE), a Foreground Image's alpha, flash wear over a
+long show, the plugin's page itself on hardware, and a real Stagetimer room.
 
 ### `docs/OSC.md` is generated — `npm run gen:osc-docs`
 

@@ -21,7 +21,9 @@
  *     the upload at once. So a writer predicts the slot (`nextSlots`), checks
  *     who points at it (`framesOn`), and reads back where it really went.
  *   - **A slot is emptied by pulsing `control/pp/xDelete`**, the bin on the
- *     vendor's card.
+ *     vendor's card. ⚠️ On a real Pulse 4K (3.3.10) an emptied slot keeps
+ *     its last `fileName`, `width`, `height` and `fileSize` with `isValid`
+ *     false, so free is `isValid`, never a missing name.
  *   - ⚠️ Never `GET /api/device/images/download/<slot>` for an empty slot on a
  *     Midra simulator: the export never finishes and the route answers 503
  *     until the web server restarts.

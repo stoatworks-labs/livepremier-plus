@@ -241,7 +241,7 @@ export function createTimerPanel({ ready, doc, change, screens, frames, timers, 
           class: 'aw-flex-col aw-gap-row-large aw-padding-medium', style: { maxWidth: '44rem' },
           onPointerdown: () => { pressed = true; }, onPointerup: () => { pressed = false; }, onPointerleave: () => { pressed = false; }
         },
-        note('warn', 'Preview: proven on the Midra 4K simulator only. How long a real Pulse takes from upload to picture has not been measured — the timings below are that measurement.'),
+        note('warn', 'Preview: this page has run on the Midra 4K simulator only. On a real Pulse 4K the same upload-repoint-delete took about 140 ms a push, from a test script, never on air. The timings below are this switcher’s own.'),
         whereSection(d, st),
         sourceSection(d),
         lookSection(d),

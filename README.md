@@ -1505,12 +1505,15 @@ The loop is run by this app's server, one tick a second, so a page in a hidden t
 picture moving; with several pages open, one does the pushing and the others watch. Every push is
 timed, and the panel shows the median and the slowest, split into upload, repoint and clean-up.
 
-> ⚠️ **Preview: proven on the Midra 4K simulator 3.2.29 only (2026-11-11).** A five-minute
-> countdown pushed every second, a push taking about 20 ms; pause and resume followed; Show on
-> preview and Remove did what they say. How long a real Pulse takes from upload to picture hasn't
-> been measured (the panel's timings will be that measurement), nor how a real unit reports its
-> timers, whether a Foreground Image keeps a PNG's transparency, or what a write a second does to
-> its flash over a long show. No real Stagetimer room has been followed yet.
+> ⚠️ **Preview.** The page has run on the Midra 4K simulator 3.2.29 only: a five-minute countdown
+> pushed every second, pause and resume followed, Show on preview and Remove did what they say. On a
+> **real Pulse 4K** (3.3.10, 2026-11-11, during a show, on a screen nobody was looking at and never
+> on program) the same upload-repoint-delete cycle, run from `tools/timer-image-bench.mjs`, took
+> **about 140 ms a push** (upload 50–160 ms, then the Foreground Image's own thumbnail showed the
+> new time 13–37 ms after the repoint), and a push every second for a minute never fell behind.
+> Not yet seen: the picture on an actual output, how a real unit reports its timers, whether a
+> Foreground Image keeps a PNG's transparency, what a write a second does to its flash over a long
+> show, and a real Stagetimer room.
 
 ## Pixelhue panel — preview
 
