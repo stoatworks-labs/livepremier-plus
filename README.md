@@ -257,6 +257,11 @@ bolted on afterwards:
   canvas, through a Background Image shown 1:1, which an Auto Crop set has the switcher crop for
   each output), or fills a Custom set with an input per output. Only proven on simulators. It opens a PDF, a PowerPoint deck or a Keynote deck too, and makes a
   background set per page, or every page a still at whatever size you type.
+- **Timer Image** *(preview, off by default, Midra 4K and Alta 4K)*: a Pulse 4K shows its timers on
+  the multiviewer and nowhere else, so this draws one as a picture and keeps one of a screen's
+  Foreground Images showing it, a fresh picture every second. The time comes from the switcher's
+  own Timer 1–3 or from a Stagetimer room. Put it on air like a logo. Only proven on the Midra 4K
+  simulator.
 - **Your setup in one file:** the cue stack, layer groups, names and locks, your variables,
   pixel maps, surfaces, UMDs and Companion triggers, the routers and the patch to them,
   HyperDecks, Triggers, Dante snapshots and settings, written as one plain JSON file and read back the same
@@ -1470,6 +1475,42 @@ has the detail.
 > frame haven't been tried. A Keynote deck went through Keynote Creator Studio 15.3.1 into the
 > slicer the same day, with Keynote closed and with another deck open in it; Keynote 14 on its own
 > hasn't been tried.
+
+## Timer Image — preview
+
+**PLUS ▸ Timer Image**, on a Midra 4K or Alta 4K, once it's switched on in Preconfig ▸
+LivePremier Plus → Plugins (it starts off, because it writes to the image library every second
+it runs). A Pulse 4K shows its three timers on the multiviewer and nowhere else; no screen can
+show one. A LivePremier doesn't need this, since a still there can be a timer.
+
+Pick a screen and one of its four **Foreground Images**, where the time comes from, and how it
+looks (size, colours, a label, a transparent box, and warning colours: red once a countdown is
+over, and a Stagetimer room's own yellow and red wrap-up times), and press **Start**. Each time the text changes it draws a PNG, uploads it, points the Foreground
+Image at it and only then empties the one before, so the picture never goes blank and never
+takes more than two library slots. It refuses a Foreground Image showing a picture that isn't
+its own, and a library slot another frame is pointed at. Put it on air the way you'd put a logo
+on: a preset's top layer showing that Foreground Image, then a take. **Show on preview** does the
+first half, in the corner you picked. **Remove picture** points the Foreground Image at nothing
+and empties its slots.
+
+- **A switcher timer** (Timer 1–3, with Start, Pause and Stop on the page). A Pulse publishes
+  whether a timer is running, not what it reads, so the page times it from the starts, pauses and
+  stops it sees, from any page. A timer that was already running when the page first saw it reads
+  `--:--` until you stop it and start it again; it won't guess.
+- **Stagetimer**: a room ID and an API key from stagetimer.io, and it follows that room's current
+  timer, live over Stagetimer's socket and polled when the socket drops. The key stays on the
+  machine LivePremier Plus runs on: the page, the setup file and the logs never see it.
+
+The loop is run by this app's server, one tick a second, so a page in a hidden tab keeps the
+picture moving; with several pages open, one does the pushing and the others watch. Every push is
+timed, and the panel shows the median and the slowest, split into upload, repoint and clean-up.
+
+> ⚠️ **Preview: proven on the Midra 4K simulator 3.2.29 only (2026-11-11).** A five-minute
+> countdown pushed every second, a push taking about 20 ms; pause and resume followed; Show on
+> preview and Remove did what they say. How long a real Pulse takes from upload to picture hasn't
+> been measured (the panel's timings will be that measurement), nor how a real unit reports its
+> timers, whether a Foreground Image keeps a PNG's transparency, or what a write a second does to
+> its flash over a long show. No real Stagetimer room has been followed yet.
 
 ## Pixelhue panel — preview
 

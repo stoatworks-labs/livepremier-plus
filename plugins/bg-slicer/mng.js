@@ -72,12 +72,15 @@ import { ROOT } from '../../src/core/paths.js';
 import { listDestinations } from '../../src/core/screens.js';
 import { screenOutputs } from '../../src/core/pitch.js';
 import { dialectFor, MNG } from '../../src/core/dialect.js';
+import { readLibrary, nextSlots, framesOn, librarySlotPath, libraryDeleteWrites } from '../../src/core/library-mng.js';
 import {
   regionOf, outputBlits, isExact, placementFor, firstFreeSet, suggestInputs, sendingFormatOf,
   templateRate, LABEL_MAX
 } from './core.js';
 
 export { firstFreeSet, suggestInputs, sendingFormatOf, LABEL_MAX };
+/* The library itself moved to `core/library-mng.js` (shared with Timer Image); re-exported as it always was. */
+export { readLibrary, nextSlots, framesOn, librarySlotPath, libraryDeleteWrites };
 
 /** Which model this is — `model.js` and the plan carry it. */
 export const PLATFORM = 'mng';
@@ -95,7 +98,6 @@ export const CANVAS_KEY = 'canvas';
 export const ONE_TO_ONE = '1_1';
 
 const CURRENT = [ROOT, 'preconfig', 'status', 'stateList', 'items', 'CURRENT'];
-const LIBRARY = [ROOT, 'stillLibrary'];
 
 /** `S2` → `'2'`, the key the screen list uses. */
 const screenKey = (id) => (MNG.split(id) || { key: String(id) }).key;
@@ -327,64 +329,6 @@ export function readFrames(store, screenId, sets = readSets(store, screenId)) {
 /** The first free Background Image of a screen, else null. */
 export const firstFreeFrame = (frames) => frames.find((f) => f.free) || null;
 
-/**
- * The image library: `{ slots: [{ slot, free, used, fileName, width, height,
- * size }], limits }`. There is no size budget in this store, only the
- * per-file limits the import states (`stillLibrary/import/status/pp`).
- */
-export function readLibrary(store) {
-  const bank = store.get([...LIBRARY, 'bankList']) || {};
-  const items = bank.items || {};
-  const keys = Array.isArray(bank.itemKeys) ? bank.itemKeys : Object.keys(items);
-  const slots = keys.map((k) => {
-    const st = pp(items[k] && items[k].status);
-    return {
-      slot: Number(k),
-      free: st.isValid !== true,
-      used: st.isUsed === true,
-      fileName: String(st.fileName || ''),
-      width: num(st.width) || 0,
-      height: num(st.height) || 0,
-      size: num(st.fileSize) || 0
-    };
-  }).filter((s) => Number.isInteger(s.slot)).sort((a, b) => a.slot - b.slot);
-  const limits = pp(store.get([...LIBRARY, 'import', 'status']));
-  return {
-    slots,
-    sizeKB: 0,
-    maxKB: 0,
-    limits: {
-      maxWidth: num(limits.maxWidth) || 18000,
-      maxHeight: num(limits.maxHeight) || 18000,
-      maxPixels: num(limits.maxTotalPixel) || 35389440,
-      maxBytes: num(limits.maxFileSize) || 26214400
-    }
-  };
-}
-
-/** The slots the next `count` uploads will land in: the first empty ones, in order. */
-export function nextSlots(library, count = 1) {
-  return library.slots.filter((s) => s.free).slice(0, count).map((s) => s.slot);
-}
-
-/**
- * Every frame on the switcher that points at a library slot — Background and
- * Foreground Images of every screen. An upload into that slot shows on each
- * of them at once.
- */
-export function framesOn(store, slot) {
-  const out = [];
-  const screens = store.get([ROOT, 'screenList', 'items']) || {};
-  for (const [key, node] of Object.entries(screens)) {
-    for (const [list, abbr] of [['backFrameList', 'BKG'], ['topFrameList', 'FRG']]) {
-      for (const [k, f] of Object.entries((node && node[list] && node[list].items) || {})) {
-        if (String(pp(f && f.control).librarySlot) === String(slot)) out.push({ screen: `S${key}`, list, index: k, name: `S${key} ${abbr}${k}` });
-      }
-    }
-  }
-  return out;
-}
-
 /* ------------------------------------------------------------ live inputs */
 
 /**
@@ -484,14 +428,6 @@ export const setOutputPath = (screenId, set, out, prop) =>
 export const presetSetPath = (screenId, buffer) => screenPath(screenId, 'presetList', 'items', buffer, 'background', 'source', 'pp', 'set');
 /** One status property of a preset buffer's background layer. */
 export const presetBackgroundStatus = (screenId, buffer, prop) => screenPath(screenId, 'presetList', 'items', buffer, 'background', 'status', 'pp', prop);
-/** A library slot's status. */
-export const librarySlotPath = (slot, prop) => [...LIBRARY, 'bankList', 'items', String(slot), 'status', 'pp', prop];
-/** Empty a library slot — the bin on the vendor's card, pulsed. */
-export const libraryDeleteWrites = (slot) => {
-  const path = [...LIBRARY, 'bankList', 'items', String(slot), 'control', 'pp', 'xDelete'];
-  return [{ path, value: false }, { path, value: true }];
-};
-
 /* ------------------------------------------------------------ write lists */
 
 /**

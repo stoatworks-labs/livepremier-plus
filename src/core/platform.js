@@ -277,6 +277,21 @@ export const CAPABILITIES = [
     absent: 'This switcher crops its outputs in a way this app does not write.'
   },
   {
+    id: 'foregroundImages',
+    label: 'Foreground Images',
+    /* Four Foreground Images per screen on a Midra 4K or Alta 4K
+       (`screenList/items/<n>/topFrameList`), each a library slot shown on a
+       preset's top layer — read off the Midra 4K simulator 3.2.29 and the
+       real Pulse 4K's store (2026-09-12). Timer Image keeps one showing a
+       timer. No nlc probe, by design: a LivePremier shows a timer on a layer
+       itself, through a still in TIMER mode (`STILL_SLOT_MODE`, 6.2.73). */
+    probes: {
+      mng: [ROOT, 'screenList', 'items', '*', 'topFrameList', 'items']
+    },
+    needs: 'Foreground Images on its screens',
+    absent: 'A LivePremier shows a timer on a layer by itself: set a still to Timer on its Images page. Timer Image is for a Midra 4K or Alta 4K, whose timers only reach the multiviewer.'
+  },
+  {
     id: 'imageLibrary',
     label: 'Image library',
     /* Two hundred slots under `stillList/library/bankList`, each with the

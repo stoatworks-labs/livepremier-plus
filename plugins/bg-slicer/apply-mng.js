@@ -42,41 +42,11 @@ import {
   presetWrites, frameStatusPath, presetBackgroundStatus, libraryDeleteWrites, edidWrites, activePlug
 } from './mng.js';
 import { MNG } from '../../src/core/dialect.js';
+import { UPLOAD_URL, uploadToNextSlot } from '../../src/core/library-mng.js';
 import { until, send, sendAndEcho, sleep, ECHO_MS, IMPORT_MS } from '../../src/core/wire.js';
 
-export const UPLOAD_URL = '/api/device/images/upload';
-
-/**
- * Upload one image and find where the switcher put it. Resolves `{ status,
- * slot, entry }`: the import status the server answered, and the library
- * slot that was empty before and now holds a file of this name (null if
- * none appeared).
- */
-export async function uploadToNextSlot({ session, fetchImpl = fetch, blob, name }) {
-  const { store } = session;
-  const before = new Set(readLibrary(store).slots.filter((s) => !s.free).map((s) => s.slot));
-  const form = new FormData();
-  form.append('FILES', blob, name);
-  let res;
-  for (let attempt = 0; attempt < 5; attempt++) {
-    res = await fetchImpl(UPLOAD_URL, { method: 'POST', body: form });
-    /* 503: another upload is running (the server takes one at a time). */
-    if (res.status !== 503) break;
-    await sleep(1500);
-  }
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`the switcher refused the upload: ${res.status}${text ? ` ${text.slice(0, 120)}` : ''}`);
-  }
-  let answer = null;
-  try { answer = await res.json(); } catch { answer = null; }
-  const status = answer && typeof answer === 'object' ? String(answer[name] ?? Object.values(answer)[0] ?? '') : '';
-  const fresh = () => readLibrary(store).slots.find((s) => !s.free && !before.has(s.slot) && s.fileName === name) || null;
-  /* A refused import fills nothing, so it is not waited for long. */
-  await until(store, () => !!fresh(), /^FINISH/.test(status) ? IMPORT_MS : 1500);
-  const entry = fresh();
-  return { status, slot: entry ? entry.slot : null, entry };
-}
+/* The upload moved to `core/library-mng.js` (shared with Timer Image); re-exported as it always was. */
+export { UPLOAD_URL, uploadToNextSlot };
 
 /** A store path as a few words for the progress list: `S2 BKG1 librarySlot`. */
 export function describePath(path) {

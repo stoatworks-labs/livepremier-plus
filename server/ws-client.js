@@ -41,6 +41,7 @@
  */
 
 import net from 'node:net';
+import tls from 'node:tls';
 import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 
@@ -74,12 +75,18 @@ export class WsClient extends EventEmitter {
    * @param {number} opts.port
    * @param {string} opts.path      request target, e.g. `/trpc`
    * @param {number} [opts.timeoutMs] how long to wait for the 101
+   * @param {boolean} [opts.secure]  TLS (`wss://`), checked against the
+   *   system's roots with `host` as the name — Stagetimer's feed is the one
+   *   caller. Companion's endpoint is plain TCP on the same machine.
+   * @param {Record<string,string>} [opts.headers] extra request headers
    */
-  constructor({ host, port, path = '/', timeoutMs = 8000 }) {
+  constructor({ host, port, path = '/', timeoutMs = 8000, secure = false, headers = {} }) {
     super();
     this.host = host;
     this.port = port;
     this.path = path;
+    this.secure = Boolean(secure);
+    this.headers = headers;
     this.open = false;
     this.closed = false;
 
@@ -96,7 +103,9 @@ export class WsClient extends EventEmitter {
     this.fragments = [];
     this.fragmentOp = null;
 
-    this.socket = net.connect({ host, port }, () => this.#sendHandshake());
+    this.socket = this.secure
+      ? tls.connect({ host, port, servername: net.isIP(host) ? undefined : host }, () => this.#sendHandshake())
+      : net.connect({ host, port }, () => this.#sendHandshake());
 
     this.timer = setTimeout(() => {
       if (!this.open) this.#fail(new Error(`no WebSocket handshake from ${host}:${port} in ${timeoutMs}ms`));
@@ -112,10 +121,14 @@ export class WsClient extends EventEmitter {
   #sendHandshake() {
     /* `Host` carries the port whenever it is not the scheme default, because
        a server that virtual-hosts will otherwise route us somewhere else. */
-    const host = this.port === 80 ? this.host : `${this.host}:${this.port}`;
+    const host = this.port === (this.secure ? 443 : 80) ? this.host : `${this.host}:${this.port}`;
+    const extra = Object.entries(this.headers || {})
+      .filter(([k, v]) => /^[A-Za-z0-9-]+$/.test(k) && typeof v === 'string' && !/[\r\n]/.test(v))
+      .map(([k, v]) => `${k}: ${v}\r\n`).join('');
     this.socket.write(
       `GET ${this.path} HTTP/1.1\r\n` +
         `Host: ${host}\r\n` +
+        extra +
         'Upgrade: websocket\r\n' +
         'Connection: Upgrade\r\n' +
         `Sec-WebSocket-Key: ${this.key}\r\n` +

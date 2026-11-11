@@ -507,6 +507,18 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'timer-image',
+    name: 'Timer Image',
+    where: 'Sidebar, under PLUS (preview)',
+    description: 'A timer drawn as a small picture and kept on one of a screen’s Foreground Images on a Midra 4K or Alta 4K — whose own timers only reach the multiviewer — so a preset’s top layer can put it on air like a logo. The time comes from one of the switcher’s three timers, timed here from the Start, Pause and Stop it sees (the switcher publishes no running value), or from a Stagetimer.io room’s current timer. Each picture goes into an empty library slot before the old one is emptied, so the frame never blanks. Run on the Midra 4K simulator only: how fast a real Pulse turns an upload into a picture is not known, and the page times every push.',
+    requires: { capabilities: ['foregroundImages'] },
+    /* Off until it has been: it uploads into the image library once a
+       second and repoints a Foreground Image, which may be on air. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'bg-slicer',
     name: 'Background Slicer',
     where: 'Sidebar, under PLUS (preview)',

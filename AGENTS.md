@@ -1133,6 +1133,70 @@ simulator through the browser, every write read back over AWJ (2026-10-20):
   the web server restarts (uploads carry on). Read a slot back only while it
   holds a file.
 
+The Midra library half — `readLibrary`, `nextSlots`, `framesOn`,
+`libraryDeleteWrites`, `uploadToNextSlot`, the upload URL — moved to
+`core/library-mng.js` on 2026-11-11, because Timer Image uploads the same way;
+`mng.js` and `apply-mng.js` re-export what they always exported.
+
+### Timer Image (`plugins/timer-image/`, `core/library-mng.js`) — **preview**, Midra/Alta only
+
+A Midra 4K or Alta 4K (a Pulse 4K) shows its three timers on the multiviewer
+and nowhere else: no screen source carries one. This draws the time as a PNG
+and keeps one of a screen's four **Foreground Images** showing it; the
+operator puts that Foreground Image on air the way a logo goes — the preset's
+top layer, then a take — and "Show on preview" does the first half. Offered
+where `foregroundImages` holds (the mng `topFrameList` probe), so not on a
+LivePremier, whose stills already have a Timer mode (`STILL_SLOT_MODE`
+NONE | IMAGE | TIMER). `core.js` pure, `render.js` canvas, `apply.js` the
+writes, `stagetimer.js` + `server.js` the server half, `panel.js` the page.
+
+- ⚠️ **A Midra timer publishes its state, never its value.** The tracker
+  (`createTracker`) keeps the time from the Start/Pause/Stop pulses and states
+  the page *sees come back* (`frame` events `dir: 'in'`), whoever sent them.
+  A timer already RUNNING or PAUSED when a page first sees it is `unknown`
+  until it is stopped or started — said on the panel, never guessed. The
+  Midra simulator echoes each pulse's edges twice and never changes `state`,
+  so every transition is idempotent; how a real unit reports one is unseen.
+  Start while paused resumes: an assumption, the vendor has one Start button.
+- **Two slots, ping-pong, never an empty frame.** The upload lands in the
+  lowest empty slot (`AUTO_SLOT_WITH_DOWNSCALE`, above), so `planPush`
+  predicts it and refuses when another frame points there, the library is
+  full, or the frame shows a picture that is not ours. Then: upload, repoint
+  the frame (`sendAndEcho`, inbound echo), and only then empty the old slot.
+  A failed repoint empties the new upload instead. Ours are named
+  `lpp-timer-S<n>-FRG<k>-a|b.png` (`ownName`/`ownedBy`); Remove points the
+  frame at NONE and empties only those.
+- **The loop runs on the server's tick, never a page timer.** `GET /stream`
+  is an SSE stream per page; each whole second (+15 ms) every page gets
+  `{ now, runner, running, report, stagetimer }`. The oldest open stream is
+  the **runner** and the only page that pushes; `running` is server memory
+  only (a restart never resumes on air by itself), and `POST /report` is
+  refused (409) from anyone but the runner. A hidden tab still gets SSE, so
+  the picture keeps moving behind another app. A push that outlasts a tick is
+  not queued: the next push draws whatever second it is when the last one is
+  done (`pending`). Three failures in a row stop it.
+- **Stagetimer** (`stagetimer.js`): Socket.IO v4 over our own `WsClient`
+  (`secure: true` → `tls.connect` with SNI) at
+  `/v1/socket.io/?EIO=4&transport=websocket`, `40{room_id, api_key}` to join,
+  `44{message}` a refusal that stops the retries; polling `get_status` every
+  5 s while the socket is down. Remaining = finish − server-now (running) or
+  finish − pause; the server-clock offset is bounded by the HTTP `Date`. The
+  room and key live in `timer-image-stagetimer` storage (not per device) and
+  **the key never leaves the server**: no GET returns it, `describe()` omits
+  it, and an empty key on PUT keeps the stored one. `LPP_STAGETIMER_BASE`
+  points it at `test/helpers/fake-stagetimer.js` in tests. No real room's
+  events have been seen; the payloads are the documented ones.
+
+Proved on the Midra 4K simulator 3.2.29 through the app (2026-11-11), the
+live Pulse never touched: a 5-minute countdown on TIMER_1 pushed every second
+for minutes, median 18–25 ms a push (upload ~13–18, repoint ~1–2, empty ~4–5),
+one slot held in steady state, the downloaded PNG reading the time; Pause and
+resume tracked; Show on preview wrote `UP` top `frame: '4'` at the corner and
+left `DOWN` alone; Remove left FRG4 NONE and the library empty. Unproven: how
+long a real Pulse takes from upload to picture (the panel's timings are that
+measurement), a real unit's timer frames, a Foreground Image's alpha, flash
+wear from a write a second, and a real Stagetimer room.
+
 ### `docs/OSC.md` is generated — `npm run gen:osc-docs`
 
 A published address space is a promise to somebody building a TouchOSC layout,
@@ -2435,6 +2499,8 @@ too, because the `layerGroups` probe has an mng spelling: **Layer names**, **Lay
 Groups** (and its Groups tab), **Send to** and **Layer Lock**, dialect-aware but
 never driven on a Midra simulator; **Preview lock**, proven on the Midra 4K
 simulator; and the **UMD Generator**, which offers Download PNG only there.
+**Timer Image** is the other way round, offered on mng only (`foregroundImages`),
+proven on the Midra 4K simulator.
 **Surfaces**' tab is offered but inert ("works on a LivePremier for now").
 Withheld, with its reason in the table: **VPU Map** (no VPU), **Matrix Routing**
 (its Router tab and box are written into LivePremier's pages), **Audio Matrix**
