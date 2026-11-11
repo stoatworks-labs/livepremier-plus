@@ -513,9 +513,27 @@ export class TabHost {
     return node;
   }
 
-  /** Our content pane, created next to the vendor's. */
+  /**
+   * Our content pane, created next to the vendor's.
+   *
+   * It wears the vendor pane's classes so it gets the same padding and
+   * height — and on Midra 4K and Alta 4K those classes are Semantic UI's
+   * `ui … active tab`, whose `.ui.tab.active { display: block }` outranks the
+   * browser's own `[hidden]` rule. So whether it shows is said with an inline
+   * `display`, never with `hidden` alone: an empty pane that `hidden` failed
+   * to hide kept its full height and pushed the vendor's Properties and
+   * Memories half out of the panel every time the operator came back from
+   * Console (2026-11-11, on a Pulse 4K mid-show). `_setPane` is the one place
+   * that decides.
+   *
+   * A re-render drops our reference but not the element, so one already in
+   * the strip's parent is taken back rather than a second added beside it.
+   */
   _ourPane(strip) {
     if (this._pane && this._pane.isConnected) return this._pane;
+    const parent = strip.parentElement;
+    const kept = parent && [...parent.children].find((c) => c.hasAttribute(OURS + '-pane'));
+    if (kept) { this._pane = kept; return kept; }
     const vendor = this._vendorPane(strip);
     const pane = h('div', { class: (vendor && vendor.className) || 'aw-full-height' });
     pane.setAttribute(OURS + '-pane', '');
@@ -524,6 +542,13 @@ export class TabHost {
     else strip.parentElement.append(pane);
     this._pane = pane;
     return pane;
+  }
+
+  /** Show or hide our pane in a way the vendor's stylesheet cannot overrule. */
+  _setPane(pane, shown) {
+    pane.hidden = !shown;
+    pane.style.display = shown ? '' : 'none';
+    if (!shown) pane.textContent = '';
   }
 
   /**
@@ -558,7 +583,7 @@ export class TabHost {
     }
 
     const pane = this._ourPane(strip);
-    pane.hidden = false;
+    this._setPane(pane, true);
     pane.textContent = '';
     pane.append(tab.render());
     this._sync(strip);
@@ -567,7 +592,7 @@ export class TabHost {
   hide() {
     const strip = this._strip();
     this.active = null;
-    if (this._pane) { this._pane.hidden = true; this._pane.textContent = ''; }
+    if (this._pane) this._setPane(this._pane, false);
     if (strip) {
       const vendor = this._vendorPane(strip);
       if (vendor && vendor.dataset.lppPrevDisplay !== undefined) {

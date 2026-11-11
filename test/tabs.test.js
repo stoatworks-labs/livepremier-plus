@@ -280,6 +280,46 @@ test('hiding restores the vendor pane exactly as it was', async () => {
   });
 });
 
+/*
+ * Our pane copies the vendor pane's classes, and on Midra 4K those are
+ * `ui bottom attached segment active tab` — `.ui.tab.active` sets
+ * `display: block`, which beats the browser's `[hidden]`. An empty pane left
+ * at full height pushed Memories half out of the panel after Console
+ * (2026-11-11, Pulse 4K). Only an inline `display` is sure to win.
+ */
+test('closing our tab hides its pane with an inline display, not hidden alone', async () => {
+  await withDom(async ({ doc, pane }) => {
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({ tabs: [{ id: 'console', label: 'Console', icon: 'x', render: () => doc.createElement('div') }] });
+    host._mount();
+    host.show('console');
+    const ours = pane.parentElement.querySelector('[data-lpp-tab-pane]');
+    assert.ok(ours.classList.contains('active') && ours.classList.contains('tab'), 'wears the vendor classes that force display: block');
+    assert.equal(ours.style.display, '', 'shown while open');
+    host.hide();
+    assert.equal(ours.style.display, 'none', 'an inline none, which .ui.tab.active cannot overrule');
+    assert.equal(ours.hidden, true);
+    assert.equal(ours.children.length, 0, 'and emptied');
+    host.show('console');
+    assert.equal(ours.style.display, '', 'and shown again on the next open');
+  });
+});
+
+test('a re-render reuses our pane rather than leaving a second one behind', async () => {
+  await withDom(async ({ doc, strip, pane }) => {
+    const { TabHost } = await import('../src/ui/tabs.js');
+    const host = new TabHost({ tabs: [{ id: 'console', label: 'Console', icon: 'x', render: () => doc.createElement('div') }] });
+    host._mount();
+    host.show('console');
+    host.hide();
+    /* React redraws the strip: our tabs go, our pane stays where it was. */
+    for (const node of strip.querySelectorAll('[data-lpp-tab]')) node.remove();
+    host._mount();
+    host.show('console');
+    assert.equal(pane.parentElement.querySelectorAll('[data-lpp-tab-pane]').length, 1);
+  });
+});
+
 test('toggling the open tab closes it', async () => {
   await withDom(async ({ doc }) => {
     const { TabHost } = await import('../src/ui/tabs.js');
