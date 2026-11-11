@@ -174,7 +174,7 @@ Canvas.
 and label, label alone, `short`, then `icon` alone, and when even the icons don't fit it shows as
 many as do, lowest `order` first, and puts the rest in a ⋯ menu. On LivePremier the panel is a fixed
 360px and the vendor's two tabs leave room for about one more, so in practice every plugin tab
-lands behind ⋯ there. Give a tab an `icon` (a sprite id from the vendor's page, or a list of them to
+lands behind ⋯ there. A Midra 4K's or Alta 4K's is 300px, and they land there too. Give a tab an `icon` (a sprite id from the vendor's page, or a list of them to
 try in order) and a `label` that reads well as a menu row and a tooltip; `short` only shows on the
 short rung.
 

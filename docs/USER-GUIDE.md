@@ -116,6 +116,9 @@ than something bolted on.
   from an input, with the output map for the media server behind it. A PDF, a PowerPoint deck or a
   Keynote deck becomes a background set per page, or a still per page at any size. Off until you
   switch it on.
+- **Timer Image** *(preview, off by default, Midra 4K and Alta 4K)*: one of the switcher's timers,
+  or a Stagetimer room's, drawn as a picture every second into a screen's Foreground Image, so a
+  Pulse can put a timer on air like a logo.
 - **Slow-link thumbnails:** a source thumbnail keeps its last picture until the next has finished
   arriving, so a browser on a slow link (a tablet over Remote access) still draws them. On by
   default; on a LAN nothing changes.
@@ -151,7 +154,8 @@ connection of their own when they act, which is worth knowing, because the switc
 > **Midra 4K and Alta 4K (QuickVu, Pulse, Eikos, QuickMatrix, Zenith 100/200) have been supported
 > since 0.6.0** for the Timeline, Console, Memories, Layer and Pitch Compensation, and since
 > 0.17.0 for the Edit page, HyperDecks and the Background Slicer too; Preview lock is proven on
-> the Midra 4K simulator, and the UMD Generator gives a Midra its PNG. There's no VPU to map on
+> the Midra 4K simulator, and the UMD Generator gives a Midra its PNG. Timer Image (0.19.0) is for
+> those alone, since a LivePremier can show a timer by itself. There's no VPU to map on
 > those, and Matrix Routing, Audio Matrix, Mosaic inputs, Pixel Map and Surfaces are LivePremier
 > only. MIDI Mapping and the Speed Editor hang under Virtual RC400T, which a Midra's sidebar
 > doesn't have, so they don't appear, and the Plugins card says so on their rows; Pixelhue
@@ -180,6 +184,15 @@ connection of their own when they act, which is worth knowing, because the switc
 > **0.15.0 adds Layer Lock, HyperDecks, the EDID builder, Mosaic inputs, Pixelhue Mapping and the
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
+>
+> **0.19.0 adds Timer Image and X-keys, and fixes the tab strip on a Midra.** [Timer
+> Image](#timer-image-preview-off-by-default) puts one of a Pulse's timers, or a Stagetimer room's,
+> on a screen as a Foreground Image. Its pictures have been pushed to a real Pulse 4K, once a
+> second, by a bench script; the page itself has run on the simulator. [X-keys](#x-keys-preview-off-by-default)
+> drives the switcher from an X-keys keypad, stick, T-bar or foot pedal, each key doing the job
+> you give it; no real panel yet. On a Midra 4K or Alta 4K the plugin tabs on Screens / Aux. go
+> behind the ⋯ instead of running over Quick Preset, and Properties and Memories come back whole
+> after one of them.
 >
 > **0.18.11 sorts out a U5 mini's input row and gives its grid TAKE and CUT.** The input row
 > stopped at 24; it now has every input the Web RCS would offer you as a source, wherever it sits
@@ -311,7 +324,7 @@ connection of their own when they act, which is worth knowing, because the switc
 
 ## Feature status
 
-Where each feature stands, as of 0.18.11. Three words, used the same way everywhere:
+Where each feature stands, as of 0.19.0. Three words, used the same way everywhere:
 
 - **Tested**: run on the real hardware it's for (a LivePremier frame, or the panel, network or
   program it talks to), every write read back from the switcher, and it did what this guide
@@ -374,6 +387,7 @@ output: where what you'd see is the point, that's said.
 | Thumbnail relay | Tested | A C mini: its output pictures went out at a hundredth of the bytes. |
 | Multiviewer thumbnails | Preview | Its test pattern on a C mini's real multiviewer layout; no real capture or stream yet. |
 | Background Slicer | Preview | Written to a C mini once and undone; not looked at on an output. |
+| Timer Image | Preview | A real Pulse 4K took a picture a second, from a bench script, in about 140 ms a push, and kept its transparency; never on program. The page itself only on the simulator, fed the Pulse's real timer messages and following a real Stagetimer room. Not looked at on an output. |
 | Transitions | In development | Every write and the take's timing on a C mini; what an output draws hasn't been seen. |
 | Layer Lock: Take only with a time and an effect | In development | A 2 s take with its own effect on a C mini, the screen's time put back after; not looked at. |
 | Aux backgrounds | In development | Taken and reported back by an RS4 and a C mini; not looked at. |
@@ -629,10 +643,11 @@ entry isn't there.
 
 **Screens / Aux. ▸ ⋯ ▸ Console.** The Console, Timeline, Layer, Groups and Pixel Map (and
 Surfaces and UMD, when they're switched on) live in the vendor's own tab strip on Screens / Aux.,
-but on LivePremier there's only room in it for one more thing after Properties and Memories. So they sit behind a **⋯** at the end: click it and pick one. While
+but there's not much room left in it after Properties and Memories, on LivePremier or on a Midra
+4K or Alta 4K. So they sit behind a **⋯** at the end: click it and pick one. While
 one is open the ⋯ stays lit and shows that tab's icon; click Properties or Memories to go back. If
-the strip has room (on a Midra 4K, say, or with some of these plugins switched off) they show as
-ordinary tabs instead.
+the strip has room (with some of these plugins switched off, say) they show as ordinary tabs
+instead.
 
 Verb first, then objects, innermost scope last. Every keyword abbreviates to any unambiguous
 prefix, and **nothing is sent until you press Enter.**
@@ -2564,6 +2579,61 @@ The same steps, with the platform's own model:
 
 ---
 
+## Timer Image (preview, off by default)
+
+A Pulse 4K shows its three timers on the multiviewer and nowhere else: no screen can show one.
+Timer Image draws a timer as a picture and keeps one of a screen's **Foreground Images** showing
+it, so you can put it on air the way you'd put a logo on. It's for a Midra 4K or Alta 4K; a
+LivePremier doesn't need it, since a still there can be a timer. It starts off, because it writes
+to the image library every second it runs: switch it on in **Preconfig ▸ LivePremier Plus →
+Plugins**, then open **PLUS ▸ Timer Image**.
+
+1. **Where:** a screen and one of its four Foreground Images.
+2. **The time:** one of the switcher's Timer 1–3, or a Stagetimer room (below).
+3. **How it looks:** size, colours, a label, a transparent box, and the warning colours: red once
+   a countdown is over, and a Stagetimer room's own yellow and red wrap-up times.
+4. **Start.**
+
+Each time the text changes it draws a PNG, uploads it, points the Foreground Image at it and only
+then empties the one before, so the picture never goes blank and never takes more than two
+library slots. It won't touch a Foreground Image showing a picture that isn't its own, or a
+library slot another frame is pointed at.
+
+To put it on air, give a preset's top layer that Foreground Image and take it. **Show on
+preview** does the first half, in the corner you picked. **Remove picture** points the
+Foreground Image at nothing and empties its slots.
+
+**A switcher timer.** The page has Start, Pause and Stop for it. A Pulse says whether a timer is
+running, not what it reads, so the page times it from the starts, pauses and stops it sees, from
+any page or panel. A timer that was already running when the page first saw it reads `--:--`
+until you stop it and start it again; it won't guess.
+
+**A Stagetimer room.** Give it the room's ID and an API key from stagetimer.io (**Test** checks
+both), and it follows the room's current timer: live over Stagetimer's own connection, and read
+every 5 seconds while that's down. The key stays on the machine this app runs on: the page, the
+setup file and the logs never see it. It draws Stagetimer's default look (h:mm:ss, and `+0:12`
+once a countdown is over). A room's own Time Formatting and Overtime settings aren't something
+Stagetimer lets other programs read, so a room set to show a minus, or to stop or hide at 0:00,
+still shows the default here.
+
+The loop runs in this app itself, once a second, so a page in a hidden tab keeps the picture
+moving; with several pages open, one does the pushing and the others watch. Every push is timed,
+and the panel shows the median and the slowest, split into upload, repoint and clean-up.
+
+> ⚠️ **Preview.** The page has run on the Midra 4K simulator only. On a **real Pulse 4K**
+> (2026-11-11, during a show, on a screen nobody was looking at and never on program) the same
+> upload, repoint and clean-up, run from a bench script, took **about 140 ms a push**, the
+> Foreground Image's own thumbnail showed the new time a few tens of milliseconds after that, and
+> a push every second never fell behind. The Foreground Image kept the picture's transparency.
+> The page's timing, fed the real messages that Pulse sent while Timer 1 was paused, resumed,
+> stopped and started, read the countdown right and agreed with the Pulse to a tenth of a second
+> over ten minutes. A real Stagetimer room was followed on the simulator: countdown, warning
+> colours, pause and resume, +1m, the time over and a switch to a count-up timer. Not yet seen:
+> the picture on an actual output, and what a write a second does to the switcher's flash over a
+> long show.
+
+---
+
 ## Resolume Mapping (off by default)
 
 **Preconfig ▸ Resolume Mapping**, just under Canvas. Tick the screens, side by side or one above
@@ -2755,8 +2825,8 @@ a real frame when they arrived, or write to the switcher on their own (several h
 from a custom format**, **Resolume Mapping**, **Aux backgrounds**, **Transitions**, **Experimental
 features**, and the
 **UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **X-keys**, **Lighting
-desk control**, **grandMA3**, **Thumbnail relay**, **Multiviewer thumbnails** and **Background Slicer**
-previews.
+desk control**, **grandMA3**, **Thumbnail relay**, **Multiviewer thumbnails**, **Background Slicer**
+and **Timer Image** previews.
 
 ![Preconfig ▸ LivePremier Plus → Plugins: every feature with its switch, what it does and where it lives](screenshots/plugins.png)
 
@@ -2865,6 +2935,6 @@ contain it.
 | **Arithmetic does not work in a field** | It is not one the vendor marks numeric with a range — the canvas zoom box, for one, has none. |
 | **The VPU panel says there is nothing to draw** | This simulator has no VPU (not every one does), or it's LivePremier firmware 6.1.60, which does not report its VPU allocation. The panel says which, and on 6.1.60 shows each screen's layers and the room left instead. Either way it is correct, not a failure. |
 | **The demo refuses to start** | It only runs against loopback, on purpose. Or it found no simulator (start one, or set `LPP_DEMO_DEVICE`), or port 8535 is the app's and the app is running (quit it, or set `LPP_DEMO_PORT`). |
-| **The Console, Timeline or Layer tab has gone** | On LivePremier they sit behind the **⋯** at the end of the Screens / Aux. tab strip, because the strip has room for one more tab and no more. |
+| **The Console, Timeline or Layer tab has gone** | They sit behind the **⋯** at the end of the Screens / Aux. tab strip, on LivePremier and (since 0.19.0) on a Midra 4K or Alta 4K, because the strip has little room after Properties and Memories. |
 | **I switched a plugin on and it isn't there** | Reload the page; the page picks up a change on its next load. If its row says *not on this switcher* or *needs* another plugin, that's the reason, and a *not on this switcher* row says why underneath. MIDI Mapping and the Speed Editor never appear on a Midra 4K or Alta 4K, which has no Virtual RC400T to hang them under, and their rows say so. Pixelhue Mapping is there, at the foot of the PLUS section rather than under Virtual RC400T. |
 | **I restored a setup and the old cue stack came back** | A page that was open during the restore saved what it had loaded. Reload every open page after a restore, then restore again. |

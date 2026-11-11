@@ -314,7 +314,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.18.11.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
+> **Status: field testing, v0.19.0.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
 > user guide says, feature by feature, what has met real hardware and what hasn't. The panels
 > render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
@@ -448,6 +448,23 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.19.0 (2026-11-11).** Two new plugins, both previews and both off until you switch them
+> on, and two fixes from a Pulse 4K in the middle of a show. **Timer Image** gives a Midra 4K or
+> Alta 4K a timer it can put on air. A Pulse shows its timers on the multiviewer and nowhere else,
+> so this draws one as a picture every second and keeps one of a screen's Foreground Images
+> showing it, the time taken from the switcher's own Timer 1–3 or from a **Stagetimer** room. On
+> a real Pulse 4K a push took about 140 ms and the Foreground Image kept the picture's
+> transparency; the page itself has run on the Midra 4K simulator only, fed the real Pulse's
+> timer messages and following a real Stagetimer room. **X-keys** drives the switcher from a
+> P.I. Engineering X-keys plugged into this machine, each key doing the job you give it on the
+> card. Its reports are checked against recordings of real panels, and it has run through the
+> Linux kernel as a virtual panel, but not yet met a real one. On a **Midra 4K or Alta 4K** the
+> plugin tabs on Screens / Aux. ran out of the panel and over Quick Preset; they now go behind the
+> ⋯ as they do on LivePremier. And going back to Properties or Memories from one of them left the
+> vendor's pane starting halfway down the panel with its bottom half cut off; it comes back whole
+> now. Both were seen on the Pulse and fixed on the Midra 4K simulator. Four tests that failed on
+> Windows pass there now.
 >
 > **0.18.11 (2026-11-05).** The **Pixelhue U5 mini** again, this time in front of a real Aquilon.
 > Its key grid's input row stopped at 24, because the app only ever asked about the first 24
@@ -2219,6 +2236,7 @@ device's store rather than by the model name:
 | Aux follow | yes | no — the layer paths it reads are LivePremier's, and the dialect has no aux layers there |
 | AoI from a custom format | yes | no — a Midra crops its outputs another way, and the section hangs off LivePremier's Canvas page |
 | Resolume Mapping | yes | no — it reads LivePremier's outputs, slices and background sets; a Midra keeps its sets on the screen, one picture per screen |
+| Timer Image | no — a still there can show a timer by itself | **yes** — a timer drawn into a Foreground Image, from Timer 1–3 or a Stagetimer room; written to a real Pulse 4K by a bench script, the page on the Midra 4K simulator only |
 | Arithmetic in fields, Variables, Settings | yes | yes — Variables are generated from whatever the box reports, so a Midra gets Midra's |
 
 Destinations are spelt the same everywhere (`S1`, `A2`) and only the last step onto the wire
