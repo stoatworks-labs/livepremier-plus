@@ -8,7 +8,9 @@ The first was the DaVinci Resolve Speed Editor; the second is the Barco EC-30 /
 EC-40 / EC-50 desk panel (*preview*, never yet run against a panel —
 `docs/BARCO-EC.md`); the third is the ATEM Micro Panel (*preview*, never yet run
 against a panel — `docs/ATEM-MICRO-PANEL.md`); the fourth is P.I. Engineering's
-X-keys (*preview*, never yet run against a panel — `docs/XKEYS.md`).
+X-keys (*preview*, never yet run against a panel — `docs/XKEYS.md`); the fifth is
+Native Instruments' Maschine MK3 (*preview*, never yet run against a panel —
+`docs/MASCHINE.md`).
 
 ## Why a program of its own
 
@@ -81,6 +83,17 @@ A module says which library it needs as `transport`:
 A module whose library did not load is not started, and the host's `hello` says
 why for that module alone, so a missing node-hid does not take the EC panel with
 it. The tests load stand-ins with `--hid <module>` and `--ftdi <module>`.
+
+**libusb as a second library.** Every module's `create()` is also handed `usb` (the
+`usb` package, libusb) or null with `usbReason`, for a device that is HID for one
+part and libusb for another. The Maschine MK3 (`modules/maschine-mk3/driver.js`) is:
+its keys, knobs, pads and lamps are HID interface 4, opened shared, and its two
+screens are interface 5, a bulk endpoint claimed through libusb. Its transport is
+`hid`; without libusb, or with the screens claimed by Native Instruments' agent, it
+runs without screens and its state says why. A screen arrives as `command({op:
+'screens', scenes})`, `src/core/raster.js` drawing operations, and is drawn in the
+host: a whole screen of pixels would not fit a command. Linux needs
+`udev/71-maschine-mk3.rules`. The tests load a stand-in with `--usb <module>`.
 
 ## Adding a module
 

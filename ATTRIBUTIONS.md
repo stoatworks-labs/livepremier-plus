@@ -34,6 +34,14 @@ Copyright: 2017 SuperFly.tv
 
 The X-keys plugin reads and lights P.I. Engineering's X-keys the way xkeys does, the library Bitfocus Companion drives them with, read at 3.3.0 (commit 3016c1bfec96). src/core/xkeys-products.js is generated from its products.ts by scripts/gen-xkeys-products.mjs; the report layout and the backlight and lamp commands in src/core/xkeys.js are rewritten from its xkeys.ts; and test/fixtures/xkeys-recordings.json carries its recordings of real panels, compacted, which the tests replay. The generated table and the recordings both carry its MIT notice.
 
+### Ctlra — OpenAV Productions (Harry van Haaren)
+
+<https://github.com/openAVproductions/openAV-Ctlra>  
+Licence: BSD-3-Clause  
+Copyright: 2017 OpenAV Productions, Harry van Haaren
+
+Native Instruments has never published the Maschine MK3's USB protocol. Its layout in src/core/maschine-mk3.js (the HID reports for the buttons, knobs, encoder, touch strip and pads, the button-bit and LED-slot table, the LED palette encoding, and the command set that draws the two screens over the bulk endpoint) is rewritten from Ctlra's ctlra/devices/ni_maschine_mk3.c, not copied. The Maschine plugin drives the panel with it.
+
 ### netaudio (network-audio-controller) — Christopher Ritsen
 
 <https://github.com/chris-ritsen/network-audio-controller>  
@@ -195,6 +203,14 @@ The Background Slicer's exports follow what each vendor documents its own softwa
 ### Event Master Toolset — Barco
 
 The Barco EC panel plugin's button table in src/core/ec-panel.js was generated from the showConsoleMap.csv the Event Master Toolset installs (identical in 9.2.68800 and 10.0.3.3021), and test/barco-ec.test.js checks it against whichever Toolset is installed. That file is a list of key numbers, lamp registers and display numbers; nothing else of Barco's is taken, and no part of their software is redistributed. LivePremier Plus is not affiliated with or endorsed by Barco.
+
+### Other Maschine MK3 drivers — autotel, ark-ain, santiagojorda, Emerah
+
+<https://github.com/autotel/maschine-mk3-linux>  
+Licence: GPL-3.0 (maschine-mk3-linux, ark-ain/maschine-mk3-driver, Emerah/MMK3-HID-Control); none stated (santiagojorda/maschine-mk3-driver)  
+Copyright: their authors
+
+Facts in src/core/maschine-mk3.js were cross-checked against these drivers: the pad report's event nibbles, the LED palette encoding and the analog fields against autotel's maschine-mk3-linux, and the screens' RGB565 byte order against ark-ain's and santiagojorda's maschine-mk3-driver and Emerah's MMK3-HID-Control. No code was taken from any of them, and none could be: three are GPL-3.0 and this is MIT. Facts about a wire protocol are not copyrightable, and the implementation here is independent.
 
 ## Inspirations
 

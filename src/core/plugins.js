@@ -450,6 +450,19 @@ export const BUILTINS = [
     client: 'client.js'
   },
   {
+    id: 'maschine',
+    name: 'Maschine MK3',
+    where: 'Settings (preview)',
+    description: 'A Native Instruments Maschine MK3 plugged into this machine driving the switcher, with no browser open: pads for sources, group keys for screens, the touch strip as a T-bar, knobs for the layer, and its two screens saying what each does. Never yet run against a panel.',
+    /* Off until it has been: it writes to a switcher, and Native
+       Instruments' agent on the same machine would hear every press too.
+       Nothing in `requires`: it reads and writes through the dialect, as the
+       other consoles do. */
+    enabledByDefault: false,
+    server: 'server.js',
+    client: 'client.js'
+  },
+  {
     id: 'desk-control',
     name: 'Lighting desk control',
     where: 'Settings (preview)',

@@ -99,6 +99,9 @@ than something bolted on.
 - **X-keys** *(preview, off by default)*: an X-keys keypad, stick, T-bar or foot pedal, plugged
   into the machine this app runs on, driving the switcher with no browser open, each key doing
   the job you give it. Turn it off in Companion first. Not yet tried on a real panel.
+- **Maschine MK3** *(preview, off by default)*: a Native Instruments Maschine MK3, plugged into the
+  machine this app runs on, driving the switcher with no browser open, its two screens saying what
+  every key and knob does. Quit NIHostIntegrationAgent first. Not yet tried on a real panel.
 - **Lighting desk control** *(preview, off by default)*: a lighting desk driving the switcher over
   Art-Net or sACN, as it drives a media server: memories, takes, each layer's source and opacity,
   and in the bigger modes its position, size and look. The patch comes as an MVR file, with
@@ -379,6 +382,7 @@ output: where what you'd see is the point, that's said.
 | Barco EC panel | Preview | A pretend panel only. |
 | ATEM Micro Panel | Preview | A pretend panel only. |
 | X-keys | Preview | A pretend panel against the simulator, and a virtual one through the Linux kernel; its reports checked against recordings of real panels. No real panel yet. |
+| Maschine MK3 | Preview | A pretend panel and a pretend switcher only; not yet the simulator. |
 | Lighting desk control | Preview | MagicQ PC and a pretend desk, against the simulator. |
 | grandMA3 | Preview | grandMA3 onPC against the simulator; no wing or desk. |
 | Desk (control surface) | In development | No desk exists yet; a pretend controller only. |
@@ -2233,6 +2237,26 @@ The jobs, the lamps and the rest are in [XKEYS.md](XKEYS.md).
 
 ---
 
+## Maschine MK3 (preview, off by default)
+
+A Native Instruments **Maschine MK3**, plugged into the machine this app runs on, driving the
+switcher with no browser open. GROUP A–H pick the screens, the pads put input *n* on the selected
+layer in preview (or a still, a screen, or a memory, from the soft keys above the left screen),
+PLAY takes, RESTART cuts, and the touch strip is a T-bar: touch it at the lit dot and slide. The
+encoder walks the layers, and knobs 1–5 set the selected layer's opacity, position and size, in
+preview. Its two screens label every key and knob, and show what's on air and in preview.
+
+Switch on **Maschine MK3** in **Preconfig ▸ LivePremier Plus → Plugins**, then tick **Drive a
+Maschine MK3** on its card. Quit Maschine 2, Komplete Kontrol and **NIHostIntegrationAgent** (a
+login item: Activity Monitor finds it) on the same machine first: the agent hears every press
+too, and keeps the screens. On Linux it needs a udev rule, `devices/udev/71-maschine-mk3.rules`.
+
+The controls, the lamps and the rest are in [MASCHINE.md](MASCHINE.md).
+
+> ⚠️ **Never run against a real panel**, only against a pretend one.
+
+---
+
 ## Lighting desk control (preview, off by default)
 
 A lighting desk (grandMA3, MagicQ, Titan, anything that sends **Art-Net** or **sACN**) driving the
@@ -2824,7 +2848,7 @@ a real frame when they arrived, or write to the switcher on their own (several h
 [Feature status](#feature-status) says which): **Preview lock**, **Image Library tools**, **Surfaces**, **Aux follow**, **AoI
 from a custom format**, **Resolume Mapping**, **Aux backgrounds**, **Transitions**, **Experimental
 features**, and the
-**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **X-keys**, **Lighting
+**UMD Generator**, **Test Card**, **Dante**, **Barco EC panel**, **ATEM Micro Panel**, **X-keys**, **Maschine MK3**, **Lighting
 desk control**, **grandMA3**, **Thumbnail relay**, **Multiviewer thumbnails**, **Background Slicer**
 and **Timer Image** previews.
 

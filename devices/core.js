@@ -30,6 +30,11 @@
  * `ftdi` is `transports/ftdi.js` (libusb or FTDI's D2XX). A module whose
  * library did not load is not started, and `hello` says why for each, so a
  * host without node-hid still drives an EC panel and the other way round.
+ *
+ * `usb` (libusb, the `usb` package) is also handed to every module, or null
+ * with `usbReason`, for a module that needs it for part of a device: the
+ * Maschine MK3 is HID for its keys and libusb for its screens, and runs
+ * without the screens when libusb is missing.
  */
 
 import { readdir } from 'node:fs/promises';
@@ -69,10 +74,14 @@ export async function loadModules(dir, log = () => {}) {
  * @param o.reason      why there is no node-hid, when there is none
  * @param o.ftdi        an FTDI backend (`transports/ftdi.js`), or null
  * @param o.ftdiReason  why there is none, when there is none
- * @param o.modules     module definitions, `{ id, name, transport, create({ hid, ftdi, log }) }`
+ * @param o.usb         the `usb` package (libusb), or null: a second library some modules use
+ * @param o.usbReason   why there is none, when there is none
+ * @param o.modules     module definitions, `{ id, name, transport, create({ hid, ftdi, usb, usbReason, log }) }`
  * @param o.send        fn(message) to the app
  */
-export function createHostCore({ hid, reason = null, ftdi = null, ftdiReason = null, modules, send, log = () => {} }) {
+export function createHostCore({
+  hid, reason = null, ftdi = null, ftdiReason = null, usb = null, usbReason = null, modules, send, log = () => {},
+}) {
   const libs = {
     hid: { lib: hid, reason: hid ? null : reason },
     ftdi: { lib: ftdi, reason: ftdi ? null : (ftdiReason || 'no FTDI transport on this host') },
@@ -89,7 +98,9 @@ export function createHostCore({ hid, reason = null, ftdi = null, ftdiReason = n
     if (missing) continue;
     let driver;
     try {
-      driver = m.create({ hid, ftdi, log: (text) => log(`${m.id}: ${text}`) });
+      driver = m.create({
+        hid, ftdi, usb, usbReason: usb ? null : (usbReason || 'no libusb on this host'), log: (text) => log(`${m.id}: ${text}`),
+      });
     } catch (err) {
       log(`${m.id}: could not start: ${err.message}`);
       failed.set(m.id, `could not start: ${err.message}`);

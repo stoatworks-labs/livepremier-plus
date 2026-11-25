@@ -200,6 +200,12 @@ bolted on afterwards:
   cut, an input or memory to preview, a screen, a layer, fade to black, freeze), and a model you
   haven't laid out runs a suggested layout. It hasn't been run against a real panel yet.
   [docs/XKEYS.md](docs/XKEYS.md)
+- **Maschine MK3** *(preview, off by default)*: a Native Instruments Maschine MK3 plugged into the
+  machine this app runs on drives the switcher with no browser open. Group keys pick screens, pads
+  put input *n* (or a still, a screen, a memory) in preview, PLAY takes, RESTART cuts, the touch
+  strip is a T-bar, and knobs 1–5 set the selected layer's opacity, position and size in preview.
+  Its two screens label every key and knob and show the tally. It hasn't been run against a real
+  panel yet. [docs/MASCHINE.md](docs/MASCHINE.md)
 - **Lighting desk control** *(preview, off by default)*: a grandMA3, MagicQ, Titan or anything
   else sending Art-Net or sACN drives the switcher the way it drives a media server. A fixture per
   screen and per layer, GDTF files to import, memories recalled to preview, Take and Cut, each

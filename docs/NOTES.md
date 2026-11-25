@@ -4279,3 +4279,36 @@ program switch, bit 1 "this answers Generate Data"; 214 is the version reply, fi
 and reads keys as they change), what colours the RGB panels really show, and what macOS, Windows
 or Linux make of a real one. Nothing here has met a panel.
 
+
+## Maschine MK3 (2026-11-25)
+
+**Why.** Asked for: a Native Instruments Maschine as a control surface, first for Resolume (a
+spike, `~/dev/maschine-spike`, local only) and then for this app. The MK3 has what the other
+panels here lack: two colour screens to label its keys and knobs with, and endless knobs.
+
+**Where the protocol came from.** OpenAV Ctlra's `ctlra/devices/ni_maschine_mk3.c`
+(BSD-3-Clause, © 2017 OpenAV Productions, Harry van Haaren), rewritten in
+`src/core/maschine-mk3.js`. Some facts were cross-checked against autotel/maschine-mk3-linux,
+ark-ain's and santiagojorda's maschine-mk3-driver and Emerah/MMK3-HID-Control; three of those are
+GPL-3.0, so facts only, never code. ATTRIBUTIONS.md lists them, from stoatworks-backend's
+`derived.json`.
+
+**What the panel looks like on USB.** `17cc:1600`. HID interface 4: input report 0x01 (42 bytes:
+80 button bits, a 4-bit encoder counter, eight knobs 0–999 that wrap, seven analog fields, the
+touch strip at field 1, 0 for no finger), 0x02 (pads, triplets of index and event-and-pressure);
+output reports 0x80 (62 lamp slots) and 0x81 (41: the strip's 25, then the 16 pads). Interface 5:
+vendor class, bulk OUT 0x04, both screens' pixels as RGB565 big-endian in a small command language
+(data, repeat, skip, blit, end), the counts in pixel pairs.
+
+**Native Instruments' agent.** NIHostIntegrationAgent is a login item (seen with `sfltool`), not a
+launchd job, and holds the panel for Maschine 2 and Komplete Kontrol. Quitting it also stops
+Komplete Kontrol's keyboard integration until the next login.
+
+**The spike against a real Resolume.** Its read-only bridge ran against Arena 7.29 with a show
+loaded and changed nothing: the show was the same before and after. The Arena facts it found
+(grouped layers listed twice, parameters subscribed by id, not path) are in the spike, not here.
+
+**Not known.** Everything a real panel would say: whether libusb can claim interface 5 while
+node-hid has interface 4, the mono lamps' range, which way the strip runs, the pad order, knob
+counts per turn, the palette's real colours, and the screens' frame rate. Nothing here has met a
+panel, nor the simulator yet: only a pretend panel and a pretend switcher.

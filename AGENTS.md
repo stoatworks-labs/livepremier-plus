@@ -774,6 +774,47 @@ panel**: the model table and the bytes are SuperFly.tv's xkeys library's (MIT, 3
   reason. The panel can be unplugged and replugged from its control FIFO. The same trick would
   serve the other HID panels; nobody has written their uhid twins yet.
 
+### A Maschine MK3 (`plugins/maschine/`) — **preview**
+
+A Native Instruments Maschine MK3 plugged into this machine, driving the switcher with no browser
+open, its two screens labelling every key and knob. `docs/MASCHINE.md` is the operator's page and
+the proven/not-proven list. **It has never met a panel**: the bytes are rewritten from OpenAV
+Ctlra's `ni_maschine_mk3.c` (BSD-3-Clause), a few facts cross-checked against GPL MK3 drivers
+(facts only: never copy code from those), and here it has met only `test/helpers/fake-maschine.js`.
+It started as a spike against Resolume (`~/dev/maschine-spike`, 2026-11-25). Load-bearing:
+
+- **The bytes are `src/core/maschine-mk3.js`**, no I/O, read by the device host and the plugin.
+  `test/maschine.test.js` holds the button table to its own shape (every bit and lamp once, button
+  lamps inside report 0x80, knob touches backwards). **Never edit it from a photo of a panel**; a
+  real panel that disagrees goes in NOTES.md first.
+- **Two roads to one panel.** Keys, knobs, pads, strip and lamps are HID interface 4 (node-hid,
+  opened shared); the screens are interface 5, bulk OUT 0x04, through libusb. So the device host
+  now hands every module `usb` (or null and `usbReason`) beside `hid` and `ftdi`
+  (`devices/core.js`, `host.js --usb` for the tests). **Missing screens are never fatal**: no libusb,
+  or interface 5 held by NIHostIntegrationAgent, leaves keys and lamps working and
+  `state.screenError` saying why.
+- **A screen crosses IPC as a scene, never pixels.** 480 × 272 RGB565 is 261 KB and a command is
+  at most 64 KB, so the plugin sends `command({op: 'screens', scenes})`, `raster.js` operations a
+  few KB long, and the driver draws them, sends only the changed rows, and keeps only the newest
+  frame waiting per screen. The supervisor sends a screen only when its scene's JSON changed.
+  Both LED reports (63 and 42 bytes) fit the host's 64-byte report limit.
+- **Runs in the server on the ATEM panel's terms**: the supervisor is that one's shape, presses go
+  through `src/core/console-intents.js`, the switcher is read in bursts by `ConsoleSwitcher`.
+- **Everything lands in preview**, the knobs included: `knobWrites` writes the selected layer's
+  parameter in the PREVIEW buffer by the letter read for each screen, and leaves out a screen whose
+  letter could not be read. The knobs find their parameters through `dialect.layerParams`, so a
+  Midra's size (another node) is found as a LivePremier's is. Only take, cut, the strip and FTB
+  touch air. Keep it that way.
+- **The strip is a T-bar with a virtual lever** (`view.lever`): a touch must land within `PICKUP`
+  of it to start a stroke, so a resting hand cannot jump a transition half way; lifting ends the
+  stroke where it is; a completed take puts the lever at the far end and spends the touch until
+  it lifts. Strokes then use `strokeProgress`/`tbarWrites` as the other T-bars do.
+- **Pad n is source n**, numbered as Maschine prints them (1 bottom left; the report's index 0 is
+  top left, `padNumber`/`padIndex`). A hit is a pad's first `press` or `note-on` until its release,
+  so a panel sending either first gives one hit.
+- **Letting go leaves the lamps dark and both screens black**, and nothing paints after that starts,
+  as on the ATEM panel.
+
 ### Lighting desk control (`plugins/desk-control/`) — **preview**
 
 A lighting desk sending Art-Net or sACN drives the switcher the way it drives a media server:

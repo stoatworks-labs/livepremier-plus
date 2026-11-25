@@ -12,6 +12,8 @@
  *   --hid <module>    load this in place of node-hid — the tests' fake panel
  *   --ftdi <module>   load this in place of the FTDI transport — its default
  *                     export is the backend (the tests' fake EC panel)
+ *   --usb <module>    load this in place of the `usb` package (libusb) — the
+ *                     tests' fake Maschine screens
  */
 
 import { dirname, join, resolve } from 'node:path';
@@ -31,6 +33,8 @@ const at = argv.indexOf('--hid');
 const hidPath = at >= 0 ? argv[at + 1] : null;
 const ftdiAt = argv.indexOf('--ftdi');
 const ftdiPath = ftdiAt >= 0 ? argv[ftdiAt + 1] : null;
+const usbAt = argv.indexOf('--usb');
+const usbPath = usbAt >= 0 ? argv[usbAt + 1] : null;
 
 async function loadHid() {
   try {
@@ -44,6 +48,18 @@ async function loadHid() {
         ? 'node-hid is not installed in devices/ (npm run setup:devices).'
         : `node-hid failed to load: ${err.message}`,
     };
+  }
+}
+
+/* libusb, for a module that needs it beside HID (the Maschine MK3's screens).
+   Missing is not fatal: such a module runs without that part. */
+async function loadUsb() {
+  try {
+    const mod = await import(usbPath ? pathToFileURL(resolve(usbPath)).href : 'usb');
+    return { usb: mod.default ?? mod, usbReason: null };
+  } catch (err) {
+    const missing = err?.code === 'ERR_MODULE_NOT_FOUND' || /Cannot find (module|package)/.test(err?.message ?? '');
+    return { usb: null, usbReason: missing ? 'usb is not installed in devices/ (npm run setup:devices).' : `usb failed to load: ${err.message}` };
   }
 }
 
@@ -62,7 +78,10 @@ const log = (text) => send({ type: 'log', text });
 
 const { hid, reason } = await loadHid();
 const { ftdi, reason: ftdiReason } = await loadFtdiTransport();
-const core = createHostCore({ hid, reason, ftdi, ftdiReason, modules: await loadModules(join(HERE, 'modules'), log), send, log });
+const { usb, usbReason } = await loadUsb();
+const core = createHostCore({
+  hid, reason, ftdi, ftdiReason, usb, usbReason, modules: await loadModules(join(HERE, 'modules'), log), send, log,
+});
 
 process.on('message', (msg) => { void core.handle(msg); });
 

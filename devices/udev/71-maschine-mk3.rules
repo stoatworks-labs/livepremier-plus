@@ -1,0 +1,11 @@
+# Native Instruments Maschine MK3 (17cc:1600): lets the logged-in user's LivePremier Plus
+# open the panel's hidraw node through hidapi (keys, knobs, pads, lamps) and its USB device
+# through libusb (the two screens). The kernel's own drivers keep what they have; this only
+# lets the user read and write it as well.
+#
+#   sudo cp 71-maschine-mk3.rules /etc/udev/rules.d/
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#
+# then unplug the panel and plug it back in. See docs/MASCHINE.md.
+KERNEL=="hidraw*", ATTRS{idVendor}=="17cc", ATTRS{idProduct}=="1600", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="17cc", ATTR{idProduct}=="1600", MODE="0660", TAG+="uaccess"
