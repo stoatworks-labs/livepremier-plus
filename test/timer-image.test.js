@@ -455,7 +455,10 @@ test('the link reads a room over the feed: the key in the CONNECT, never a URL',
   const link = new StagetimerLink({ roomId: 'ROOM1', apiKey: 'SECRET', base: st.base });
   t.after(() => link.stop());
   link.start();
-  for (let i = 0; i < 100 && !(link.state === 'live' && link.snap.status && link.snap.timers.length); i++) await sleep(20);
+  // The feed can fill the timers before the HTTP get_all_timers reaches the
+  // stand-in (on Windows it lands a few hundred ms later), so wait for both.
+  const fetched = () => st.requests.some((r) => r.path === '/v1/get_all_timers');
+  for (let i = 0; i < 100 && !(link.state === 'live' && link.snap.status && link.snap.timers.length && fetched()); i++) await sleep(20);
   assert.equal(link.state, 'live');
   assert.deepEqual(st.connects, [{ room_id: 'ROOM1', api_key: 'SECRET' }]);
   assert.equal(st.unmasked, 0, 'every client frame masked');
