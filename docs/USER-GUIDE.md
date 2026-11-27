@@ -188,6 +188,11 @@ connection of their own when they act, which is worth knowing, because the switc
 > Speed Editor**, all proven on the simulator (and emulated decks and panels) only. None had met
 > real hardware at 0.15.0; the Speed Editor met a real panel in 0.16.0, below.
 >
+> **0.20.0 adds the Maschine MK3.** [Maschine MK3](#maschine-mk3-preview-off-by-default) drives
+> the switcher from a Native Instruments Maschine MK3, with no browser open, its two screens saying
+> what every key and knob does. It has met a pretend panel and a pretend switcher only: no real
+> panel yet, and not yet the simulator.
+>
 > **0.19.0 adds Timer Image and X-keys, and fixes the tab strip on a Midra.** [Timer
 > Image](#timer-image-preview-off-by-default) puts one of a Pulse's timers, or a Stagetimer room's,
 > on a screen as a Foreground Image. Its pictures have been pushed to a real Pulse 4K, once a
@@ -327,7 +332,7 @@ connection of their own when they act, which is worth knowing, because the switc
 
 ## Feature status
 
-Where each feature stands, as of 0.19.0. Three words, used the same way everywhere:
+Where each feature stands, as of 0.20.0. Three words, used the same way everywhere:
 
 - **Tested**: run on the real hardware it's for (a LivePremier frame, or the panel, network or
   program it talks to), every write read back from the switcher, and it did what this guide

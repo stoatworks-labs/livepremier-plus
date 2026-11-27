@@ -320,7 +320,7 @@ most of it: everything bar the VPU Map, Matrix Routing, Audio Matrix, Mosaic inp
 Map and Surfaces, and the pages that hang under Virtual RC400T (MIDI Mapping, Speed Editor, Pixelhue
 Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) has the detail.
 
-> **Status: field testing, v0.19.0.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
+> **Status: field testing, v0.20.0.** [Feature status](docs/USER-GUIDE.md#feature-status) in the
 > user guide says, feature by feature, what has met real hardware and what hasn't. The panels
 > render inside a real Web RCS session and the
 > device store mirrors live. Both are verified through this proxy against LivePremier Simulator
@@ -454,6 +454,17 @@ Mapping), which that platform's sidebar doesn't have. [Platforms](#platforms) ha
 > things only hardware could show: with *preset toggle* off, a take passes `COPY_FROM_x` after
 > its effect, so the settle is takeTime plus ~250 ms, and `isLoading` is a real 30 ms window
 > where the simulator's is zero. `docs/NOTES.md` has the rest.
+>
+> **0.20.0 (2026-11-27).** One new plugin, a preview and off until you switch it on. **Maschine
+> MK3** drives the switcher from a Native Instruments Maschine MK3 plugged into this machine, with
+> no browser open. GROUP A–H pick the screens, the pads put an input, still, screen or memory in
+> preview, PLAY takes, RESTART cuts, the touch strip is a T-bar with a lit dot for its lever, and
+> knobs 1–5 set the selected layer's opacity, position and size in preview. Its two screens say
+> what every key and knob does, and show what's on air and in preview. Quit Native Instruments'
+> NIHostIntegrationAgent first, or it hears every press and keeps the screens. It has run against
+> a pretend panel and a pretend switcher only: not yet a real Maschine, and not yet the simulator.
+> On Windows the screens will probably stay dark, because Native Instruments' driver owns them;
+> the keys, pads and lamps don't need them.
 >
 > **0.19.0 (2026-11-11).** Two new plugins, both previews and both off until you switch them
 > on, and two fixes from a Pulse 4K in the middle of a show. **Timer Image** gives a Midra 4K or
